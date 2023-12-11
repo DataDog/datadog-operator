@@ -30,10 +30,11 @@ func TestProfilesToApply(t *testing.T) {
 	t3 := t2.Add(time.Minute)
 
 	tests := []struct {
-		name             string
-		profiles         []v1alpha1.DatadogAgentProfile
-		nodes            []v1.Node
-		expectedProfiles []v1alpha1.DatadogAgentProfile
+		name                           string
+		profiles                       []v1alpha1.DatadogAgentProfile
+		nodes                          []v1.Node
+		expectedProfiles               []v1alpha1.DatadogAgentProfile
+		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 	}{
 		{
 			name:     "no profiles",
@@ -59,6 +60,12 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
 		},
 		{
 			name: "several non-conflicting profiles",
@@ -79,26 +86,12 @@ func TestProfilesToApply(t *testing.T) {
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
-				{ // Default that does not apply to linux or windows
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{ // Opposite of example Linux profile
-									Key:      "os",
-									Operator: v1.NodeSelectorOpNotIn,
-									Values:   []string{"linux"},
-								},
-								{ // Opposite of example Windows profile
-									Key:      "os",
-									Operator: v1.NodeSelectorOpNotIn,
-									Values:   []string{"windows"},
-								},
-							},
-						},
-					},
+				defaultProfile(),
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
 				},
 			},
 		},
@@ -241,28 +234,20 @@ func TestProfilesToApply(t *testing.T) {
 						Config: configWithCPURequestOverrideForCoreAgent("300m"),
 					},
 				},
-				{ // Default profile (opposite of the ones that apply, in this case profile-2 and profile-3)
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								// These could be in any order, but the test is
-								// not checking that.
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpNotIn,
-									Values:   []string{"1"},
-								},
-								{
-									Key:      "c",
-									Operator: v1.NodeSelectorOpNotIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-					},
+				defaultProfile(),
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "profile-3",
+				},
+				"node2": {
+					Namespace: testNamespace,
+					Name:      "profile-2",
+				},
+				"node3": {
+					Namespace: testNamespace,
+					Name:      "profile-2",
 				},
 			},
 		},
@@ -365,21 +350,12 @@ func TestProfilesToApply(t *testing.T) {
 						Config: configWithCPURequestOverrideForCoreAgent("200m"),
 					},
 				},
-				{ // Default profile (opposite of the ones that apply, in this case profile-1)
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpNotIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-					},
+				defaultProfile(),
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "profile-1",
 				},
 			},
 		},
@@ -387,9 +363,10 @@ func TestProfilesToApply(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			profilesToApply, err := ProfilesToApply(test.profiles, test.nodes)
+			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.expectedProfiles, profilesToApply)
+			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)
 		})
 	}
 }
@@ -472,7 +449,7 @@ func TestDaemonSetName(t *testing.T) {
 		{
 			name: "default profile name",
 			profileNamespacedName: types.NamespacedName{
-				Namespace: "agent",
+				Namespace: "",
 				Name:      "default",
 			},
 			expectedDaemonSetName: "",

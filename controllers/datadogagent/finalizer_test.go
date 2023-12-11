@@ -10,7 +10,9 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	agenttestutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -78,7 +80,7 @@ func Test_handleFinalizer_V2(t *testing.T) {
 	// This is not an exhaustive test. The finalizer should remove all the
 	// kubernetes resources associated with the Datadog Agent being removed, but
 	// to simplify a bit, this test doesn't check all the resources, it just
-	// checks a few ones (cluster roles, cluster role bindings).
+	// checks a few ones (cluster roles, cluster role bindings, profile labels).
 
 	now := metav1.Now()
 
@@ -151,12 +153,21 @@ func Test_handleFinalizer_V2(t *testing.T) {
 		},
 	}
 
+	nodes := []*corev1.Node{
+		testutils.NewNode("node-1", nil),
+		testutils.NewNode("node-2", map[string]string{agentprofile.ProfileLabelKey: "true"}), // The label should be deleted
+	}
+
 	for _, clusterRole := range existingClusterRoles {
 		initialKubeObjects = append(initialKubeObjects, clusterRole)
 	}
 
 	for _, clusterRoleBinding := range existingClusterRoleBindings {
 		initialKubeObjects = append(initialKubeObjects, clusterRoleBinding)
+	}
+
+	for _, node := range nodes {
+		initialKubeObjects = append(initialKubeObjects, node)
 	}
 
 	reconciler := reconcilerV2ForFinalizerTest(initialKubeObjects)
@@ -181,6 +192,14 @@ func Test_handleFinalizer_V2(t *testing.T) {
 			assert.True(t, apierrors.IsNotFound(err), fmt.Sprintf("Unexpected error %s", err))
 		}
 	}
+
+	// Check that the nodes don't have the profile label anymore
+	for _, node := range nodes {
+		currentNode := &corev1.Node{}
+		err = reconciler.client.Get(context.TODO(), types.NamespacedName{Name: node.Name}, currentNode)
+		assert.NoError(t, err)
+		assert.NotContains(t, currentNode.Labels, agentprofile.ProfileLabelKey)
+	}
 }
 
 func reconcilerV1ForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
@@ -200,7 +219,7 @@ func reconcilerV1ForFinalizerTest(initialKubeObjects []client.Object) Reconciler
 }
 
 func reconcilerV2ForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
-	s := testutils.TestScheme(true)
+	s := agenttestutils.TestScheme(true)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(initialKubeObjects...).WithScheme(s).Build()
 

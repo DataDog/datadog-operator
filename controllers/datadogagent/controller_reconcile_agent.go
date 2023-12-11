@@ -7,21 +7,23 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	ddacomponent "github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
@@ -199,17 +201,40 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, daemonSetNamesAppliedProfiles map[string]struct{}) error {
-	daemonSets, err := r.agentDaemonSetsCreatedByOperator(ctx)
+func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName) error {
+	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles); err != nil {
+		return err
+	}
+
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+		return err
+	}
+
+	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile) error {
+	daemonSets, err := r.agentProfileDaemonSetsCreatedByOperator(ctx)
 	if err != nil {
 		return err
 	}
 
-	defaultDaemonSetName := ddacomponent.GetAgentName(dda) // TODO: take into account name override
-	for _, daemonSet := range daemonSets {
-		_, belongsToActiveProfile := daemonSetNamesAppliedProfiles[daemonSet.Name]
+	daemonSetNamesBelongingToProfiles := map[string]struct{}{}
+	for _, profile := range profiles {
+		name := types.NamespacedName{
+			Namespace: profile.Namespace,
+			Name:      profile.Name,
+		}
 
-		if belongsToActiveProfile || daemonSet.Name == defaultDaemonSetName {
+		daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+	}
+
+	for _, daemonSet := range daemonSets {
+		if _, belongsToProfile := daemonSetNamesBelongingToProfiles[daemonSet.Name]; belongsToProfile {
 			continue
 		}
 
@@ -221,11 +246,85 @@ func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.C
 	return nil
 }
 
-func (r *Reconciler) agentDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
+// labelNodesWithProfiles sets the "agent.datadoghq.com/profile" label only in
+// the nodes where a profile is applied
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
+	for nodeName, profileNamespacedName := range profilesByNode {
+		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+
+		node := &corev1.Node{}
+		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
+			return err
+		}
+
+		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+
+		if isDefaultProfile && profileLabelExists {
+			delete(node.Labels, agentprofile.ProfileLabelKey)
+			if err := r.client.Update(ctx, node); err != nil {
+				return err
+			}
+		}
+
+		if !isDefaultProfile && !profileLabelExists {
+			node.Labels[agentprofile.ProfileLabelKey] = "true"
+			if err := r.client.Update(ctx, node); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanupPodsForProfilesThatNoLongerApply deletes the agent pods that should
+// not be running according to the profiles that need to be applied. This is
+// needed because in the affinities we use
+// "RequiredDuringSchedulingIgnoredDuringExecution" which means that the pods
+// might not always be evicted when there's a change in the profiles to apply.
+// Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
+// available in Kubernetes yet.
+func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
+	for nodeName, profileNamespacedName := range profilesByNode {
+		// Get the agent pods running on the node
+		podList := &corev1.PodList{}
+		err := r.client.List(
+			ctx,
+			podList,
+			client.MatchingLabels(map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+			}),
+			client.MatchingFields{"spec.nodeName": nodeName})
+		if err != nil {
+			return err
+		}
+
+		// Delete the agent pods that should be in the node according to the
+		// profiles that need to be applied
+		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+		for _, pod := range podList.Items {
+			profileLabelValue, profileLabelExists := pod.Labels[agentprofile.ProfileLabelKey]
+			expectedProfileLabelValue := fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+
+			deletePod := (isDefaultProfile && profileLabelExists) ||
+				(!isDefaultProfile && !profileLabelExists) ||
+				(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+
+			if deletePod {
+				if err = r.client.Delete(ctx, &pod); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) agentProfileDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	daemonSetList := appsv1.DaemonSetList{}
 
-	err := r.client.List(ctx, &daemonSetList, client.HasLabels{agentprofile.DaemonSetLabelKey})
-	if err != nil {
+	if err := r.client.List(ctx, &daemonSetList, client.HasLabels{agentprofile.ProfileLabelKey}); err != nil {
 		return nil, err
 	}
 

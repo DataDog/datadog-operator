@@ -145,25 +145,19 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	requiredContainers := requiredComponents.Agent.Containers
 
-	profiles, err := r.profilesToApply(ctx)
+	profiles, profilesByNode, err := r.profilesToApply(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	daemonSetNamesAppliedProfiles := map[string]struct{}{} // TODO: do the same for EDS
 	for _, profile := range profiles {
 		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers, &profile)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
-		profileNamespacedName := types.NamespacedName{
-			Namespace: profile.Namespace,
-			Name:      profile.Name,
-		}
-		daemonSetNamesAppliedProfiles[agentprofile.DaemonSetName(profileNamespacedName)] = struct{}{}
 	}
-	// TODO: do the same for EDS. Also make sure that this doesn't delete anything that it isn't supposed to when there's an error in the for above that doesn't return
-	if err = r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, instance, daemonSetNamesAppliedProfiles); err != nil {
+
+	if err = r.handleProfiles(ctx, profiles, profilesByNode); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -274,17 +268,17 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 	// }
 }
 
-func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.DatadogAgentProfile, error) {
+func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	nodeList := corev1.NodeList{}
 	err = r.client.List(ctx, &nodeList)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items)

@@ -171,6 +171,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=extensions,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
 
+// Profiles
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch,update
+
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
@@ -178,6 +181,15 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// This is for the agent profiles feature. We need to be able to get the
+	// agent pod running on a node.
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
+		pod := rawObj.(*corev1.Pod)
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		return err
+	}
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).

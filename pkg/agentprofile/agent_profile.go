@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	DaemonSetLabelKey   = "agent.datadoghq.com/profile"
+	ProfileLabelKey     = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 )
@@ -35,13 +35,11 @@ const (
 // oldest one is the one that takes precedence. When two profiles share an
 // identical creation timestamp, the profile whose name is alphabetically first
 // is considered to have priority.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, error) {
-	var res []datadoghqv1alpha1.DatadogAgentProfile
-
-	nodesWithProfilesApplied := make(map[string]bool, len(nodes))
-	for _, node := range nodes {
-		nodesWithProfilesApplied[node.Name] = false
-	}
+// This function also returns a map that maps each node name to the profile that
+// should be applied to it.
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
+	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
 
 	sortedProfiles := sortProfiles(profiles)
 
@@ -52,11 +50,11 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 		for _, node := range nodes {
 			matchesNode, err := profileMatchesNode(&profile, &node)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			if matchesNode {
-				if nodesWithProfilesApplied[node.Name] {
+				if _, found := profileAppliedPerNode[node.Name]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
 					break
@@ -71,13 +69,27 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 		}
 
 		for node := range nodesThatMatchProfile {
-			nodesWithProfilesApplied[node] = true
+			profileAppliedPerNode[node] = types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}
 		}
 
-		res = append(res, profile)
+		profilesToApply = append(profilesToApply, profile)
 	}
 
-	return append(res, defaultProfile(res)), nil
+	profilesToApply = append(profilesToApply, defaultProfile())
+
+	// Apply the default profile to all nodes that don't have a profile applied
+	for _, node := range nodes {
+		if _, found := profileAppliedPerNode[node.Name]; !found {
+			profileAppliedPerNode[node.Name] = types.NamespacedName{
+				Name: defaultProfileName,
+			}
+		}
+	}
+
+	return profilesToApply, profileAppliedPerNode, nil
 }
 
 // ComponentOverrideFromProfile returns the component override that should be
@@ -96,73 +108,38 @@ func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile
 	}
 }
 
+// IsDefaultProfile returns true if the given profile namespace and name
+// correspond to the default profile.
+func IsDefaultProfile(profileNamespace string, profileName string) bool {
+	return profileNamespace == "" && profileName == defaultProfileName
+}
+
 // DaemonSetName returns the name that the DaemonSet should have according to
 // the name of the profile associated with it.
 func DaemonSetName(profileNamespacedName types.NamespacedName) string {
-	if profileNamespacedName.Name == defaultProfileName {
+	if IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name) {
 		return "" // Return empty so it does not override the default DaemonSet name
 	}
 
 	return daemonSetNamePrefix + profileNamespacedName.Namespace + "-" + profileNamespacedName.Name
 }
 
-// defaultProfile returns the default profile, which is the one to be applied in
-// the nodes where none of the profiles received apply.
-// Note: this function assumes that the profiles received do not conflict.
-func defaultProfile(profiles []datadoghqv1alpha1.DatadogAgentProfile) datadoghqv1alpha1.DatadogAgentProfile {
-	var nodeSelectorRequirements []v1.NodeSelectorRequirement
-
-	// TODO: I think this strategy only works if there's only one node selector per profile.
-	for _, profile := range profiles {
-		if profile.Spec.ProfileAffinity != nil {
-			for _, nodeSelectorRequirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
-				nodeSelectorRequirements = append(
-					nodeSelectorRequirements,
-					v1.NodeSelectorRequirement{
-						Key:      nodeSelectorRequirement.Key,
-						Operator: oppositeOperator(nodeSelectorRequirement.Operator),
-						Values:   nodeSelectorRequirement.Values,
-					},
-				)
-			}
-		}
-	}
-
-	profile := datadoghqv1alpha1.DatadogAgentProfile{
+// defaultProfile returns the default profile, we just need a name to identify
+// it.
+func defaultProfile() datadoghqv1alpha1.DatadogAgentProfile {
+	return datadoghqv1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaultProfileName,
+			Namespace: "",
+			Name:      defaultProfileName,
 		},
-	}
-
-	if len(nodeSelectorRequirements) > 0 {
-		profile.Spec.ProfileAffinity = &datadoghqv1alpha1.ProfileAffinity{
-			ProfileNodeAffinity: nodeSelectorRequirements,
-		}
-	}
-
-	return profile
-}
-
-func oppositeOperator(op v1.NodeSelectorOperator) v1.NodeSelectorOperator {
-	switch op {
-	case v1.NodeSelectorOpIn:
-		return v1.NodeSelectorOpNotIn
-	case v1.NodeSelectorOpNotIn:
-		return v1.NodeSelectorOpIn
-	case v1.NodeSelectorOpExists:
-		return v1.NodeSelectorOpDoesNotExist
-	case v1.NodeSelectorOpDoesNotExist:
-		return v1.NodeSelectorOpExists
-	case v1.NodeSelectorOpGt:
-		return v1.NodeSelectorOpLt
-	case v1.NodeSelectorOpLt:
-		return v1.NodeSelectorOpGt
-	default:
-		return ""
 	}
 }
 
 func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affinity {
+	if IsDefaultProfile(profile.Namespace, profile.Name) {
+		return affinityOverrideForDefaultProfile()
+	}
+
 	if profile.Spec.ProfileAffinity == nil || len(profile.Spec.ProfileAffinity.ProfileNodeAffinity) == 0 {
 		return nil
 	}
@@ -173,6 +150,28 @@ func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affini
 				NodeSelectorTerms: []v1.NodeSelectorTerm{
 					{
 						MatchExpressions: profile.Spec.ProfileAffinity.ProfileNodeAffinity,
+					},
+				},
+			},
+		},
+	}
+}
+
+// affinityOverrideForDefaultProfile returns the affinity override that should
+// be applied to the default profile. The default profile should be applied to
+// all nodes that don't have the agent.datadoghq.com/profile label.
+func affinityOverrideForDefaultProfile() *v1.Affinity {
+	return &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      ProfileLabelKey,
+								Operator: v1.NodeSelectorOpDoesNotExist,
+							},
+						},
 					},
 				},
 			},
@@ -216,14 +215,14 @@ func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[comm
 }
 
 func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]string {
-	if profile.Name == defaultProfileName {
+	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return nil
 	}
 
 	return map[string]string{
 		// Can't use the namespaced name because it includes "/" which is not
 		// accepted in labels.
-		DaemonSetLabelKey: fmt.Sprintf("%s-%s", profile.Namespace, profile.Name),
+		ProfileLabelKey: fmt.Sprintf("%s-%s", profile.Namespace, profile.Name),
 	}
 }
 

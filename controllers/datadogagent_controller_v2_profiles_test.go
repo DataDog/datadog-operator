@@ -9,6 +9,7 @@
 package controllers
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -46,6 +47,20 @@ type daemonSetExpectations struct {
 	containerResources map[common.AgentContainerName]v1.ResourceRequirements
 }
 
+type profilesTestScenario struct {
+	nodes                []*v1.Node
+	agent                *v2alpha1.DatadogAgent
+	profiles             []*v1alpha1.DatadogAgentProfile
+	expectedDaemonSets   map[types.NamespacedName]daemonSetExpectations
+	expectedLabeledNodes map[string]bool
+
+	// When there are conflicts between profiles, their creation timestamp
+	// matters because the oldest has precedence. We cannot set the Creation
+	// Timestamp, it's set by Kubernetes. Set this to true in tests where it's
+	// important that profiles are created with different timestamps.
+	waitBetweenProfilesCreation bool
+}
+
 var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	namespace := "default"
 
@@ -59,7 +74,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: nil,
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -67,7 +82,15 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc(nil, &agent, nodes, expectedDaemonSets, false)()
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             nil,
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: nil,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with a profile that does not apply to any node", func() {
@@ -124,23 +147,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"3"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -178,7 +185,15 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             []*v1alpha1.DatadogAgentProfile{profile},
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: nil,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with a profile that applies to all nodes", func() {
@@ -235,23 +250,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"1", "2"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -289,7 +288,20 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+			"test-profiles-node-2": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             []*v1alpha1.DatadogAgentProfile{profile},
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: expectedLabeledNodes,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with a profile that applies to some nodes", func() {
@@ -346,23 +358,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"1"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -400,7 +396,19 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             []*v1alpha1.DatadogAgentProfile{profile},
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: expectedLabeledNodes,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with several profiles that don't conflict between them", func() {
@@ -503,28 +511,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"1"},
-										},
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"2"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -592,7 +579,20 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets, false)()
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+			"test-profiles-node-2": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             profiles,
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: expectedLabeledNodes,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with several profiles that conflict between them", func() {
@@ -689,23 +689,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"1"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName:    {},
 					common.ProcessAgentContainerName: {},
@@ -744,7 +728,20 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			// Don't expect a DaemonSet for the conflicting profile
 		}
 
-		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets, true)()
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                       nodes,
+			agent:                       &agent,
+			profiles:                    profiles,
+			expectedDaemonSets:          expectedDaemonSets,
+			expectedLabeledNodes:        expectedLabeledNodes,
+			waitBetweenProfilesCreation: true,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
 	Context("with a profile that applies and an agent with some resource overrides", func() {
@@ -819,23 +816,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
 			defaultDaemonSetNamespacedName(namespace, &agent): {
-				affinity: &v1.Affinity{
-					NodeAffinity: &v1.NodeAffinity{
-						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-							NodeSelectorTerms: []v1.NodeSelectorTerm{
-								{
-									MatchExpressions: []v1.NodeSelectorRequirement{
-										{
-											Key:      "some-label",
-											Operator: v1.NodeSelectorOpNotIn,
-											Values:   []string{"1"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				affinity: affinityForDefaultProfile(),
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
 						Limits: map[v1.ResourceName]resource.Quantity{
@@ -884,53 +865,171 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             []*v1alpha1.DatadogAgentProfile{profile},
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: expectedLabeledNodes,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 
-	// TODO: marked this one as pending because the current approach of
-	// generating the "opposite" affinity for the default profile does not work
-	// in this case.
-	PContext("with a profile that has more than one node selector requirement", func() {
+	Context("with a profile that has more than one node selector requirement", func() {
+		nodes := []*v1.Node{
+			testutils.NewNode("test-profiles-node-1", map[string]string{"a": "1", "b": "2"}),
+			testutils.NewNode("test-profiles-node-2", map[string]string{"a": "1"}),
+		}
+
+		profile := &v1alpha1.DatadogAgentProfile{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      randomKubernetesObjectName(),
+				Namespace: namespace,
+			},
+			Spec: v1alpha1.DatadogAgentProfileSpec{
+				ProfileAffinity: &v1alpha1.ProfileAffinity{
+					ProfileNodeAffinity: []v1.NodeSelectorRequirement{ // Applies only to the first node
+						{
+							Key:      "a",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"1"},
+						},
+						{
+							Key:      "b",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"2"},
+						},
+					},
+				},
+				Config: &v1alpha1.Config{
+					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+						v1alpha1.NodeAgentComponentName: {
+							Containers: map[common.AgentContainerName]*v1alpha1.Container{
+								common.CoreAgentContainerName: {
+									Resources: &v1.ResourceRequirements{
+										Limits: map[v1.ResourceName]resource.Quantity{
+											v1.ResourceCPU: resource.MustParse("2"),
+										},
+										Requests: map[v1.ResourceName]resource.Quantity{
+											v1.ResourceCPU: resource.MustParse("1"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		agent := testutils.NewDatadogAgentWithoutFeatures(namespace, randomKubernetesObjectName())
+
+		profileDaemonSetName := types.NamespacedName{
+			Namespace: namespace,
+			Name: agentprofile.DaemonSetName(types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}),
+		}
+
+		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
+			defaultDaemonSetNamespacedName(namespace, &agent): {
+				affinity: affinityForDefaultProfile(),
+				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
+					common.CoreAgentContainerName:    {},
+					common.ProcessAgentContainerName: {},
+				},
+			},
+			profileDaemonSetName: {
+				affinity: &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "a",
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{"1"},
+										},
+										{
+											Key:      "b",
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{"2"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
+					common.CoreAgentContainerName: {
+						Limits: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: resource.MustParse("2"),
+						},
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+					common.ProcessAgentContainerName: {},
+				},
+			},
+		}
+
+		expectedLabeledNodes := map[string]bool{
+			"test-profiles-node-1": true,
+		}
+
+		testScenario := profilesTestScenario{
+			nodes:                nodes,
+			agent:                &agent,
+			profiles:             []*v1alpha1.DatadogAgentProfile{profile},
+			expectedDaemonSets:   expectedDaemonSets,
+			expectedLabeledNodes: expectedLabeledNodes,
+		}
+
+		testProfilesFunc(testScenario)()
 	})
 })
 
-func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.DatadogAgent, nodes []*v1.Node, expectedDaemonSets map[types.NamespacedName]daemonSetExpectations, waitBetweenProfiles bool) func() {
+func testProfilesFunc(testScenario profilesTestScenario) func() {
 	return func() {
 		BeforeEach(func() {
-			for _, node := range nodes {
+			for _, node := range testScenario.nodes {
 				createKubernetesObject(k8sClient, node)
 			}
 
-			for _, profile := range profiles {
+			for _, profile := range testScenario.profiles {
 				createKubernetesObject(k8sClient, profile)
 
-				// When there are conflicts between profiles, their creation
-				// timestamp matters because the oldest has precedence. We
-				// cannot set the Creation Timestamp here, it will be set by
-				// Kubernetes. We need to wait a bit between profiles to make
-				// sure they are created with different timestamps.
-				if waitBetweenProfiles {
+				if testScenario.waitBetweenProfilesCreation {
 					time.Sleep(2 * time.Second)
 				}
 			}
 
-			createKubernetesObject(k8sClient, agent)
+			createKubernetesObject(k8sClient, testScenario.agent)
 		})
 
 		AfterEach(func() {
-			for _, profile := range profiles {
+			for _, profile := range testScenario.profiles {
 				deleteKubernetesObject(k8sClient, profile)
 			}
 
-			deleteKubernetesObject(k8sClient, agent)
+			deleteKubernetesObject(k8sClient, testScenario.agent)
 
-			for _, node := range nodes {
+			for _, node := range testScenario.nodes {
 				deleteKubernetesObject(k8sClient, node)
 			}
 		})
 
-		It("should create the expected DaemonSets", func() {
-			for namespacedName, expectedDaemonSet := range expectedDaemonSets {
+		It("should create the expected DaemonSets and label nodes with profiles", func() {
+			for namespacedName, expectedDaemonSet := range testScenario.expectedDaemonSets {
 				storedDaemonSet := &appsv1.DaemonSet{}
 
 				// Wait until the DaemonSet is created
@@ -961,8 +1060,23 @@ func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.
 					}
 				}
 			}
+
+			// Check that only the nodes with profiles are labeled
+			nodeList := v1.NodeList{}
+			err := k8sClient.List(context.TODO(), &nodeList)
+			Expect(err).ToNot(HaveOccurred())
+
+			for _, node := range nodeList.Items {
+				_, expectLabel := testScenario.expectedLabeledNodes[node.Name]
+				if expectLabel {
+					Expect(node.Labels[agentprofile.ProfileLabelKey]).To(Equal("true"))
+				} else {
+					Expect(node.Labels[agentprofile.ProfileLabelKey]).To(Equal(""))
+				}
+			}
 		})
 	}
+
 }
 
 func randomKubernetesObjectName() string {
@@ -1010,4 +1124,23 @@ func sortAffinityRequirements(affinity *v1.Affinity) {
 	sort.Slice(nodeSelectorTerms, func(i, j int) bool {
 		return nodeSelectorTerms[i].String() < nodeSelectorTerms[j].String()
 	})
+}
+
+func affinityForDefaultProfile() *v1.Affinity {
+	return &v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      agentprofile.ProfileLabelKey,
+								Operator: v1.NodeSelectorOpDoesNotExist,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
