@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -393,6 +394,24 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 				Labels: map[string]string{
 					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "example"),
 				},
+				Affinity: &v1.Affinity{
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      apicommon.AgentDeploymentComponentLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"agent"},
+										},
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -413,6 +432,22 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 										},
 									},
 								},
+							},
+						},
+					},
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      apicommon.AgentDeploymentComponentLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"agent"},
+										},
+									},
+								},
+								TopologyKey: v1.LabelHostname,
 							},
 						},
 					},

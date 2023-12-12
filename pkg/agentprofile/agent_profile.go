@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -140,21 +141,25 @@ func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affini
 		return affinityOverrideForDefaultProfile()
 	}
 
-	if profile.Spec.ProfileAffinity == nil || len(profile.Spec.ProfileAffinity.ProfileNodeAffinity) == 0 {
-		return nil
+	affinity := &v1.Affinity{
+		PodAntiAffinity: podAntiAffinityOverride(),
 	}
 
-	return &v1.Affinity{
-		NodeAffinity: &v1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					{
-						MatchExpressions: profile.Spec.ProfileAffinity.ProfileNodeAffinity,
-					},
+	if profile.Spec.ProfileAffinity == nil || len(profile.Spec.ProfileAffinity.ProfileNodeAffinity) == 0 {
+		return affinity
+	}
+
+	affinity.NodeAffinity = &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: profile.Spec.ProfileAffinity.ProfileNodeAffinity,
 				},
 			},
 		},
 	}
+
+	return affinity
 }
 
 // affinityOverrideForDefaultProfile returns the affinity override that should
@@ -174,6 +179,29 @@ func affinityOverrideForDefaultProfile() *v1.Affinity {
 						},
 					},
 				},
+			},
+		},
+		PodAntiAffinity: podAntiAffinityOverride(),
+	}
+}
+
+// podAntiAffinityOverride returns the pod anti-affinity used to avoid
+// scheduling multiple agent pods of different profiles on the same node during
+// rollouts.
+func podAntiAffinityOverride() *v1.PodAntiAffinity {
+	return &v1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      apicommon.AgentDeploymentComponentLabelKey,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"agent"},
+						},
+					},
+				},
+				TopologyKey: v1.LabelHostname, // Applies to all nodes
 			},
 		},
 	}

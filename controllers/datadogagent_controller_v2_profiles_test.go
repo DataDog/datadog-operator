@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -170,6 +171,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -273,6 +275,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -381,6 +384,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -534,6 +538,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -564,6 +569,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -712,6 +718,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -848,6 +855,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -967,6 +975,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
+					PodAntiAffinity: podAntiAffinityForAgents(),
 				},
 				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
 					common.CoreAgentContainerName: {
@@ -1140,6 +1149,26 @@ func affinityForDefaultProfile() *v1.Affinity {
 						},
 					},
 				},
+			},
+		},
+		PodAntiAffinity: podAntiAffinityForAgents(),
+	}
+}
+
+func podAntiAffinityForAgents() *v1.PodAntiAffinity {
+	return &v1.PodAntiAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{
+							Key:      apicommon.AgentDeploymentComponentLabelKey,
+							Operator: metav1.LabelSelectorOpIn,
+							Values:   []string{"agent"},
+						},
+					},
+				},
+				TopologyKey: v1.LabelHostname,
 			},
 		},
 	}
