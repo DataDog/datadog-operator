@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	testDdaName     = "foo"
-	agentConfigFile = "/etc/datadog-agent/datadog.yaml"
+	testDdaName      = "foo"
+	agentConfigFile  = "/etc/datadog-agent/datadog.yaml"
 )
 
 func apiKeyValue() *corev1.EnvVarSource {

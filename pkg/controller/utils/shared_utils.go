@@ -27,3 +27,8 @@ func GetDatadogLeaderElectionResourceName(dda metav1.Object) string {
 func GetDatadogTokenResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%stoken", dda.GetName())
 }
+
+//GetDatadogTokenResourceNamespace returns the namespace of the Datadog Agent Resource
+func GetDatadogAgentResourceNamespace(dda metav1.Object) string {
+	return dda.GetNamespace()
+}
