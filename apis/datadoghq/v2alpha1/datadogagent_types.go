@@ -1087,7 +1087,7 @@ type DatadogAgentStatus struct {
 // +k8s:openapi-gen=true
 type ContainerProcessStrategy struct {
 	// `type` sets a predetermined grouping of processes across containers. There are two supported groupings:
-	// `singleProcessContainers`, default behavior, runs one process per container.
+	// `singleProcessContainers` runs one process per container.
 	// `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container
 	// unless current configuration requires a privileged agent. For example if `security-agent` or `system-probe`
 	// is required, behavior defaults to that of `singleProcessContainer`.
