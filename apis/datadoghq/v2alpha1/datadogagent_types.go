@@ -781,7 +781,7 @@ type GlobalConfig struct {
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
 
-	// CntainerProcessStrategy determines whether agents run in single or multi-process containers.
+	// ContainerProcessStrategy determines whether agents run in single or multi-process containers.
 	// +optional
 	ContainerProcessStrategy *ContainerProcessStrategy `json:"containerProcessStrategy,omitempty"`
 }
