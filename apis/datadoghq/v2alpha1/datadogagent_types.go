@@ -1089,7 +1089,7 @@ type ContainerProcessStrategy struct {
 	// `type` sets a predetermined grouping of processes across containers. There are two supported groupings:
 	// `singleProcessContainers` runs one process per container.
 	// `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container
-	// unless current configuration requires a privileged agent. For example if `security-agent` or `system-probe`
+	// unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe`
 	// is required, behavior defaults to that of `singleProcessContainer`.
 	// Default: `singleProcessContainers`
 	// +optional
