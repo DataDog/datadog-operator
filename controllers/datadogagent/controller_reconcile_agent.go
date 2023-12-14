@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -237,4 +239,79 @@ func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *
 	}
 
 	return affinity
+}
+
+func (r *Reconciler) handleProviders(ctx context.Context) error {
+	if err := r.updateProviderStore(ctx); err != nil {
+		return err
+	}
+
+	if err := r.cleanupUnusedProviders(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// updateProviderStore recomputes the required providers by making a
+// call to the apiserver for an updated list of nodes
+func (r *Reconciler) updateProviderStore(ctx context.Context) error {
+	nodeList := corev1.NodeList{}
+	err := r.client.List(ctx, &nodeList)
+	if err != nil {
+		return err
+	}
+
+	// recompute providers using updated node list
+	providersList := make(map[string]struct{})
+	for _, node := range nodeList.Items {
+		provider := kubernetes.DetermineProvider(node.Labels)
+		if _, ok := providersList[provider]; !ok {
+			providersList[provider] = struct{}{}
+		}
+	}
+
+	r.providers.SetAllProviders(providersList)
+
+	return nil
+}
+
+// cleanupUnusedProviders deletes ds/eds from providers that are not
+// present in the provider store. If there are no providers in the
+// provider store, do not delete any ds/eds since that would delete
+// all node agents.
+func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
+	if r.options.ExtendedDaemonsetOptions.Enabled {
+		edsList := edsv1alpha1.ExtendedDaemonSetList{}
+		if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
+			return err
+		}
+
+		for _, eds := range edsList.Items {
+			provider := eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
+			if len(*r.providers.GetProviders()) > 0 && !r.providers.IsProviderInProviderStore(provider) {
+				if err := r.client.Delete(ctx, &eds); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}
+
+	daemonSetList := appsv1.DaemonSetList{}
+	if err := r.client.List(ctx, &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
+		return err
+	}
+
+	for _, ds := range daemonSetList.Items {
+		provider := ds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
+		if len(*r.providers.GetProviders()) > 0 && !r.providers.IsProviderInProviderStore(provider) {
+			if err := r.client.Delete(ctx, &ds); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

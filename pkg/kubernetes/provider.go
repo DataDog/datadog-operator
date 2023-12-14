@@ -43,8 +43,8 @@ func NewProviderStore(log logr.Logger) ProviderStore {
 	}
 }
 
-// determineProvider creates a Provider based on a map of labels
-func determineProvider(labels map[string]string) string {
+// DetermineProvider creates a Provider based on a map of labels
+func DetermineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
@@ -58,11 +58,11 @@ func determineProvider(labels map[string]string) string {
 // SetProvider creates a provider entry for a new provider if needed
 func (p *ProviderStore) SetProvider(obj client.Object) {
 	labels := obj.GetLabels()
-	objProvider := determineProvider(labels)
+	objProvider := DetermineProvider(labels)
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	// add a new provider hash and provider definition
+	// add a new provider
 	if _, ok := p.providers[objProvider]; !ok {
 		p.providers[objProvider] = struct{}{}
 		p.log.Info("New provider detected", "provider", objProvider)
@@ -154,4 +154,31 @@ func sortProviders(providers map[string]struct{}) []string {
 	sort.Strings(sortedProviders)
 
 	return sortedProviders
+}
+
+// SetAllProviders overwrites all providers in the provider store given a list of providers
+func (p *ProviderStore) SetAllProviders(providersList map[string]struct{}) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if len(providersList) > 0 {
+		p.providers = providersList
+	}
+}
+
+// IsProviderInProviderStore returns whether the given provider exists in the provider store
+func (p *ProviderStore) IsProviderInProviderStore(provider string) bool {
+	if provider == "" {
+		return false
+	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if len(p.providers) == 0 {
+		return false
+	}
+	if _, ok := p.providers[provider]; ok {
+		return true
+	}
+
+	return false
 }
