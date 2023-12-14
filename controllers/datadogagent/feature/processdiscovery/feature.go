@@ -64,7 +64,7 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 }
 
 func (p processDiscoveryFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	p.manageNodeAgent(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, managers)
+	p.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
 	return nil
 }
 

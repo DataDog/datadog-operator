@@ -38,15 +38,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	disabledByOverride := false
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
+	usesMultiProcessContainer := requiredComponents.Agent.UsesMultiProcessContainer()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent.Containers)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager,
-			requiredComponents.Agent.UsesMultiProcessContainer())
+		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, usesMultiProcessContainer)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -82,15 +82,14 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager,
-		requiredComponents.Agent.UsesMultiProcessContainer())
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, usesMultiProcessContainer)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if requiredComponents.Agent.UsesMultiProcessContainer() {
+		if usesMultiProcessContainer {
 			if errFeat := feat.ManageMultiProcessNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}

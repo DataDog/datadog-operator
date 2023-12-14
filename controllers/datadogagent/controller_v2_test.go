@@ -146,7 +146,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
+					string(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -202,7 +202,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
+					string(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)

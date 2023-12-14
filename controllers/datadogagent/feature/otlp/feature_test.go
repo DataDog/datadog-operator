@@ -391,7 +391,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -399,7 +399,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -407,7 +407,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),

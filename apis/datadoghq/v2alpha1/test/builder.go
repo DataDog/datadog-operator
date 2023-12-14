@@ -475,7 +475,7 @@ func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string
 func (builder *DatadogAgentBuilder) WithMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
 	if enabled {
 		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{
-			Type: common.NonPrivilegedMultiProcessContainer,
+			Type: common.UnprivilegedMultiProcessContainer,
 		}
 	} else {
 		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{

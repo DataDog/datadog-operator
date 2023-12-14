@@ -88,7 +88,7 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, managers)
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
 	return nil
 }
 

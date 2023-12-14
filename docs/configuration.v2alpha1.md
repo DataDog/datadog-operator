@@ -133,7 +133,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
-| global.containerProcessStrategy.type | `type` sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers`, default behavior, runs one process per container. `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless current configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, behavior defaults to that of `singleProcessContainer`. Default: `singleProcessContainers` |
+| global.containerProcessStrategy.type | `type` sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers` |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.apiSecret.secretName | SecretName is the name of the secret. |
