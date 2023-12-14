@@ -1090,7 +1090,7 @@ type ContainerProcessStrategy struct {
 	// `singleProcessContainers` runs one process per container.
 	// `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container
 	// unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe`
-	// is required, behavior defaults to that of `singleProcessContainer`.
+	// is required, `singleProcessContainers` will be used.
 	// Default: `singleProcessContainers`
 	// +optional
 	Type commonv1.ContainerProcessStrategyType `json:"type,omitempty"`
