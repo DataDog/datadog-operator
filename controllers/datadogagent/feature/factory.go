@@ -58,13 +58,15 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Merge(&reqComponents)
 	}
 
-	if dda.Spec.Global != nil &&
-		dda.Spec.Global.ContainerProcessStrategy != nil &&
-		dda.Spec.Global.ContainerProcessStrategy.Type == common.NonPrivilegedMultiProcessContainer &&
-		// This condition requires all features, which need agent to include it in required components.
-		// Otherwise test fails since this condition turn true when feature is disabled.
-		requiredComponents.Agent.IsEnabled() &&
-		!requiredComponents.Agent.IsPrivileged() {
+	if (
+	    dda.Spec.Global != nil &&
+	    dda.Spec.Global.ContainerProcessStrategy != nil &&
+	    dda.Spec.Global.ContainerProcessStrategy.Type == common.NonPrivilegedMultiProcessContainer &&
+	    // This condition requires that all features that need agent include it in the returned RequiredComponents.
+	    // Otherwise, the tests fail since this condition becomes `true` when a feature is disabled.
+	    requiredComponents.Agent.IsEnabled() &&
+	    !requiredComponents.Agent.IsPrivileged() 
+	    ) {
 
 		requiredComponents.Agent.Containers = []common.AgentContainerName{common.NonPrivilegedMultiProcessAgentContainerName}
 		return output, requiredComponents
