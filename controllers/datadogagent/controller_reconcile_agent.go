@@ -38,7 +38,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	disabledByOverride := false
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
-	usesMultiProcessContainer := requiredComponents.Agent.UsesMultiProcessContainer()
+	multiProcessContainerEnabled := requiredComponents.Agent.MultiProcessContainerEnabled()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
@@ -46,7 +46,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, usesMultiProcessContainer)
+		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -85,11 +85,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, usesMultiProcessContainer)
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if usesMultiProcessContainer {
+		if multiProcessContainerEnabled {
 			if errFeat := feat.ManageMultiProcessNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}

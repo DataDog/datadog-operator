@@ -76,7 +76,7 @@ func (rc *RequiredComponent) IsPrivileged() bool {
 	return false
 }
 
-func (rc *RequiredComponent) UsesMultiProcessContainer() bool {
+func (rc *RequiredComponent) MultiProcessContainerEnabled() bool {
 	return len(rc.Containers) == 1 &&
 		rc.Containers[0] == apicommonv1.UnprivilegedMultiProcessAgentContainerName
 }

@@ -45,7 +45,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 	requiredContainers := agentComponent.Containers
 
 	var agentContainers []corev1.Container
-	if agentComponent.UsesMultiProcessContainer() {
+	if agentComponent.MultiProcessContainerEnabled() {
 		agentContainers = agentMultiProcessContainer(dda)
 	} else {
 		agentContainers = agentSingleProcessContainers(dda, requiredContainers)
