@@ -7,7 +7,7 @@ package kubernetes
 
 import (
 	"testing"
-
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +37,16 @@ var (
 			},
 		},
 	}
-	gkeAutopilotProvider     = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
+	gkeAutopilotNode2 = corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "node1",
+			Labels: map[string]string{
+				GKEAutopilotProviderLabel: "gk3-autopilot",
+			},
+		},
+	}
+	gkeAutopilotProvider = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -67,14 +76,6 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
-			name: "gke provider",
-			labels: map[string]string{
-				"foo":            "bar",
-				GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
-			},
-			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
-		},
-		{
 			name: "gcp provider, underscore",
 			labels: map[string]string{
 				"foo":            "bar",
@@ -82,14 +83,46 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
 		},
-		// {
-		// 	name: "gke provider, underscore",
-		// 	labels: map[string]string{
-		// 		"foo":            "bar",
-		// 		GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
-		// 	},
-		// 	provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
-		// },
+		{
+			name: "gke provider cos_containerd",
+			labels: map[string]string{
+				GKEAutopilotProviderLabel: "gk3-foo-bar",
+				GCPProviderLabel: GCPCosContainerdProviderValue,
+			},
+			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
+		},
+		{
+			name: "gke provider cos",
+			labels: map[string]string{
+				GKEAutopilotProviderLabel: "gk3-foo-bar",
+				GCPProviderLabel: GCPCosProviderValue,
+			},
+			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
+		},
+		{
+			name: "gke provider regex-gke",
+			labels: map[string]string{
+				GKEAutopilotProviderLabel: "gke-autopilot",
+				GCPProviderLabel: GCPCosProviderValue,
+			},
+			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
+		},
+		{
+			name: "gke provider regex-middle",
+			labels: map[string]string{
+				GKEAutopilotProviderLabel: "host-gk3-autopilot",
+				GCPProviderLabel: GCPCosProviderValue,
+			},
+			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
+		},
+		{
+			name: "gke provider regex-end",
+			labels: map[string]string{
+				GKEAutopilotProviderLabel: "host-gk3",
+				GCPProviderLabel: GCPCosProviderValue,
+			},
+			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
+		},
 	}
 
 	for _, tt := range tests {
@@ -132,6 +165,23 @@ func Test_SetProvider(t *testing.T) {
 			},
 		},
 		{
+			name: "add new GKE provider with existing provider",
+			obj: gcpCosNode,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test": {},
+					gkeAutopilotProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test":         {},
+					gkeAutopilotProvider: {},
+					gcpCosProvider: {},
+				},
+			},
+		},
+		{
 			name: "add new node name to existing provider",
 			obj:  gcpCosNode,
 			existingProviders: &ProviderStore{
@@ -145,6 +195,21 @@ func Test_SetProvider(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "add new node name to existing gke provider",
+			obj:  gcpCosNode,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gkeAutopilotProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gkeAutopilotProvider: {},
+					gcpCosProvider: {},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -152,6 +217,7 @@ func Test_SetProvider(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
 			profile := NewProviderStore(logger)
 			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
+				fmt.Println("name", tt.name)
 				profile.providers = tt.existingProviders.providers
 			}
 
