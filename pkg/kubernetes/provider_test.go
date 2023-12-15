@@ -27,6 +27,17 @@ var (
 	defaultProvider          = DefaultProvider
 	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
 	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
+
+	gkeAutopilotNode = corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "node1",
+			Labels: map[string]string{
+				GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
+			},
+		},
+	}
+	gkeAutopilotProvider     = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -56,6 +67,14 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
+			name: "gke provider",
+			labels: map[string]string{
+				"foo":            "bar",
+				GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
+			},
+			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
+		},
+		{
 			name: "gcp provider, underscore",
 			labels: map[string]string{
 				"foo":            "bar",
@@ -63,6 +82,14 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
 		},
+		// {
+		// 	name: "gke provider, underscore",
+		// 	labels: map[string]string{
+		// 		"foo":            "bar",
+		// 		GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
+		// 	},
+		// 	provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
+		// },
 	}
 
 	for _, tt := range tests {

@@ -6,6 +6,7 @@
 package kubernetes
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -27,12 +28,15 @@ const (
 	// GCP provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
 	GCPCosContainerdProviderValue = "cos_containerd"
 	GCPCosProviderValue           = "cos"
+	GKEAutopilotProviderValue     = "autopilot" 
 
 	// CloudProvider
-	GCPCloudProvider = "gcp"
+	GCPCloudProvider     = "gcp"
+	GKEAutopilotProvider = "gke"
 
 	// ProviderLabel
-	GCPProviderLabel = "cloud.google.com/gke-os-distribution"
+	GCPProviderLabel          = "cloud.google.com/gke-os-distribution"
+	GKEAutopilotProviderLabel = "kubernetes.io/hostname"
 )
 
 // NewProviderStore generates an empty ProviderStore instance
@@ -48,10 +52,21 @@ func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
-			return generateProviderName(GCPCloudProvider, val)
+			//GKE
+			hostname := labels[GKEAutopilotProviderLabel]
+			var autopilotRegex = regexp.MustCompile(`^gk3\-.*`)
+
+			if autopilotRegex.MatchString(hostname) {
+				AutopilotProvider := generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
+				// fmt.Println("AutopilotProvider", AutopilotProvider)
+				return AutopilotProvider				
+			} else {
+				ProviderName := generateProviderName(GCPCloudProvider, val)
+				// fmt.Println("ProviderName", ProviderName)
+				return ProviderName
+			}
 		}
 	}
-
 	return DefaultProvider
 }
 
