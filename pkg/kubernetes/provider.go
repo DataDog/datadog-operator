@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ProviderStore struct {
@@ -53,20 +52,6 @@ func DetermineProvider(labels map[string]string) string {
 	}
 
 	return DefaultProvider
-}
-
-// SetProvider creates a provider entry for a new provider if needed
-func (p *ProviderStore) SetProvider(obj client.Object) {
-	labels := obj.GetLabels()
-	objProvider := DetermineProvider(labels)
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	// add a new provider
-	if _, ok := p.providers[objProvider]; !ok {
-		p.providers[objProvider] = struct{}{}
-		p.log.Info("New provider detected", "provider", objProvider)
-	}
 }
 
 // GetProviders gets a list of providers
@@ -156,8 +141,8 @@ func sortProviders(providers map[string]struct{}) []string {
 	return sortedProviders
 }
 
-// SetAllProviders overwrites all providers in the provider store given a list of providers
-func (p *ProviderStore) SetAllProviders(providersList map[string]struct{}) {
+// Reset overwrites all providers in the provider store given a list of providers
+func (p *ProviderStore) Reset(providersList map[string]struct{}) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -166,8 +151,8 @@ func (p *ProviderStore) SetAllProviders(providersList map[string]struct{}) {
 	}
 }
 
-// IsProviderInProviderStore returns whether the given provider exists in the provider store
-func (p *ProviderStore) IsProviderInProviderStore(provider string) bool {
+// IsPresent returns whether the given provider exists in the provider store
+func (p *ProviderStore) IsPresent(provider string) bool {
 	if provider == "" {
 		return false
 	}

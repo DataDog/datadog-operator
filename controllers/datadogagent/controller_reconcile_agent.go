@@ -209,7 +209,7 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 }
 
 func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *corev1.Affinity {
-	nodeSelectorReq := r.providers.GenerateProviderNodeAffinity(p)
+	nodeSelectorReq := r.providerStore.GenerateProviderNodeAffinity(p)
 	if len(nodeSelectorReq) > 0 {
 		// check for an existing affinity and merge
 		if affinity == nil {
@@ -241,16 +241,16 @@ func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *
 	return affinity
 }
 
-func (r *Reconciler) handleProviders(ctx context.Context) error {
+func (r *Reconciler) handleProviders(ctx context.Context) (*map[string]struct{}, error) {
 	if err := r.updateProviderStore(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := r.cleanupUnusedProviders(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return r.providerStore.GetProviders(), nil
 }
 
 // updateProviderStore recomputes the required providers by making a
@@ -268,10 +268,11 @@ func (r *Reconciler) updateProviderStore(ctx context.Context) error {
 		provider := kubernetes.DetermineProvider(node.Labels)
 		if _, ok := providersList[provider]; !ok {
 			providersList[provider] = struct{}{}
+			r.log.V(1).Info("New provider detected", "provider", provider)
 		}
 	}
 
-	r.providers.SetAllProviders(providersList)
+	r.providerStore.Reset(providersList)
 
 	return nil
 }
@@ -289,7 +290,7 @@ func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
 
 		for _, eds := range edsList.Items {
 			provider := eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-			if len(*r.providers.GetProviders()) > 0 && !r.providers.IsProviderInProviderStore(provider) {
+			if len(*r.providerStore.GetProviders()) > 0 && !r.providerStore.IsPresent(provider) {
 				if err := r.client.Delete(ctx, &eds); err != nil {
 					return err
 				}
@@ -306,7 +307,7 @@ func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
 
 	for _, ds := range daemonSetList.Items {
 		provider := ds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-		if len(*r.providers.GetProviders()) > 0 && !r.providers.IsProviderInProviderStore(provider) {
+		if len(*r.providerStore.GetProviders()) > 0 && !r.providerStore.IsPresent(provider) {
 			if err := r.client.Delete(ctx, &ds); err != nil {
 				return err
 			}

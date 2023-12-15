@@ -150,9 +150,13 @@ func Test_generateNodeAffinity(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := kubernetes.NewProviderStore(logf.Log.WithName("test_generateNodeAffinity"))
 			r := &Reconciler{
-				providers: &p,
+				providerStore: &p,
 			}
-			setUpProviders(r)
+			existingProviders := map[string]struct{}{
+				"gcp-cos": {},
+				"default": {},
+			}
+			r.providerStore.Reset(existingProviders)
 
 			actualAffinity := r.generateNodeAffinity(tt.args.provider, tt.args.affinity)
 			na, pa, paa := getAffinityComponents(tt.args.affinity)
@@ -161,30 +165,6 @@ func Test_generateNodeAffinity(t *testing.T) {
 		})
 	}
 
-}
-
-func setUpProviders(r *Reconciler) {
-	nodes := []corev1.Node{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node-gcp-cos",
-				Labels: map[string]string{
-					kubernetes.GCPProviderLabel: kubernetes.GCPCosProviderValue,
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node-default",
-				Labels: map[string]string{
-					"foo": "bar",
-				},
-			},
-		},
-	}
-	for _, node := range nodes {
-		r.providers.SetProvider(&node)
-	}
 }
 
 func generateWantedAffinity(provider string, na *corev1.NodeAffinity, pa *corev1.PodAffinity, paa *corev1.PodAntiAffinity) *corev1.Affinity {
@@ -295,16 +275,18 @@ func Test_updateProviderStore(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithObjects(tt.nodes...).Build()
-			p := kubernetes.NewProviderStore(logf.Log.WithName("test_updateProviderStore"))
+			logger := logf.Log.WithName("test_updateProviderStore")
+			p := kubernetes.NewProviderStore(logger)
 			r := &Reconciler{
-				providers: &p,
-				client:    fakeClient,
+				providerStore: &p,
+				client:        fakeClient,
+				log:           logger,
 			}
-			r.providers.SetAllProviders(tt.existingProviders)
+			r.providerStore.Reset(tt.existingProviders)
 
 			err := r.updateProviderStore(ctx)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.wantedProviders, r.providers.GetProviders())
+			assert.Equal(t, tt.wantedProviders, r.providerStore.GetProviders())
 		})
 	}
 }
@@ -540,15 +522,15 @@ func Test_cleanupUnusedProviders(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.agents...).Build()
 			p := kubernetes.NewProviderStore(logf.Log.WithName("test_cleanupUnusedProviders"))
 			r := &Reconciler{
-				providers: &p,
-				client:    fakeClient,
+				providerStore: &p,
+				client:        fakeClient,
 				options: ReconcilerOptions{
 					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
 						Enabled: tt.edsEnabled,
 					},
 				},
 			}
-			r.providers.SetAllProviders(tt.existingProviders)
+			r.providerStore.Reset(tt.existingProviders)
 
 			err := r.cleanupUnusedProviders(ctx)
 			assert.NoError(t, err)

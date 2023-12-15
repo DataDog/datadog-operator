@@ -72,67 +72,6 @@ func Test_determineProvider(t *testing.T) {
 		})
 	}
 }
-func Test_SetProvider(t *testing.T) {
-	tests := []struct {
-		name              string
-		obj               corev1.Node
-		existingProviders *ProviderStore
-		wantProviders     *ProviderStore
-	}{
-		{
-			name:              "add new provider",
-			obj:               gcpCosNode,
-			existingProviders: nil,
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-		},
-		{
-			name: "add new provider with existing provider",
-			obj:  gcpCosNode,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					"test": {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					"test":         {},
-					gcpCosProvider: {},
-				},
-			},
-		},
-		{
-			name: "add new node name to existing provider",
-			obj:  gcpCosNode,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			profile := NewProviderStore(logger)
-			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
-				profile.providers = tt.existingProviders.providers
-			}
-
-			profile.SetProvider(&tt.obj)
-			assert.Equal(t, tt.wantProviders.providers, profile.providers)
-		})
-	}
-}
 
 func Test_sortProviders(t *testing.T) {
 	tests := []struct {
@@ -348,7 +287,7 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 	}
 }
 
-func Test_SetAllProviders(t *testing.T) {
+func Test_Reset(t *testing.T) {
 	tests := []struct {
 		name              string
 		newProviders      map[string]struct{}
@@ -411,13 +350,13 @@ func Test_SetAllProviders(t *testing.T) {
 				providerStore.providers = tt.existingProviders.providers
 			}
 
-			providerStore.SetAllProviders(tt.newProviders)
+			providerStore.Reset(tt.newProviders)
 			assert.Equal(t, tt.wantProviders.providers, providerStore.providers)
 		})
 	}
 }
 
-func Test_IsProviderInProviderStore(t *testing.T) {
+func Test_IsPresent(t *testing.T) {
 	tests := []struct {
 		name              string
 		provider          string
@@ -471,7 +410,7 @@ func Test_IsProviderInProviderStore(t *testing.T) {
 				providerStore.providers = tt.existingProviders.providers
 			}
 
-			assert.Equal(t, tt.want, providerStore.IsProviderInProviderStore(tt.provider))
+			assert.Equal(t, tt.want, providerStore.IsPresent(tt.provider))
 		})
 	}
 }

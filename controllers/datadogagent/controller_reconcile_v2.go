@@ -143,10 +143,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	requiredContainers := requiredComponents.Agent.Containers
 
 	// for all providers, go through agent reconcile
-	if err = r.handleProviders(ctx); err != nil {
+	providersList, err := r.handleProviders(ctx)
+	if err != nil {
 		errs = append(errs, err)
 	}
-	providersList := r.providers.GetProviders()
 	for provider := range *providersList {
 		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers, provider)
 		if utils.ShouldReturn(result, err) {
