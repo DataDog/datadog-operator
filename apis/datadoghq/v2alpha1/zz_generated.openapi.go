@@ -74,7 +74,7 @@ func schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref common.Referen
 				Properties: map[string]spec.Schema{
 					"type": {
 						SchemaProps: spec.SchemaProps{
-							Description: "`type` sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers`",
+							Description: "Type sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers`",
 							Type:        []string{"string"},
 							Format:      "",
 						},

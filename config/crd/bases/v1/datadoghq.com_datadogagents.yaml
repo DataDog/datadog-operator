@@ -8432,7 +8432,7 @@ spec:
                       description: ContainerProcessStrategy determines whether agents run in single or multi-process containers.
                       properties:
                         type:
-                          description: '`type` sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers`'
+                          description: 'Type sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers`'
                           type: string
                       type: object
                     credentials:
