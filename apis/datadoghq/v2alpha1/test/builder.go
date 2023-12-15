@@ -117,7 +117,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProf
 	return builder
 }
 
-// Live Processes
+// Live ContainerCollection
 
 func (builder *DatadogAgentBuilder) initLiveContainer() {
 	if builder.datadogAgent.Spec.Features.LiveContainerCollection == nil {
