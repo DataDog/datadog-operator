@@ -10,20 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
-	gcpCosNode = corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node1",
-			Labels: map[string]string{
-				GCPProviderLabel: GCPCosProviderValue,
-			},
-		},
-	}
 	defaultProvider          = DefaultProvider
 	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
 	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)

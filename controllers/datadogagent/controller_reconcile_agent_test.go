@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -236,7 +238,7 @@ func Test_updateProviderStore(t *testing.T) {
 		name              string
 		nodes             []client.Object
 		existingProviders map[string]struct{}
-		wantedProviders   *map[string]struct{}
+		wantedProviders   map[string]struct{}
 	}{
 		{
 			name: "recompute all providers",
@@ -254,7 +256,7 @@ func Test_updateProviderStore(t *testing.T) {
 				"gcp-cos_containerd": {},
 				"default":            {},
 			},
-			wantedProviders: &map[string]struct{}{
+			wantedProviders: map[string]struct{}{
 				"gcp-cos": {},
 			},
 		},
@@ -265,7 +267,7 @@ func Test_updateProviderStore(t *testing.T) {
 				"gcp-cos_containerd": {},
 				"default":            {},
 			},
-			wantedProviders: &map[string]struct{}{
+			wantedProviders: map[string]struct{}{
 				"gcp-cos_containerd": {},
 				"default":            {},
 			},
@@ -284,14 +286,14 @@ func Test_updateProviderStore(t *testing.T) {
 			}
 			r.providerStore.Reset(tt.existingProviders)
 
-			err := r.updateProviderStore(ctx)
+			providerList, err := r.updateProviderStore(ctx)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.wantedProviders, r.providerStore.GetProviders())
+			assert.Equal(t, tt.wantedProviders, providerList)
 		})
 	}
 }
 
-func Test_cleanupUnusedProviders(t *testing.T) {
+func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = edsdatadoghqv1alpha1.AddToScheme(sch)
@@ -520,10 +522,16 @@ func Test_cleanupUnusedProviders(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.agents...).Build()
-			p := kubernetes.NewProviderStore(logf.Log.WithName("test_cleanupUnusedProviders"))
+			logger := logf.Log.WithName("test_cleanupDaemonSetsForProvidersThatNoLongerApply")
+			p := kubernetes.NewProviderStore(logger)
+			eventBroadcaster := record.NewBroadcaster()
+			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewExtendedDaemonSet"})
+
 			r := &Reconciler{
 				providerStore: &p,
 				client:        fakeClient,
+				log:           logger,
+				recorder:      recorder,
 				options: ReconcilerOptions{
 					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
 						Enabled: tt.edsEnabled,
@@ -532,7 +540,9 @@ func Test_cleanupUnusedProviders(t *testing.T) {
 			}
 			r.providerStore.Reset(tt.existingProviders)
 
-			err := r.cleanupUnusedProviders(ctx)
+			dda := v2alpha1.DatadogAgent{}
+
+			err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, &dda)
 			assert.NoError(t, err)
 
 			kind := "daemonsets"

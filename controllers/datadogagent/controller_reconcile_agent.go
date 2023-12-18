@@ -241,25 +241,26 @@ func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *
 	return affinity
 }
 
-func (r *Reconciler) handleProviders(ctx context.Context) (*map[string]struct{}, error) {
-	if err := r.updateProviderStore(ctx); err != nil {
+func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent) (map[string]struct{}, error) {
+	providerList, err := r.updateProviderStore(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	if err := r.cleanupUnusedProviders(ctx); err != nil {
+	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda); err != nil {
 		return nil, err
 	}
 
-	return r.providerStore.GetProviders(), nil
+	return providerList, nil
 }
 
 // updateProviderStore recomputes the required providers by making a
 // call to the apiserver for an updated list of nodes
-func (r *Reconciler) updateProviderStore(ctx context.Context) error {
+func (r *Reconciler) updateProviderStore(ctx context.Context) (map[string]struct{}, error) {
 	nodeList := corev1.NodeList{}
 	err := r.client.List(ctx, &nodeList)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// recompute providers using updated node list
@@ -272,16 +273,14 @@ func (r *Reconciler) updateProviderStore(ctx context.Context) error {
 		}
 	}
 
-	r.providerStore.Reset(providersList)
-
-	return nil
+	return r.providerStore.Reset(providersList), nil
 }
 
-// cleanupUnusedProviders deletes ds/eds from providers that are not
-// present in the provider store. If there are no providers in the
-// provider store, do not delete any ds/eds since that would delete
-// all node agents.
-func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
+// cleanupDaemonSetsForProvidersThatNoLongerApply deletes ds/eds from providers
+// that are not present in the provider store. If there are no providers in the
+// provider store, do not delete any ds/eds since that would delete all node
+// agents.
+func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent) error {
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		edsList := edsv1alpha1.ExtendedDaemonSetList{}
 		if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
@@ -294,6 +293,9 @@ func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
 				if err := r.client.Delete(ctx, &eds); err != nil {
 					return err
 				}
+				r.log.Info("Deleted ExtendedDaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
+				event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+				r.recordEvent(dda, event)
 			}
 		}
 
@@ -311,6 +313,9 @@ func (r *Reconciler) cleanupUnusedProviders(ctx context.Context) error {
 			if err := r.client.Delete(ctx, &ds); err != nil {
 				return err
 			}
+			r.log.Info("Deleted DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
+			event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+			r.recordEvent(dda, event)
 		}
 	}
 

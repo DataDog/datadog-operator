@@ -142,13 +142,15 @@ func sortProviders(providers map[string]struct{}) []string {
 }
 
 // Reset overwrites all providers in the provider store given a list of providers
-func (p *ProviderStore) Reset(providersList map[string]struct{}) {
+func (p *ProviderStore) Reset(providersList map[string]struct{}) map[string]struct{} {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
 	if len(providersList) > 0 {
 		p.providers = providersList
 	}
+
+	return p.providers
 }
 
 // IsPresent returns whether the given provider exists in the provider store
