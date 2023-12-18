@@ -23,6 +23,11 @@ func GetDatadogLeaderElectionResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-leader-election", dda.GetName())
 }
 
+// GetDatadogAgentResourceNamespace returns the namespace of the Datadog Agent Resource
+func GetDatadogAgentResourceNamespace(dda metav1.Object) string {
+	return dda.GetNamespace()
+}
+
 // GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
 func GetDatadogTokenResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%stoken", dda.GetName())

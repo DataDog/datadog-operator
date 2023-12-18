@@ -201,6 +201,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Name:  "DD_CLUSTER_AGENT_TOKEN_NAME",
 			Value: fmt.Sprintf("%stoken", testDdaName),
 		},
+		{
+			Name:  "DD_KUBE_RESOURCES_NAMESPACE",
+			Value: testDdaNamespace,
+		},
 	}
 }
 
