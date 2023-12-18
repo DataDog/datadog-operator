@@ -275,11 +275,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.D
 		return nil, nil, err
 	}
 
-	nodeList := corev1.NodeList{}
-	err = r.client.List(ctx, &nodeList)
-	if err != nil {
-		return nil, nil, err
-	}
+	nodeList := r.nodeStore.GetNodes()
 
-	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items)
+	return agentprofile.ProfilesToApply(profilesList.Items, *nodeList)
 }

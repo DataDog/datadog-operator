@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/go-logr/logr"
 
@@ -42,6 +43,7 @@ type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo  *version.Info
 	PlatformInfo kubernetes.PlatformInfo
+	NodeStore    *kubernetes.NodeStore
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -204,6 +206,9 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
 
+	// Watch node and enqueue if node labels changes for DatadogAgentProfile
+	builder.Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).WithEventFilter(enqueueIfNodeChangeIsRelevantToProfiles(r))
+
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
@@ -248,7 +253,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.NodeStore, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}
@@ -268,4 +273,26 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}
+}
+
+func enqueueIfNodeChangeIsRelevantToProfiles(r *DatadogAgentReconciler) predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
+				r.NodeStore.SetOrUpdateNode(e.ObjectNew)
+				return true
+			}
+			return false
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			r.NodeStore.UnsetNode(e.Object)
+			return true
+		},
+		//GenericFunc: func(e event.GenericEvent) bool {
+		//	return true // Not sure about this one
+		//},
+	}
 }
