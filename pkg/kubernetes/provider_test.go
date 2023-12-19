@@ -33,22 +33,14 @@ var (
 			Namespace: "bar",
 			Name:      "node1",
 			Labels: map[string]string{
-				GKEAutopilotProviderLabel: GKEAutopilotProviderValue,
-			},
-		},
-	}
-	gkeAutopilotNode2 = corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node1",
-			Labels: map[string]string{
-				GKEAutopilotProviderLabel: "gk3-autopilot",
+				GKEAutopilotProviderLabel: "gk3-foo-bar",
+				GCPProviderLabel: GCPCosProviderValue,
 			},
 		},
 	}
 	gkeAutopilotProvider = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 )
-
+	
 func Test_determineProvider(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -165,7 +157,24 @@ func Test_SetProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "add new GKE provider with existing provider",
+			name: "add new GKE Autopilot provider with existing GCP provider",
+			obj: gkeAutopilotNode,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test": {},
+					gcpCosProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test":         {},
+					gkeAutopilotProvider: {},
+					gcpCosProvider: {},
+				},
+			},
+		},
+		{
+			name: "add new GCP provider with existing GKE Autopilot provider",
 			obj: gcpCosNode,
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
@@ -182,7 +191,7 @@ func Test_SetProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "add new node name to existing provider",
+			name: "add new node name to existing GCP provider",
 			obj:  gcpCosNode,
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
@@ -196,11 +205,26 @@ func Test_SetProvider(t *testing.T) {
 			},
 		},
 		{
-			name: "add new node name to existing gke provider",
-			obj:  gcpCosNode,
+			name: "add new node name to existing GKE Autopilot provider",
+			obj:  gkeAutopilotNode,
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
 					gkeAutopilotProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gkeAutopilotProvider: {},
+				},
+			},
+		},
+		{
+			name: "add new node name to existing GCP and GKE Autopilot providers",
+			obj:  gkeAutopilotNode,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gkeAutopilotProvider: {},
+					gcpCosProvider: {},
 				},
 			},
 			wantProviders: &ProviderStore{
@@ -249,6 +273,7 @@ func Test_sortProviders(t *testing.T) {
 			name: "multiple providers",
 			existingProviders: map[string]struct{}{
 				gcpCosProvider: {},
+				gkeAutopilotProvider: {},
 				"abcde":        {},
 				"zyxwv":        {},
 				"12345":        {},
@@ -257,7 +282,8 @@ func Test_sortProviders(t *testing.T) {
 				"12345",
 				"abcde",
 				gcpCosProvider,
-				"zyxwv",
+				gkeAutopilotProvider,
+				"zyxwv",				
 			},
 		},
 	}
@@ -290,7 +316,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			wantNSR:           []corev1.NodeSelectorRequirement{},
 		},
 		{
-			name: "one existing provider, default provider",
+			name: "one existing provider (GCP), default provider",
 			existingProviders: map[string]struct{}{
 				gcpCosProvider: {},
 			},
@@ -301,6 +327,22 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						GCPCosProviderValue,
+					},
+				},
+			},
+		},
+		{
+			name: "one existing provider (GKE Autopilot), default provider",
+			existingProviders: map[string]struct{}{
+				gkeAutopilotProvider: {},
+			},
+			provider: defaultProvider,
+			wantNSR: []corev1.NodeSelectorRequirement{
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpNotIn, //if existing provider is different - NotIn, OpIn - match node that corresponds to the provider > make sure they are scheduled to the right node
+					Values: []string{
+						GKEAutopilotProviderValue,
 					},
 				},
 			},
@@ -322,7 +364,23 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple providers, default provider",
+			name: "one existing provider, GKE Autopilot provider",
+			existingProviders: map[string]struct{}{
+				gkeAutopilotProvider: {},
+			},
+			provider: gkeAutopilotProvider,
+			wantNSR: []corev1.NodeSelectorRequirement{
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						GKEAutopilotProviderValue,
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers, GCP, default provider",
 			existingProviders: map[string]struct{}{
 				gcpCosProvider: {},
 				"gcp-abcde":    {},
@@ -351,8 +409,40 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 						"zyxwv",
 					},
 				},
+		    },
+	    },
+		{
+			name: "multiple providers, GKE Autopilot, default provider",
+			existingProviders: map[string]struct{}{
+				gkeAutopilotProvider: {},
+				"gke-abcde": {},
+				"gke-zyxwv": {},
 			},
-		},
+			provider: defaultProvider,
+			wantNSR: []corev1.NodeSelectorRequirement{
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values: []string{
+						"abcde",
+					},
+				},
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values: []string{
+						GKEAutopilotProviderValue,
+					},
+				},
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values: []string{
+						"zyxwv",
+					},
+				},
+		    },
+	    },
 		{
 			name: "multiple providers, ubuntu provider",
 			existingProviders: map[string]struct{}{
@@ -367,6 +457,42 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
 						GCPCosContainerdProviderValue,
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers, ubuntu provider",
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
+				"abcdef":       {},
+				"lmnop":        {},
+			},
+			provider: gcpCosProvider,
+			wantNSR: []corev1.NodeSelectorRequirement{
+				{
+					Key:      GCPProviderLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						GCPCosProviderValue,
+					},
+				},
+			},
+		},
+		{
+			name: "multiple providers, GKE Autopilot provider",
+			existingProviders: map[string]struct{}{
+				gkeAutopilotProvider:     {},
+				"abcdef":       {},
+				"lmnop":        {},
+			},
+			provider: gkeAutopilotProvider,
+			wantNSR: []corev1.NodeSelectorRequirement{
+				{
+					Key:      GKEAutopilotProviderLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values: []string{
+						GKEAutopilotProviderValue,
 					},
 				},
 			},
@@ -429,6 +555,12 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			provider:  gcpCosProvider,
 			wantLabel: GCPProviderLabel,
 			wantValue: GCPCosProviderValue,
+		},
+		{
+			name:      "gke autopilot provider",
+			provider:  gkeAutopilotProvider,
+			wantLabel: GKEAutopilotProviderLabel,
+			wantValue: GKEAutopilotProviderValue,
 		},
 	}
 

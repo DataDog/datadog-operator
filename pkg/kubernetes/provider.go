@@ -6,7 +6,6 @@
 package kubernetes
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -57,20 +56,12 @@ func determineProvider(labels map[string]string) string {
 			hostname := labels[GKEAutopilotProviderLabel]
 			var autopilotRegex = regexp.MustCompile(`^gk3\-.*`)
 
-			// fmt.Println("autopilot regex boolean", autopilotRegex.MatchString(hostname))
-			// fmt.Println("autopilot hostname", hostname)
-			fmt.Println("label", GKEAutopilotProviderLabel)
-			fmt.Println("labels", labels)
-			fmt.Println("hostname", hostname)
-
 			//return boolean
 			if autopilotRegex.MatchString(hostname) {
 				AutopilotProvider := generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
-				// fmt.Println("AutopilotProvider", AutopilotProvider)
 				return AutopilotProvider
 			} else {
 				ProviderName := generateProviderName(GCPCloudProvider, val)
-				// fmt.Println("ProviderName", ProviderName)
 				return ProviderName
 			}
 		}
@@ -135,7 +126,6 @@ func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.N
 			},
 		})
 	}
-
 	return nsrList
 }
 
@@ -150,6 +140,7 @@ func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GCPCloudProvider: GCPProviderLabel,
+		GKEAutopilotProvider: GKEAutopilotProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)
