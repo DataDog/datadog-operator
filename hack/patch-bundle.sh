@@ -18,7 +18,7 @@ $YQ -i ".spec.install.spec.clusterPermissions += load(\"$ROOT/hack/patch-bundle-
 # Add annotation required for upstream publication
 IMAGE=$($YQ '.spec.install.spec.deployments[0].spec.template.spec.containers[0].image' bundle/manifests/datadog-operator.clusterserviceversion.yaml)
 $YQ -i ".metadata.annotations.containerImage = \"$IMAGE\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
-$YQ -i ".metadata.annotations.createAt = \"$CREATED_AT\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
+$YQ -i ".metadata.annotations.createdAt = \"$CREATED_AT\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 $YQ -i ".metadata.annotations.support = \"Datadog Inc.\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Add skipRange annotation to allow direct upgrades
