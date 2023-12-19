@@ -7,7 +7,6 @@ package kubernetes
 
 import (
 	"testing"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +26,7 @@ var (
 	defaultProvider          = DefaultProvider
 	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
 	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
+    gkeAutopilotProvider = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 
 	gkeAutopilotNode = corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -38,7 +38,6 @@ var (
 			},
 		},
 	}
-	gkeAutopilotProvider = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 )
 	
 func Test_determineProvider(t *testing.T) {
@@ -76,7 +75,7 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
 		},
 		{
-			name: "gke provider cos_containerd",
+			name: "gke autopilot provider cos_containerd",
 			labels: map[string]string{
 				GKEAutopilotProviderLabel: "gk3-foo-bar",
 				GCPProviderLabel: GCPCosContainerdProviderValue,
@@ -84,7 +83,7 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
 		},
 		{
-			name: "gke provider cos",
+			name: "gke autopilot provider cos",
 			labels: map[string]string{
 				GKEAutopilotProviderLabel: "gk3-foo-bar",
 				GCPProviderLabel: GCPCosProviderValue,
@@ -92,7 +91,7 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue),
 		},
 		{
-			name: "gke provider regex-gke",
+			name: "gke autopilot provider (regex-gke)",
 			labels: map[string]string{
 				GKEAutopilotProviderLabel: "gke-autopilot",
 				GCPProviderLabel: GCPCosProviderValue,
@@ -100,7 +99,7 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
-			name: "gke provider regex-middle",
+			name: "gke autopilot provider (regex-middle)",
 			labels: map[string]string{
 				GKEAutopilotProviderLabel: "host-gk3-autopilot",
 				GCPProviderLabel: GCPCosProviderValue,
@@ -108,7 +107,7 @@ func Test_determineProvider(t *testing.T) {
 			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
-			name: "gke provider regex-end",
+			name: "gke autopilot provider (regex-end)",
 			labels: map[string]string{
 				GKEAutopilotProviderLabel: "host-gk3",
 				GCPProviderLabel: GCPCosProviderValue,
@@ -241,7 +240,6 @@ func Test_SetProvider(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
 			profile := NewProviderStore(logger)
 			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
-				fmt.Println("name", tt.name)
 				profile.providers = tt.existingProviders.providers
 			}
 
@@ -340,7 +338,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
 					Key:      GKEAutopilotProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn, //if existing provider is different - NotIn, OpIn - match node that corresponds to the provider > make sure they are scheduled to the right node
+					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						GKEAutopilotProviderValue,
 					},
@@ -462,7 +460,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple providers, ubuntu provider",
+			name: "multiple providers, cos provider",
 			existingProviders: map[string]struct{}{
 				gcpCosProvider: {},
 				"abcdef":       {},

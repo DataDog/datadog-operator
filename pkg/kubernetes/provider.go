@@ -39,6 +39,8 @@ const (
 	GKEAutopilotProviderLabel = "kubernetes.io/hostname"
 )
 
+var autopilotRegex = regexp.MustCompile(`^gk3\-.*`)
+
 // NewProviderStore generates an empty ProviderStore instance
 func NewProviderStore(log logr.Logger) ProviderStore {
 	return ProviderStore{
@@ -52,14 +54,13 @@ func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
-			//GKE
+			//GKE Autopilot
 			hostname := labels[GKEAutopilotProviderLabel]
-			var autopilotRegex = regexp.MustCompile(`^gk3\-.*`)
 
-			//return boolean
+			//Is GKE Autopilot node if hostname starts with `gk3-`
 			if autopilotRegex.MatchString(hostname) {
-				AutopilotProvider := generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
-				return AutopilotProvider
+				AutopilotProviderName := generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
+				return AutopilotProviderName
 			} else {
 				ProviderName := generateProviderName(GCPCloudProvider, val)
 				return ProviderName
