@@ -35,6 +35,12 @@ const (
 	GCPProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
+// ProviderValue allowlist
+var providerValueAllowlist = map[string]struct{}{
+	GCPCosContainerdProviderValue: {},
+	GCPCosProviderValue:           {},
+}
+
 // NewProviderStore generates an empty ProviderStore instance
 func NewProviderStore(log logr.Logger) ProviderStore {
 	return ProviderStore{
@@ -48,7 +54,9 @@ func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
-			return generateProviderName(GCPCloudProvider, val)
+			if provider := generateProviderName(GCPCloudProvider, val); provider != "" {
+				return provider
+			}
 		}
 	}
 
@@ -116,10 +124,23 @@ func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.N
 	return nsrList
 }
 
-// generateProviderName creates a provider name from the cloud provider and provider value
-// this should not be used to create a resource name as it may contain underscores
+// generateProviderName creates a provider name from the cloud provider and
+// provider value. NOTE: this should not be used to create a resource name as
+// it may contain underscores
 func generateProviderName(cloudProvider, providerValue string) string {
-	return cloudProvider + "-" + providerValue
+	if isProviderValueAllowed(providerValue) {
+		return cloudProvider + "-" + providerValue
+	}
+	return ""
+}
+
+// isProviderValueAllowed returns whether the value of a provider is present
+// in the allowlist
+func isProviderValueAllowed(value string) bool {
+	if _, ok := providerValueAllowlist[value]; ok {
+		return true
+	}
+	return false
 }
 
 // GetProviderLabelKeyValue gets the corresponding cloud provider label key and value from a provider name

@@ -134,6 +134,37 @@ func Test_SetProvider(t *testing.T) {
 	}
 }
 
+func Test_isProviderValueAllowed(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{
+			name:  "valid value",
+			value: GCPCosContainerdProviderValue,
+			want:  true,
+		},
+		{
+			name:  "invalid value",
+			value: "foo",
+			want:  false,
+		},
+		{
+			name:  "empty value",
+			value: "",
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			allowed := isProviderValueAllowed(tt.value)
+			assert.Equal(t, tt.want, allowed)
+		})
+	}
+}
+
 func Test_sortProviders(t *testing.T) {
 	tests := []struct {
 		name                string
