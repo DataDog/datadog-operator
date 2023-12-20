@@ -26,7 +26,7 @@ var (
 	defaultProvider          = DefaultProvider
 	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
 	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
-    gkeAutopilotProvider = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
+	gkeAutopilotProvider     = generateProviderName(GKEAutopilotProvider, GKEAutopilotProviderValue)
 
 	gkeAutopilotNode = corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -407,8 +407,8 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 						"zyxwv",
 					},
 				},
-		    },
-	    },
+			},
+		},
 		{
 			name: "multiple providers, GKE Autopilot, default provider",
 			existingProviders: map[string]struct{}{
@@ -439,8 +439,8 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 						"zyxwv",
 					},
 				},
-		    },
-	    },
+			},
+		},
 		{
 			name: "multiple providers, ubuntu provider",
 			existingProviders: map[string]struct{}{
