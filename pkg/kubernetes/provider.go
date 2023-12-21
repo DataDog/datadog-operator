@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ProviderStore struct {
@@ -43,8 +42,8 @@ func NewProviderStore(log logr.Logger) ProviderStore {
 	}
 }
 
-// determineProvider creates a Provider based on a map of labels
-func determineProvider(labels map[string]string) string {
+// DetermineProvider creates a Provider based on a map of labels
+func DetermineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
@@ -53,20 +52,6 @@ func determineProvider(labels map[string]string) string {
 	}
 
 	return DefaultProvider
-}
-
-// SetProvider creates a provider entry for a new provider if needed
-func (p *ProviderStore) SetProvider(obj client.Object) {
-	labels := obj.GetLabels()
-	objProvider := determineProvider(labels)
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	// add a new provider hash and provider definition
-	if _, ok := p.providers[objProvider]; !ok {
-		p.providers[objProvider] = struct{}{}
-		p.log.Info("New provider detected", "provider", objProvider)
-	}
 }
 
 // GetProviders gets a list of providers
@@ -154,4 +139,33 @@ func sortProviders(providers map[string]struct{}) []string {
 	sort.Strings(sortedProviders)
 
 	return sortedProviders
+}
+
+// Reset overwrites all providers in the provider store given a list of providers
+func (p *ProviderStore) Reset(providersList map[string]struct{}) map[string]struct{} {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	if len(providersList) > 0 {
+		p.providers = providersList
+	}
+
+	return p.providers
+}
+
+// IsPresent returns whether the given provider exists in the provider store
+func (p *ProviderStore) IsPresent(provider string) bool {
+	if provider == "" {
+		return false
+	}
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if len(p.providers) == 0 {
+		return false
+	}
+	if _, ok := p.providers[provider]; ok {
+		return true
+	}
+
+	return false
 }

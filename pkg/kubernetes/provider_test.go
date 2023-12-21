@@ -10,20 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
-	gcpCosNode = corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node1",
-			Labels: map[string]string{
-				GCPProviderLabel: GCPCosProviderValue,
-			},
-		},
-	}
 	defaultProvider          = DefaultProvider
 	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
 	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
@@ -67,69 +57,8 @@ func Test_determineProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := determineProvider(tt.labels)
+			p := DetermineProvider(tt.labels)
 			assert.Equal(t, tt.provider, p)
-		})
-	}
-}
-func Test_SetProvider(t *testing.T) {
-	tests := []struct {
-		name              string
-		obj               corev1.Node
-		existingProviders *ProviderStore
-		wantProviders     *ProviderStore
-	}{
-		{
-			name:              "add new provider",
-			obj:               gcpCosNode,
-			existingProviders: nil,
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-		},
-		{
-			name: "add new provider with existing provider",
-			obj:  gcpCosNode,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					"test": {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					"test":         {},
-					gcpCosProvider: {},
-				},
-			},
-		},
-		{
-			name: "add new node name to existing provider",
-			obj:  gcpCosNode,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gcpCosProvider: {},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			profile := NewProviderStore(logger)
-			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
-				profile.providers = tt.existingProviders.providers
-			}
-
-			profile.SetProvider(&tt.obj)
-			assert.Equal(t, tt.wantProviders.providers, profile.providers)
 		})
 	}
 }
@@ -344,6 +273,134 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			label, value := GetProviderLabelKeyValue(tt.provider)
 			assert.Equal(t, tt.wantLabel, label)
 			assert.Equal(t, tt.wantValue, value)
+		})
+	}
+}
+
+func Test_Reset(t *testing.T) {
+	tests := []struct {
+		name              string
+		newProviders      map[string]struct{}
+		existingProviders *ProviderStore
+		wantProviders     *ProviderStore
+	}{
+		{
+			name: "replace empty providers",
+			newProviders: map[string]struct{}{
+				gcpCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProviders: nil,
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+		},
+		{
+			name: "replace existing providers",
+			newProviders: map[string]struct{}{
+				gcpCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test": {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+		},
+		{
+			name:         "empty new providers",
+			newProviders: map[string]struct{}{},
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			providerStore := NewProviderStore(logger)
+			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
+				providerStore.providers = tt.existingProviders.providers
+			}
+
+			providerStore.Reset(tt.newProviders)
+			assert.Equal(t, tt.wantProviders.providers, providerStore.providers)
+		})
+	}
+}
+
+func Test_IsPresent(t *testing.T) {
+	tests := []struct {
+		name              string
+		provider          string
+		existingProviders *ProviderStore
+		want              bool
+	}{
+		{
+			name:     "provider in provider store",
+			provider: defaultProvider,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "provider not in provider store",
+			provider: defaultProvider,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			want: false,
+		},
+		{
+			name:     "empty provider",
+			provider: "",
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			want: false,
+		},
+		{
+			name:              "empty provider store",
+			provider:          defaultProvider,
+			existingProviders: &ProviderStore{},
+			want:              false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			providerStore := NewProviderStore(logger)
+			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
+				providerStore.providers = tt.existingProviders.providers
+			}
+
+			assert.Equal(t, tt.want, providerStore.IsPresent(tt.provider))
 		})
 	}
 }
