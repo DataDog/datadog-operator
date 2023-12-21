@@ -54,7 +54,7 @@ func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
-			if provider := generateProviderName(GCPCloudProvider, val); provider != "" {
+			if provider := generateValidProviderName(GCPCloudProvider, val); provider != "" {
 				return provider
 			}
 		}
@@ -124,10 +124,10 @@ func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.N
 	return nsrList
 }
 
-// generateProviderName creates a provider name from the cloud provider and
-// provider value. NOTE: this should not be used to create a resource name as
-// it may contain underscores
-func generateProviderName(cloudProvider, providerValue string) string {
+// generateValidProviderName creates a provider name from the cloud provider
+// and provider value. NOTE: this should not be used to create a resource name
+// as it may contain underscores
+func generateValidProviderName(cloudProvider, providerValue string) string {
 	if isProviderValueAllowed(providerValue) {
 		return cloudProvider + "-" + providerValue
 	}

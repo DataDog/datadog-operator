@@ -25,8 +25,8 @@ var (
 		},
 	}
 	defaultProvider          = DefaultProvider
-	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
-	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
+	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
+	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosProviderValue)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -53,7 +53,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				GCPProviderLabel: GCPCosProviderValue,
 			},
-			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
 			name: "gcp provider, underscore",
@@ -61,7 +61,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				GCPProviderLabel: GCPCosContainerdProviderValue,
 			},
-			provider: generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
 		},
 	}
 
