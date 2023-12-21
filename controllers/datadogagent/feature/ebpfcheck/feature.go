@@ -26,7 +26,9 @@ func buildEBPFCheckFeature(options *feature.Options) feature.Feature {
 	return ebpfCheckFeat
 }
 
-type ebpfCheckFeature struct{}
+type ebpfCheckFeature struct{
+	ebpfCheckEnabled		bool
+}
 
 // ID returns the ID of the Feature
 func (f *ebpfCheckFeature) ID() feature.IDType {
@@ -35,6 +37,10 @@ func (f *ebpfCheckFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ebpfCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+
+	ebpfCheck := dda.Spec.Features.EBPFCheck
+	f.ebpfCheckEnabled = apiutils.BoolValue(ebpfCheck.Enabled)
+
 	if dda.Spec.Features != nil && dda.Spec.Features.EBPFCheck != nil && apiutils.BoolValue(dda.Spec.Features.EBPFCheck.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
@@ -65,39 +71,40 @@ func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// security context capabilities
-	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
+	if f.ebpfCheckEnabled && provider != "autopilot" {
+		// security context capabilities
+		managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
-	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
-	managers.Volume().AddVolume(&debugfsVol)
-	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.SystemProbeContainerName})
+		// debugfs volume mount
+		debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+		managers.Volume().AddVolume(&debugfsVol)
+		managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.SystemProbeContainerName})
 
-	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
-	managers.Volume().AddVolume(&socketVol)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
+		// socket volume mount (needs write perms for the system probe container but not the others)
+		socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
+		managers.Volume().AddVolume(&socketVol)
+		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.CoreAgentContainerName)
+		_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.CoreAgentContainerName)
 
-	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDEnableEBPFCheckEnvVar,
-		Value: "true",
+		enableEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDEnableEBPFCheckEnvVar,
+			Value: "true",
+		}
+
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+		managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
+
+		socketEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDSystemProbeSocket,
+			Value: apicommon.DefaultSystemProbeSocketPath,
+		}
+
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, socketEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
 	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
-	managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
-
-	socketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
-		Value: apicommon.DefaultSystemProbeSocketPath,
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, socketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
-
 	return nil
 }
 

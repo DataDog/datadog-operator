@@ -102,33 +102,34 @@ func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMEnabled,
-		Value: apiutils.BoolToString(&f.enabled),
-	})
-
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMContainerImageEnabled,
-		Value: apiutils.BoolToString(&f.containerImageEnabled),
-	})
-	if len(f.containerImageAnalyzers) > 0 {
+	if f.enabled && provider != "autopilot"{
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSBOMContainerImageAnalyzers,
-			Value: strings.Join(f.containerImageAnalyzers, " "),
+			Name:  apicommon.DDSBOMEnabled,
+			Value: apiutils.BoolToString(&f.enabled),
 		})
-	}
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMHostEnabled,
-		Value: apiutils.BoolToString(&f.hostEnabled),
-	})
-	if len(f.hostAnalyzers) > 0 {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSBOMHostAnalyzers,
-			Value: strings.Join(f.hostAnalyzers, " "),
+			Name:  apicommon.DDSBOMContainerImageEnabled,
+			Value: apiutils.BoolToString(&f.containerImageEnabled),
 		})
-	}
+		if len(f.containerImageAnalyzers) > 0 {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDSBOMContainerImageAnalyzers,
+				Value: strings.Join(f.containerImageAnalyzers, " "),
+			})
+		}
 
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSBOMHostEnabled,
+			Value: apiutils.BoolToString(&f.hostEnabled),
+		})
+		if len(f.hostAnalyzers) > 0 {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDSBOMHostAnalyzers,
+				Value: strings.Join(f.hostAnalyzers, " "),
+			})
+		}
+	}
 	return nil
 }
 

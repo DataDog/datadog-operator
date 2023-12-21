@@ -256,126 +256,127 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// security context capabilities
-	capabilities := []corev1.Capability{
-		"AUDIT_CONTROL",
-		"AUDIT_READ",
-	}
-	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SecurityAgentContainerName)
-
-	volMountMgr := managers.VolumeMount()
-	VolMgr := managers.Volume()
-
-	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
-	if f.customConfig != nil {
-		var vol corev1.Volume
-		var volMount corev1.VolumeMount
-
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	if f.enable && provider != "autopilot"{
+		// security context capabilities
+		capabilities := []corev1.Capability{
+			"AUDIT_CONTROL",
+			"AUDIT_READ",
 		}
+		managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SecurityAgentContainerName)
 
-		if f.customConfig.ConfigMap != nil {
-			// Custom config is referenced via ConfigMap
-			// Cannot use typical GetVolumesFromConfigMap because security features are not under /conf.d
-			vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cspmConfigVolumeName)
-			volMount = corev1.VolumeMount{
-				Name:      cspmConfigVolumeName,
-				MountPath: "/etc/datadog-agent-compliance-benchmarks",
-				ReadOnly:  true,
+		volMountMgr := managers.VolumeMount()
+		VolMgr := managers.Volume()
+
+		// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
+		if f.customConfig != nil {
+			var vol corev1.Volume
+			var volMount corev1.VolumeMount
+
+			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+				managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 			}
-		} else {
-			// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
-			vol = volume.GetBasicVolume(f.configMapName, cspmConfigVolumeName)
 
-			volMount = corev1.VolumeMount{
-				Name:      cspmConfigVolumeName,
-				MountPath: "/etc/datadog-agent-compliance-benchmarks",
-				ReadOnly:  true,
-			}
-		}
-		// Mount custom policies to init-volume container.
-		managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommonv1.InitVolumeContainerName)
-		managers.Volume().AddVolume(&vol)
+			if f.customConfig.ConfigMap != nil {
+				// Custom config is referenced via ConfigMap
+				// Cannot use typical GetVolumesFromConfigMap because security features are not under /conf.d
+				vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cspmConfigVolumeName)
+				volMount = corev1.VolumeMount{
+					Name:      cspmConfigVolumeName,
+					MountPath: "/etc/datadog-agent-compliance-benchmarks",
+					ReadOnly:  true,
+				}
+			} else {
+				// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
+				vol = volume.GetBasicVolume(f.configMapName, cspmConfigVolumeName)
 
-		// Add workaround command to init-volume container
-		for id, container := range managers.PodTemplateSpec().Spec.InitContainers {
-			if container.Name == "init-volume" {
-				managers.PodTemplateSpec().Spec.InitContainers[id].Args = []string{
-					managers.PodTemplateSpec().Spec.InitContainers[id].Args[0] + ";cp -v /etc/datadog-agent-compliance-benchmarks/* /opt/datadog-agent/compliance.d/",
+				volMount = corev1.VolumeMount{
+					Name:      cspmConfigVolumeName,
+					MountPath: "/etc/datadog-agent-compliance-benchmarks",
+					ReadOnly:  true,
 				}
 			}
+			// Mount custom policies to init-volume container.
+			managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommonv1.InitVolumeContainerName)
+			managers.Volume().AddVolume(&vol)
+
+			// Add workaround command to init-volume container
+			for id, container := range managers.PodTemplateSpec().Spec.InitContainers {
+				if container.Name == "init-volume" {
+					managers.PodTemplateSpec().Spec.InitContainers[id].Args = []string{
+						managers.PodTemplateSpec().Spec.InitContainers[id].Args[0] + ";cp -v /etc/datadog-agent-compliance-benchmarks/* /opt/datadog-agent/compliance.d/",
+					}
+				}
+			}
+
+			// Add empty volume to Security Agent
+			benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentComplianceConfigDirVolumeName, apicommon.SecurityAgentComplianceConfigDirVolumePath, true)
+			managers.Volume().AddVolume(&benchmarksVol)
+			managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommonv1.SecurityAgentContainerName)
+
+			// Add compliance.d volume mount to init-volume container at different path
+			benchmarkVolMountInitVol := corev1.VolumeMount{
+				Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+				MountPath: "/opt/datadog-agent/compliance.d",
+				ReadOnly:  false,
+			}
+			volMountMgr.AddVolumeMountToInitContainer(&benchmarkVolMountInitVol, apicommonv1.InitVolumeContainerName)
 		}
 
-		// Add empty volume to Security Agent
-		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentComplianceConfigDirVolumeName, apicommon.SecurityAgentComplianceConfigDirVolumePath, true)
-		managers.Volume().AddVolume(&benchmarksVol)
-		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommonv1.SecurityAgentContainerName)
+		// cgroups volume mount
+		cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&cgroupsVol)
 
-		// Add compliance.d volume mount to init-volume container at different path
-		benchmarkVolMountInitVol := corev1.VolumeMount{
-			Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
-			MountPath: "/opt/datadog-agent/compliance.d",
-			ReadOnly:  false,
+		// passwd volume mount
+		passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&passwdVol)
+
+		// procdir volume mount
+		procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&procdirVol)
+
+		// host root volume mount
+		hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&hostRootVol)
+
+		// group volume mount
+		groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&groupVol)
+
+		// env vars
+		enabledEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDComplianceConfigEnabled,
+			Value: "true",
 		}
-		volMountMgr.AddVolumeMountToInitContainer(&benchmarkVolMountInitVol, apicommonv1.InitVolumeContainerName)
-	}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
 
-	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
-	VolMgr.AddVolume(&cgroupsVol)
-
-	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SecurityAgentContainerName)
-	VolMgr.AddVolume(&passwdVol)
-
-	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SecurityAgentContainerName)
-	VolMgr.AddVolume(&procdirVol)
-
-	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommonv1.SecurityAgentContainerName)
-	VolMgr.AddVolume(&hostRootVol)
-
-	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SecurityAgentContainerName)
-	VolMgr.AddVolume(&groupVol)
-
-	// env vars
-	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceConfigEnabled,
-		Value: "true",
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
-
-	hostRootEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDHostRootEnvVar,
-		Value: apicommon.HostRootMountPath,
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostRootEnvVar)
-
-	if f.checkInterval != "" {
-		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceConfigCheckInterval,
-			Value: f.checkInterval,
+		hostRootEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDHostRootEnvVar,
+			Value: apicommon.HostRootMountPath,
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)
-	}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostRootEnvVar)
 
-	if f.hostBenchmarksEnabled {
-		hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceHostBenchmarksEnabled,
-			Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
+		if f.checkInterval != "" {
+			intervalEnvVar := &corev1.EnvVar{
+				Name:  apicommon.DDComplianceConfigCheckInterval,
+				Value: f.checkInterval,
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
-	}
 
+		if f.hostBenchmarksEnabled {
+			hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
+				Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+				Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
+		}
+	}
 	return nil
 }
 

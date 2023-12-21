@@ -32,7 +32,9 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 	return usmFeat
 }
 
-type usmFeature struct{}
+type usmFeature struct{
+	usmEnabled		bool
+}
 
 // ID returns the ID of the Feature
 func (f *usmFeature) ID() feature.IDType {
@@ -41,6 +43,9 @@ func (f *usmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	usm := dda.Spec.Features.USM
+	f.usmEnabled = apiutils.BoolValue(usm.Enabled)
+
 	if dda.Spec.Features != nil && dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -101,66 +106,67 @@ func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// annotations
-	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
+	if f.usmEnabled && provider != "autopilot" {
+		// annotations
+		managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 
-	// security context capabilities
-	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
+		// security context capabilities
+		managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
-	// volume mounts
-	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommonv1.SystemProbeContainerName)
-	managers.Volume().AddVolume(&procdirVol)
+		// volume mounts
+		procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommonv1.SystemProbeContainerName)
+		managers.Volume().AddVolume(&procdirVol)
 
-	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommonv1.SystemProbeContainerName)
-	managers.Volume().AddVolume(&cgroupsVol)
+		cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommonv1.SystemProbeContainerName)
+		managers.Volume().AddVolume(&cgroupsVol)
 
-	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
-	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommonv1.SystemProbeContainerName)
-	managers.Volume().AddVolume(&debugfsVol)
+		debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+		managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommonv1.SystemProbeContainerName)
+		managers.Volume().AddVolume(&debugfsVol)
 
-	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
-	managers.VolumeMount().AddVolumeMountToContainers(
-		&socketDirMount,
-		[]apicommonv1.AgentContainerName{
-			apicommonv1.SystemProbeContainerName,
-		},
-	)
-	managers.Volume().AddVolume(&socketDirVol)
+		// socket volume mount (needs write perms for the system probe container but not the others)
+		socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
+		managers.VolumeMount().AddVolumeMountToContainers(
+			&socketDirMount,
+			[]apicommonv1.AgentContainerName{
+				apicommonv1.SystemProbeContainerName,
+			},
+		)
+		managers.Volume().AddVolume(&socketDirVol)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainers(
-		&socketVolMountReadOnly,
-		[]apicommonv1.AgentContainerName{
-			apicommonv1.CoreAgentContainerName,
-			apicommonv1.ProcessAgentContainerName,
-		},
-	)
+		_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainers(
+			&socketVolMountReadOnly,
+			[]apicommonv1.AgentContainerName{
+				apicommonv1.CoreAgentContainerName,
+				apicommonv1.ProcessAgentContainerName,
+			},
+		)
 
-	// env vars for System Probe and Process Agent
-	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
-		Value: "true",
+		// env vars for System Probe and Process Agent
+		enabledEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enabledEnvVar)
+
+		sysProbeSocketEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDSystemProbeSocket,
+			Value: apicommon.DefaultSystemProbeSocketPath,
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeSocketEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeSocketEnvVar)
+
+		// env vars for Process Agent only
+		sysProbeExternalEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDSystemProbeExternal,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeExternalEnvVar)
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enabledEnvVar)
-
-	sysProbeSocketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
-		Value: apicommon.DefaultSystemProbeSocketPath,
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeSocketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeSocketEnvVar)
-
-	// env vars for Process Agent only
-	sysProbeExternalEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeExternal,
-		Value: "true",
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeExternalEnvVar)
-
 	return nil
 }
 

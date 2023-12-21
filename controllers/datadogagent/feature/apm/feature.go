@@ -279,7 +279,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.Port().AddPortToContainer(apicommonv1.TraceAgentContainerName, apmPort)
 
 	// uds
-	if f.udsEnabled {
+	if f.udsEnabled && provider != "autopilot" {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{

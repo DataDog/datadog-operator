@@ -220,7 +220,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, dogstatsdPort)
 
 	// uds
-	if f.udsEnabled {
+	if f.udsEnabled && provider != "autopilot"{
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, apicommon.DogstatsdSocketLocalPath, false)
@@ -235,7 +235,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		})
 	}
 
-	if f.originDetectionEnabled {
+	if f.originDetectionEnabled && provider != "autopilot" {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdOriginDetection,
 			Value: "true",
