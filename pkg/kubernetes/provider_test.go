@@ -15,8 +15,8 @@ import (
 
 var (
 	defaultProvider          = DefaultProvider
-	gcpCosContainerdProvider = generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
-	gcpCosProvider           = generateProviderName(GCPCloudProvider, GCPCosProviderValue)
+	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
+	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosProviderValue)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -43,7 +43,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				GCPProviderLabel: GCPCosProviderValue,
 			},
-			provider: generateProviderName(GCPCloudProvider, GCPCosProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosProviderValue),
 		},
 		{
 			name: "gcp provider, underscore",
@@ -51,7 +51,7 @@ func Test_determineProvider(t *testing.T) {
 				"foo":            "bar",
 				GCPProviderLabel: GCPCosContainerdProviderValue,
 			},
-			provider: generateProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
 		},
 	}
 
@@ -59,6 +59,37 @@ func Test_determineProvider(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := DetermineProvider(tt.labels)
 			assert.Equal(t, tt.provider, p)
+		})
+	}
+}
+
+func Test_isProviderValueAllowed(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{
+			name:  "valid value",
+			value: GCPCosContainerdProviderValue,
+			want:  true,
+		},
+		{
+			name:  "invalid value",
+			value: "foo",
+			want:  false,
+		},
+		{
+			name:  "empty value",
+			value: "",
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			allowed := isProviderValueAllowed(tt.value)
+			assert.Equal(t, tt.want, allowed)
 		})
 	}
 }
