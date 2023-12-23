@@ -77,6 +77,8 @@ type DatadogFeatures struct {
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
+	// Agent update configuration.
+	Update *UpdateFeatureConfig `json:"update,omitempty"`
 
 	// Cluster-level features
 
@@ -342,6 +344,19 @@ type SBOMTypeConfig struct {
 	// +optional
 	// +listType=set
 	Analyzers []string `json:"analyzers,omitempty"`
+}
+
+// UpdateFeatureConfig contains configuration for updating the Datadog Agent through Remote Configuration.
+type UpdateFeatureConfig struct {
+	// Enable this option to update the Datadog Agent through Remote Configuration
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enable this option to enable Agent services through Remote Configuration
+	// Default: false
+	// +optional
+	ServiceActivationEnabled *bool `json:"serviceActivationEnabled,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -905,6 +920,9 @@ type DatadogAgentComponentOverride struct {
 	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional
 	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+
+	// The target update image of the Datadog Agent.
+	Update *commonv1.AgentImageConfig `json:"update,omitempty"`
 
 	// Specify additional environment variables for all containers in this component
 	// Priority is Container > Component.

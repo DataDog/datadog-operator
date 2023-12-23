@@ -136,6 +136,9 @@ type DatadogAgentSpecAgentSpec struct {
 	// The container image of the Datadog Agent.
 	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 
+	// The container image of the Datadog Agent.
+	Update *commonv1.AgentImageConfig `json:"update,omitempty"`
+
 	// Name of the Daemonset to create or migrate from.
 	// +optional
 	DaemonsetName string `json:"daemonsetName,omitempty"`

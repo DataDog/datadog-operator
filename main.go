@@ -224,7 +224,7 @@ func run(opts *options) error {
 		MetricsBindAddress:         opts.metricsAddr,
 		HealthProbeBindAddress:     ":8081",
 		Port:                       9443,
-		LeaderElection:             opts.enableLeaderElection,
+		LeaderElection:             false, // opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: opts.leaderElectionResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,

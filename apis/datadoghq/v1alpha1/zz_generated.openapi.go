@@ -1168,6 +1168,12 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig"),
 						},
 					},
+					"update": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The container image of the Datadog Agent.",
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig"),
+						},
+					},
 					"daemonsetName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the Daemonset to create or migrate from.",

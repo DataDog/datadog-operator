@@ -668,6 +668,11 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 		*out = new(v1.AgentImageConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Update != nil {
+		in, out := &in.Update, &out.Update
+		*out = new(v1.AgentImageConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Config != nil {
 		in, out := &in.Config, &out.Config
 		*out = new(NodeAgentConfig)

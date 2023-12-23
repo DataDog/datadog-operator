@@ -3529,6 +3529,32 @@ spec:
                             - mountPath
                           x-kubernetes-list-type: map
                       type: object
+                    update:
+                      description: The container image of the Datadog Agent.
+                      properties:
+                        jmxEnabled:
+                          description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
+                          type: boolean
+                        name:
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                          type: string
+                        pullPolicy:
+                          description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
+                          type: string
+                        pullSecrets:
+                          description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                          items:
+                            description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                            properties:
+                              name:
+                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                                type: string
+                            type: object
+                          type: array
+                        tag:
+                          description: Define the image tag to use. To be used if the Name field does not correspond to a full image string.
+                          type: string
+                      type: object
                     useExtendedDaemonset:
                       description: UseExtendedDaemonset use ExtendedDaemonset for Agent deployment. default value is false.
                       type: boolean
@@ -11244,6 +11270,32 @@ spec:
                                 - mountPath
                               x-kubernetes-list-type: map
                           type: object
+                        update:
+                          description: The container image of the Datadog Agent.
+                          properties:
+                            jmxEnabled:
+                              description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
+                              type: boolean
+                            name:
+                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                              type: string
+                            pullPolicy:
+                              description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
+                              type: string
+                            pullSecrets:
+                              description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                              items:
+                                description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                                    type: string
+                                type: object
+                              type: array
+                            tag:
+                              description: Define the image tag to use. To be used if the Name field does not correspond to a full image string.
+                              type: string
+                          type: object
                         useExtendedDaemonset:
                           description: UseExtendedDaemonset use ExtendedDaemonset for Agent deployment. default value is false.
                           type: boolean
@@ -15949,6 +16001,16 @@ spec:
                           description: 'Enables the TCP queue length eBPF-based check. Default: false'
                           type: boolean
                       type: object
+                    update:
+                      description: Agent update configuration.
+                      properties:
+                        enabled:
+                          description: 'Enable this option to update the Datadog Agent through Remote Configuration Default: false'
+                          type: boolean
+                        serviceActivationEnabled:
+                          description: 'Enable this option to enable Agent services through Remote Configuration Default: false'
+                          type: boolean
+                      type: object
                     usm:
                       description: USM (Universal Service Monitoring) configuration.
                       properties:
@@ -17572,6 +17634,10 @@ spec:
                               allowHostPorts:
                                 description: AllowHostPorts determines if the policy allows host ports in the containers.
                                 type: boolean
+                              allowPrivilegeEscalation:
+                                description: AllowPrivilegeEscalation determines if a pod can request to allow privilege escalation. If unspecified, defaults to true.
+                                nullable: true
+                                type: boolean
                               allowPrivilegedContainer:
                                 description: AllowPrivilegedContainer determines if a container can request to be run as privileged.
                                 type: boolean
@@ -17580,6 +17646,7 @@ spec:
                                 items:
                                   description: Capability represent POSIX capabilities type
                                   type: string
+                                nullable: true
                                 type: array
                               allowedFlexVolumes:
                                 description: AllowedFlexVolumes is a whitelist of allowed Flexvolumes.  Empty or nil indicates that all Flexvolumes may be used.  This parameter is effective only when the usage of the Flexvolumes is allowed in the "Volumes" field.
@@ -17589,7 +17656,16 @@ spec:
                                     driver:
                                       description: Driver is the name of the Flexvolume driver.
                                       type: string
+                                  required:
+                                    - driver
                                   type: object
+                                nullable: true
+                                type: array
+                              allowedUnsafeSysctls:
+                                description: "AllowedUnsafeSysctls is a list of explicitly allowed unsafe sysctls, defaults to none. Each entry is either a plain sysctl name or ends in \"*\" in which case it is considered as a prefix of allowed sysctls. Single * means all unsafe sysctls are allowed. Kubelet has to whitelist all allowed unsafe sysctls explicitly to avoid rejection. \n Examples: e.g. \"foo/*\" allows \"foo/bar\", \"foo/baz\", etc. e.g. \"foo.*\" allows \"foo.bar\", \"foo.baz\", etc."
+                                items:
+                                  type: string
+                                nullable: true
                                 type: array
                               apiVersion:
                                 description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -17599,9 +17675,21 @@ spec:
                                 items:
                                   description: Capability represent POSIX capabilities type
                                   type: string
+                                nullable: true
+                                type: array
+                              defaultAllowPrivilegeEscalation:
+                                description: DefaultAllowPrivilegeEscalation controls the default setting for whether a process can gain more privileges than its parent process.
+                                nullable: true
+                                type: boolean
+                              forbiddenSysctls:
+                                description: "ForbiddenSysctls is a list of explicitly forbidden sysctls, defaults to none. Each entry is either a plain sysctl name or ends in \"*\" in which case it is considered as a prefix of forbidden sysctls. Single * means all sysctls are forbidden. \n Examples: e.g. \"foo/*\" forbids \"foo/bar\", \"foo/baz\", etc. e.g. \"foo.*\" forbids \"foo.bar\", \"foo.baz\", etc."
+                                items:
+                                  type: string
+                                nullable: true
                                 type: array
                               fsGroup:
                                 description: FSGroup is the strategy that will dictate what fs group is used by the SecurityContext.
+                                nullable: true
                                 properties:
                                   ranges:
                                     description: Ranges are the allowed ranges of fs groups.  If you would like to force a single fs group then supply a single range with the same start and end.
@@ -17626,16 +17714,18 @@ spec:
                                 description: The groups that have permission to use this security context constraints
                                 items:
                                   type: string
+                                nullable: true
                                 type: array
                               kind:
                                 description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
                                 type: string
                               metadata:
-                                description: 'Standard object''s metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata'
+                                description: 'metadata is the standard object''s metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
                                 type: object
                               priority:
                                 description: Priority influences the sort order of SCCs when evaluating which SCCs to try first for a given pod request based on access in the Users and Groups fields.  The higher the int, the higher priority. An unset value is considered a 0 priority. If scores for multiple SCCs are equal they will be sorted from most restrictive to least restrictive. If both priorities and restrictions are equal the SCCs will be sorted by name.
                                 format: int32
+                                nullable: true
                                 type: integer
                               readOnlyRootFilesystem:
                                 description: ReadOnlyRootFilesystem when set to true will force containers to run with a read only root file system.  If the container specifically requests to run with a non-read only root file system the SCC should deny the pod. If set to false the container may run with a read only root file system if it wishes but it will not be forced to.
@@ -17645,9 +17735,11 @@ spec:
                                 items:
                                   description: Capability represent POSIX capabilities type
                                   type: string
+                                nullable: true
                                 type: array
                               runAsUser:
                                 description: RunAsUser is the strategy that will dictate what RunAsUser is used in the SecurityContext.
+                                nullable: true
                                 properties:
                                   type:
                                     description: Type is the strategy that will dictate what RunAsUser is used in the SecurityContext.
@@ -17667,6 +17759,7 @@ spec:
                                 type: object
                               seLinuxContext:
                                 description: SELinuxContext is the strategy that will dictate what labels will be set in the SecurityContext.
+                                nullable: true
                                 properties:
                                   seLinuxOptions:
                                     description: seLinuxOptions required to run as; required for MustRunAs
@@ -17692,9 +17785,11 @@ spec:
                                 description: "SeccompProfiles lists the allowed profiles that may be set for the pod or container's seccomp annotations.  An unset (nil) or empty value means that no profiles may be specifid by the pod or container.\tThe wildcard '*' may be used to allow all profiles.  When used to generate a value for a pod the first non-wildcard profile will be used as the default."
                                 items:
                                   type: string
+                                nullable: true
                                 type: array
                               supplementalGroups:
                                 description: SupplementalGroups is the strategy that will dictate what supplemental groups are used by the SecurityContext.
+                                nullable: true
                                 properties:
                                   ranges:
                                     description: Ranges are the allowed ranges of supplemental groups.  If you would like to force a single supplemental group then supply a single range with the same start and end.
@@ -17719,12 +17814,14 @@ spec:
                                 description: The users who have permissions to use this security context constraints
                                 items:
                                   type: string
+                                nullable: true
                                 type: array
                               volumes:
                                 description: Volumes is a white list of allowed volume plugins.  FSType corresponds directly with the field names of a VolumeSource (azureFile, configMap, emptyDir).  To allow all volumes you may use "*". To allow no volumes, set to ["none"].
                                 items:
                                   description: FS Type gives strong typing to different file systems that are used by volumes.
                                   type: string
+                                nullable: true
                                 type: array
                             required:
                               - allowHostDirVolumePlugin
@@ -17734,7 +17831,6 @@ spec:
                               - allowHostPorts
                               - allowPrivilegedContainer
                               - allowedCapabilities
-                              - allowedFlexVolumes
                               - defaultAddCapabilities
                               - priority
                               - readOnlyRootFilesystem
@@ -17769,6 +17865,32 @@ spec:
                           type: object
                         type: array
                         x-kubernetes-list-type: atomic
+                      update:
+                        description: The target update image of the Datadog Agent.
+                        properties:
+                          jmxEnabled:
+                            description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
+                            type: boolean
+                          name:
+                            description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                            type: string
+                          pullPolicy:
+                            description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
+                            type: string
+                          pullSecrets:
+                            description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                            items:
+                              description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                              properties:
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                                  type: string
+                              type: object
+                            type: array
+                          tag:
+                            description: Define the image tag to use. To be used if the Name field does not correspond to a full image string.
+                            type: string
+                        type: object
                       volumes:
                         description: Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
                         items:
