@@ -5,4 +5,17 @@ metadata:
 spec:
   global:
     credentials:
-      apiKey: <DATADOG_API_KEY>
+      apiKey: <api-key>
+    clusterName: gke-autopilot-on-kind
+    kubelet:
+      # This is needed if the kubelet certificate is self-signed.
+      # Alternatively, the CA certificate used to sign the kubelet certificate can be mounted.
+      tlsVerify: false
+  features:
+    apm:
+      enabled: true
+      hostPortConfig:
+        enabled: true
+        hostPort: 8126
+    
+      
