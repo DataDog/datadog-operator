@@ -2991,15 +2991,10 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client: tt.client,
-				scheme: s,
-				log:    logf.Log.WithName(tt.name),
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: true,
-					},
-					SupportCilium: true,
-				},
+				client:  tt.client,
+				scheme:  s,
+				log:     logf.Log.WithName(tt.name),
+				options: ReconcilerOptions{},
 			}
 			for _, node := range tt.nodes {
 				err := tt.client.Create(context.TODO(), &node)
