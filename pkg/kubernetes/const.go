@@ -54,6 +54,7 @@ const (
 	CiliumNetworkPoliciesKind = "ciliumnetworkpolicies"
 	// SecurityContextConstraintsKind SecurityContextConstraints resource kind
 	SecurityContextConstraintsKind = "securitycontextconstraints"
+	NodeKind                       = "nodes"
 )
 
 // GetResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies

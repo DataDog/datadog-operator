@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -34,15 +33,15 @@ func TestProfilesToApply(t *testing.T) {
 	tests := []struct {
 		name                           string
 		profiles                       []v1alpha1.DatadogAgentProfile
-		nodes                          map[string]v1.Node
+		nodes                          []v1.Node
 		expectedProfiles               []v1alpha1.DatadogAgentProfile
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 	}{
 		{
 			name:     "no profiles",
 			profiles: []v1alpha1.DatadogAgentProfile{},
-			nodes: map[string]v1.Node{
-				generateRandomNodeUUID(): {
+			nodes: []v1.Node{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
 						Labels: map[string]string{
@@ -75,8 +74,8 @@ func TestProfilesToApply(t *testing.T) {
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
 			},
-			nodes: map[string]v1.Node{
-				generateRandomNodeUUID(): {
+			nodes: []v1.Node{
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
 						Labels: map[string]string{
@@ -166,9 +165,9 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: map[string]v1.Node{
+			nodes: []v1.Node{
 				// node1 matches profile-1 and profile-3
-				generateRandomNodeUUID(): {
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
 						Labels: map[string]string{
@@ -178,7 +177,7 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 				// node2 matches profile-2
-				generateRandomNodeUUID(): {
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node2",
 						Labels: map[string]string{
@@ -187,7 +186,7 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 				// node3 matches profile-1 and profile-2
-				generateRandomNodeUUID(): {
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node3",
 						Labels: map[string]string{
@@ -319,9 +318,9 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: map[string]v1.Node{
+			nodes: []v1.Node{
 				// matches all profiles
-				generateRandomNodeUUID(): {
+				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
 						Labels: map[string]string{
@@ -567,9 +566,4 @@ func configWithCPURequestOverrideForCoreAgent(cpuRequest string) *v1alpha1.Confi
 			},
 		},
 	}
-}
-
-func generateRandomNodeUUID() string {
-	nodeUUID := uuid.New()
-	return nodeUUID.String()
 }

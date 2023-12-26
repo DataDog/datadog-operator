@@ -38,7 +38,7 @@ const (
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes map[string]v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
 

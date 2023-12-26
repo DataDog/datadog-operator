@@ -275,7 +275,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.D
 		return nil, nil, err
 	}
 
-	nodeList := r.nodeStore.GetNodes()
+	nodesStoreList := r.nodeStore.GetNodes()
 
-	return agentprofile.ProfilesToApply(profilesList.Items, *nodeList)
+	return agentprofile.ProfilesToApply(profilesList.Items, nodesStoreList.Items)
 }

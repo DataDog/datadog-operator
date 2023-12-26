@@ -5,13 +5,11 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type NodeStore struct {
-	nodes map[string]v1.Node
+	nodes v1.NodeList
 	log   logr.Logger
 	mutex sync.Mutex
 }
@@ -19,58 +17,69 @@ type NodeStore struct {
 // NewNodeStore generates an empty NodeStore instance
 func NewNodeStore(log logr.Logger) *NodeStore {
 	return &NodeStore{
-		nodes: map[string]v1.Node{},
+		nodes: v1.NodeList{},
 		log:   log,
 	}
 }
 
 // SetOrUpdateNode creates a Nodes entry for a new Node if needed
 func (n *NodeStore) SetOrUpdateNode(obj client.Object) {
-	nodeLabels := obj.GetLabels()
-	nodeUID := string(obj.GetUID())
-	nodeName := obj.GetName()
+	if node, ok := obj.(*v1.Node); ok {
+		if node.DeepCopyObject() != nil {
+			// update node if present in node store
+			nodeUID := string(node.GetUID())
 
-	// update node if present in node store
-	if _, ok := n.nodes[nodeUID]; ok {
-		n.log.Info("New node labels detected. Updating node store", "node", nodeUID, "node name", nodeName)
-		n.SetNode(nodeUID, nodeName, nodeLabels)
-		return
+			if _, nodeIdx, ok := n.findNode(nodeUID); ok {
+				n.log.Info("New node labels detected. Updating node store", "node", nodeUID)
+				n.UpdateNode(nodeIdx, *node)
+				return
+			}
+
+			// add a new node definition if not present in node store
+			if _, _, ok := n.findNode(nodeUID); !ok {
+				n.log.Info("New node detected", "node", nodeUID)
+				n.SetNode(node)
+			}
+		}
 	}
-
-	// add a new node definition if not present in node store
-	if _, ok := n.nodes[nodeUID]; !ok {
-		n.log.Info("New node detected", "node", nodeUID, "node name", nodeName)
-		n.SetNode(nodeUID, nodeName, nodeLabels)
-	}
-
 }
 
 // SetNode creates a Nodes entry for a new Node
-func (n *NodeStore) SetNode(nodeUID string, nodeName string, nodeLabels map[string]string) {
+func (n *NodeStore) SetNode(node *v1.Node) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	// add a new node definition
-	n.nodes[nodeUID] = v1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   nodeName,
-			Labels: nodeLabels,
-			UID:    types.UID(nodeUID),
-		},
-	}
+	n.nodes.Items = append(n.nodes.Items, *node)
+}
+
+func (n *NodeStore) UpdateNode(nodeIdx int, newNode v1.Node) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+	// update node definition
+	n.nodes.Items[nodeIdx] = newNode
 }
 
 func (n *NodeStore) UnsetNode(obj client.Object) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
-
 	nodeUID := string(obj.GetUID())
-	delete(n.nodes, nodeUID)
-
+	if _, idx, ok := n.findNode(nodeUID); ok {
+		n.nodes.Items = append(n.nodes.Items[:idx], n.nodes.Items[idx+1:]...)
+	}
 }
 
-func (n *NodeStore) GetNodes() *map[string]v1.Node {
+func (n *NodeStore) GetNodes() v1.NodeList {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	return &n.nodes
+	return n.nodes
+}
+
+func (n *NodeStore) findNode(nodeUID string) (v1.Node, int, bool) {
+	for i, node := range n.nodes.Items {
+		if string(node.UID) == nodeUID {
+			return node, i, true
+		}
+	}
+	return v1.Node{}, 0, false
 }

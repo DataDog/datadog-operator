@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"reflect"
 	"testing"
 	"time"
@@ -2879,6 +2880,78 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				err := tt.wantFunc(r.client)
 				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
 			}
+		})
+	}
+}
+
+func Test_LabelNodesWithProfiles(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Node{})
+
+	tests := []struct {
+		name               string
+		client             client.Client
+		nodes              []corev1.Node
+		profilesByNode     map[string]types.NamespacedName
+		expectProfileLabel map[string]bool
+	}{
+		{
+			name:   "All nodes match profile",
+			client: fake.NewClientBuilder().WithScheme(s).Build(),
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Name:      "profile-1",
+					Namespace: "default",
+				},
+			},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "node-1",
+						Namespace: "default",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]bool{
+				"node-1": true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				client: tt.client,
+				scheme: s,
+				log:    logf.Log.WithName(tt.name),
+				options: ReconcilerOptions{
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+						Enabled: true,
+					},
+					SupportCilium: true,
+				},
+			}
+			for _, node := range tt.nodes {
+				err := tt.client.Create(context.TODO(), &node)
+				assert.NoError(t, err, "Error creating node")
+
+				err = r.labelNodesWithProfiles(context.TODO(), tt.profilesByNode)
+				assert.NoError(t, err, "ERROR LABELING NODES")
+			}
+			gotNodes := &corev1.NodeList{}
+			err := tt.client.List(context.TODO(), gotNodes)
+			for _, node := range gotNodes.Items {
+				fmt.Println("NODE LABELS::: ", node.Labels)
+				if val, ok := tt.expectProfileLabel[node.Name]; ok {
+					if val {
+						assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], "true")
+					}
+				}
+			}
+			assert.NoError(t, err, "FAKE ERROR")
+
 		})
 	}
 }

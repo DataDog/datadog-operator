@@ -36,15 +36,17 @@ func Test_SetNode(t *testing.T) {
 			},
 			existingNodes: nil,
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
 					},
 				},
@@ -63,39 +65,41 @@ func Test_SetNode(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Labels: map[string]string{
 								"some-label":  "val",
 								"other-label": "val",
 							},
 							UID: types.UID(nodeUID1),
-						},
+						}},
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
-					},
-					nodeUID2: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-2",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-2",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID2),
 							},
-							UID: types.UID(nodeUID2),
 						},
 					},
 				},
@@ -115,23 +119,23 @@ func Test_SetNode(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Labels: map[string]string{
 								"some-label":  "val",
 								"other-label": "val",
 							},
 							UID: types.UID(nodeUID1),
-						},
+						}},
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Labels: map[string]string{
 								"some-label":  "val",
@@ -139,6 +143,7 @@ func Test_SetNode(t *testing.T) {
 								"new-label":   "new-val",
 							},
 							UID: types.UID(nodeUID1),
+						},
 						},
 					},
 				},
@@ -157,29 +162,33 @@ func Test_SetNode(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "new-val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "new-val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
 					},
 				},
@@ -199,50 +208,54 @@ func Test_SetNode(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
-					},
-					nodeUID2: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-2",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-2",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID2),
 							},
-							UID: types.UID(nodeUID2),
 						},
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
-					},
-					nodeUID2: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-2",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "new-val",
-								"new-label":   "new-val",
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-2",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "new-val",
+									"new-label":   "new-val",
+								},
+								UID: types.UID(nodeUID2),
 							},
-							UID: types.UID(nodeUID2),
 						},
 					},
 				},
@@ -254,7 +267,7 @@ func Test_SetNode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var nodeStore *NodeStore
 			logger := logf.Log.WithName(t.Name())
-			if tt.existingNodes != nil && tt.existingNodes.nodes != nil {
+			if tt.existingNodes != nil && len(tt.existingNodes.nodes.Items) > 0 {
 				nodeStore = tt.existingNodes
 				nodeStore.log = logger
 			} else {
@@ -273,28 +286,32 @@ func Test_GetNodes(t *testing.T) {
 	}{
 		{
 			name:      "Get empty node store",
-			wantNodes: &NodeStore{nodes: map[string]v1.Node{}},
+			wantNodes: &NodeStore{nodes: v1.NodeList{}},
 		},
 		{
 			name: "Get node store with 1 existing node",
-			wantNodes: &NodeStore{nodes: map[string]v1.Node{
-				nodeUID1: {
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
+			wantNodes: &NodeStore{
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
+							},
 						},
-						UID: types.UID(nodeUID1),
 					},
 				},
-			}},
+			},
 		},
 		{
 			name: "Get node store with multiple nodes",
-			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
+			wantNodes: &NodeStore{nodes: v1.NodeList{
+				Items: []v1.Node{
+					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "node-1",
 							Labels: map[string]string{
@@ -304,7 +321,7 @@ func Test_GetNodes(t *testing.T) {
 							UID: types.UID(nodeUID1),
 						},
 					},
-					nodeUID2: {
+					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "node-2",
 							Labels: map[string]string{
@@ -316,21 +333,21 @@ func Test_GetNodes(t *testing.T) {
 						},
 					},
 				},
-			},
+			}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var nodeStore *NodeStore
 			logger := logf.Log.WithName(t.Name())
-			if tt.wantNodes != nil && tt.wantNodes.nodes != nil {
+			if tt.wantNodes != nil && len(tt.wantNodes.nodes.Items) > 0 {
 				nodeStore = tt.wantNodes
 				nodeStore.log = logger
 			} else {
 				nodeStore = NewNodeStore(logger)
 			}
 			gotNodes := nodeStore.GetNodes()
-			assert.EqualValues(t, &tt.wantNodes.nodes, gotNodes)
+			assert.EqualValues(t, tt.wantNodes.nodes, gotNodes)
 		})
 	}
 }
@@ -356,7 +373,7 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: nil,
-			wantNodes:     &NodeStore{nodes: map[string]v1.Node{}},
+			wantNodes:     &NodeStore{nodes: v1.NodeList{}},
 		},
 		{
 			name: "Unset node from node store with 1 existing node",
@@ -372,20 +389,22 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
 					},
 				},
 			},
-			wantNodes: &NodeStore{nodes: map[string]v1.Node{}},
+			wantNodes: &NodeStore{nodes: v1.NodeList{Items: []v1.Node{}}},
 		},
 		{
 			name: "Unset node from node store with multiple existing nodes",
@@ -400,39 +419,43 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
-					},
-					nodeUID2: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-2",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-2",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID2),
 							},
-							UID: types.UID(nodeUID2),
 						},
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodes: map[string]v1.Node{
-					nodeUID1: {
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "node-1",
-							Labels: map[string]string{
-								"some-label":  "val",
-								"other-label": "val",
+				nodes: v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node-1",
+								Labels: map[string]string{
+									"some-label":  "val",
+									"other-label": "val",
+								},
+								UID: types.UID(nodeUID1),
 							},
-							UID: types.UID(nodeUID1),
 						},
 					},
 				},
@@ -443,7 +466,7 @@ func Test_UnsetNodes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var nodeStore *NodeStore
 			logger := logf.Log.WithName(t.Name())
-			if tt.existingNodes != nil && tt.existingNodes.nodes != nil {
+			if tt.existingNodes != nil && len(tt.existingNodes.nodes.Items) > 0 {
 				nodeStore = tt.existingNodes
 				nodeStore.log = logger
 			} else {
