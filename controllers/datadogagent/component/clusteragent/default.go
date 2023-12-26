@@ -133,6 +133,10 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: GetClusterAgentServiceName(dda),
 		},
 		{
+			Name:  apicommon.DDKubeResourcesNamespace,
+			Value: utils.GetDatadogAgentResourceNamespace(dda),
+		},
+		{
 			Name:  apicommon.DDLeaderElection,
 			Value: "true",
 		},

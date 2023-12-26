@@ -68,6 +68,7 @@ const (
 	DDKubeletCAPath                                   = "DD_KUBELET_CLIENT_CA"
 	DDKubeletHost                                     = "DD_KUBERNETES_KUBELET_HOST"
 	DDKubeletTLSVerify                                = "DD_KUBELET_TLS_VERIFY"
+	DDKubeResourcesNamespace                          = "DD_KUBE_RESOURCES_NAMESPACE"
 	DDKubeStateMetricsCoreConfigMap                   = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDKubeStateMetricsCoreEnabled                     = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDLeaderElection                                  = "DD_LEADER_ELECTION"

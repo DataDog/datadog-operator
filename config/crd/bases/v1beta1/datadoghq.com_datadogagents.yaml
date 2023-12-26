@@ -15376,7 +15376,7 @@ spec:
                       description: APM (Application Performance Monitoring) configuration.
                       properties:
                         enabled:
-                          description: 'Enabled enables Application Performance Monitoring. Default: false'
+                          description: 'Enabled enables Application Performance Monitoring. Default: true'
                           type: boolean
                         hostPortConfig:
                           description: 'HostPortConfig contains host port configuration. Enabled Default: false Port Default: 8126'

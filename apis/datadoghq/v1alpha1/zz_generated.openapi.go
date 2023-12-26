@@ -2145,6 +2145,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "int64",
 						},
 					},
+					"notificationPresetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "An enum that toggles the display of additional content sent in the monitor notification.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"notifyAudit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A Boolean indicating whether tagged users are notified on changes to this monitor.",
