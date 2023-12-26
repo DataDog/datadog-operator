@@ -15,7 +15,7 @@ var (
 	nodeUID2 = generateRandomNodeUUID()
 )
 
-func Test_SetNode(t *testing.T) {
+func Test_SetOrUpdateNode(t *testing.T) {
 	tests := []struct {
 		name          string
 		node          v1.Node

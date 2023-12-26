@@ -2896,19 +2896,28 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 		expectProfileLabel map[string]bool
 	}{
 		{
-			name:   "All nodes match profile",
+			name:   "All nodes match profiles",
 			client: fake.NewClientBuilder().WithScheme(s).Build(),
 			profilesByNode: map[string]types.NamespacedName{
 				"node-1": {
-					Name:      "profile-1",
-					Namespace: "default",
+					Name: "profile-1",
+				},
+				"node-2": {
+					Name: "profile-2",
 				},
 			},
 			nodes: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "node-1",
-						Namespace: "default",
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
 						Labels: map[string]string{
 							"some-label": "value",
 						},
@@ -2917,6 +2926,65 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 			},
 			expectProfileLabel: map[string]bool{
 				"node-1": true,
+				"node-2": true,
+			},
+		},
+		{
+			name:   "Some nodes match profiles",
+			client: fake.NewClientBuilder().WithScheme(s).Build(),
+			profilesByNode: map[string]types.NamespacedName{
+				"node-2": {
+					Name: "profile-2",
+				},
+			},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]bool{
+				"node-1": false,
+				"node-2": true,
+			},
+		},
+		{
+			name:           "No nodes match profiles",
+			client:         fake.NewClientBuilder().WithScheme(s).Build(),
+			profilesByNode: map[string]types.NamespacedName{},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]bool{
+				"node-1": false,
+				"node-2": false,
 			},
 		},
 	}
@@ -2936,22 +3004,21 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 			for _, node := range tt.nodes {
 				err := tt.client.Create(context.TODO(), &node)
 				assert.NoError(t, err, "Error creating node")
-
-				err = r.labelNodesWithProfiles(context.TODO(), tt.profilesByNode)
-				assert.NoError(t, err, "ERROR LABELING NODES")
 			}
+			err := r.labelNodesWithProfiles(context.TODO(), tt.profilesByNode)
+			assert.NoErrorf(t, err, "Error labeling nodes. Error: %v", err)
+
 			gotNodes := &corev1.NodeList{}
-			err := tt.client.List(context.TODO(), gotNodes)
+			err = tt.client.List(context.TODO(), gotNodes)
+			assert.NoError(t, err, "Node with matching profile label not found")
+
 			for _, node := range gotNodes.Items {
-				fmt.Println("NODE LABELS::: ", node.Labels)
 				if val, ok := tt.expectProfileLabel[node.Name]; ok {
 					if val {
 						assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], "true")
 					}
 				}
 			}
-			assert.NoError(t, err, "FAKE ERROR")
-
 		})
 	}
 }
