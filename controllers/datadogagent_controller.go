@@ -205,8 +205,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
 
-	// Watch node and enqueue if node labels changes for DatadogAgentProfile
-	builder.Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).WithEventFilter(enqueueIfNodeChangeIsRelevantToProfiles(r))
+	// Watch nodes and enqueue if node labels changes for DatadogAgentAgent Profiles and other node label-based introspection
+	builder.Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).WithEventFilter(enqueueIfNodeLabelsChange(r))
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
@@ -274,7 +274,7 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 	return []reconcile.Request{{NamespacedName: owner}}
 }
 
-func enqueueIfNodeChangeIsRelevantToProfiles(r *DatadogAgentReconciler) predicate.Funcs {
+func enqueueIfNodeLabelsChange(r *DatadogAgentReconciler) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
@@ -291,8 +291,5 @@ func enqueueIfNodeChangeIsRelevantToProfiles(r *DatadogAgentReconciler) predicat
 			r.NodeStore.UnsetNode(e.Object)
 			return true
 		},
-		//GenericFunc: func(e event.GenericEvent) bool {
-		//	return true // Not sure about this one
-		//},
 	}
 }
