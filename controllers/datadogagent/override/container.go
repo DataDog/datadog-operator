@@ -126,7 +126,7 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 
 	if override.LivenessProbe != nil {
-		container.LivenessProbe = override.LivenessProbe
+		container.LivenessProbe = overrideLivenessProbe(override.LivenessProbe)
 	}
 
 	if override.SecurityContext != nil {
@@ -216,4 +216,14 @@ func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe 
 			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
 	}
 	return readinessProbeOverride
+}
+
+func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
+	// Add default httpGet.path and httpGet.port if not present in livenessProbe override
+	if livenessProbeOverride.HTTPGet == nil {
+		livenessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
+			Path: common.DefaultLivenessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
+	}
+	return livenessProbeOverride
 }
