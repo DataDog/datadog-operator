@@ -1083,7 +1083,7 @@ type DatadogAgentStatus struct {
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 }
 
-// CntainerProcessStrategy determines how various agent processes are grouped across multiple containers.
+// ContainerProcessStrategy determines how various agent processes are grouped across multiple containers.
 // +k8s:openapi-gen=true
 type ContainerProcessStrategy struct {
 	// Type sets a predetermined grouping of processes across containers. There are two supported groupings:
