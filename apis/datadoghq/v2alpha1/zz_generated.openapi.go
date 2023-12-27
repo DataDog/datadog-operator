@@ -69,7 +69,7 @@ func schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref common.Referen
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CntainerProcessStrategy determines how various agent processes are grouped across multiple containers.",
+				Description: "ContainerProcessStrategy determines how various agent processes are grouped across multiple containers.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
