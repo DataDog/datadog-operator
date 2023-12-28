@@ -248,7 +248,7 @@ func (f *clusterChecksFeature) updateConfigHash(dda *v2alpha1.DatadogAgent) {
 	if err != nil {
 		f.logger.Error(err, "couldn't generate hash for cluster checks config")
 	} else {
-		f.logger.V(2).Info("created cluster checks", "hash", hash)
+		f.logger.V(1).Info("created cluster checks", "hash", hash)
 	}
 	f.customConfigAnnotationValue = hash
 	f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)

@@ -79,7 +79,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
 			} else {
-				f.logger.V(2).Info("built cws custom policies from custom config", "hash", hash)
+				f.logger.V(1).Info("built cws custom policies from custom config", "hash", hash)
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)

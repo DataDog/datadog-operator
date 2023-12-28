@@ -81,7 +81,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
 			} else {
-				f.logger.V(2).Info("built cspm custom benchmarks from custom config", "hash", hash)
+				f.logger.V(1).Info("built cspm custom benchmarks from custom config", "hash", hash)
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)

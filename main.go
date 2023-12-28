@@ -302,7 +302,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	case "json":
 		encoder = zapcore.NewJSONEncoder(encoderConfig)
 	default:
-		return fmt.Errorf("unknow log encoder: %s", logEncoder)
+		return fmt.Errorf("unknown log encoder: %s", logEncoder)
 	}
 
 	ctrl.SetLogger(ctrlzap.New(

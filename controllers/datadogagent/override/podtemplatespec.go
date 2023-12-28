@@ -77,7 +77,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for extra confd custom config")
 		} else {
-			logger.V(2).Info("built extra confd from custom config", "hash", hash)
+			logger.V(1).Info("built extra confd from custom config", "hash", hash)
 		}
 		annotationKey := object.GetChecksumAnnotationKey(cmName)
 		manager.Annotation().AddAnnotation(annotationKey, hash)
@@ -94,7 +94,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for extra checksd custom config")
 		} else {
-			logger.V(2).Info("built extra checksd from custom config", "hash", hash)
+			logger.V(1).Info("built extra checksd from custom config", "hash", hash)
 		}
 		annotationKey := object.GetChecksumAnnotationKey(cmName)
 		manager.Annotation().AddAnnotation(annotationKey, hash)
@@ -187,7 +187,7 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for custom config", "filename", fileName)
 		} else {
-			logger.V(2).Info("built file from custom config", "filename", fileName, "hash", hash)
+			logger.V(1).Info("built file from custom config", "filename", fileName, "hash", hash)
 		}
 		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
 		manager.Annotation().AddAnnotation(annotationKey, hash)

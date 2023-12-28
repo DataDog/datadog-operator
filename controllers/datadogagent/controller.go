@@ -192,7 +192,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// Now create/update dependencies
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
-		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		logger.V(1).Info("Dependencies apply error", "errs", errs)
 		return result, errors.NewAggregate(errs)
 	}
 	// -----------------------

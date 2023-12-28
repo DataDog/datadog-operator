@@ -172,7 +172,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		if err != nil {
 			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
 		} else {
-			f.logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
+			f.logger.V(1).Info("built Cluster Agent token hash", "hash", hash)
 		}
 		f.customConfigAnnotationValue = hash
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
