@@ -13,6 +13,7 @@ jobs:
         with:
           app-id: ${{vars.GH_APP_ID}}
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+          repositories: "datadog-operator,community-operators"
       - name: sync fork
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
