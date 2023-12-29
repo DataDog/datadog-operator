@@ -18,7 +18,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-#          check out new branch for new version
           gh repo sync DataDog/community-operators --branch new-version \
           --source k8s-operatorhub/community-operators \
           --force
