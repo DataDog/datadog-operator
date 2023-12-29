@@ -14,10 +14,6 @@ jobs:
       VERSION: vX.Y.Z
       COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v${VERSION}
     steps:
-#      - name: set version
-#        id: set-version
-#        run: |
-#          echo "${${{ github.ref_name }}:1:5}" >> "$VERSION"
       - name: create github token
         uses: actions/create-github-app-token@v1.6.2
         id: app-token
@@ -32,17 +28,11 @@ jobs:
           repository: DataDog/community-operators
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure git user
-        run: |
-          git config user.name ${{ github.actor }}
-          git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
-
       - name: sync fork
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git checkout -b $COMMUNITY_BRANCH_NAME
-          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+          gh repo sync DataDog/community-operators --branch release \
           --source k8s-operatorhub/community-operators \
           --force
 
@@ -56,6 +46,12 @@ jobs:
         run: |
           mkdir operators/datadog-operator/$VERSION
           cp -R ./tmp/bundle/* operators/datadog-operator/$VERSION
+
+      - name: Configure git user
+        run: |
+          git config user.name ${{ github.actor }}
+          git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
+
       - name: create PR
 #        env:
 #          GITHUB_TOKEN: $GITHUB_TOKEN
