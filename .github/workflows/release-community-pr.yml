@@ -15,7 +15,7 @@ jobs:
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
       - name: sync fork
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh repo sync DataDog/community-operators \
           --source k8s-operatorhub/community-operators \
