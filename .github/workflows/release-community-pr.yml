@@ -1,0 +1,58 @@
+name: openshift community pull requests
+on: [push]
+jobs:
+  create-community-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: create github token
+        uses: actions/create-github-app-token@v1.6.2
+        id: app-token
+        with:
+          app-id: ${{vars.GH_APP_ID}}
+          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+      - name: sync fork
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh repo sync DataDog/community-operators \
+          --source k8s-operatorhub/community-operators \
+          --force
+      - name: checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: DataDog/community-operators
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: checkout datadog-operator to tmp/ dir
+        uses: actions/checkout@v4
+        with:
+          repository: Datadog/datadog-operator
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tmp/
+      - name: update bundle
+        run: |
+          mkdir operators/datadog-operator/test-version
+          cp -R ./tmp/bundle/* operators/datadog-operator/test-version
+      - name: Configure git user
+        run: |
+          git config user.name ${{vars.GITHUB_ACTOR}}
+          git config user.email ${{vars.GITHUB_ACTOR_ID}}+${{vars.GITHUB_ACTOR}}@users.noreply.github.com
+      - name: create PR
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          message="test PR"
+          body="test PR"
+          branch="community-prs-new"
+          git checkout -b $branch
+          git add -A
+          git commit -s -m "$message"
+          git push -f --set-upstream origin $branch
+          gh pr create --title "$message" \
+                       --body "$body" \
+                       --repo DataDog/community-operators \
+                       --base main \
+                       --draft
