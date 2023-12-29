@@ -9,8 +9,10 @@ jobs:
 #    outputs:
 #      version: ${{ steps.set-version.outputs.version }}
     env:
-      VERSION: ${${{ github.ref_name }}:1:5} # use version from release branch name
-      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-${{ github.ref_name }}
+#      VERSION: ${${{ github.ref_name }}:1:5} # use version from release branch name
+#      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v$VERSION
+      VERSION: vX.Y.Z
+      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v$VERSION
     steps:
 #      - name: set version
 #        id: set-version
@@ -35,6 +37,7 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
+          git push origin -u $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
           --source k8s-operatorhub/community-operators \
           --force
