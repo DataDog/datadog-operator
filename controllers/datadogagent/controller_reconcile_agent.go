@@ -241,13 +241,13 @@ func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *
 	return affinity
 }
 
-func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent) (map[string]struct{}, error) {
+func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) (map[string]struct{}, error) {
 	providerList, err := r.updateProviderStore(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda); err != nil {
+	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda, ddaStatus); err != nil {
 		return nil, err
 	}
 
@@ -280,7 +280,7 @@ func (r *Reconciler) updateProviderStore(ctx context.Context) (map[string]struct
 // that are not present in the provider store. If there are no providers in the
 // provider store, do not delete any ds/eds since that would delete all node
 // agents.
-func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent) error {
+func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		edsList := edsv1alpha1.ExtendedDaemonSetList{}
 		if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
@@ -296,6 +296,8 @@ func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.
 				r.log.Info("Deleted ExtendedDaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
 				event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
 				r.recordEvent(dda, event)
+
+				removeStaleStatus(ddaStatus, eds.Name)
 			}
 		}
 
@@ -316,8 +318,24 @@ func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.
 			r.log.Info("Deleted DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
 			event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
 			r.recordEvent(dda, event)
+
+			removeStaleStatus(ddaStatus, ds.Name)
 		}
 	}
 
 	return nil
+}
+
+// removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
+// status based on the DaemonSet's name
+func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name string) {
+	if ddaStatus != nil {
+		for i, dsStatus := range ddaStatus.Agent {
+			if dsStatus.DaemonsetName == name {
+				newStatus := make([]*common.DaemonSetStatus, 0, len(ddaStatus.Agent)-1)
+				newStatus = append(newStatus, ddaStatus.Agent[:i]...)
+				ddaStatus.Agent = append(newStatus, ddaStatus.Agent[i+1:]...)
+			}
+		}
+	}
 }

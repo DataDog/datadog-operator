@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -540,9 +541,10 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			}
 			r.providerStore.Reset(tt.existingProviders)
 
-			dda := v2alpha1.DatadogAgent{}
+			dda := datadoghqv2alpha1.DatadogAgent{}
+			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
 
-			err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, &dda)
+			err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, &dda, &ddaStatus)
 			assert.NoError(t, err)
 
 			kind := "daemonsets"
@@ -570,4 +572,122 @@ func getObjectListFromKind(kind string) client.ObjectList {
 		return &edsdatadoghqv1alpha1.ExtendedDaemonSetList{}
 	}
 	return nil
+}
+
+func Test_removeStaleStatus(t *testing.T) {
+	testCases := []struct {
+		name       string
+		ddaStatus  *datadoghqv2alpha1.DatadogAgentStatus
+		dsName     string
+		wantStatus *datadoghqv2alpha1.DatadogAgentStatus
+	}{
+		{
+			name: "no status to delete",
+			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{
+					{
+						Desired:       1,
+						Current:       1,
+						Ready:         1,
+						Available:     1,
+						DaemonsetName: "foo",
+					},
+				},
+			},
+			dsName: "bar",
+			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{
+					{
+						Desired:       1,
+						Current:       1,
+						Ready:         1,
+						Available:     1,
+						DaemonsetName: "foo",
+					},
+				},
+			},
+		},
+		{
+			name: "delete status",
+			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{
+					{
+						Desired:       1,
+						Current:       1,
+						Ready:         1,
+						Available:     1,
+						DaemonsetName: "foo",
+					},
+					{
+						Desired:       2,
+						Current:       2,
+						Ready:         1,
+						Available:     1,
+						UpToDate:      1,
+						DaemonsetName: "bar",
+					},
+				},
+			},
+			dsName: "bar",
+			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{
+					{
+						Desired:       1,
+						Current:       1,
+						Ready:         1,
+						Available:     1,
+						DaemonsetName: "foo",
+					},
+				},
+			},
+		},
+		{
+			name: "delete only status",
+			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{
+					{
+						Desired:       2,
+						Current:       2,
+						Ready:         1,
+						Available:     1,
+						UpToDate:      1,
+						DaemonsetName: "bar",
+					},
+				},
+			},
+			dsName: "bar",
+			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{},
+			},
+		},
+		{
+			name: "agent status is empty",
+			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{},
+			},
+			dsName: "bar",
+			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
+				Agent: []*common.DaemonSetStatus{},
+			},
+		},
+		{
+			name:       "dda status is empty",
+			ddaStatus:  &datadoghqv2alpha1.DatadogAgentStatus{},
+			dsName:     "bar",
+			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{},
+		},
+		{
+			name:       "status is nil",
+			ddaStatus:  nil,
+			dsName:     "bar",
+			wantStatus: nil,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			removeStaleStatus(tt.ddaStatus, tt.dsName)
+			assert.Equal(t, tt.wantStatus, tt.ddaStatus)
+		})
+	}
 }
