@@ -12,7 +12,7 @@ jobs:
 #      VERSION: ${${{ github.ref_name }}:1:5} # use version from release branch name
 #      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v$VERSION
       VERSION: vX.Y.Z
-      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v${VERSION}
+      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v${{env.VERSION}}
     steps:
       - name: create github token
         uses: actions/create-github-app-token@v1.6.2
@@ -53,8 +53,8 @@ jobs:
           git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
 
       - name: create PR
-#        env:
-#          GITHUB_TOKEN: $GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: $GITHUB_TOKEN
         run: |
           message="test PR"
           body="test PR"
