@@ -9,7 +9,6 @@ jobs:
 #    outputs:
 #      version: ${{ steps.set-version.outputs.version }}
     env:
-      GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
       VERSION: ${${{ github.ref_name }}:1:5} # use version from release branch name
       COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-${{ github.ref_name }}
     steps:
@@ -25,8 +24,8 @@ jobs:
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
           repositories: "datadog-operator,community-operators"
       - name: sync fork
-#        env:
-#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
