@@ -23,6 +23,13 @@ jobs:
           app-id: ${{vars.GH_APP_ID}}
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
           repositories: "datadog-operator,community-operators"
+
+      - name: checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: DataDog/community-operators
+          token: $GITHUB_TOKEN
+
       - name: sync fork
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -31,11 +38,6 @@ jobs:
           gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
           --source k8s-operatorhub/community-operators \
           --force
-      - name: checkout fork
-        uses: actions/checkout@v4
-        with:
-          repository: DataDog/community-operators
-          token: $GITHUB_TOKEN
 
       - name: checkout datadog-operator to tmp/ dir
         uses: actions/checkout@v4
