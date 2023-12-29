@@ -574,7 +574,7 @@ func getObjectListFromKind(kind string) client.ObjectList {
 	return nil
 }
 
-func Test_removeDaemonSetStatus(t *testing.T) {
+func Test_removeStaleStatus(t *testing.T) {
 	testCases := []struct {
 		name       string
 		ddaStatus  *datadoghqv2alpha1.DatadogAgentStatus
@@ -686,7 +686,7 @@ func Test_removeDaemonSetStatus(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			removeDaemonSetStatus(tt.ddaStatus, tt.dsName)
+			removeStaleStatus(tt.ddaStatus, tt.dsName)
 			assert.Equal(t, tt.wantStatus, tt.ddaStatus)
 		})
 	}

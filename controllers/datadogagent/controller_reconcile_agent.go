@@ -297,7 +297,7 @@ func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.
 				event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
 				r.recordEvent(dda, event)
 
-				removeDaemonSetStatus(ddaStatus, eds.Name)
+				removeStaleStatus(ddaStatus, eds.Name)
 			}
 		}
 
@@ -319,16 +319,16 @@ func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.
 			event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
 			r.recordEvent(dda, event)
 
-			removeDaemonSetStatus(ddaStatus, ds.Name)
+			removeStaleStatus(ddaStatus, ds.Name)
 		}
 	}
 
 	return nil
 }
 
-// removeDaemonSetStatus removes a DaemonSet's status from a DatadogAgent's
+// removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
 // status based on the DaemonSet's name
-func removeDaemonSetStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name string) {
+func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name string) {
 	if ddaStatus != nil {
 		for i, dsStatus := range ddaStatus.Agent {
 			if dsStatus.DaemonsetName == name {
