@@ -38,16 +38,11 @@ jobs:
           mkdir operators/datadog-operator/test-version
           cp -R ./tmp/bundle/* operators/datadog-operator/test-version
       - name: Configure git user
-        env:
-          GITHUB_USERNAME: ${{vars.GITHUB_TRIGGERING_ACTOR}}
-          GITHUB_USER_ID: ${{vars.GITHUB_ACTOR_ID}}
-          GITHUB_ACTOR: ${{vars.GITHUB_ACTOR}}
         run: |
-          echo "Github TRIGGERING ACTOR: $GITHUB_USERNAME"
-          echo "Github ACTOR ID: $GITHUB_USER_ID"
-          echo "Github ACTOR: $GITHUB_ACTOR"
-          git config user.name $GITHUB_USERNAME
-          git config user.email $GITHUB_USER_ID+$GITHUB_USERNAME@users.noreply.github.com
+          echo "Github ACTOR: ${{ github.actor }}"
+          echo "Github ACTOR ID: ${{ github.actor_id }}"
+          git config user.name ${{ github.actor }}
+          git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
       - name: create PR
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
