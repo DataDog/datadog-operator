@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/go-logr/logr"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
 
@@ -47,6 +48,11 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 	for _, profile := range sortedProfiles {
 		conflicts := false
 		nodesThatMatchProfile := map[string]bool{}
+
+		if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+			logger.Error(err, "profile spec is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
+			continue
+		}
 
 		for _, node := range nodes {
 			matchesNode, err := profileMatchesNode(&profile, &node)
