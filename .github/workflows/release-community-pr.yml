@@ -26,13 +26,15 @@ jobs:
 
       - name: checkout fork
         uses: actions/checkout@v4
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           repository: DataDog/community-operators
           token: $GITHUB_TOKEN
 
       - name: sync fork
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+#        env:
+#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
