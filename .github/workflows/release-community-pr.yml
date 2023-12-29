@@ -39,7 +39,7 @@ jobs:
 
       - name: sync fork
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push origin -u $COMMUNITY_BRANCH_NAME
