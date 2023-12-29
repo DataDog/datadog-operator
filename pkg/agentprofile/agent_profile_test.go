@@ -33,20 +33,18 @@ func TestProfilesToApply(t *testing.T) {
 	tests := []struct {
 		name                           string
 		profiles                       []v1alpha1.DatadogAgentProfile
-		nodes                          []v1.Node
+		nodesMeta                      []metav1.ObjectMeta
 		expectedProfiles               []v1alpha1.DatadogAgentProfile
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 	}{
 		{
 			name:     "no profiles",
 			profiles: []v1alpha1.DatadogAgentProfile{},
-			nodes: []v1.Node{
+			nodesMeta: []metav1.ObjectMeta{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"os": "linux",
-						},
+					Name: "node1",
+					Labels: map[string]string{
+						"os": "linux",
 					},
 				},
 			},
@@ -74,13 +72,11 @@ func TestProfilesToApply(t *testing.T) {
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
 			},
-			nodes: []v1.Node{
+			nodesMeta: []metav1.ObjectMeta{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"os": "linux",
-						},
+					Name: "node1",
+					Labels: map[string]string{
+						"os": "linux",
 					},
 				},
 			},
@@ -165,34 +161,28 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: []v1.Node{
+			nodesMeta: []metav1.ObjectMeta{
 				// node1 matches profile-1 and profile-3
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"a": "1",
-							"c": "1",
-						},
+					Name: "node1",
+					Labels: map[string]string{
+						"a": "1",
+						"c": "1",
 					},
 				},
 				// node2 matches profile-2
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node2",
-						Labels: map[string]string{
-							"b": "1",
-						},
+					Name: "node2",
+					Labels: map[string]string{
+						"b": "1",
 					},
 				},
 				// node3 matches profile-1 and profile-2
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node3",
-						Labels: map[string]string{
-							"a": "1",
-							"b": "1",
-						},
+					Name: "node3",
+					Labels: map[string]string{
+						"a": "1",
+						"b": "1",
 					},
 				},
 			},
@@ -318,16 +308,14 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: []v1.Node{
+			nodesMeta: []metav1.ObjectMeta{
 				// matches all profiles
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"a": "1",
-							"b": "1",
-							"c": "1",
-						},
+					Name: "node1",
+					Labels: map[string]string{
+						"a": "1",
+						"b": "1",
+						"c": "1",
 					},
 				},
 			},
@@ -364,7 +352,7 @@ func TestProfilesToApply(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes)
+			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodesMeta)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.expectedProfiles, profilesToApply)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)

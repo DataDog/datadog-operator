@@ -253,7 +253,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
 
 		node := &corev1.Node{}
-		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName, Namespace: profileNamespacedName.Namespace}, node); err != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
 			return err
 		}
 
