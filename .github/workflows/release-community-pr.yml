@@ -18,7 +18,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          gh repo sync DataDog/community-operators \
+          gh repo sync DataDog/community-operators --branch new-version \
           --source k8s-operatorhub/community-operators \
           --force
       - name: checkout fork
