@@ -64,8 +64,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          git remote -v
           message="operator datadog-operator ($VERSION)"
-          body="test PR"
+          body="operator datadog-operator ($VERSION)"
           git checkout -b $COMMUNITY_BRANCH_NAME
           git add -A
           git commit -s -m "$message"
