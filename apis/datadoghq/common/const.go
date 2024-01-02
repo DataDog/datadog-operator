@@ -98,6 +98,9 @@ const (
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
 	DefaultImageRegistry         string = "gcr.io/datadoghq"
+	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
+	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
+	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"

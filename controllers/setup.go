@@ -49,12 +49,13 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration             time.Duration
-	CanaryReplicas             string
-	CanaryAutoPauseEnabled     bool
-	CanaryAutoPauseMaxRestarts int
-	CanaryAutoFailEnabled      bool
-	CanaryAutoFailMaxRestarts  int
+	CanaryDuration                      time.Duration
+	CanaryReplicas                      string
+	CanaryAutoPauseEnabled              bool
+	CanaryAutoPauseMaxRestarts          int
+	CanaryAutoFailEnabled               bool
+	CanaryAutoFailMaxRestarts           int
+	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, *kubernetes.ProviderStore, SetupOptions) error
@@ -125,15 +126,16 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Recorder:      mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                    options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:          options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:     options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				CanaryDuration:             options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:             options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:     options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoFailEnabled:      options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:  int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
+				Enabled:                             options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
+				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
+				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
+				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
+				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
+				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
 			SupportCilium:          options.SupportCilium,
 			OperatorMetricsEnabled: options.OperatorMetricsEnabled,

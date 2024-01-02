@@ -40,7 +40,7 @@ spec:
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
-| features.apm.enabled | Enabled enables Application Performance Monitoring. Default: false |
+| features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
 | features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
@@ -173,7 +173,7 @@ spec:
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
-| global.site | Site is the Datadog intake site Agent data are sent to. Set to 'datadoghq.eu' to send data to the EU site. Default: 'datadoghq.com' |
+| global.site | Site is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com' |
 | global.tags | Tags contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
 | override | Override the default configurations of the agents |
 <br>
@@ -322,39 +322,6 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | [key].securityContext.windowsOptions.hostProcess | HostProcess determines if a container should be run as a 'Host Process' container. This field is alpha-level and will only be honored by components that enable the WindowsHostProcessContainers feature flag. Setting this field without the feature flag will result in errors when validating the Pod. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).  In addition, if HostProcess is true then HostNetwork must also be set to true. |
 | [key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
-| [key].securityContextConstraints.create | Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC. |
-| [key].securityContextConstraints.customConfiguration.allowHostDirVolumePlugin | AllowHostDirVolumePlugin determines if the policy allow containers to use the HostDir volume plugin |
-| [key].securityContextConstraints.customConfiguration.allowHostIPC | AllowHostIPC determines if the policy allows host ipc in the containers. |
-| [key].securityContextConstraints.customConfiguration.allowHostNetwork | AllowHostNetwork determines if the policy allows the use of HostNetwork in the pod spec. |
-| [key].securityContextConstraints.customConfiguration.allowHostPID | AllowHostPID determines if the policy allows host pid in the containers. |
-| [key].securityContextConstraints.customConfiguration.allowHostPorts | AllowHostPorts determines if the policy allows host ports in the containers. |
-| [key].securityContextConstraints.customConfiguration.allowPrivilegedContainer | AllowPrivilegedContainer determines if a container can request to be run as privileged. |
-| [key].securityContextConstraints.customConfiguration.allowedCapabilities | AllowedCapabilities is a list of capabilities that can be requested to add to the container. Capabilities in this field maybe added at the pod author's discretion. You must not list a capability in both AllowedCapabilities and RequiredDropCapabilities. To allow all capabilities you may use '*'. |
-| [key].securityContextConstraints.customConfiguration.allowedFlexVolumes | AllowedFlexVolumes is a whitelist of allowed Flexvolumes.  Empty or nil indicates that all Flexvolumes may be used.  This parameter is effective only when the usage of the Flexvolumes is allowed in the "Volumes" field. |
-| [key].securityContextConstraints.customConfiguration.apiVersion | APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources |
-| [key].securityContextConstraints.customConfiguration.defaultAddCapabilities | DefaultAddCapabilities is the default set of capabilities that will be added to the container unless the pod spec specifically drops the capability.  You may not list a capabiility in both DefaultAddCapabilities and RequiredDropCapabilities. |
-| [key].securityContextConstraints.customConfiguration.fsGroup.ranges | Ranges are the allowed ranges of fs groups.  If you would like to force a single fs group then supply a single range with the same start and end. |
-| [key].securityContextConstraints.customConfiguration.fsGroup.type | Type is the strategy that will dictate what FSGroup is used in the SecurityContext. |
-| [key].securityContextConstraints.customConfiguration.groups | The groups that have permission to use this security context constraints |
-| [key].securityContextConstraints.customConfiguration.kind | Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |
-| [key].securityContextConstraints.customConfiguration.metadata | Standard object's metadata. More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata |
-| [key].securityContextConstraints.customConfiguration.priority | Priority influences the sort order of SCCs when evaluating which SCCs to try first for a given pod request based on access in the Users and Groups fields.  The higher the int, the higher priority. An unset value is considered a 0 priority. If scores for multiple SCCs are equal they will be sorted from most restrictive to least restrictive. If both priorities and restrictions are equal the SCCs will be sorted by name. |
-| [key].securityContextConstraints.customConfiguration.readOnlyRootFilesystem | ReadOnlyRootFilesystem when set to true will force containers to run with a read only root file system.  If the container specifically requests to run with a non-read only root file system the SCC should deny the pod. If set to false the container may run with a read only root file system if it wishes but it will not be forced to. |
-| [key].securityContextConstraints.customConfiguration.requiredDropCapabilities | RequiredDropCapabilities are the capabilities that will be dropped from the container.  These are required to be dropped and cannot be added. |
-| [key].securityContextConstraints.customConfiguration.runAsUser.type | Type is the strategy that will dictate what RunAsUser is used in the SecurityContext. |
-| [key].securityContextConstraints.customConfiguration.runAsUser.uid | UID is the user id that containers must run as.  Required for the MustRunAs strategy if not using namespace/service account allocated uids. |
-| [key].securityContextConstraints.customConfiguration.runAsUser.uidRangeMax | UIDRangeMax defines the max value for a strategy that allocates by range. |
-| [key].securityContextConstraints.customConfiguration.runAsUser.uidRangeMin | UIDRangeMin defines the min value for a strategy that allocates by range. |
-| [key].securityContextConstraints.customConfiguration.seLinuxContext.seLinuxOptions.level | Level is SELinux level label that applies to the container. |
-| [key].securityContextConstraints.customConfiguration.seLinuxContext.seLinuxOptions.role | Role is a SELinux role label that applies to the container. |
-| [key].securityContextConstraints.customConfiguration.seLinuxContext.seLinuxOptions.type | Type is a SELinux type label that applies to the container. |
-| [key].securityContextConstraints.customConfiguration.seLinuxContext.seLinuxOptions.user | User is a SELinux user label that applies to the container. |
-| [key].securityContextConstraints.customConfiguration.seLinuxContext.type | Type is the strategy that will dictate what SELinux context is used in the SecurityContext. |
-| [key].securityContextConstraints.customConfiguration.seccompProfiles | SeccompProfiles lists the allowed profiles that may be set for the pod or container's seccomp annotations.  An unset (nil) or empty value means that no profiles may be specifid by the pod or container.	The wildcard '*' may be used to allow all profiles.  When used to generate a value for a pod the first non-wildcard profile will be used as the default. |
-| [key].securityContextConstraints.customConfiguration.supplementalGroups.ranges | Ranges are the allowed ranges of supplemental groups.  If you would like to force a single supplemental group then supply a single range with the same start and end. |
-| [key].securityContextConstraints.customConfiguration.supplementalGroups.type | Type is the strategy that will dictate what supplemental groups is used in the SecurityContext. |
-| [key].securityContextConstraints.customConfiguration.users | The users who have permissions to use this security context constraints |
-| [key].securityContextConstraints.customConfiguration.volumes | Volumes is a white list of allowed volume plugins.  FSType corresponds directly with the field names of a VolumeSource (azureFile, configMap, emptyDir).  To allow all volumes you may use "*". To allow no volumes, set to ["none"]. |
 | [key].serviceAccountName | Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true. |
 | [key].tolerations `[]object` | Configure the component tolerations. |
 | [key].volumes `[]object` | Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner). |

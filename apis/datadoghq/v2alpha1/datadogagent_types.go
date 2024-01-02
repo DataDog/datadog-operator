@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -103,7 +102,7 @@ type DatadogFeatures struct {
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
 	// Enabled enables Application Performance Monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -708,7 +707,12 @@ type GlobalConfig struct {
 	ClusterName *string `json:"clusterName,omitempty"`
 
 	// Site is the Datadog intake site Agent data are sent to.
+	// Set to 'datadoghq.com' to send data to the US1 site (default).
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Set to 'us3.datadoghq.com' to send data to the US3 site.
+	// Set to 'us5.datadoghq.com' to send data to the US5 site.
+	// Set to 'ddog-gov.com' to send data to the US1-FED site.
+	// Set to 'ap1.datadoghq.com' to send data to the AP1 site.
 	// Default: 'datadoghq.com'
 	// +optional
 	Site *string `json:"site,omitempty"`
@@ -944,10 +948,6 @@ type DatadogAgentComponentOverride struct {
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Configure the SecurityContextConstraints for each component.
-	// +optional
-	SecurityContextConstraints *SecurityContextConstraintsConfig `json:"securityContextConstraints,omitempty"`
-
 	// Pod-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -990,19 +990,6 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
-}
-
-// SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.
-// +k8s:openapi-gen=true
-type SecurityContextConstraintsConfig struct {
-	// Create defines whether to create a SecurityContextConstraints for the current component.
-	// If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
-	// +optional
-	Create *bool `json:"create,omitempty"`
-
-	// CustomConfiguration defines a custom SCC configuration to use if Create is `true`.
-	// +optional
-	CustomConfiguration *securityv1.SecurityContextConstraints `json:"customConfiguration,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.

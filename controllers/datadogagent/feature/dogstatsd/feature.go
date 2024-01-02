@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -53,8 +52,7 @@ type dogstatsdFeature struct {
 	forceEnableLocalService bool
 	localServiceName        string
 
-	createSCC bool
-	owner     metav1.Object
+	owner metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -90,8 +88,6 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
 	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
-
-	f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -166,19 +162,6 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 		}
 	}
 
-	if f.createSCC {
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{}
-
-		if f.hostPortEnabled {
-			scc.AllowHostPorts = true
-		}
-		if f.originDetectionEnabled && f.udsEnabled {
-			scc.AllowHostPID = true
-		}
-
-		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
-	}
 	return nil
 }
 

@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2021 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogmonitor
 
@@ -52,16 +52,17 @@ func Test_buildMonitor(t *testing.T) {
 				"kube_cluster:test.staging",
 			},
 			Options: datadoghqv1alpha1.DatadogMonitorOptions{
-				EnableLogsSample:  &valTrue,
-				EvaluationDelay:   &evalDelay,
-				EscalationMessage: &escalationMsg,
-				IncludeTags:       &valTrue,
-				Locked:            &valTrue,
-				NewGroupDelay:     &newGroupDelay,
-				NotifyNoData:      &valTrue,
-				NoDataTimeframe:   &noDataTimeframe,
-				RenotifyInterval:  &renotifyInterval,
-				TimeoutH:          &timeoutH,
+				EnableLogsSample:       &valTrue,
+				EvaluationDelay:        &evalDelay,
+				EscalationMessage:      &escalationMsg,
+				IncludeTags:            &valTrue,
+				Locked:                 &valTrue,
+				NewGroupDelay:          &newGroupDelay,
+				NoDataTimeframe:        &noDataTimeframe,
+				NotificationPresetName: "show_all",
+				NotifyNoData:           &valTrue,
+				RenotifyInterval:       &renotifyInterval,
+				TimeoutH:               &timeoutH,
 				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
 					Critical: &critThreshold,
 					Warning:  &warnThreshold,
@@ -108,11 +109,14 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitor.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")
 	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitorUR.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")
 
-	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
-	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
-
 	assert.Equal(t, *dm.Spec.Options.NoDataTimeframe, monitor.Options.GetNoDataTimeframe(), "discrepancy found in parameter: NoDataTimeframe")
 	assert.Equal(t, *dm.Spec.Options.NoDataTimeframe, monitorUR.Options.GetNoDataTimeframe(), "discrepancy found in parameter: NoDataTimeframe")
+
+	assert.Equal(t, string(dm.Spec.Options.NotificationPresetName), string(monitor.Options.GetNotificationPresetName()), "discrepancy found in parameter: NotificationPresetName")
+	assert.Equal(t, string(dm.Spec.Options.NotificationPresetName), string(monitorUR.Options.GetNotificationPresetName()), "discrepancy found in parameter: NotificationPresetName")
+
+	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
+	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
 
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitor.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitorUR.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")

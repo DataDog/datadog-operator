@@ -5,6 +5,7 @@ set -o nounset
 set -o pipefail
 
 SCRIPTS_DIR="$(dirname "$0")"
+CREATED_AT="$(date -u +'%Y-%m-%d %H:%M:%S')"
 # Provides $OS,$ARCH,$PLAFORM,$ROOT variables
 source "$SCRIPTS_DIR/os-env.sh"
 
@@ -17,13 +18,15 @@ $YQ -i ".spec.install.spec.clusterPermissions += load(\"$ROOT/hack/patch-bundle-
 # Add annotation required for upstream publication
 IMAGE=$($YQ '.spec.install.spec.deployments[0].spec.template.spec.containers[0].image' bundle/manifests/datadog-operator.clusterserviceversion.yaml)
 $YQ -i ".metadata.annotations.containerImage = \"$IMAGE\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
+$YQ -i ".metadata.annotations.createdAt = \"$CREATED_AT\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
+$YQ -i ".metadata.annotations.support = \"Datadog, Inc.\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Add skipRange annotation to allow direct upgrades
 VERSION=$($YQ '.spec.version' bundle/manifests/datadog-operator.clusterserviceversion.yaml )
 $YQ -i ".metadata.annotations.\"olm.skipRange\" = \"<$VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
-# Delete replaces
-$YQ -i 'del(.spec.replaces)' bundle/manifests/datadog-operator.clusterserviceversion.yaml
+# Set spec.replaces to latest released version
+$YQ -i ".spec.\"replaces\" = \"datadog-operator.v$LATEST_VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Add OpenShift version annotation (adding in main bundle as it's used for OpenShift Community)
 $YQ -i ".annotations.\"com.redhat.openshift.versions\" = \"v4.6\"" bundle/metadata/annotations.yaml
