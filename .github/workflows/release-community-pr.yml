@@ -8,13 +8,13 @@ jobs:
       pull-requests: write
     env:
       VERSION: vX.Y.Z
-      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-
+      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator
     steps:
       - name: setup env
         run: |
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
-          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME + $VERSION" >> $GITHUB_ENV
+          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME-$VERSION" >> $GITHUB_ENV
           echo "$COMMUNITY_BRANCH_NAME"
 
       - name: validate env
