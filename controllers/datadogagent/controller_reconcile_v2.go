@@ -145,7 +145,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	requiredContainers := requiredComponents.Agent.Containers
 
-	profiles, profilesByNode, err := r.profilesToApply(ctx)
+	profiles, profilesByNode, err := r.profilesToApply(ctx, logger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -268,7 +268,7 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 	// }
 }
 
-func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
@@ -281,5 +281,5 @@ func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.D
 		return nil, nil, err
 	}
 
-	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items)
+	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items, logger)
 }
