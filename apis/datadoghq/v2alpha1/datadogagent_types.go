@@ -1074,7 +1074,7 @@ type DatadogAgentStatus struct {
 	Agent []*commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The combined actual state of the all Agent as daemonsets or extended daemonsets.
 	// +optional
-	AgentSummary *commonv1.DaemonSetStatus `json:"AgentSummary,omitempty"`
+	AgentSummary *commonv1.DaemonSetStatus `json:"agentSummary,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
