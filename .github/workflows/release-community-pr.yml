@@ -70,7 +70,7 @@ jobs:
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
-                       --repo k8s-operatorhub/community-operators \
+                       --repo DataDog/community-operators \
                        --base main \
                        --draft
 
