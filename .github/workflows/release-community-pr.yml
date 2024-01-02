@@ -7,20 +7,17 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      VERSION: vX.Y.Z
+      GH_REF_NAME: vX.Y.Z
+      VERSION: ${GH_REF_NAME:1:5}
       COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator
     steps:
       - name: setup env
         run: |
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
-          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME-$VERSION" >> $GITHUB_ENV
-          echo "$COMMUNITY_BRANCH_NAME"
 
       - name: validate env
         run: |
-          echo "${{env.VERSION}}
-          echo "${{env.COMMUNITY_BRANCH_NAME}}
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
 
