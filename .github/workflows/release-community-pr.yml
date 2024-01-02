@@ -8,45 +8,44 @@ jobs:
       pull-requests: write
     env:
       GH_REF_NAME: vX.Y.Z
-      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator
+      BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
     steps:
       - name: setup env
         run: |
           echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
-          echo $VERSION
-          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME-$GH_REF_NAME" >> $GITHUB_ENV
+          echo "COMMUNITY_BRANCH_NAME=$BRANCH_NAME_BASE-$GH_REF_NAME" >> $GITHUB_ENV
 
       - name: validate env
         run: |
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
 
-#      - name: create github token
-#        uses: actions/create-github-app-token@v1.6.2
-#        id: app-token
-#        with:
-#          app-id: ${{vars.GH_APP_ID}}
-#          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
-#          repositories: "datadog-operator,community-operators"
-#
-#      - name: checkout fork
-#        uses: actions/checkout@v4
-#        with:
-#          repository: DataDog/community-operators
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#
-#      - name: sync fork
-#        env:
-#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-#        run: |
-#          git checkout -b $COMMUNITY_BRANCH_NAME
-#          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-#          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+      - name: create github token
+        uses: actions/create-github-app-token@v1.6.2
+        id: app-token
+        with:
+          app-id: ${{vars.GH_APP_ID}}
+          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+          repositories: "datadog-operator,community-operators"
+
+      - name: checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: DataDog/community-operators
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: sync fork
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git checkout -b $COMMUNITY_BRANCH_NAME
+          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
+          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+          --source k8s-operatorhub/community-operators \
+          --force
+#          gh repo sync DataDog/community-operators --branch release \
 #          --source k8s-operatorhub/community-operators \
 #          --force
-##          gh repo sync DataDog/community-operators --branch release \
-##          --source k8s-operatorhub/community-operators \
-##          --force
 #
 #      - name: checkout datadog-operator to tmp/ dir
 #        uses: actions/checkout@v4
