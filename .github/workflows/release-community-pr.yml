@@ -38,11 +38,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-#          git checkout -b $COMMUNITY_BRANCH_NAME
-#          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-#          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
-#          --source k8s-operatorhub/community-operators \
-#          --force
           gh repo sync DataDog/community-operators --branch release \
           --source k8s-operatorhub/community-operators \
           --force
@@ -78,3 +73,16 @@ jobs:
                        --repo DataDog/community-operators \
                        --base main \
                        --draft
+
+#      - name: sync fork
+#        env:
+#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+#        run: |
+##          git checkout -b $COMMUNITY_BRANCH_NAME
+##          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
+##          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+##          --source k8s-operatorhub/community-operators \
+##          --force
+#          gh repo sync DataDog/community-operators --branch release \
+#          --source k8s-operatorhub/community-operators \
+#          --force
