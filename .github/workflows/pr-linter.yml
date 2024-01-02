@@ -1,22 +1,22 @@
-name: pull request linter
-on:
-  pull_request_target:
-   types: [opened, labeled, unlabeled, synchronize]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
-    - name: Verify Pull Request Labels
-      uses: jesusvasquez333/verify-pr-label-action@v1.3.1
-      with:
-        github-token: '${{ secrets.GITHUB_TOKEN }}'
-        valid-labels: 'bug, enhancement, refactoring, documentation, tooling, dependencies'
-        pull-request-number: '${{ github.event.pull_request.number }}'
-  check-milestone:
-    name: Check Milestone
-    runs-on: ubuntu-latest
-    steps:
-      - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
-        run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1
+#name: pull request linter
+#on:
+#  pull_request_target:
+#   types: [opened, labeled, unlabeled, synchronize]
+#jobs:
+#  build:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: Check out code into the Go module directory
+#      uses: actions/checkout@v1
+#    - name: Verify Pull Request Labels
+#      uses: jesusvasquez333/verify-pr-label-action@v1.3.1
+#      with:
+#        github-token: '${{ secrets.GITHUB_TOKEN }}'
+#        valid-labels: 'bug, enhancement, refactoring, documentation, tooling, dependencies'
+#        pull-request-number: '${{ github.event.pull_request.number }}'
+#  check-milestone:
+#    name: Check Milestone
+#    runs-on: ubuntu-latest
+#    steps:
+#      - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
+#        run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1

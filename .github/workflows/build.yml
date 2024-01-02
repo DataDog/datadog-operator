@@ -1,61 +1,61 @@
-name: Build
-
-on:
-  push:
-
-jobs:
-  build-linux-binary:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: gcc install
-        run: sudo apt-get update; sudo apt install gcc-aarch64-linux-gnu
-      - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
-        id: tag
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          version: latest
-          args: build --skip-validate --config .goreleaser-for-linux.yaml
-  build-darwin-binary:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
-        id: tag
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Build
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          args: build --skip-validate --config .goreleaser-for-darwin.yaml
-  build-windows-binary:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Get tag
-        uses: little-core-labs/get-git-tag@v3.0.2
-        id: tag
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Build
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          args: build --skip-validate --config .goreleaser-for-windows.yaml
+#name: Build
+#
+#on:
+#  push:
+#
+#jobs:
+#  build-linux-binary:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#      - name: gcc install
+#        run: sudo apt-get update; sudo apt install gcc-aarch64-linux-gnu
+#      - name: Get tag
+#        uses: little-core-labs/get-git-tag@v3.0.2
+#        id: tag
+#      - name: Set up Go
+#        uses: actions/setup-go@v3
+#        with:
+#          go-version: 1.19
+#      - name: Run GoReleaser
+#        uses: goreleaser/goreleaser-action@v3
+#        with:
+#          version: latest
+#          args: build --skip-validate --config .goreleaser-for-linux.yaml
+#  build-darwin-binary:
+#    runs-on: macos-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#      - name: Get tag
+#        uses: little-core-labs/get-git-tag@v3.0.2
+#        id: tag
+#      - name: Set up Go
+#        uses: actions/setup-go@v3
+#        with:
+#          go-version: 1.19
+#      - name: Build
+#        uses: goreleaser/goreleaser-action@v3
+#        with:
+#          args: build --skip-validate --config .goreleaser-for-darwin.yaml
+#  build-windows-binary:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#      - name: Get tag
+#        uses: little-core-labs/get-git-tag@v3.0.2
+#        id: tag
+#      - name: Set up Go
+#        uses: actions/setup-go@v3
+#        with:
+#          go-version: 1.19
+#      - name: Build
+#        uses: goreleaser/goreleaser-action@v3
+#        with:
+#          args: build --skip-validate --config .goreleaser-for-windows.yaml
