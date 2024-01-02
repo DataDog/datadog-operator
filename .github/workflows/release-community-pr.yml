@@ -25,7 +25,6 @@ jobs:
           app-id: ${{vars.GH_APP_ID}}
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
           repositories: "datadog-operator,community-operators"
-          skip-token-revoke: true
 
       - name: checkout fork
         uses: actions/checkout@v4
@@ -58,9 +57,18 @@ jobs:
           git config --global user.name ${{ github.actor }}
           git config --global user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
 
+      - name: create token for community repo
+        uses: actions/create-github-app-token@v1.6.2
+        id: community-app-token
+        with:
+          app-id: ${{vars.GH_APP_ID}}
+          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+          owner: k8s-operatorhub
+          repositories: "community-operators"
+
       - name: create PR
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.community-app-token.outputs.token }}
         run: |
           message="operator datadog-operator ($VERSION)"
           body="operator datadog-operator ($VERSION)"
