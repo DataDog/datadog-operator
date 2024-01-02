@@ -3,9 +3,6 @@ on: [push]
 jobs:
   create-community-pr:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     env:
       GH_REF_NAME: vX.Y.Z
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
