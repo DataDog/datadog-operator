@@ -67,6 +67,7 @@ jobs:
           git checkout -b $COMMUNITY_BRANCH_NAME
           git add -A
           git commit -s -m "$message"
+          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/DataDog/community-operators
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
