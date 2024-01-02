@@ -53,6 +53,7 @@ jobs:
         run: |
           mkdir operators/datadog-operator/$VERSION
           cp -R ./tmp/bundle/* operators/datadog-operator/$VERSION
+          rm -rf ./tmp
 
       - name: Configure git user
         run: |
