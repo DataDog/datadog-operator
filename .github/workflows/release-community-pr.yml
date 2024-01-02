@@ -7,6 +7,8 @@ jobs:
       GH_REF_NAME: vX.Y.Z
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
       ACTIONS_RUNNER_DEBUG: true
+    permissions:
+      pull-requests: write
     steps:
       - name: setup env
         run: |
@@ -57,18 +59,9 @@ jobs:
           git config --global user.name ${{ github.actor }}
           git config --global user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
 
-      - name: create token for community repo
-        uses: actions/create-github-app-token@v1.6.2
-        id: community-app-token
-        with:
-          app-id: ${{vars.GH_APP_ID}}
-          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
-          owner: k8s-operatorhub
-          repositories: "community-operators"
-
       - name: create PR
         env:
-          GH_TOKEN: ${{ steps.community-app-token.outputs.token }}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           message="operator datadog-operator ($VERSION)"
           body="operator datadog-operator ($VERSION)"
