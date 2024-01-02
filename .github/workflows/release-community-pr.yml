@@ -8,12 +8,13 @@ jobs:
       pull-requests: write
     env:
       GH_REF_NAME: vX.Y.Z
-      VERSION: ${$GH_REF_NAME:1:5}
       COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator
     steps:
       - name: setup env
         run: |
-          echo "$VERSION"
+          echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
+          echo $VERSION
+          echo ${{env.VERSION}}
           echo "$COMMUNITY_BRANCH_NAME"
 
       - name: validate env
