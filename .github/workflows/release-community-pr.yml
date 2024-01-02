@@ -60,9 +60,9 @@ jobs:
 
       - name: create PR
         env:
-          GITHUB_TOKEN: $GITHUB_TOKEN
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          message="test PR"
+          message="operator datadog-operator ($VERSION)"
           body="test PR"
           git checkout -b $COMMUNITY_BRANCH_NAME
           git add -A
@@ -70,7 +70,7 @@ jobs:
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
-                       --repo DataDog/community-operators \
+                       --repo k8s-operatorhub/community-operators \
                        --base main \
                        --draft
 
