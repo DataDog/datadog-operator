@@ -25,6 +25,7 @@ jobs:
           app-id: ${{vars.GH_APP_ID}}
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
           repositories: "datadog-operator,community-operators"
+          skip-token-revoke: true
 
       - name: checkout fork
         uses: actions/checkout@v4
