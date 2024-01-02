@@ -40,9 +40,9 @@ jobs:
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
-          --source k8s-operatorhub/community-operators \
-          --force
+#          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+#          --source k8s-operatorhub/community-operators \
+#          --force
 #          gh repo sync DataDog/community-operators --branch release \
 #          --source k8s-operatorhub/community-operators \
 #          --force
