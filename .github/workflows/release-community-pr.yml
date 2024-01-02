@@ -9,6 +9,7 @@ jobs:
     env:
       GH_REF_NAME: vX.Y.Z
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
+      ACTIONS_RUNNER_DEBUG: true
     steps:
       - name: setup env
         run: |
