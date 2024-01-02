@@ -7,8 +7,6 @@ jobs:
       GH_REF_NAME: vX.Y.Z
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
       ACTIONS_RUNNER_DEBUG: true
-    permissions:
-      pull-requests: write
     steps:
       - name: setup env
         run: |
@@ -61,7 +59,7 @@ jobs:
 
       - name: create PR
         env:
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
         run: |
           message="operator datadog-operator ($VERSION)"
           body="operator datadog-operator ($VERSION)"
