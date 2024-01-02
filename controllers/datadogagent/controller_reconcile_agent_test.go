@@ -24,7 +24,7 @@ import (
 )
 
 const defaultProvider = kubernetes.DefaultProvider
-const gcpCosContainerdProvider = kubernetes.GCPCloudProvider + "-" + kubernetes.GCPCosContainerdProviderValue
+const gcpCosContainerdProvider = kubernetes.GCPCloudProvider + "-" + kubernetes.GCPCosContainerdType
 
 func Test_generateNodeAffinity(t *testing.T) {
 
@@ -179,7 +179,7 @@ func generateWantedAffinity(provider string, na *corev1.NodeAffinity, pa *corev1
 						{
 							Key:      kubernetes.GCPProviderLabel,
 							Operator: corev1.NodeSelectorOpNotIn,
-							Values:   []string{kubernetes.GCPCosProviderValue},
+							Values:   []string{kubernetes.GCPCosType},
 						},
 					},
 				},
@@ -248,7 +248,7 @@ func Test_updateProviderStore(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "gcp-cos-node",
 						Labels: map[string]string{
-							kubernetes.GCPProviderLabel: kubernetes.GCPCosProviderValue,
+							kubernetes.GCPProviderLabel: kubernetes.GCPCosType,
 						},
 					},
 				},

@@ -15,8 +15,8 @@ import (
 
 var (
 	defaultProvider          = DefaultProvider
-	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue)
-	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosProviderValue)
+	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdType)
+	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosType)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -41,17 +41,17 @@ func Test_determineProvider(t *testing.T) {
 			name: "gcp provider",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: GCPCosProviderValue,
+				GCPProviderLabel: GCPCosType,
 			},
-			provider: generateValidProviderName(GCPCloudProvider, GCPCosProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosType),
 		},
 		{
 			name: "gcp provider, underscore",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: GCPCosContainerdProviderValue,
+				GCPProviderLabel: GCPCosContainerdType,
 			},
-			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdProviderValue),
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdType),
 		},
 	}
 
@@ -71,7 +71,7 @@ func Test_isProviderValueAllowed(t *testing.T) {
 	}{
 		{
 			name:  "valid value",
-			value: GCPCosContainerdProviderValue,
+			value: GCPCosContainerdType,
 			want:  true,
 		},
 		{
@@ -167,7 +167,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosProviderValue,
+						GCPCosType,
 					},
 				},
 			},
@@ -183,7 +183,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPCosContainerdProviderValue,
+						GCPCosContainerdType,
 					},
 				},
 			},
@@ -208,7 +208,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosProviderValue,
+						GCPCosType,
 					},
 				},
 				{
@@ -233,7 +233,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPCosContainerdProviderValue,
+						GCPCosContainerdType,
 					},
 				},
 			},
@@ -295,7 +295,7 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			name:      "gcp cos provider",
 			provider:  gcpCosProvider,
 			wantLabel: GCPProviderLabel,
-			wantValue: GCPCosProviderValue,
+			wantValue: GCPCosType,
 		},
 	}
 

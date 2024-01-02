@@ -148,7 +148,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.Agent, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.CombinedAgent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.Agent)
+	newStatus.AgentSummary = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.Agent)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {

@@ -656,8 +656,8 @@ func (in *DatadogAgentStatus) DeepCopyInto(out *DatadogAgentStatus) {
 			}
 		}
 	}
-	if in.CombinedAgent != nil {
-		in, out := &in.CombinedAgent, &out.CombinedAgent
+	if in.AgentSummary != nil {
+		in, out := &in.AgentSummary, &out.AgentSummary
 		*out = new(commonv1.DaemonSetStatus)
 		(*in).DeepCopyInto(*out)
 	}

@@ -24,8 +24,8 @@ type ProviderStore struct {
 const (
 	DefaultProvider = "default"
 	// GCP provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	GCPCosContainerdProviderValue = "cos_containerd"
-	GCPCosProviderValue           = "cos"
+	GCPCosContainerdType = "cos_containerd"
+	GCPCosType           = "cos"
 
 	// CloudProvider
 	GCPCloudProvider = "gcp"
@@ -36,8 +36,8 @@ const (
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GCPCosContainerdProviderValue: {},
-	GCPCosProviderValue:           {},
+	GCPCosContainerdType: {},
+	GCPCosType:           {},
 }
 
 // NewProviderStore generates an empty ProviderStore instance
@@ -73,6 +73,7 @@ func (p *ProviderStore) GetProviders() *map[string]struct{} {
 // GenerateProviderNodeAffinity creates NodeSelectorTerms based on the provider
 func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.NodeSelectorRequirement {
 	// default provider has NodeAffinity to NOT match provider-specific labels
+	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
 	nsrList := []corev1.NodeSelectorRequirement{}
 	if provider == DefaultProvider {
 		// sort providers to get consistently ordered affinity
