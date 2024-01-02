@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: DataDog/community-operators
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: sync fork
         env:
@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Datadog/datadog-operator
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           path: tmp/
       - name: update bundle
         run: |
@@ -62,15 +62,13 @@ jobs:
 
       - name: create PR
         env:
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git remote -v
           message="operator datadog-operator ($VERSION)"
           body="operator datadog-operator ($VERSION)"
           git checkout -b $COMMUNITY_BRANCH_NAME
           git add -A
           git commit -s -m "$message"
-          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/DataDog/community-operators
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
