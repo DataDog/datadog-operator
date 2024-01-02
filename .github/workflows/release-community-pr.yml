@@ -6,6 +6,9 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      VERSION: vX.Y.Z
+      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-
 #    outputs:
 #      version: ${{ steps.set-version.outputs.version }}
 #    env:
@@ -16,65 +19,74 @@ jobs:
     steps:
       - name: setup env
         run: |
-          echo "VERSION=${${{ github.ref_name }}:1:5}" >> $GITHUB_ENV
+#          echo "VERSION=${${{ github.ref_name }}:1:5}" >> $GITHUB_ENV
           echo "$VERSION"
-          echo "COMMUNITY_BRANCH_NAME=${{ github.actor }}/datadog-operator-v$VERSION" >> $GITHUB_ENV
+          echo "$COMMUNITY_BRANCH_NAME"
+          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME + $VERSION" >> $GITHUB_ENV
+          echo "$COMMUNITY_BRANCH_NAME"
 
       - name: validate env
         run: |
           echo "${{env.VERSION}}
           echo "${{env.COMMUNITY_BRANCH_NAME}}
+          echo "$VERSION"
+          echo "$COMMUNITY_BRANCH_NAME"
 
-      - name: create github token
-        uses: actions/create-github-app-token@v1.6.2
-        id: app-token
-        with:
-          app-id: ${{vars.GH_APP_ID}}
-          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
-          repositories: "datadog-operator,community-operators"
-
-      - name: checkout fork
-        uses: actions/checkout@v4
-        with:
-          repository: DataDog/community-operators
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: sync fork
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh repo sync DataDog/community-operators --branch release \
-          --source k8s-operatorhub/community-operators \
-          --force
-
-      - name: checkout datadog-operator to tmp/ dir
-        uses: actions/checkout@v4
-        with:
-          repository: Datadog/datadog-operator
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: tmp/
-      - name: update bundle
-        run: |
-          mkdir operators/datadog-operator/${{ env.VERSION }}
-          cp -R ./tmp/bundle/* operators/datadog-operator/$VERSION
-
-      - name: Configure git user
-        run: |
-          git config user.name ${{ github.actor }}
-          git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
-
-      - name: create PR
-        env:
-          GITHUB_TOKEN: $GITHUB_TOKEN
-        run: |
-          message="test PR"
-          body="test PR"
-          git checkout -b $COMMUNITY_BRANCH_NAME
-          git add -A
-          git commit -s -m "$message"
-          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-          gh pr create --title "$message" \
-                       --body "$body" \
-                       --repo DataDog/community-operators \
-                       --base main \
-                       --draft
+#      - name: create github token
+#        uses: actions/create-github-app-token@v1.6.2
+#        id: app-token
+#        with:
+#          app-id: ${{vars.GH_APP_ID}}
+#          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+#          repositories: "datadog-operator,community-operators"
+#
+#      - name: checkout fork
+#        uses: actions/checkout@v4
+#        with:
+#          repository: DataDog/community-operators
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#
+#      - name: sync fork
+#        env:
+#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+#        run: |
+#          git checkout -b $COMMUNITY_BRANCH_NAME
+#          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
+#          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
+#          --source k8s-operatorhub/community-operators \
+#          --force
+##          gh repo sync DataDog/community-operators --branch release \
+##          --source k8s-operatorhub/community-operators \
+##          --force
+#
+#      - name: checkout datadog-operator to tmp/ dir
+#        uses: actions/checkout@v4
+#        with:
+#          repository: Datadog/datadog-operator
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          path: tmp/
+#      - name: update bundle
+#        run: |
+#          mkdir operators/datadog-operator/${{ env.VERSION }}
+#          cp -R ./tmp/bundle/* operators/datadog-operator/$VERSION
+#
+#      - name: Configure git user
+#        run: |
+#          git config user.name ${{ github.actor }}
+#          git config user.email ${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com
+#
+#      - name: create PR
+#        env:
+#          GITHUB_TOKEN: $GITHUB_TOKEN
+#        run: |
+#          message="test PR"
+#          body="test PR"
+#          git checkout -b $COMMUNITY_BRANCH_NAME
+#          git add -A
+#          git commit -s -m "$message"
+#          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
+#          gh pr create --title "$message" \
+#                       --body "$body" \
+#                       --repo DataDog/community-operators \
+#                       --base main \
+#                       --draft
