@@ -14,8 +14,7 @@ jobs:
         run: |
           echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
           echo $VERSION
-          echo ${{env.VERSION}}
-          echo "$COMMUNITY_BRANCH_NAME"
+          echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME-$GH_REF_NAME"
 
       - name: validate env
         run: |
