@@ -9,17 +9,9 @@ jobs:
     env:
       VERSION: vX.Y.Z
       COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-
-#    outputs:
-#      version: ${{ steps.set-version.outputs.version }}
-#    env:
-##      VERSION: ${${{ github.ref_name }}:1:5} # use version from release branch name
-##      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v$VERSION
-#      VERSION: vX.Y.Z
-#      COMMUNITY_BRANCH_NAME: ${{ github.actor }}/datadog-operator-v${{env.VERSION}}
     steps:
       - name: setup env
         run: |
-#          echo "VERSION=${${{ github.ref_name }}:1:5}" >> $GITHUB_ENV
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
           echo "COMMUNITY_BRANCH_NAME=$COMMUNITY_BRANCH_NAME + $VERSION" >> $GITHUB_ENV
