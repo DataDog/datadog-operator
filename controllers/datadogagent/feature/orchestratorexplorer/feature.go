@@ -216,6 +216,17 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *orchestratorExplorerFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+	for _, env := range f.getEnvVars() {
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, env)
+	}
+
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {

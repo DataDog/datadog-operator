@@ -171,9 +171,22 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *dogstatsdFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers)
+	return nil
+}
+
+func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
 		Name:          apicommon.DefaultDogstatsdPortName,
@@ -189,18 +202,18 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 			if f.useHostNetwork {
 				dogstatsdPort.ContainerPort = f.hostPortHostPort
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 				// defaults to 8125 in datadog-agent code
 				Name:  apicommon.DDDogstatsdPort,
 				Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
 			})
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		})
 	}
-	managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, dogstatsdPort)
+	managers.Port().AddPortToContainer(agentContainerName, dogstatsdPort)
 
 	// uds
 	if f.udsEnabled {
@@ -210,7 +223,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.CoreAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdSocket,
@@ -219,7 +232,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 	}
 
 	if f.originDetectionEnabled {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdOriginDetection,
 			Value: "true",
 		})

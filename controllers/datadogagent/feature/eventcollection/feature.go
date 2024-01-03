@@ -144,25 +144,38 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *eventCollectionFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers)
+	return nil
+}
+func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDCollectKubernetesEvents,
 		Value: "true",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderElection,
 		Value: "true",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderLeaseName,
 		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
 		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})

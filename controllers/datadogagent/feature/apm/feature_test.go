@@ -11,7 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -47,28 +47,68 @@ func TestAPMFeature(t *testing.T) {
 			Name:          "v1alpha1 apm enabled, use uds and hostport",
 			DDAv1:         newV1Agent(true, true),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(),
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
 		},
 
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 apm not enabled",
-			DDAv2:         newV2Agent(false, false),
+			Name: "v2alpha1 apm not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(false).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds",
-			DDAv2:         newV2Agent(true, false),
-			WantConfigure: true,
-			Agent:         testAgentUDSOnly(),
+			Name: "v2alpha1 apm not enabled with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(false).
+				WithMultiProcessContainer(true).
+				Build(),
+			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds and host port",
-			DDAv2:         newV2Agent(true, true),
+			Name: "v2alpha1 apm enabled, use uds",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				Build(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(),
+			Agent:         testAgentUDSOnly(apicommonv1.TraceAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithMultiProcessContainer(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and host port",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				Build(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and host port with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithMultiProcessContainer(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
 		},
 	}
 
@@ -88,27 +128,6 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 					},
 				},
 			},
-		},
-	}
-}
-
-func newV2Agent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				APM: &v2alpha1.APMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(enableAPM),
-					HostPortConfig: &v2alpha1.HostPortConfig{
-						Enabled: apiutils.NewBoolPointer(hostPort),
-						Port:    apiutils.NewInt32Pointer(8126),
-					},
-					UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						Path:    apiutils.NewStringPointer(apmSocketHostPath),
-					},
-				},
-			},
-			Global: &v2alpha1.GlobalConfig{},
 		},
 	}
 }
@@ -157,12 +176,12 @@ func testAgentHostPortOnly() *test.ComponentTest {
 	)
 }
 
-func testAgentUDSOnly() *test.ComponentTest {
+func testAgentUDSOnly(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.TraceAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMEnabled,
@@ -179,7 +198,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
+			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
 					Name:      apicommon.APMSocketVolumeName,
@@ -212,7 +231,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 				"Trace Agent Volumes \ndiff = %s", cmp.Diff(agentVolumes, expectedVolumes),
 			)
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.TraceAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[agentContainerName]
 			expectedPorts := []*corev1.ContainerPort{
 				{
 					Name:          "traceport",
@@ -229,12 +248,12 @@ func testAgentUDSOnly() *test.ComponentTest {
 	)
 }
 
-func testAgentHostPortUDS() *test.ComponentTest {
+func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.TraceAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMEnabled,
@@ -259,7 +278,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
+			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
 					Name:      apicommon.APMSocketVolumeName,
@@ -292,7 +311,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 				"Trace Agent Volumes \ndiff = %s", cmp.Diff(agentVolumes, expectedVolumes),
 			)
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.TraceAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[agentContainerName]
 			expectedPorts := []*corev1.ContainerPort{
 				{
 					Name:          "traceport",

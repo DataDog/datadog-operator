@@ -780,6 +780,10 @@ type GlobalConfig struct {
 	// Path to the container runtime socket (if different from Docker).
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
+
+	// ContainerProcessStrategy determines whether agents run in single or multi-process containers.
+	// +optional
+	ContainerProcessStrategy *ContainerProcessStrategy `json:"containerProcessStrategy,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1077,6 +1081,19 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+}
+
+// ContainerProcessStrategy determines how various agent processes are grouped across multiple containers.
+// +k8s:openapi-gen=true
+type ContainerProcessStrategy struct {
+	// Type sets a predetermined grouping of processes across containers. There are two supported groupings:
+	// `singleProcessContainers` runs one process per container.
+	// `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container
+	// unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe`
+	// is required, `singleProcessContainers` will be used.
+	// Default: `singleProcessContainers`
+	// +optional
+	Type commonv1.ContainerProcessStrategyType `json:"type,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

@@ -139,25 +139,38 @@ func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplat
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *prometheusScrapeFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers)
+	return nil
+}
+
+func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDPrometheusScrapeEnabled,
 		Value: "true",
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
 		Value: strconv.FormatBool(f.enableServiceEndpoints),
 	})
 	if f.additionalConfigs != "" {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDPrometheusScrapeChecks,
 			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
 	if f.openmetricsVersion != 0 {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDPrometheusScrapeVersion,
 			Value: strconv.Itoa(f.openmetricsVersion),
 		})

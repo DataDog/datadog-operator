@@ -6,6 +6,7 @@
 package feature
 
 import (
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -63,6 +64,21 @@ func (rc *RequiredComponent) IsEnabled() bool {
 // IsConfigured returns true if the Feature does not require the RequiredComponent, but if it runs it needs to be configured appropriately.
 func (rc *RequiredComponent) IsConfigured() bool {
 	return rc.IsRequired != nil || len(rc.Containers) > 0
+}
+
+// IsPrivileged checks whether component requires privileged access.
+func (rc *RequiredComponent) IsPrivileged() bool {
+	for _, container := range rc.Containers {
+		if container == common.SecurityAgentContainerName || container == common.SystemProbeContainerName {
+			return true
+		}
+	}
+	return false
+}
+
+func (rc *RequiredComponent) MultiProcessContainerEnabled() bool {
+	return len(rc.Containers) == 1 &&
+		rc.Containers[0] == apicommonv1.UnprivilegedMultiProcessAgentContainerName
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -126,6 +142,10 @@ type Feature interface {
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
+	// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+	// if multi-process container usage is enabled and can be used with the current feature set
+	// It should do nothing if the feature doesn't need to configure it.
+	ManageMultiProcessNodeAgent(managers PodTemplateManagers) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error

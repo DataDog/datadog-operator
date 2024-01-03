@@ -84,20 +84,34 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *liveContainerFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers)
+	return nil
+}
+
+func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.ProcessAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommonv1.ProcessAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDContainerCollectionEnabled,
 		Value: "true",
 	})
