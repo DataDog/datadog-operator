@@ -1,6 +1,6 @@
 name: publish_community_operators
 
-on: push
+on: [push]
 
 jobs:
   publish-community-operators:
