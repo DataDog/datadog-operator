@@ -73,7 +73,7 @@ jobs:
           rm -rf ./tmp
 
       - name: update redhat bundle
-        if: !${{ inputs.community_repo }}
+        if: ${{ !inputs.community_repo }}
         run: |
           cd tmp/datadog-operator
           make bundle-redhat
