@@ -49,6 +49,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: sync fork
+        working-directory: $TARGET_GH_REPO
         env:
           GITHUB_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
         run: |
@@ -66,6 +67,7 @@ jobs:
           path: tmp/
 
       - name: update bundle
+        working-directory: tmp
         if: ${{ inputs.community_repo }}
         run: |
           mkdir operators/datadog-operator/$VERSION
@@ -74,8 +76,8 @@ jobs:
 
       - name: update redhat bundle
         if: ${{ !inputs.community_repo }}
+        working-directory: tmp/datadog-operator
         run: |
-          cd tmp/datadog-operator
           make bundle-redhat
           cd ${{ inputs.repo }}
           mkdir operators/datadog-operator/$VERSION
