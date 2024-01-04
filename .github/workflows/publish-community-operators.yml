@@ -12,8 +12,7 @@ jobs:
       org: k8s-operatorhub
       repo: community-operators
     secrets:
-      app-id: ${{vars.GH_APP_ID}}
-      private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+      GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 
   create-pr-redhat-openshift-ecosystem-community-operators-prod:
 #    if: startsWith(github.ref, 'refs/tags/v')
@@ -24,8 +23,7 @@ jobs:
       org: redhat-openshift-ecosystem
       repo: community-operators-prod
     secrets:
-      app-id: ${{vars.GH_APP_ID}}
-      private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+      GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 
   create-pr-redhat-openshift-ecosystem-redhat-marketplace-operators:
 #    if: startsWith(github.ref, 'refs/tags/v')
@@ -36,8 +34,7 @@ jobs:
       org: redhat-openshift-ecosystem
       repo: redhat-marketplace-operators
     secrets:
-      app-id: ${{vars.GH_APP_ID}}
-      private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+      GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 
   create-pr-redhat-openshift-ecosystem-certified-operators:
 #    if: startsWith(github.ref, 'refs/tags/v')
@@ -48,5 +45,4 @@ jobs:
       org: redhat-openshift-ecosystem
       repo: certified-operators
     secrets:
-      app-id: ${{vars.GH_APP_ID}}
-      private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+      GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}

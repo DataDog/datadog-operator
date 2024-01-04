@@ -13,9 +13,7 @@ on:
         type: string
         required: true
     secrets:
-      app-id:
-        required: true
-      private-key:
+      GH_ROBOT_TOKEN:
         required: true
 
 jobs:
@@ -40,19 +38,19 @@ jobs:
           echo "$TARGET_GH_ORG"
           echo "$TARGET_GH_REPO"
 
-      - name: create github token
-        uses: actions/create-github-app-token@v1.6.2
-        id: app-token
-        with:
-#          app-id: ${{vars.GH_APP_ID}}
-#          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
-          repositories: "datadog-operator,community-operators,community-operators-prod,redhat-marketplace-operators,certified-operators"
+#      - name: create github token
+#        uses: actions/create-github-app-token@v1.6.2
+#        id: app-token
+#        with:
+##          app-id: ${{vars.GH_APP_ID}}
+##          private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
+#          repositories: "datadog-operator,community-operators,community-operators-prod,redhat-marketplace-operators,certified-operators"
 
       - name: checkout fork
         uses: actions/checkout@v4
         with:
           repository: DataDog/$TARGET_GH_REPO
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.GH_ROBOT_TOKEN }}
 
       - name: sync fork
         working-directory: $TARGET_GH_REPO
@@ -69,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Datadog/datadog-operator
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{secrets.GH_ROBOT_TOKEN}}
           path: tmp/
 
       - name: update bundle
