@@ -12,6 +12,12 @@ on:
       repo:
         type: string
         required: true
+    secrets:
+      app-id:
+        required: true
+      private-key:
+        required: true
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
