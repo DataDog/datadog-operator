@@ -165,7 +165,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:           commonEnvVars(dda),
+		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
 		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
@@ -301,6 +301,25 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			// but in 7.50.0 it will be already defaulted in the agent process.
 			Name:  apicommon.DDContainerImageEnabled,
 			Value: apicommon.EnvVarTrueValue,
+		},
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
+func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		{
+			Name:  apicommon.DDInstrumentationInstallId,
+			Value: component.AgentInstallId,
+		},
+		{
+			Name:  apicommon.DDInstrumentationInstallTime,
+			Value: component.AgentInstallTime,
+		},
+		{
+			Name:  apicommon.DDInstrumentationInstallType,
+			Value: component.DefaultAgentInstallType,
 		},
 	}
 
