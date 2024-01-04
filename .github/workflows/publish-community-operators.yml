@@ -1,6 +1,6 @@
 name: publish_community_operators
 
-on: workflow_dispatch
+on: push
 
 jobs:
   publish-community-operators:
