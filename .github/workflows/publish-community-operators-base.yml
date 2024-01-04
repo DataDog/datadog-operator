@@ -78,8 +78,10 @@ jobs:
 
       - name: update redhat bundle
         if: ${{ !inputs.community_repo }}
+        working-directory: tmp/datadog-operator
         run: |
           echo $PWD
+          make bundle-redhat
           mkdir operators/datadog-operator/$VERSION
           if [[ "${{ inputs.repo }}" == "redhat-marketplace-operators" ]]; then
             cp -R ./tmp/bundle-redhat-mp/* operators/datadog-operator/$VERSION
