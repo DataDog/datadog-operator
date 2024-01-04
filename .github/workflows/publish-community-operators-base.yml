@@ -53,13 +53,13 @@ jobs:
           token: ${{ secrets.GH_ROBOT_TOKEN }}
 
       - name: sync fork
-        working-directory: $TARGET_GH_REPO
+        working-directory: ${{ inputs.repo }}
         env:
           GITHUB_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-          gh repo sync DataDog/$TARGET_GH_REPO --branch $COMMUNITY_BRANCH_NAME \
+          gh repo sync DataDog/${{ inputs.repo }} --branch $COMMUNITY_BRANCH_NAME \
           --source ${{ inputs.org }}/${{ inputs.repo }} \
           --force
 
