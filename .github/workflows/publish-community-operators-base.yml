@@ -78,6 +78,7 @@ jobs:
 
       - name: update redhat bundle
         if: ${{ !inputs.community_repo }}
+        working-directory: tmp/datadog-operator
         run: |
           make bundle-redhat
           cd ${{ inputs.repo }}
