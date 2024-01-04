@@ -31,12 +31,15 @@ jobs:
           echo "TARGET_GH_ORG=${{ inputs.org }}" >> $GITHUB_ENV
           echo "TARGET_GH_REPO=${{ inputs.repo }}" >> $GITHUB_ENV
           echo "BUNDLE_PATH=tmp/bundle" >> $GITHUB_ENV
+          echo "OPERATOR_DIR=datadog-operator" >> $GITHUB_ENV
           
           if [[ "${{ !inputs.community_repo }}" ]]; then
             if [[ "${{ inputs.repo }}" == "redhat-marketplace-operators" ]]; then
               echo "BUNDLE_PATH=tmp/bundle-redhat-mp" >> $GITHUB_ENV
+              echo "OPERATOR_DIR=datadog-operator-certified-rhmp" >> $GITHUB_ENV
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
               echo "BUNDLE_PATH=tmp/bundle-redhat" >> $GITHUB_ENV
+              echo "OPERATOR_DIR=datadog-operator-certified" >> $GITHUB_ENV
             fi 
             echo "${{ secrets.REDHAT_TOKEN }} >> ~/.redhat/auths.json"
             sudo apt-get -y update
@@ -75,9 +78,10 @@ jobs:
           path: tmp/
 
       - name: update bundle
+        working-directory: ${{ inputs.repo }}
         run: |
-          mkdir operators/datadog-operator/$VERSION
-          cp -R ./$BUNDLE_PATH/* operators/datadog-operator/$VERSION
+          mkdir operators/$OPERATOR_DIR/$VERSION
+          cp -R ./$BUNDLE_PATH/* operators/$OPERATOR_DIR/$VERSION
           rm -rf ./tmp
 
       - name: Configure git user
