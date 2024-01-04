@@ -1,10 +1,22 @@
-name: openshift community pull requests
-on: [push]
+name: publish_community_operators
+
+on:
+  workflow_call:
+    inputs:
+      community_repo:
+        type: boolean
+        required: true
+      org:
+        type: string
+        required: true
+      repo:
+        type: string
+        required: true
 jobs:
-  create-community-pr:
+  create-pull-request:
     runs-on: ubuntu-latest
     env:
-      GH_REF_NAME: vX.Y.Z
+      GH_REF_NAME: vX.Y.Z # placeholder for testing
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
       ACTIONS_RUNNER_DEBUG: true
     steps:
@@ -12,11 +24,15 @@ jobs:
         run: |
           echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
           echo "COMMUNITY_BRANCH_NAME=$BRANCH_NAME_BASE-$GH_REF_NAME" >> $GITHUB_ENV
+          echo "TARGET_GH_ORG=${{ inputs.org }}" >> $GITHUB_ENV
+          echo "TARGET_GH_REPO=${{ inputs.repo }}" >> $GITHUB_ENV
 
       - name: validate env
         run: |
           echo "$VERSION"
           echo "$COMMUNITY_BRANCH_NAME"
+          echo "$TARGET_GH_ORG"
+          echo "$TARGET_GH_REPO"
 
       - name: create github token
         uses: actions/create-github-app-token@v1.6.2
@@ -24,12 +40,12 @@ jobs:
         with:
           app-id: ${{vars.GH_APP_ID}}
           private-key: ${{secrets.GH_APP_PRIVATE_KEY}}
-          repositories: "datadog-operator,community-operators"
+          repositories: "datadog-operator,community-operators,community-operators-prod,redhat-marketplace-operators,certified-operators"
 
       - name: checkout fork
         uses: actions/checkout@v4
         with:
-          repository: DataDog/community-operators
+          repository: DataDog/$TARGET_GH_REPO
           token: ${{ steps.app-token.outputs.token }}
 
       - name: sync fork
@@ -38,8 +54,8 @@ jobs:
         run: |
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
-          --source k8s-operatorhub/community-operators \
+          gh repo sync DataDog/$TARGET_GH_REPO --branch $COMMUNITY_BRANCH_NAME \
+          --source $TARGET_GH_ORG/$TARGET_GH_REPO \
           --force
 
       - name: checkout datadog-operator to tmp/ dir
@@ -48,10 +64,27 @@ jobs:
           repository: Datadog/datadog-operator
           token: ${{ steps.app-token.outputs.token }}
           path: tmp/
+
       - name: update bundle
+        if: ${{ inputs.community_repo }}
         run: |
           mkdir operators/datadog-operator/$VERSION
           cp -R ./tmp/bundle/* operators/datadog-operator/$VERSION
+          rm -rf ./tmp
+
+      - name: update redhat bundle
+        if: !${{ inputs.community_repo }}
+        run: |
+          cd tmp/datadog-operator
+          make bundle-redhat
+          cd ${{ inputs.repo }}
+          mkdir operators/datadog-operator/$VERSION
+          if [[ "$TARGET_GH_REPO" == "redhat-marketplace-operators" ]]; then
+            cp -R ./tmp/bundle-redhat-mp/* operators/datadog-operator/$VERSION
+          elif [[ "$TARGET_GH_REPO" == "certified-operators" ]]; then
+            cp -R ./tmp/bundle-redhat-mp/* operators/datadog-operator/$VERSION
+          fi
+          cp -R ./tmp/bundle-redhat/* operators/datadog-operator/$VERSION
           rm -rf ./tmp
 
       - name: Configure git user
@@ -70,19 +103,6 @@ jobs:
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
-                       --repo DataDog/community-operators \
+                       --repo DataDog/$TARGET_GH_REPO \
                        --base main \
                        --draft
-
-#      - name: sync fork
-#        env:
-#          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-#        run: |
-##          git checkout -b $COMMUNITY_BRANCH_NAME
-##          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
-##          gh repo sync DataDog/community-operators --branch $COMMUNITY_BRANCH_NAME \
-##          --source k8s-operatorhub/community-operators \
-##          --force
-#          gh repo sync DataDog/community-operators --branch release \
-#          --source k8s-operatorhub/community-operators \
-#          --force

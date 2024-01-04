@@ -1,0 +1,40 @@
+name: publish_community_operators
+
+on: workflow_dispatch
+
+jobs:
+  publish-community-operators:
+#    if: startsWith(github.ref, 'refs/tags/v')
+#    needs: [ create-release ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: publish to k8s-operatorbub/community-operators
+        uses: ./.github/workflows/publish-community-operators-base.yml
+        with:
+          community_repo: true
+          org: k8s-operatorhub
+          repo: community-operators
+      - name: publish to redhat-openshift-ecosystem/community-operators-prod
+        uses: ./.github/workflows/publish-community-operators-base.yml
+        with:
+          community_repo: true
+          org: redhat-openshift-ecosystem
+          repo: community-operators-prod
+
+  publish_redhat_operators:
+#    if: startsWith(github.ref, 'refs/tags/v')
+#    needs: [ create-release ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: publish to redhat-openshift-ecosystem/redhat-marketplace-operators
+        uses: ./.github/workflows/publish-community-operators-base.yml
+        with:
+          community_repo: false
+          org: redhat-openshift-ecosystem
+          repo: redhat-marketplace-operators
+      - name: publish to redhat-openshift-ecosystem/certified-operators
+        uses: ./.github/workflows/publish-community-operators-base.yml
+        with:
+          community_repo: false
+          org: redhat-openshift-ecosystem
+          repo: certified-operators
