@@ -49,7 +49,7 @@ jobs:
       - name: checkout fork
         uses: actions/checkout@v4
         with:
-          repository: DataDog/$TARGET_GH_REPO
+          repository: DataDog/${{ inputs.repo }}
           token: ${{ secrets.GH_ROBOT_TOKEN }}
 
       - name: sync fork
@@ -60,7 +60,7 @@ jobs:
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/$TARGET_GH_REPO --branch $COMMUNITY_BRANCH_NAME \
-          --source $TARGET_GH_ORG/$TARGET_GH_REPO \
+          --source ${{ inputs.org }}/${{ inputs.repo }} \
           --force
 
       - name: checkout datadog-operator to tmp/ dir
@@ -85,9 +85,9 @@ jobs:
           make bundle-redhat
           cd ${{ inputs.repo }}
           mkdir operators/datadog-operator/$VERSION
-          if [[ "$TARGET_GH_REPO" == "redhat-marketplace-operators" ]]; then
+          if [[ "${{ inputs.repo }}" == "redhat-marketplace-operators" ]]; then
             cp -R ./tmp/bundle-redhat-mp/* operators/datadog-operator/$VERSION
-          elif [[ "$TARGET_GH_REPO" == "certified-operators" ]]; then
+          elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
             cp -R ./tmp/bundle-redhat-mp/* operators/datadog-operator/$VERSION
           fi
           cp -R ./tmp/bundle-redhat/* operators/datadog-operator/$VERSION
@@ -109,6 +109,6 @@ jobs:
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh pr create --title "$message" \
                        --body "$body" \
-                       --repo DataDog/$TARGET_GH_REPO \
+                       --repo DataDog/${{ inputs.repo }} \
                        --base main \
                        --draft
