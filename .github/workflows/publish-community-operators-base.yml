@@ -28,9 +28,6 @@ jobs:
       ACTIONS_RUNNER_DEBUG: true
     steps:
       - name: setup env
-        env:
-          REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
-        shell: bash
         run: |
           echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
           echo "COMMUNITY_BRANCH_NAME=$BRANCH_NAME_BASE-$GH_REF_NAME" >> $GITHUB_ENV
@@ -77,12 +74,14 @@ jobs:
           path: tmp/
 
       - name: update bundle
+        env:
+          REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
         run: |
-          echo $PWD
-          ls -la $PWD
-          echo $PWD/tmp
-          ls -la $PWD/tmp
           if [[ "${{ !inputs.community_repo }}" ]]; then
+            echo $PWD
+            ls -la $PWD
+            echo $PWD/tmp
+            ls -la $PWD/tmp
             echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
             echo $PWD
             ls -la $PWD
