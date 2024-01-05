@@ -54,19 +54,6 @@ jobs:
           echo "$TARGET_GH_REPO"
           echo "$BUNDLE_PATH"
 
-      - name: checkout datadog-operator to tmp/ dir
-        uses: actions/checkout@v4
-        with:
-          repository: Datadog/datadog-operator
-          token: ${{secrets.GH_ROBOT_TOKEN}}
-          path: tmp/
-
-      - name: checkout fork
-        uses: actions/checkout@v4
-        with:
-          repository: DataDog/${{ inputs.repo }}
-          token: ${{ secrets.GH_ROBOT_TOKEN }}
-
       - name: sync fork
         env:
           GITHUB_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
@@ -77,6 +64,19 @@ jobs:
           gh repo sync DataDog/${{ inputs.repo }} --branch $COMMUNITY_BRANCH_NAME \
           --source ${{ inputs.org }}/${{ inputs.repo }} \
           --force
+
+      - name: checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: DataDog/${{ inputs.repo }}
+          token: ${{ secrets.GH_ROBOT_TOKEN }}
+
+      - name: checkout datadog-operator to tmp/ dir
+        uses: actions/checkout@v4
+        with:
+          repository: Datadog/datadog-operator
+          token: ${{secrets.GH_ROBOT_TOKEN}}
+          path: tmp/
 
       - name: update bundle
         run: |
