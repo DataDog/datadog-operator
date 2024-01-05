@@ -38,8 +38,8 @@ jobs:
           if [[ "${{ !inputs.community_repo }}" ]]; then
             mkdir ~/.redhat
             echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
-            sudo apt-get -y update
-            sudo apt-get -y install skopeo
+            ls ~/.redhat/auths.json
+            du -sh ~/.redhat/auths.json
             
             if [[ "${{ inputs.repo }}" == "redhat-marketplace-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat-mp" >> $GITHUB_ENV
