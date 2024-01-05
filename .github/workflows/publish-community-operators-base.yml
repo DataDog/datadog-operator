@@ -41,7 +41,9 @@ jobs:
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
-            echo "${{ secrets.REDHAT_TOKEN }}" >> ${{ github.workspace }}/.redhat/auths.json
+            cat << EOF > ${{ github.workspace }}/.redhat/auths.json 
+            ${{ secrets.REDHAT_TOKEN }}
+            EOF
           fi
 
       - name: validate env
@@ -51,6 +53,7 @@ jobs:
           echo "$TARGET_GH_ORG"
           echo "$TARGET_GH_REPO"
           echo "$BUNDLE_PATH"
+          ls ${{ github.workspace }}/.redhat/auths.json 
 
       - name: sync fork
         env:
