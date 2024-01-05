@@ -84,6 +84,8 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
+            ls ~/.redhat/auths.json
+            du -sh ~/.redhat/auths.json
             make -C ./tmp bundle-redhat
           fi
           mkdir operators/$OPERATOR_DIR/$VERSION
