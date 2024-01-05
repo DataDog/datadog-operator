@@ -26,6 +26,7 @@ jobs:
       GH_REF_NAME: vX.Y.Z # placeholder for testing
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
       ACTIONS_RUNNER_DEBUG: true
+      REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
     steps:
       - name: setup env
         run: |
@@ -42,7 +43,7 @@ jobs:
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
             cat << EOF > ${{ github.workspace }}/.redhat/auths.json 
-            ${{ secrets.REDHAT_TOKEN }}
+            $REDHAT_TOKEN
             EOF
           fi
 
