@@ -26,9 +26,11 @@ jobs:
       GH_REF_NAME: vX.Y.Z # placeholder for testing
       BRANCH_NAME_BASE: ${{ github.actor }}/datadog-operator
       ACTIONS_RUNNER_DEBUG: true
-      REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
     steps:
       - name: setup env
+        env:
+          REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
+        shell: bash
         run: |
           echo "VERSION=${GH_REF_NAME:1:5}" >> $GITHUB_ENV
           echo "COMMUNITY_BRANCH_NAME=$BRANCH_NAME_BASE-$GH_REF_NAME" >> $GITHUB_ENV
@@ -42,9 +44,7 @@ jobs:
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
-            cat << EOF > ${{ github.workspace }}/.redhat/auths.json 
-            $REDHAT_TOKEN
-            EOF
+            echo $REDHAT_TOKEN >> ${{ github.workspace }}/.redhat/auths.json 
           fi
 
       - name: validate env
