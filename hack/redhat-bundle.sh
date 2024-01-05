@@ -23,7 +23,7 @@ eval $SED \'s#image: gcr.io/datadoghq/operator:#image: registry.connect.redhat.c
 eval $SED \'s#containerImage: gcr.io/datadoghq/operator:#containerImage: registry.connect.redhat.com/datadog/operator:#g\' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
 
 # Pin images
-$ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin "$RH_BUNDLE_PATH/manifests" -a ~/.redhat/auths.json
+$ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin -v -r skopeo "$RH_BUNDLE_PATH/manifests" -a ~/.redhat/auths.json
 
 # Remove tests folder as unused
 rm -rf "$RH_BUNDLE_PATH/tests"
