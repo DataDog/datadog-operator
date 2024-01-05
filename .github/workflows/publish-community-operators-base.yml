@@ -81,8 +81,9 @@ jobs:
       - name: update bundle
         run: |
           echo $PWD
+          ls -la
           mkdir operators/$OPERATOR_DIR/$VERSION
-          cp -R ./datadog-operator/$BUNDLE_PATH/* operators/${{ inputs.dir }}/$VERSION
+          cp -R ./$BUNDLE_PATH/* operators/${{ inputs.dir }}/$VERSION
           rm -rf ./tmp
 
       - name: Configure git user
