@@ -42,8 +42,6 @@ jobs:
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
             echo "${{ secrets.REDHAT_TOKEN }} >> ~/.redhat/auths.json"
-#            sudo apt-get -y update
-#            sudo apt-get -y install skopeo
           fi
 
       - name: validate env
