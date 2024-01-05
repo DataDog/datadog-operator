@@ -79,7 +79,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
-            mkdir echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat
+            mkdir ${{ github.workspace }}/.redhat
             echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
             make -C ./tmp bundle-redhat
           fi
