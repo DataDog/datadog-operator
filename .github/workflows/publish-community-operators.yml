@@ -11,6 +11,7 @@ jobs:
       community_repo: true
       org: k8s-operatorhub
       repo: community-operators
+      dir: datadog-operator
     secrets:
       GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 
@@ -33,6 +34,7 @@ jobs:
       community_repo: false
       org: redhat-openshift-ecosystem
       repo: redhat-marketplace-operators
+      dir: datadog-operator-certified-rhmp
     secrets:
       GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 
@@ -44,5 +46,6 @@ jobs:
       community_repo: false
       org: redhat-openshift-ecosystem
       repo: certified-operators
+      dir: datadog-operator-certified
     secrets:
       GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
