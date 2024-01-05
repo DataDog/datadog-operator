@@ -23,6 +23,7 @@ jobs:
       community_repo: true
       org: redhat-openshift-ecosystem
       repo: community-operators-prod
+      dir: datadog-operator
     secrets:
       GH_ROBOT_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
 

@@ -64,6 +64,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
         run: |
+          echo $PWD
           git checkout -b $COMMUNITY_BRANCH_NAME
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/${{ inputs.repo }} --branch $COMMUNITY_BRANCH_NAME \
@@ -80,6 +81,7 @@ jobs:
       - name: update bundle
         working-directory: ${{ inputs.repo }}
         run: |
+          echo $PWD
           mkdir operators/$OPERATOR_DIR/$VERSION
           cp -R ./$BUNDLE_PATH/* operators/${{ inputs.dir }}/$VERSION
           rm -rf ./tmp
