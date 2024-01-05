@@ -29,6 +29,7 @@ stages:
 #  - test-image
 #  - release
 #  - post-release
+<<<<<<< Updated upstream
 #
 #build:
 #  stage: build
@@ -59,6 +60,8 @@ stages:
 #    - git diff --exit-code
 #
 =======
+=======
+>>>>>>> Stashed changes
   - community-prs-testing
 
 build:
@@ -373,6 +376,10 @@ generate_code:
 #    - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
 #    - make preflight-redhat-container-submit
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 publish_redhat_marketplace_operators:
 #  stage: post-release
   stage: community-prs-testing
@@ -396,4 +403,5 @@ publish_redhat_marketplace_operators:
     - gh auth login --with-token < git-token.txt
     - gh auth setup-git
 #    - make bundle-redhat
-    - ./.gitlab/community-operators_pr.sh $VERSION community-operators community-operators-prod
+    - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod
+
