@@ -54,6 +54,13 @@ jobs:
           echo "$TARGET_GH_REPO"
           echo "$BUNDLE_PATH"
 
+      - name: checkout datadog-operator to tmp/ dir
+        uses: actions/checkout@v4
+        with:
+          repository: Datadog/datadog-operator
+          token: ${{secrets.GH_ROBOT_TOKEN}}
+          path: tmp/
+
       - name: checkout fork
         uses: actions/checkout@v4
         with:
@@ -71,15 +78,7 @@ jobs:
           --source ${{ inputs.org }}/${{ inputs.repo }} \
           --force
 
-      - name: checkout datadog-operator to tmp/ dir
-        uses: actions/checkout@v4
-        with:
-          repository: Datadog/datadog-operator
-          token: ${{secrets.GH_ROBOT_TOKEN}}
-          path: tmp/
-
       - name: update bundle
-        working-directory: ${{ inputs.repo }}
         run: |
           echo $PWD
           mkdir operators/$OPERATOR_DIR/$VERSION
