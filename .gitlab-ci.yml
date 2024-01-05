@@ -360,6 +360,9 @@ publish_redhat_marketplace_operators:
     - echo "CI_PROJECT_DIR $CI_PROJECT_DIR"
     - VERSION_TAG=vX.Y.Z
     - VERSION={$VERSION_TAG:1}
+    - echo $VERSION_TAG
+    - echo $VERSION
+    - apk add --no-cache git github-cli aws-cli
     - git config --global user.email $GITLAB_USER_EMAIL
     - git config --global user.name $GITLAB_USER_NAME
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
