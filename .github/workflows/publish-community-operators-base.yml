@@ -53,7 +53,6 @@ jobs:
           echo "$TARGET_GH_ORG"
           echo "$TARGET_GH_REPO"
           echo "$BUNDLE_PATH"
-          ls ${{ github.workspace }}/.redhat/auths.json 
 
       - name: sync fork
         env:
@@ -85,6 +84,7 @@ jobs:
           ls -la $PWD/tmp
           if [[ "${{ !inputs.community_repo }}" ]]; then
             echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
+            ls ${{ github.workspace }}/.redhat/auths.json 
             make -C ./tmp bundle-redhat
           fi
           mkdir operators/$OPERATOR_DIR/$VERSION
