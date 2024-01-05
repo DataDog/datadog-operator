@@ -83,7 +83,7 @@ jobs:
             ls -la $PWD
             echo $PWD/tmp
             ls -la $PWD/tmp
-            echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
+            echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
             echo $PWD
             ls -la $PWD
             echo $PWD/tmp
