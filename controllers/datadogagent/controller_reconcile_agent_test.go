@@ -584,7 +584,7 @@ func Test_removeStaleStatus(t *testing.T) {
 		{
 			name: "no status to delete",
 			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{
+				AgentList: []*common.DaemonSetStatus{
 					{
 						Desired:       1,
 						Current:       1,
@@ -596,7 +596,7 @@ func Test_removeStaleStatus(t *testing.T) {
 			},
 			dsName: "bar",
 			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{
+				AgentList: []*common.DaemonSetStatus{
 					{
 						Desired:       1,
 						Current:       1,
@@ -610,7 +610,7 @@ func Test_removeStaleStatus(t *testing.T) {
 		{
 			name: "delete status",
 			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{
+				AgentList: []*common.DaemonSetStatus{
 					{
 						Desired:       1,
 						Current:       1,
@@ -630,7 +630,7 @@ func Test_removeStaleStatus(t *testing.T) {
 			},
 			dsName: "bar",
 			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{
+				AgentList: []*common.DaemonSetStatus{
 					{
 						Desired:       1,
 						Current:       1,
@@ -644,7 +644,7 @@ func Test_removeStaleStatus(t *testing.T) {
 		{
 			name: "delete only status",
 			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{
+				AgentList: []*common.DaemonSetStatus{
 					{
 						Desired:       2,
 						Current:       2,
@@ -657,17 +657,17 @@ func Test_removeStaleStatus(t *testing.T) {
 			},
 			dsName: "bar",
 			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{},
+				AgentList: []*common.DaemonSetStatus{},
 			},
 		},
 		{
 			name: "agent status is empty",
 			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{},
+				AgentList: []*common.DaemonSetStatus{},
 			},
 			dsName: "bar",
 			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				Agent: []*common.DaemonSetStatus{},
+				AgentList: []*common.DaemonSetStatus{},
 			},
 		},
 		{

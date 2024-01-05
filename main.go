@@ -120,6 +120,7 @@ type options struct {
 	webhookEnabled                         bool
 	v2APIEnabled                           bool
 	maximumGoroutines                      int
+	introspectionEnabled                   bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -152,6 +153,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
+	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -268,6 +270,7 @@ func run(opts *options) error {
 		DatadogSLOEnabled:      opts.datadogSLOEnabled,
 		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
 		V2APIEnabled:           opts.v2APIEnabled,
+		IntrospectionEnabled:   opts.introspectionEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

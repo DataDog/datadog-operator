@@ -25,8 +25,8 @@ import (
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider string) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
+func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
+	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
 
 	daemonset.Spec.Template = *podTemplate
@@ -34,8 +34,8 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider string) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
 }

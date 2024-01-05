@@ -41,6 +41,7 @@ type SetupOptions struct {
 	DatadogSLOEnabled        bool
 	OperatorMetricsEnabled   bool
 	V2APIEnabled             bool
+	IntrospectionEnabled     bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -140,6 +141,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 			SupportCilium:          options.SupportCilium,
 			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
 			V2Enabled:              options.V2APIEnabled,
+			IntrospectionEnabled:   options.IntrospectionEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

@@ -326,7 +326,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 							},
 						},
 					},
-					"agent": {
+					"agentList": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
 								"x-kubernetes-list-type": "atomic",
@@ -344,9 +344,9 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 							},
 						},
 					},
-					"agentSummary": {
+					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The combined actual state of the all Agent as daemonsets or extended daemonsets.",
+							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
 						},
 					},

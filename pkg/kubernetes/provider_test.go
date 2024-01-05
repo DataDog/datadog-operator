@@ -8,6 +8,9 @@ package kubernetes
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -432,6 +435,105 @@ func Test_IsPresent(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.want, providerStore.IsPresent(tt.provider))
+		})
+	}
+}
+
+func Test_ComponentOverrideFromProvider(t *testing.T) {
+	tests := []struct {
+		name          string
+		daemonSetName string
+		provider      string
+		want          v2alpha1.DatadogAgentComponentOverride
+	}{
+		{
+			name:          "component override",
+			daemonSetName: "foo",
+			provider:      defaultProvider,
+			want: v2alpha1.DatadogAgentComponentOverride{
+				Name: apiutils.NewStringPointer("foo-default"),
+			},
+		},
+		{
+			name:          "empty provider",
+			daemonSetName: "foo",
+			provider:      "",
+			want: v2alpha1.DatadogAgentComponentOverride{
+				Name: apiutils.NewStringPointer("foo"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			componentOverride := ComponentOverrideFromProvider(tt.daemonSetName, tt.provider)
+			assert.Equal(t, tt.want, componentOverride)
+		})
+	}
+}
+
+func Test_GetAgentNameWithProvider(t *testing.T) {
+	tests := []struct {
+		name         string
+		dsName       string
+		provider     string
+		overrideName *string
+		want         string
+	}{
+		{
+			name:         "ds and override name set, default provider",
+			dsName:       "foo",
+			provider:     defaultProvider,
+			overrideName: apiutils.NewStringPointer("bar"),
+			want:         "bar-default",
+		},
+		{
+			name:         "ds name set, default provider",
+			dsName:       "foo",
+			overrideName: nil,
+			provider:     defaultProvider,
+			want:         "foo-default",
+		},
+		{
+			name:         "override name set but empty, default provider",
+			provider:     defaultProvider,
+			overrideName: apiutils.NewStringPointer(""),
+			want:         "",
+		},
+		{
+			name:         "override name set, default provider",
+			provider:     defaultProvider,
+			overrideName: apiutils.NewStringPointer("bar"),
+			want:         "bar-default",
+		},
+		{
+			name:         "ds and override name set, no provider",
+			dsName:       "foo",
+			overrideName: apiutils.NewStringPointer("bar"),
+			want:         "bar",
+		},
+		{
+			name:   "ds name set, no provider",
+			dsName: "foo",
+			want:   "foo",
+		},
+		{
+			name:         "ds name set, override empty, no provider",
+			dsName:       "foo",
+			overrideName: apiutils.NewStringPointer(""),
+			want:         "foo",
+		},
+		{
+			name:         "override name set, no provider",
+			overrideName: apiutils.NewStringPointer("bar"),
+			want:         "bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			name := GetAgentNameWithProvider(tt.dsName, tt.provider, tt.overrideName)
+			assert.Equal(t, tt.want, name)
 		})
 	}
 }

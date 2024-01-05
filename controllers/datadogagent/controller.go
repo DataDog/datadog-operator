@@ -69,6 +69,7 @@ type ReconcilerOptions struct {
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	V2Enabled                bool
+	IntrospectionEnabled     bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

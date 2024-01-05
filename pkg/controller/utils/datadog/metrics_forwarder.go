@@ -256,7 +256,7 @@ func (mf *metricsForwarder) setupV2() error {
 	mf.labels = dda.GetLabels()
 
 	status := dda.Status.DeepCopy()
-	mf.dsStatus = status.Agent
+	mf.dsStatus = status.AgentList
 	mf.dcaStatus = status.ClusterAgent
 	mf.ccrStatus = status.ClusterChecksRunner
 

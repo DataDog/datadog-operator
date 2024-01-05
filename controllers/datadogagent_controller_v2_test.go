@@ -199,7 +199,7 @@ func checkAgentDaemonSet(namespace string, ddaName string) {
 	daemonSet := &appsv1.DaemonSet{}
 	daemonSetKey := types.NamespacedName{
 		Namespace: namespace,
-		Name:      fmt.Sprintf("%s-%s-%s", ddaName, "agent", "default"),
+		Name:      fmt.Sprintf("%s-%s", ddaName, "agent"),
 	}
 
 	getObjectAndCheck(daemonSet, daemonSetKey, func() bool {

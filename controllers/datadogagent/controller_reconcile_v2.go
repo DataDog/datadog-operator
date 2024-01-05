@@ -142,10 +142,14 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	requiredContainers := requiredComponents.Agent.Containers
 
-	// for all providers, go through agent reconcile
-	providersList, err := r.handleProviders(ctx, instance, newStatus)
-	if err != nil {
-		errs = append(errs, err)
+	// if introspection is enabled, for all providers, reconcile the node agent
+	// if introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
+	providersList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	if r.options.IntrospectionEnabled {
+		providersList, err = r.handleProviders(ctx, instance, newStatus)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	for provider := range providersList {
 		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers, provider)
