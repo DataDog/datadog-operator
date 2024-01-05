@@ -57,8 +57,6 @@ jobs:
           GH_TOKEN: ${{secrets.GH_ROBOT_TOKEN}}
         run: |
           echo $PWD
-          git checkout -b $COMMUNITY_BRANCH_NAME
-          git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
           gh repo sync DataDog/${{ inputs.repo }} --branch $COMMUNITY_BRANCH_NAME \
           --source ${{ inputs.org }}/${{ inputs.repo }} \
           --force
@@ -95,6 +93,7 @@ jobs:
         run: |
           message="operator datadog-operator ($VERSION)"
           body="operator datadog-operator ($VERSION)"
+          git checkout -b $COMMUNITY_BRANCH_NAME
           git add -A
           git commit -s -m "$message"
           git push -f --set-upstream origin $COMMUNITY_BRANCH_NAME
