@@ -43,6 +43,7 @@ jobs:
             fi 
             echo "${{ secrets.REDHAT_TOKEN }} >> ~/.redhat/auths.json"
             echo $PWD
+            ls -la
             make bundle-redhat
           fi
 
