@@ -286,6 +286,44 @@ trigger_internal_operator_check_image:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
+trigger_internal_operator_nightly_image:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "celene/gitlab_nightly_image"'
+      when: on_success
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${date +"%Y%m%d-main"}
+    BUILD_TAG: ${date +"%Y%m%d-main"}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
+trigger_internal_operator_check_nightly_image:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "celene/gitlab_nightly_image"'
+      when: on_success
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME_CHECK
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${date +"%Y%m%d-main"}
+    BUILD_TAG: ${date +"%Y%m%d-main"}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
 trigger_custom_operator_image_staging:
   stage: release
   rules:
