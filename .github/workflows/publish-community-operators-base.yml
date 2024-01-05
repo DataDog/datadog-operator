@@ -37,7 +37,7 @@ jobs:
           
           if [[ ${{ inputs.community_repo }} == false ]]; then
             mkdir ~/.redhat
-            cat ${{ secrets.REDHAT_TOKEN }} > ~/.redhat/auths.json 
+            echo ${{ secrets.REDHAT_TOKEN }} | base64 --decode | jq > ~/.redhat/auths.json 
             ls ~/.redhat/auths.json
             du -sh ~/.redhat/auths.json
             
@@ -84,8 +84,6 @@ jobs:
         shell: bash
         run: |
           if [[ ${{ inputs.community_repo }}  == false ]]; then
-            ls ~/.redhat/auths.json
-            du -sh ~/.redhat/auths.json
             skopeo login -v --authfile ~/.redhat/auths.json registry.connect.redhat.com
             make -C ./tmp bundle-redhat
           fi
