@@ -79,10 +79,10 @@ jobs:
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
             echo $PWD
+            echo ${{ github.workspace }}
             ls -la $PWD
             echo $PWD/tmp
             ls -la $PWD/tmp
-            touch ${{ github.workspace }}/.redhat/auths.json
             echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
             echo $PWD
             ls -la $PWD
