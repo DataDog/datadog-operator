@@ -80,6 +80,9 @@ jobs:
           ls -la $PWD
           echo $PWD/tmp
           ls -la $PWD/tmp
+          if [[ "${{ !inputs.community_repo }}" ]]; then
+            make -C ./tmp bundle-redhat
+          fi
           mkdir operators/$OPERATOR_DIR/$VERSION
           cp -R ./tmp/$BUNDLE_PATH/* operators/${{ inputs.dir }}/$VERSION
           rm -rf ./tmp
