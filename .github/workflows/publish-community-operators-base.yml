@@ -44,7 +44,8 @@ jobs:
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
-            printf "$REDHAT_TOKEN" > ~/.redhat/auths.json 
+            touch ${{ github.workspace }}/.redhat/auths.json 
+            echo "$REDHAT_TOKEN" >> ${{ github.workspace }}/.redhat/auths.json 
           fi
 
       - name: validate env
