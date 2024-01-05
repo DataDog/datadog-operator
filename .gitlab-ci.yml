@@ -1,30 +1,30 @@
-#image: registry.ddbuild.io/images/mirror/golang:1.19-bullseye
-#variables:
-#  PROJECTNAME: "datadog-operator"
-#  PROJECTNAME_CHECK: "datadog-operator-check"
-#  GOPATH: "$CI_PROJECT_DIR/.cache"
-#  BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
-#  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
-#  DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
-#  DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
-#  DOCKER_REGISTRY_URL: docker.io
-#  RH_PARTNER_REGISTRY: "quay.io/redhat-isv-containers"
-#  RH_PARTNER_PROJECT_ID: "5e7c8ebc1c86a3163d1a69be"
-#  RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
-#  RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
-#  RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-#  PUSH_IMAGES_TO_STAGING:
-#    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
-#
-#cache: &global_cache
-#  key: ${CI_COMMIT_REF_SLUG}
-#  paths:
-#    - .cache
-#  policy: pull-push
-#
-#stages:
-#  - build
-#  - test
+image: registry.ddbuild.io/images/mirror/golang:1.19-bullseye
+variables:
+  PROJECTNAME: "datadog-operator"
+  PROJECTNAME_CHECK: "datadog-operator-check"
+  GOPATH: "$CI_PROJECT_DIR/.cache"
+  BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
+  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
+  DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
+  DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
+  DOCKER_REGISTRY_URL: docker.io
+  RH_PARTNER_REGISTRY: "quay.io/redhat-isv-containers"
+  RH_PARTNER_PROJECT_ID: "5e7c8ebc1c86a3163d1a69be"
+  RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
+  RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
+  RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
+  PUSH_IMAGES_TO_STAGING:
+    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
+
+cache: &global_cache
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cache
+  policy: pull-push
+
+stages:
+  - build
+  - test
 #  - image
 #  - test-image
 #  - release
@@ -58,6 +58,37 @@
 #    - make generate manifests
 #    - git diff --exit-code
 #
+=======
+  - community-prs-testing
+
+build:
+  stage: build
+  tags: ["runner:main", "size:large"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    - make build
+
+unit_tests:
+  stage: test
+  tags: ["runner:main", "size:large"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    - make test
+
+generate_code:
+  stage: test
+  tags: ["runner:main", "size:large"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    - make generate manifests
+    - git diff --exit-code
+
 #build_operator_image_amd64:
 #  stage: image
 #  tags: ["runner:docker", "size:large"]
@@ -341,3 +372,28 @@
 #    - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
 #    - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
 #    - make preflight-redhat-container-submit
+
+publish_redhat_marketplace_operators:
+#  stage: post-release
+  stage: community-prs-testing
+  rules:
+    - when: manual
+#    - if: $CI_COMMIT_TAG
+#      when: manual
+#    - when: never
+#  needs:
+#    - "submit_preflight_redhat_public_tag"
+  tags: ["runner:docker", "size:large"]
+  image: $JOB_DOCKER_IMAGE
+  script:
+    - echo "CI_COMMIT_TAG $CI_COMMIT_TAG"
+    - echo "CI_PROJECT_DIR $CI_PROJECT_DIR"
+    - VERSION_TAG=vX.Y.Z
+    - VERSION={$VERSION_TAG:1}
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - git config --global user.name $GITLAB_USER_NAME
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
+    - gh auth login --with-token < git-token.txt
+    - gh auth setup-git
+#    - make bundle-redhat
+    - ./.gitlab/community-operators_pr.sh $VERSION community-operators community-operators-prod
