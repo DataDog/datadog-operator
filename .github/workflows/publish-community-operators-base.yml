@@ -78,16 +78,7 @@ jobs:
           REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
-            echo $PWD
-            echo ${{ github.workspace }}
-            ls -la $PWD
-            echo $PWD/tmp
-            ls -la $PWD/tmp
-            echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
-            echo $PWD
-            ls -la $PWD
-            echo $PWD/tmp
-            ls -la $PWD/tmp
+            echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
             make -C ./tmp bundle-redhat
           fi
           mkdir operators/$OPERATOR_DIR/$VERSION
