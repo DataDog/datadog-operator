@@ -35,7 +35,7 @@ jobs:
           echo "TARGET_GH_REPO=${{ inputs.repo }}" >> $GITHUB_ENV
           echo "BUNDLE_PATH=bundle" >> $GITHUB_ENV
           
-          if [[ ${{ !inputs.community_repo }} ]]; then
+          if [[ "${{ inputs.community_repo }}" == false ]]; then
             mkdir ~/.redhat
             echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
             ls ~/.redhat/auths.json
@@ -83,7 +83,7 @@ jobs:
           REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
         shell: bash
         run: |
-          if [[ ${{ !inputs.community_repo }} ]]; then
+          if [[ "${{ inputs.community_repo == false}} ]]; then
             ls ~/.redhat/auths.json
             du -sh ~/.redhat/auths.json
             make -C ./tmp bundle-redhat
