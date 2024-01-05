@@ -37,7 +37,7 @@ jobs:
           
           if [[ ${{ inputs.community_repo }} == false ]]; then
             mkdir ~/.redhat
-            echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
+            echo "$REDHAT_TOKEN" -n > ~/.redhat/auths.json 
             ls ~/.redhat/auths.json
             du -sh ~/.redhat/auths.json
             
