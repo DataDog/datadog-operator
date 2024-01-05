@@ -36,6 +36,11 @@ jobs:
           echo "BUNDLE_PATH=bundle" >> $GITHUB_ENV
           
           if [[ "${{ !inputs.community_repo }}" ]]; then
+            mkdir ~/.redhat
+            echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
+            sudo apt-get -y update
+            sudo apt-get -y install skopeo
+            
             if [[ "${{ inputs.repo }}" == "redhat-marketplace-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat-mp" >> $GITHUB_ENV
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
@@ -79,8 +84,6 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
-            mkdir ~/.redhat
-            echo "$REDHAT_TOKEN" > ~/.redhat/auths.json 
             make -C ./tmp bundle-redhat
           fi
           mkdir operators/$OPERATOR_DIR/$VERSION
