@@ -76,6 +76,7 @@ jobs:
       - name: update bundle
         env:
           REDHAT_TOKEN: ${{ secrets.REDHAT_TOKEN }}
+        shell: bash
         run: |
           if [[ "${{ !inputs.community_repo }}" ]]; then
             echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
