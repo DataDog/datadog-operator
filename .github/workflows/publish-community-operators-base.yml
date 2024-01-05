@@ -42,6 +42,7 @@ jobs:
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
             echo "${{ secrets.REDHAT_TOKEN }} >> ~/.redhat/auths.json"
+            make bundle-redhat
           fi
 
       - name: validate env
