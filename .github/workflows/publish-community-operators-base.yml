@@ -44,8 +44,6 @@ jobs:
             elif [[ "${{ inputs.repo }}" == "certified-operators" ]]; then
               echo "BUNDLE_PATH=bundle-redhat" >> $GITHUB_ENV
             fi 
-            touch ${{ github.workspace }}/.redhat/auths.json 
-            echo "$REDHAT_TOKEN" >> ${{ github.workspace }}/.redhat/auths.json 
           fi
 
       - name: validate env
@@ -86,6 +84,7 @@ jobs:
           echo $PWD/tmp
           ls -la $PWD/tmp
           if [[ "${{ !inputs.community_repo }}" ]]; then
+            echo "$REDHAT_TOKEN" > ${{ github.workspace }}/.redhat/auths.json 
             make -C ./tmp bundle-redhat
           fi
           mkdir operators/$OPERATOR_DIR/$VERSION
