@@ -383,7 +383,7 @@ publish_marketplace_operators:
     - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
     - apt-get update -y
     - rm -rf /var/lib/apt/lists/*
-    # build skopeo and install (needed to make bundle-redhat)
+    # build skopeo and install (needed for make bundle-redhat)
     - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
     - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install

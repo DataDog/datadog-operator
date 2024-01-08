@@ -27,7 +27,7 @@ update_bundle() {
 }
 
 create_pr() {
-  message="operator datadog-operator ($VERSION)"
+  message="operator datadog-operator ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
   body="operator datadog-operator ($VERSION)"
   git checkout -b "$PR_BRANCH_NAME"
   git add -A
@@ -37,6 +37,7 @@ create_pr() {
                --body "$body" \
                --repo DataDog/"$repo" \
                --base main \
+               --reviewer $GITLAB_USER_EMAIL \
                --draft
 }
 
