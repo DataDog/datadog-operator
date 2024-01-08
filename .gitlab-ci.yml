@@ -385,6 +385,7 @@ publish_redhat_marketplace_operators:
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
+    - hack/install-yq.sh v4.31.2
     - make bundle-redhat
     - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod redhat-marketplace-operators certified-operators
     - ls -la
