@@ -37,7 +37,6 @@ create_pr() {
                --body "$body" \
                --repo DataDog/"$repo" \
                --base main \
-               --reviewer $GITLAB_USER_EMAIL \
                --draft
 }
 

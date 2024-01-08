@@ -375,13 +375,12 @@ publish_marketplace_operators:
   script:
     # set version
     - VERSION_TAG=vX.Y.Z
-    - VERSION=${VERSION_TAG:1}
+    - VERSION=${VERSION_TAG:1} # vX.Y.Z => X.Y.Z
     # install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
     - apt-get update -y
     - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
-    - apt-get update -y
     - rm -rf /var/lib/apt/lists/*
     # build skopeo and install (needed for make bundle-redhat)
     - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
@@ -400,5 +399,5 @@ publish_marketplace_operators:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
     - gh auth login --with-token < git-token.txt
     - gh auth setup-git
-    # create pull requests
-    - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod redhat-marketplace-operators certified-operators
+    # create pull request for each marketplace repo
+    - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators
