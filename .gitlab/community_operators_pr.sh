@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set +o xtrace
+
 version="$1"
 shift
 repos=("$@") # array of repos
@@ -7,38 +9,41 @@ repos=("$@") # array of repos
 echo $version
 echo "${repos[@]}"
 
-OPERATOR_DIR="datadog-operator"
+OPERATOR_DIR="datadog-operator" # need a better name for this var
 BUNDLE_DIR="bundle"
-WORKING_DIR=$dir
+WORKING_DIR=$PWD
 PR_BRANCH_NAME="datadog-operator-$version"
 
+mkdir tmp
+
 clone_and_sync_fork() {
-  gh repo clone DataDog/$repo /tmp
-  cd /tmp/$repo
-  gh repo sync $repo \
-  --source $org/$repo \
+  cd $WORKING_DIR/tmp
+  gh repo clone DataDog/$repo
+  cd ./$repo
+  gh repo sync DataDog/$repo \
+  --source $ORG/$repo \
   --force
 }
 
 update_bundle() {
-  cd /tmp/$repo
+  cd $WORKING_DIR/tmp/$repo
   mkdir operators/$OPERATOR_DIR/$version
-  cp -R $RUNNER_WORKING_DIR/$BUNDLE_DIR/* operators/$OPERATOR_DIR/$version
+  cp -R $CI_PROJECT_DIR/$BUNDLE_PATH/* operators/$OPERATOR_DIR/$version
 }
 
-create_pr() {
-  message="operator datadog-operator ($version)"
-  body="operator datadog-operator ($version)"
-  git checkout -b $PR_BRANCH_NAME
-  git add -A
-  git commit -s -m "$message"
-  git push -f --set-upstream origin $PR_BRANCH_NAME
-  gh pr create --title "$message" \
-               --body "$body" \
-               --repo DataDog/$repo \
-               --base main \
-               --draft
-}
+#create_pr() {
+#  message="operator datadog-operator ($version)"
+#  body="operator datadog-operator ($version)"
+#  git checkout -b $PR_BRANCH_NAME
+#  git add -A
+#  git commit -s -m "$message"
+#  git push -f --set-upstream origin $PR_BRANCH_NAME
+#  gh pr create --title "$message" \
+#               --body "$body" \
+#               --repo DataDog/$repo \
+#               --base main \
+#               --draft
+#}
 
 
 for repo in "${repos[@]}"
@@ -64,43 +69,10 @@ do
       ;;
   esac
 
-  echo "REPO $repo"
-  echo "ORG $ORG"
-  echo "OPERATOR_DIR $OPERATOR_DIR"
-  echo "BUNDLE_PATH" $BUNDLE_PATH
-  echo "==============================="
-
   clone_and_sync_fork
   update_bundle
 #  create_pr
 
 done
 
-
-clone_and_sync_fork() {
-  gh repo clone DataDog/$repo /tmp
-  cd /tmp/$repo
-  gh repo sync $repo \
-  --source $org/$repo \
-  --force
-}
-
-update_bundle() {
-  cd /tmp/$repo
-  mkdir operators/$OPERATOR_DIR/$version
-  cp -R $RUNNER_WORKING_DIR/$BUNDLE_DIR/* operators/$OPERATOR_DIR/$version
-}
-
-#create_pr() {
-#  message="operator datadog-operator ($version)"
-#  body="operator datadog-operator ($version)"
-#  git checkout -b $PR_BRANCH_NAME
-#  git add -A
-#  git commit -s -m "$message"
-#  git push -f --set-upstream origin $PR_BRANCH_NAME
-#  gh pr create --title "$message" \
-#               --body "$body" \
-#               --repo DataDog/$repo \
-#               --base main \
-#               --draft
-#}
+rm -rf $WORKING_DIR/tmp
