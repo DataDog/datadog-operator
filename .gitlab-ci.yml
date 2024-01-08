@@ -373,13 +373,9 @@ publish_marketplace_operators:
   before_script:
     - mkdir -p .cache
   script:
-    # check env vars
-    - echo "CI_COMMIT_TAG $CI_COMMIT_TAG"
-    - echo "CI_PROJECT_DIR $CI_PROJECT_DIR"
+    # set version
     - VERSION_TAG=vX.Y.Z
     - VERSION=${VERSION_TAG:1}
-    - echo $VERSION_TAG
-    - echo $VERSION
     # install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
@@ -395,10 +391,10 @@ publish_marketplace_operators:
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
+    - cd $CI_PROJECT_DIR
     - hack/install-yq.sh v4.31.2
     - make bundle-redhat
     # configure git and github-cli
-    - cd $CI_PROJECT_DIR
     - git config --global user.email $GITLAB_USER_EMAIL
     - git config --global user.name $GITLAB_USER_NAME
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
