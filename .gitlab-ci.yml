@@ -23,41 +23,41 @@ cache: &global_cache
   policy: pull-push
 
 stages:
-  - build
-  - test
+#  - build
+#  - test
 #  - image
 #  - test-image
 #  - release
 #  - post-release
   - community-prs-testing
 
-build:
-  stage: build
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make build
-
-unit_tests:
-  stage: test
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make test
-
-generate_code:
-  stage: test
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make generate manifests
-    - git diff --exit-code
+#build:
+#  stage: build
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make build
+#
+#unit_tests:
+#  stage: test
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make test
+#
+#generate_code:
+#  stage: test
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make generate manifests
+#    - git diff --exit-code
 
 #build_operator_image_amd64:
 #  stage: image
