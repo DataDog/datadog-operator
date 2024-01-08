@@ -65,13 +65,13 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		var componentOverride *datadoghqv2alpha1.DatadogAgentComponentOverride
 		if co, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 			if r.options.IntrospectionEnabled {
-				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, co.Name)
+				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, co.Name)
 				co.Name = &agentNameWithProvider
 			}
 			componentOverride = co
 		} else {
 			if r.options.IntrospectionEnabled {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
 				componentOverride = &overrideFromProvider
 			}
 		}
@@ -81,7 +81,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				disabledByOverride = true
 			}
 			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-			override.DaemonSet(daemonset, componentOverride)
+			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
 		if disabledByOverride {
