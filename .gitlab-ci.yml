@@ -373,7 +373,7 @@ publish_redhat_marketplace_operators:
     # build skopeo and install
     - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
     - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
-    - make install
+    - DISABLE_DOCS=1 make install
     - which skopeo
     - cd $CI_PROJECT_DIR
     - git config --global user.email $GITLAB_USER_EMAIL
