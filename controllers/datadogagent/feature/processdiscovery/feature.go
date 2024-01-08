@@ -10,7 +10,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -58,7 +57,7 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 	return nil
 }
 
-func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, apicommonv1.ProcessAgentContainerName)
 	managers.Volume().AddVolume(&passwdVol)

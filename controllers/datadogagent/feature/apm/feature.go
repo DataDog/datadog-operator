@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -56,7 +54,6 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
-	createSCC                     bool
 }
 
 // ID returns the ID of the Feature
@@ -90,8 +87,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 		}
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
-
-		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -227,18 +222,6 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// scc
-	if f.createSCC {
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{}
-
-		if f.hostPortEnabled {
-			scc.AllowHostPorts = true
-		}
-
-		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
-	}
-
 	return nil
 }
 
@@ -250,7 +233,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
 		Value: "true",

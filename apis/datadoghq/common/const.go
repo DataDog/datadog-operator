@@ -17,8 +17,8 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
-	// MD5AgentDeploymentProfileHashLabelKey label key is used to identify which profile was used to generate it
-	MD5AgentDeploymentProfileHashLabelKey = "agent.datadoghq.com/profilehash"
+	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
+	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
@@ -98,6 +98,9 @@ const (
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
 	DefaultImageRegistry         string = "gcr.io/datadoghq"
+	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
+	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
+	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"

@@ -18,16 +18,14 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider string) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
 	var podTemplate *corev1.PodTemplateSpec
 	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
@@ -41,7 +39,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *edsv1alpha1.ExtendedDaemonSet {
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider string) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
 	var podTemplate *corev1.PodTemplateSpec
 	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
@@ -340,7 +338,13 @@ func envVarsForCoreAgent(dda metav1.Object, provider kubernetes.Provider) []core
 		},
 		{
 			Name:  apicommon.DDLeaderElection,
-			Value: "true",
+			Value: apicommon.EnvVarTrueValue,
+		},
+		{
+			// we want to default it in 7.49.0
+			// but in 7.50.0 it will be already defaulted in the agent process.
+			Name:  apicommon.DDContainerImageEnabled,
+			Value: apicommon.EnvVarTrueValue,
 		},
 	}
 
@@ -448,63 +452,6 @@ func volumeMountsForSystemProbe(provider kubernetes.Provider) []corev1.VolumeMou
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
-	}
-}
-
-// GetDefaultSCC returns the default SCC for the node agent component
-func GetDefaultSCC(dda *v2alpha1.DatadogAgent) *securityv1.SecurityContextConstraints {
-	return &securityv1.SecurityContextConstraints{
-		Users: []string{
-			fmt.Sprintf("system:serviceaccount:%s:%s", dda.Namespace, v2alpha1.GetAgentServiceAccount(dda)),
-		},
-		Priority:         apiutils.NewInt32Pointer(8),
-		AllowHostPorts:   v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
-		AllowHostNetwork: v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
-		Volumes: []securityv1.FSType{
-			securityv1.FSTypeConfigMap,
-			securityv1.FSTypeDownwardAPI,
-			securityv1.FSTypeEmptyDir,
-			securityv1.FSTypeHostPath,
-			securityv1.FSTypeSecret,
-		},
-		SELinuxContext: securityv1.SELinuxContextStrategyOptions{
-			Type: securityv1.SELinuxStrategyMustRunAs,
-			SELinuxOptions: &corev1.SELinuxOptions{
-				User:  "system_u",
-				Role:  "system_r",
-				Type:  "spc_t",
-				Level: "s0",
-			},
-		},
-		SeccompProfiles: []string{
-			"runtime/default",
-			"localhost/system-probe",
-		},
-		AllowedCapabilities: []corev1.Capability{
-			"SYS_ADMIN",
-			"SYS_RESOURCE",
-			"SYS_PTRACE",
-			"NET_ADMIN",
-			"NET_BROADCAST",
-			"NET_RAW",
-			"IPC_LOCK",
-			"CHOWN",
-			"AUDIT_CONTROL",
-			"AUDIT_READ",
-		},
-		AllowHostDirVolumePlugin: true,
-		AllowHostIPC:             true,
-		AllowPrivilegedContainer: false,
-		FSGroup: securityv1.FSGroupStrategyOptions{
-			Type: securityv1.FSGroupStrategyMustRunAs,
-		},
-		ReadOnlyRootFilesystem: false,
-		RunAsUser: securityv1.RunAsUserStrategyOptions{
-			Type: securityv1.RunAsUserStrategyRunAsAny,
-		},
-		SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
-			Type: securityv1.SupplementalGroupsStrategyRunAsAny,
-		},
 	}
 }
 

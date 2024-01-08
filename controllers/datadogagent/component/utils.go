@@ -360,11 +360,6 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
-// GetClusterAgentSCCName returns the Cluster-Agent SCC name based on the DatadogAgent name
-func GetClusterAgentSCCName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -387,11 +382,6 @@ func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
 		version = imageConfig.Tag
 	}
 	return version
-}
-
-// GetAgentSCCName returns the Agent SCC name based on the DatadogAgent name
-func GetAgentSCCName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
@@ -590,10 +580,10 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
-// GetAgentDeploymentProviderName returns a provider-specific name for the agent component
-func GetAgentDeploymentProviderName(ddaName string, provider kubernetes.Provider) string {
-	if provider.Name != "" {
-		return ddaName + "-" + provider.ComponentName
+// GetAgentNameWithProvider returns a provider-specific name for the agent component
+func GetAgentNameWithProvider(ddaName string, provider string) string {
+	if provider != "" {
+		return ddaName + "-" + strings.Replace(provider, "_", "-", -1)
 	}
 	return ddaName
 }

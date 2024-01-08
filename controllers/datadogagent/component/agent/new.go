@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,8 +17,8 @@ import (
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector, provider kubernetes.Provider) *appsv1.DaemonSet {
-	agentProviderName := component.GetAgentDeploymentProviderName(componentName, provider)
+func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector, provider string) *appsv1.DaemonSet {
+	agentProviderName := component.GetAgentNameWithProvider(componentName, provider)
 	labels, annotations, selector := component.GetDefaultMetadata(owner, componentKind, componentName, version, agentProviderName, selector)
 
 	daemonset := &appsv1.DaemonSet{
@@ -37,12 +36,12 @@ func NewDaemonset(owner metav1.Object, componentKind, componentName, version str
 }
 
 // NewExtendedDaemonset use to generate the skeleton of a new extended daemonset based on few information
-func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, provider kubernetes.Provider) *edsv1alpha1.ExtendedDaemonSet {
+func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, provider string) *edsv1alpha1.ExtendedDaemonSet {
 	// FIXME (@CharlyF): The EDS controller uses the Spec.Selector as a node selector to get the NodeList to rollout the agent.
 	// Per https://github.com/DataDog/extendeddaemonset/blob/28a8e082cee9890ae6d925a7d6247a36c6f6ba5d/controllers/extendeddaemonsetreplicaset/controller.go#L344-L360
 	// Up until v0.8.2, the Datadog Operator set the selector to nil, which circumvented this case.
 	// Until the EDS controller uses the Affinity field to get the NodeList instead of Spec.Selector, let's keep the previous behavior.
-	agentProviderName := component.GetAgentDeploymentProviderName(componentName, provider)
+	agentProviderName := component.GetAgentNameWithProvider(componentName, provider)
 	labels, annotations, _ := component.GetDefaultMetadata(owner, componentKind, componentName, version, agentProviderName, selector)
 
 	daemonset := &edsv1alpha1.ExtendedDaemonSet{
@@ -65,12 +64,13 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration             time.Duration
-	CanaryReplicas             string
-	CanaryAutoPauseEnabled     bool
-	CanaryAutoPauseMaxRestarts int32
-	CanaryAutoFailEnabled      bool
-	CanaryAutoFailMaxRestarts  int32
+	CanaryDuration                      time.Duration
+	CanaryReplicas                      string
+	CanaryAutoPauseEnabled              bool
+	CanaryAutoPauseMaxRestarts          int32
+	CanaryAutoFailEnabled               bool
+	CanaryAutoFailMaxRestarts           int32
+	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemonSetSpec {
@@ -100,6 +100,10 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 	spec.Strategy.Canary.AutoFail.Enabled = edsv1alpha1.NewBool(options.CanaryAutoFailEnabled)
 	if options.CanaryAutoFailMaxRestarts > 0 {
 		spec.Strategy.Canary.AutoFail.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoFailMaxRestarts)
+	}
+
+	if options.CanaryAutoPauseMaxSlowStartDuration != 0 {
+		spec.Strategy.Canary.AutoPause.MaxSlowStartDuration = &metav1.Duration{Duration: options.CanaryAutoPauseMaxSlowStartDuration}
 	}
 
 	spec.Strategy.Canary.AutoPause.Enabled = edsv1alpha1.NewBool(options.CanaryAutoPauseEnabled)

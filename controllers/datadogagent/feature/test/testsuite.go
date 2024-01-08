@@ -53,22 +53,22 @@ type Options struct{}
 
 // ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
-	CreateFunc func(testing.TB) (feature.PodTemplateManagers, kubernetes.Provider)
+	CreateFunc func(testing.TB) (feature.PodTemplateManagers, string)
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
 }
 
 // NewDefaultComponentTest returns a default ComponentTest
 func NewDefaultComponentTest() *ComponentTest {
-	emptyProvider := kubernetes.DetermineProvider(map[string]string{})
+	defaultProvider := kubernetes.DefaultProvider
 	return &ComponentTest{
-		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, kubernetes.Provider) {
-			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), emptyProvider
+		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
+			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), defaultProvider
 		},
 	}
 }
 
 // WithCreateFunc sets CreateFunc
-func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) (feature.PodTemplateManagers, kubernetes.Provider)) *ComponentTest {
+func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) (feature.PodTemplateManagers, string)) *ComponentTest {
 	ct.CreateFunc = f
 	return ct
 }

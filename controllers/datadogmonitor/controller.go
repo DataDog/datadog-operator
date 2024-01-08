@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2021 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogmonitor
 
@@ -149,7 +149,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			} else {
@@ -161,7 +161,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			}

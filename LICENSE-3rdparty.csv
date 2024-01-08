@@ -24,7 +24,6 @@ core,github.com/go-openapi/jsonpointer,Apache-2.0
 core,github.com/go-openapi/jsonreference,Apache-2.0
 core,github.com/go-openapi/swag,Apache-2.0
 core,github.com/gobwas/glob,MIT
-core,github.com/goccy/go-json,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
 core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause
@@ -40,7 +39,6 @@ core,github.com/mailru/easyjson,MIT
 core,github.com/matttproud/golang_protobuf_extensions/pbutil,Apache-2.0
 core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
-core,github.com/openshift/api/security/v1,Apache-2.0
 core,github.com/pkg/errors,BSD-2-Clause
 core,github.com/pmezard/go-difflib/difflib,BSD-3-Clause
 core,github.com/prometheus/client_golang/prometheus,Apache-2.0

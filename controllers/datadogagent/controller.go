@@ -54,6 +54,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/processdiscovery"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/remoteconfig"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/sbom"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
@@ -72,31 +73,31 @@ type ReconcilerOptions struct {
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options      ReconcilerOptions
-	client       client.Client
-	versionInfo  *version.Info
-	platformInfo kubernetes.PlatformInfo
-	profiles     *kubernetes.Profiles
-	scheme       *runtime.Scheme
-	log          logr.Logger
-	recorder     record.EventRecorder
-	forwarders   datadog.MetricForwardersManager
+	options       ReconcilerOptions
+	client        client.Client
+	versionInfo   *version.Info
+	platformInfo  kubernetes.PlatformInfo
+	providerStore *kubernetes.ProviderStore
+	scheme        *runtime.Scheme
+	log           logr.Logger
+	recorder      record.EventRecorder
+	forwarders    datadog.MetricForwardersManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
-	profiles *kubernetes.Profiles, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder,
+	providerStore *kubernetes.ProviderStore, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder,
 	metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
-		options:      options,
-		client:       client,
-		versionInfo:  versionInfo,
-		platformInfo: platformInfo,
-		profiles:     profiles,
-		scheme:       scheme,
-		log:          log,
-		recorder:     recorder,
-		forwarders:   metricForwarder,
+		options:       options,
+		client:        client,
+		versionInfo:   versionInfo,
+		platformInfo:  platformInfo,
+		providerStore: providerStore,
+		scheme:        scheme,
+		log:           log,
+		recorder:      recorder,
+		forwarders:    metricForwarder,
 	}, nil
 }
 

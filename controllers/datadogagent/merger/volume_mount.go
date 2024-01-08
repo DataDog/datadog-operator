@@ -23,8 +23,6 @@ type VolumeMountManager interface {
 	// Add the volumeMount to the container matching the containerName.
 	// Provide merge functions if the merge is specific.
 	AddVolumeMountToContainerWithMergeFunc(volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName, volumeMountMergeFunc VolumeMountMergeFunction) error
-	// Remove the volumeMount from all containers of the PodTemplate.
-	RemoveVolumeMount(volumeMount string)
 }
 
 // NewVolumeMountManager returns a new instance of the VolumeMountManager
@@ -129,22 +127,4 @@ func IgnoreNewVolumeMountMergeFunction(current, newVolumeMount *corev1.VolumeMou
 // ErrorOnMergeAttemptdVolumeMountMergeFunction used to avoid replacing an existing VolumeMount
 func ErrorOnMergeAttemptdVolumeMountMergeFunction(current, newVolumeMount *corev1.VolumeMount) (*corev1.VolumeMount, error) {
 	return nil, errMergeAttempted
-}
-
-// RemoveVolumeMount removes a volumeMount from all containers of the PodTemplate
-func (impl *volumeMountManagerImpl) RemoveVolumeMount(volumeMount string) {
-	for id := range impl.podTmpl.Spec.Containers {
-		RemoveVolumeMountFromContainer(&impl.podTmpl.Spec.Containers[id], volumeMount)
-	}
-}
-
-// RemoveVolumeMountFromContainer removes a volumeMount from a specific container
-func RemoveVolumeMountFromContainer(container *corev1.Container, volumeMount string) {
-	for id, cVolumeMount := range container.VolumeMounts {
-		if volumeMount == cVolumeMount.Name {
-			updatedVolumeMounts := make([]corev1.VolumeMount, 0, len(container.VolumeMounts)-1)
-			updatedVolumeMounts = append(updatedVolumeMounts, container.VolumeMounts[:id]...)
-			container.VolumeMounts = append(updatedVolumeMounts, container.VolumeMounts[id+1:]...)
-		}
-	}
 }

@@ -78,7 +78,7 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
@@ -88,7 +88,8 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
-	if provider.Name != kubernetes.GCPCosContainerdProvider && provider.Name != kubernetes.GCPCosProvider {
+	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+	if providerValue != kubernetes.GCPCosContainerdType && providerValue != kubernetes.GCPCosType {
 		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
 		managers.Volume().AddVolume(&srcVol)

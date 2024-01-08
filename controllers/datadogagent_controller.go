@@ -40,14 +40,14 @@ import (
 // DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
-	VersionInfo  *version.Info
-	PlatformInfo kubernetes.PlatformInfo
-	Profiles     *kubernetes.Profiles
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	Recorder     record.EventRecorder
-	Options      datadogagent.ReconcilerOptions
-	internal     *datadogagent.Reconciler
+	VersionInfo   *version.Info
+	PlatformInfo  kubernetes.PlatformInfo
+	ProviderStore *kubernetes.ProviderStore
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	Options       datadogagent.ReconcilerOptions
+	internal      *datadogagent.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagents,verbs=get;list;watch;create;update;patch;delete
@@ -198,12 +198,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handlerEnqueue)
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
 
-	// node informer for introspection
-	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) (reqs []reconcile.Request) {
-		r.Profiles.SetProvider(obj)
-		return
-	}))
-
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	}
@@ -241,7 +235,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Profiles, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.ProviderStore, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

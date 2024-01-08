@@ -10,39 +10,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
-	gcpCosNode = corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node1",
-			Labels: map[string]string{
-				GCPProviderLabel: GCPCosProvider,
-			},
-		},
-	}
-	defaultProvider = Provider{
-		Name:          DefaultProvider,
-		ComponentName: DefaultProvider,
-		CloudProvider: DefaultProvider,
-		ProviderLabel: DefaultProvider,
-	}
-	gcpUbuntuProvider = Provider{
-		Name:          GCPUbuntuProvider,
-		ComponentName: GenerateComponentName(GCPCloudProvider, GCPUbuntuProvider),
-		CloudProvider: GCPCloudProvider,
-		ProviderLabel: GCPProviderLabel,
-	}
+	defaultProvider          = DefaultProvider
+	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdType)
+	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosType)
 )
 
 func Test_determineProvider(t *testing.T) {
 	tests := []struct {
 		name     string
 		labels   map[string]string
-		provider Provider
+		provider string
 	}{
 		{
 			name: "random provider",
@@ -60,27 +41,17 @@ func Test_determineProvider(t *testing.T) {
 			name: "gcp provider",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: "cos",
+				GCPProviderLabel: GCPCosType,
 			},
-			provider: Provider{
-				Name:          "cos",
-				ComponentName: "gcp-cos",
-				CloudProvider: GCPCloudProvider,
-				ProviderLabel: GCPProviderLabel,
-			},
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosType),
 		},
 		{
 			name: "gcp provider, underscore",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: GCPWindowsSACContainerdProvider,
+				GCPProviderLabel: GCPCosContainerdType,
 			},
-			provider: Provider{
-				Name:          GCPWindowsSACContainerdProvider,
-				ComponentName: "gcp-windows-sac-containerd",
-				CloudProvider: GCPCloudProvider,
-				ProviderLabel: GCPProviderLabel,
-			},
+			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdType),
 		},
 		{
 			name: "openshift provider",
@@ -104,90 +75,34 @@ func Test_determineProvider(t *testing.T) {
 		})
 	}
 }
-func Test_SetProvider(t *testing.T) {
+
+func Test_isProviderValueAllowed(t *testing.T) {
 	tests := []struct {
-		name             string
-		obj              corev1.Node
-		existingProfiles *Profiles
-		wantProfile      *Profiles
+		name  string
+		value string
+		want  bool
 	}{
 		{
-			name:             "add new provider",
-			obj:              gcpCosNode,
-			existingProfiles: nil,
-			wantProfile: &Profiles{
-				providers: map[string]Provider{
-					"da0aef62ac96d9074f4fe800a72a34e8": {
-						Name:          GCPCosProvider,
-						ComponentName: "gcp-cos",
-						CloudProvider: GCPCloudProvider,
-						ProviderLabel: GCPProviderLabel,
-					},
-				},
-			},
+			name:  "valid value",
+			value: GCPCosContainerdType,
+			want:  true,
 		},
 		{
-			name: "add new provider with existing provider",
-			obj:  gcpCosNode,
-			existingProfiles: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-				},
-			},
-			wantProfile: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-					"da0aef62ac96d9074f4fe800a72a34e8": {
-						Name:          GCPCosProvider,
-						ComponentName: "gcp-cos",
-						CloudProvider: GCPCloudProvider,
-						ProviderLabel: GCPProviderLabel,
-					},
-				},
-			},
+			name:  "invalid value",
+			value: "foo",
+			want:  false,
 		},
 		{
-			name: "add new node name to existing provider",
-			obj:  gcpCosNode,
-			existingProfiles: &Profiles{
-				providers: map[string]Provider{
-					"da0aef62ac96d9074f4fe800a72a34e8": {
-						Name:          GCPCosProvider,
-						ComponentName: "gcp-cos",
-						CloudProvider: GCPCloudProvider,
-						ProviderLabel: GCPProviderLabel,
-					},
-				},
-			},
-			wantProfile: &Profiles{
-				providers: map[string]Provider{
-					"da0aef62ac96d9074f4fe800a72a34e8": {
-						Name:          GCPCosProvider,
-						ComponentName: "gcp-cos",
-						CloudProvider: GCPCloudProvider,
-						ProviderLabel: GCPProviderLabel,
-					},
-				},
-			},
+			name:  "empty value",
+			value: "",
+			want:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger)
-			if tt.existingProfiles != nil && tt.existingProfiles.providers != nil {
-				profile.providers = tt.existingProfiles.providers
-			}
-
-			profile.SetProvider(&tt.obj)
-			assert.Equal(t, tt.wantProfile.providers, profile.providers)
+			allowed := isProviderValueAllowed(tt.value)
+			assert.Equal(t, tt.want, allowed)
 		})
 	}
 }
@@ -195,74 +110,34 @@ func Test_SetProvider(t *testing.T) {
 func Test_sortProviders(t *testing.T) {
 	tests := []struct {
 		name                string
-		existingProviders   map[string]Provider
-		wantSortedProviders []Provider
+		existingProviders   map[string]struct{}
+		wantSortedProviders []string
 	}{
 		{
 			name:                "empty providers",
 			existingProviders:   nil,
-			wantSortedProviders: []Provider{},
+			wantSortedProviders: []string{},
 		},
 		{
 			name: "one provider",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
 			},
-			wantSortedProviders: []Provider{
-				{
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
-			},
+			wantSortedProviders: []string{gcpCosProvider},
 		},
 		{
 			name: "multiple providers",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
-				"abcdef": {
-					Name:          "test2",
-					ComponentName: "test2",
-				},
-				"lmnop": {
-					Name:          "foo",
-					ComponentName: "foo-bar",
-				},
-				"12345": {
-					Name:          "defgh",
-					ComponentName: "defgh",
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
+				"abcde":        {},
+				"zyxwv":        {},
+				"12345":        {},
 			},
-			wantSortedProviders: []Provider{
-				{
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
-				{
-					Name:          "defgh",
-					ComponentName: "defgh",
-				},
-				{
-					Name:          "foo",
-					ComponentName: "foo-bar",
-				},
-				{
-					Name:          "test2",
-					ComponentName: "test2",
-				},
+			wantSortedProviders: []string{
+				"12345",
+				"abcde",
+				gcpCosProvider,
+				"zyxwv",
 			},
 		},
 	}
@@ -270,13 +145,13 @@ func Test_sortProviders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger)
+			p := NewProviderStore(logger)
 			if tt.existingProviders != nil {
-				profile.providers = tt.existingProviders
+				p.providers = tt.existingProviders
 			}
 
-			profile.sortProviders()
-			assert.Equal(t, tt.wantSortedProviders, profile.sortedProviders)
+			sortedProviders := sortProviders(p.providers)
+			assert.Equal(t, tt.wantSortedProviders, sortedProviders)
 		})
 	}
 }
@@ -284,8 +159,8 @@ func Test_sortProviders(t *testing.T) {
 func Test_GenerateProviderNodeAffinity(t *testing.T) {
 	tests := []struct {
 		name              string
-		existingProviders map[string]Provider
-		provider          Provider
+		existingProviders map[string]struct{}
+		provider          string
 		wantNSR           []corev1.NodeSelectorRequirement
 	}{
 		{
@@ -296,13 +171,8 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		},
 		{
 			name: "one existing provider, default provider",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
 			},
 			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
@@ -310,51 +180,33 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosProvider,
+						GCPCosType,
 					},
 				},
 			},
 		},
 		{
 			name: "one existing provider, ubuntu provider",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
 			},
-			provider: gcpUbuntuProvider,
+			provider: gcpCosContainerdProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPUbuntuProvider,
+						GCPCosContainerdType,
 					},
 				},
 			},
 		},
 		{
 			name: "multiple providers, default provider",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
-				"abcdef": {
-					Name:          "test2",
-					ComponentName: "test2",
-					ProviderLabel: "test2",
-				},
-				"lmnop": {
-					Name:          "foo",
-					ComponentName: "foo-bar",
-					ProviderLabel: "foo",
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
+				"gcp-abcde":    {},
+				"gcp-zyxwv":    {},
 			},
 			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
@@ -362,52 +214,39 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosProvider,
+						"abcde",
 					},
 				},
 				{
-					Key:      "foo",
+					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						"foo",
+						GCPCosType,
 					},
 				},
 				{
-					Key:      "test2",
+					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						"test2",
+						"zyxwv",
 					},
 				},
 			},
 		},
 		{
 			name: "multiple providers, ubuntu provider",
-			existingProviders: map[string]Provider{
-				"da0aef62ac96d9074f4fe800a72a34e8": {
-					Name:          GCPCosProvider,
-					ComponentName: "gcp-cos",
-					CloudProvider: GCPCloudProvider,
-					ProviderLabel: GCPProviderLabel,
-				},
-				"abcdef": {
-					Name:          "test2",
-					ComponentName: "test2",
-					ProviderLabel: "test2",
-				},
-				"lmnop": {
-					Name:          "foo",
-					ComponentName: "foo-bar",
-					ProviderLabel: "foo",
-				},
+			existingProviders: map[string]struct{}{
+				gcpCosProvider: {},
+				"abcdef":       {},
+				"lmnop":        {},
 			},
-			provider: gcpUbuntuProvider,
+			provider: gcpCosContainerdProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
 					Key:      GCPProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPUbuntuProvider,
+						GCPCosContainerdType,
 					},
 				},
 			},
@@ -417,14 +256,195 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger)
+			p := NewProviderStore(logger)
 			if tt.existingProviders != nil {
-				profile.providers = tt.existingProviders
+				p.providers = tt.existingProviders
 			}
-			profile.sortProviders()
 
-			nsr := profile.GenerateProviderNodeAffinity(tt.provider)
+			nsr := p.GenerateProviderNodeAffinity(tt.provider)
 			assert.Equal(t, tt.wantNSR, nsr)
+		})
+	}
+}
+
+func Test_GetProviderLabelKeyValue(t *testing.T) {
+	tests := []struct {
+		name      string
+		provider  string
+		wantLabel string
+		wantValue string
+	}{
+		{
+			name:      "empty provider",
+			provider:  "",
+			wantLabel: "",
+			wantValue: "",
+		},
+		{
+			name:      "default provider",
+			provider:  defaultProvider,
+			wantLabel: "",
+			wantValue: "",
+		},
+		{
+			name:      "provider not found in mapping",
+			provider:  "test-foo",
+			wantLabel: "",
+			wantValue: "",
+		},
+		{
+			name:      "incomplete provider 1",
+			provider:  "test-",
+			wantLabel: "",
+			wantValue: "",
+		},
+		{
+			name:      "incomplete provider 2",
+			provider:  "-foo",
+			wantLabel: "",
+			wantValue: "",
+		},
+		{
+			name:      "gcp cos provider",
+			provider:  gcpCosProvider,
+			wantLabel: GCPProviderLabel,
+			wantValue: GCPCosType,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			label, value := GetProviderLabelKeyValue(tt.provider)
+			assert.Equal(t, tt.wantLabel, label)
+			assert.Equal(t, tt.wantValue, value)
+		})
+	}
+}
+
+func Test_Reset(t *testing.T) {
+	tests := []struct {
+		name              string
+		newProviders      map[string]struct{}
+		existingProviders *ProviderStore
+		wantProviders     *ProviderStore
+	}{
+		{
+			name: "replace empty providers",
+			newProviders: map[string]struct{}{
+				gcpCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProviders: nil,
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+		},
+		{
+			name: "replace existing providers",
+			newProviders: map[string]struct{}{
+				gcpCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					"test": {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+		},
+		{
+			name:         "empty new providers",
+			newProviders: map[string]struct{}{},
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			wantProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			providerStore := NewProviderStore(logger)
+			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
+				providerStore.providers = tt.existingProviders.providers
+			}
+
+			providerStore.Reset(tt.newProviders)
+			assert.Equal(t, tt.wantProviders.providers, providerStore.providers)
+		})
+	}
+}
+
+func Test_IsPresent(t *testing.T) {
+	tests := []struct {
+		name              string
+		provider          string
+		existingProviders *ProviderStore
+		want              bool
+	}{
+		{
+			name:     "provider in provider store",
+			provider: defaultProvider,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider:  {},
+					defaultProvider: {},
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "provider not in provider store",
+			provider: defaultProvider,
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			want: false,
+		},
+		{
+			name:     "empty provider",
+			provider: "",
+			existingProviders: &ProviderStore{
+				providers: map[string]struct{}{
+					gcpCosProvider: {},
+				},
+			},
+			want: false,
+		},
+		{
+			name:              "empty provider store",
+			provider:          defaultProvider,
+			existingProviders: &ProviderStore{},
+			want:              false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			providerStore := NewProviderStore(logger)
+			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
+				providerStore.providers = tt.existingProviders.providers
+			}
+
+			assert.Equal(t, tt.want, providerStore.IsPresent(tt.provider))
 		})
 	}
 }

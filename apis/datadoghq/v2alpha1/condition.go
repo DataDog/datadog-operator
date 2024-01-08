@@ -187,7 +187,7 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*commonv1.DaemonSetS
 	switch {
 	case newStatus.UpToDate != newStatus.Desired:
 		deploymentState = DatadogAgentStateUpdating
-	case newStatus.Ready == 0:
+	case newStatus.Ready == 0 && newStatus.Desired != 0:
 		deploymentState = DatadogAgentStateProgressing
 	default:
 		deploymentState = DatadogAgentStateRunning
@@ -239,7 +239,7 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 		deploymentState = DatadogAgentStateCanary
 	case newStatus.UpToDate != newStatus.Desired:
 		deploymentState = DatadogAgentStateUpdating
-	case newStatus.Ready == 0:
+	case newStatus.Ready == 0 && newStatus.Desired != 0:
 		deploymentState = DatadogAgentStateProgressing
 	default:
 		deploymentState = DatadogAgentStateRunning

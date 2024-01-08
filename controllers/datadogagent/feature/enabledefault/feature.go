@@ -386,7 +386,7 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.addDefaultCommonEnvs(managers)
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)

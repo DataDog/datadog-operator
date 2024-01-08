@@ -18,7 +18,6 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
 
@@ -58,6 +57,7 @@ type externalMetricsFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
+	registerAPIService            bool
 }
 
 type secret struct {
@@ -77,6 +77,9 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	em := dda.Spec.Features.ExternalMetricsServer
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
+		// By default, we register the external metrics endpoint
+		f.registerAPIService = em.RegisterAPIService == nil || apiutils.BoolValue(em.RegisterAPIService)
+
 		f.useWPA = apiutils.BoolValue(em.WPAController)
 		f.useDDM = apiutils.BoolValue(em.UseDatadogMetrics)
 		f.port = *em.Port
@@ -231,44 +234,46 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		return fmt.Errorf("error adding external metrics provider service to store: %w", err)
 	}
 
-	// apiservice
-	apiServiceSpec := apiregistrationv1.APIServiceSpec{
-		Service: &apiregistrationv1.ServiceReference{
-			Name:      serviceName,
-			Namespace: ns,
-			Port:      &f.port,
-		},
-		Version:               "v1beta1",
-		InsecureSkipTLSVerify: true,
-		Group:                 rbac.ExternalMetricsAPIGroup,
-		GroupPriorityMinimum:  100,
-		VersionPriority:       100,
-	}
-	if err := managers.APIServiceManager().AddAPIService(componentdca.GetMetricsServerAPIServiceName(), ns, apiServiceSpec); err != nil {
-		return fmt.Errorf("error adding external metrics provider apiservice to store: %w", err)
-	}
+	if f.registerAPIService {
+		// apiservice
+		apiServiceSpec := apiregistrationv1.APIServiceSpec{
+			Service: &apiregistrationv1.ServiceReference{
+				Name:      serviceName,
+				Namespace: ns,
+				Port:      &f.port,
+			},
+			Version:               "v1beta1",
+			InsecureSkipTLSVerify: true,
+			Group:                 rbac.ExternalMetricsAPIGroup,
+			GroupPriorityMinimum:  100,
+			VersionPriority:       100,
+		}
+		if err := managers.APIServiceManager().AddAPIService(componentdca.GetMetricsServerAPIServiceName(), ns, apiServiceSpec); err != nil {
+			return fmt.Errorf("error adding external metrics provider apiservice to store: %w", err)
+		}
 
-	// credential secret
-	if len(f.keySecret) != 0 {
-		for idx, s := range f.keySecret {
-			if len(s.data) != 0 {
-				if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
-					return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
+		// credential secret
+		if len(f.keySecret) != 0 {
+			for idx, s := range f.keySecret {
+				if len(s.data) != 0 {
+					if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
+						return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
+					}
 				}
 			}
 		}
-	}
 
-	// rbac
-	rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
-	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.useWPA)); err != nil {
-		return fmt.Errorf("error adding external metrics provider dca clusterrole and clusterrolebinding to store: %w", err)
-	}
-	if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, managers.Store().GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
-		return fmt.Errorf("error adding external metrics provider external metrics reader clusterrole and clusterrolebinding to store: %w", err)
-	}
-	if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
-		return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
+		// rbac
+		rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
+		if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.useWPA)); err != nil {
+			return fmt.Errorf("error adding external metrics provider dca clusterrole and clusterrolebinding to store: %w", err)
+		}
+		if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, managers.Store().GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
+			return fmt.Errorf("error adding external metrics provider external metrics reader clusterrole and clusterrolebinding to store: %w", err)
+		}
+		if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
+			return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
+		}
 	}
 
 	// network policies
@@ -399,7 +404,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

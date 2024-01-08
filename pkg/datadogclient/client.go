@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2021 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogclient
 
@@ -36,6 +36,43 @@ func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMo
 		return DatadogMonitorClient{}, errors.New("error obtaining API key and/or app key")
 	}
 
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	client := datadogV1.NewMonitorsApi(apiClient)
+
+	authV1, err := setupAuth(logger, creds)
+	if err != nil {
+		return DatadogMonitorClient{}, err
+	}
+
+	return DatadogMonitorClient{Client: client, Auth: authV1}, nil
+}
+
+// DatadogSLOClient contains the Datadog Monitor API Client and Authentication context.
+type DatadogSLOClient struct {
+	Client *datadogV1.ServiceLevelObjectivesApi
+	Auth   context.Context
+}
+
+// InitDatadogSLOClient initializes the Datadog SLO API Client and establishes credentials.
+func InitDatadogSLOClient(logger logr.Logger, creds config.Creds) (DatadogSLOClient, error) {
+	if creds.APIKey == "" || creds.AppKey == "" {
+		return DatadogSLOClient{}, errors.New("error obtaining API key and/or app key")
+	}
+
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	client := datadogV1.NewServiceLevelObjectivesApi(apiClient)
+
+	authV1, err := setupAuth(logger, creds)
+	if err != nil {
+		return DatadogSLOClient{}, err
+	}
+
+	return DatadogSLOClient{Client: client, Auth: authV1}, nil
+}
+
+func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(
 		context.Background(),
@@ -49,7 +86,6 @@ func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMo
 			},
 		},
 	)
-	configV1 := datadogapi.NewConfiguration()
 
 	apiURL := ""
 	if os.Getenv(config.DDURLEnvVar) != "" {
@@ -62,10 +98,10 @@ func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMo
 		logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
 		parsedAPIURL, parseErr := url.Parse(apiURL)
 		if parseErr != nil {
-			return DatadogMonitorClient{}, fmt.Errorf(`invalid API URL : %w`, parseErr)
+			return authV1, fmt.Errorf(`invalid API URL : %w`, parseErr)
 		}
 		if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
-			return DatadogMonitorClient{}, fmt.Errorf(`missing protocol or host : %s`, apiURL)
+			return authV1, fmt.Errorf(`missing protocol or host : %s`, apiURL)
 		}
 		// If API URL is passed, set and use the API name and protocol on ServerIndex{1}.
 		authV1 = context.WithValue(authV1, datadogapi.ContextServerIndex, 1)
@@ -75,8 +111,6 @@ func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMo
 		})
 	}
 
-	apiClient := datadogapi.NewAPIClient(configV1)
-	client := datadogV1.NewMonitorsApi(apiClient)
+	return authV1, nil
 
-	return DatadogMonitorClient{Client: client, Auth: authV1}, nil
 }

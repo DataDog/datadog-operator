@@ -59,13 +59,13 @@ const (
 	featureEnabledFormat        = "%s.%s.feature.enabled"
 	datadogOperatorSourceType   = "datadog"
 	defaultbaseURL              = "https://api.datadoghq.com"
+	// We use an empty application key as solely the API key is necessary to send metrics and events
+	emptyAppKey = ""
 )
 
 var (
 	// ErrEmptyAPIKey empty APIKey error
 	ErrEmptyAPIKey = errors.New("empty api key")
-	// ErrEmptyAppKey empty AppKey error
-	ErrEmptyAppKey = errors.New("empty app key")
 	// errInitValue used to initialize lastReconcileErr
 	errInitValue = errors.New("last error init value")
 )
@@ -76,16 +76,14 @@ type delegatedAPI interface {
 	delegatedSendReconcileMetric(float64, []string) error
 	delegatedSendFeatureMetric(string) error
 	delegatedSendEvent(string, EventType) error
-	delegatedValidateCreds(string, string) (*api.Client, error)
+	delegatedValidateCreds(string) (*api.Client, error)
 }
 
 // hashKeys is used to detect if credentials have changed
 // hashKeys is NOT a security function
-func hashKeys(apiKey, appKey string) uint64 {
+func hashKeys(apiKey string) uint64 {
 	h := fnv.New64()
 	_, _ = h.Write([]byte(apiKey))
-	_, _ = h.Write([]byte(appKey))
-
 	return h.Sum64()
 }
 
@@ -100,7 +98,6 @@ type metricsForwarder struct {
 	v2Enabled    bool
 	platformInfo *kubernetes.PlatformInfo
 	apiKey       string
-	appKey       string
 	clusterName  string
 	labels       map[string]string
 	dsStatus     []*commonv1.DaemonSetStatus
@@ -263,13 +260,12 @@ func (mf *metricsForwarder) setupV2() error {
 	mf.dcaStatus = status.ClusterAgent
 	mf.ccrStatus = status.ClusterChecksRunner
 
-	// set apiKey and appKey
-	apiKey, appKey, err := mf.getCredentialsV2(dda)
+	// set apiKey
+	apiKey, err := mf.getCredentialsV2(dda)
 	if err != nil {
 		return err
 	}
 	mf.apiKey = apiKey
-	mf.appKey = appKey
 	return nil
 }
 
@@ -291,13 +287,12 @@ func (mf *metricsForwarder) setup() error {
 	mf.dcaStatus = dda.Status.ClusterAgent
 	mf.ccrStatus = dda.Status.ClusterChecksRunner
 
-	// set apiKey and appKey
-	apiKey, appKey, err := mf.getCredentials(dda)
+	// set apiKey
+	apiKey, err := mf.getCredentials(dda)
 	if err != nil {
 		return err
 	}
 	mf.apiKey = apiKey
-	mf.appKey = appKey
 	return nil
 }
 
@@ -317,7 +312,7 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 		return false, nil
 	}
 	mf.logger.Info("Initializing Datadog metrics forwarder")
-	if err = mf.initAPIClient(mf.apiKey, mf.appKey); err != nil {
+	if err = mf.initAPIClient(mf.apiKey); err != nil {
 		mf.logger.Error(err, "cannot retrieve Datadog metrics forwarder to send deployment metrics, will retry later...")
 		return false, nil
 	}
@@ -341,7 +336,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		mf.logger.Error(err, "cannot get Datadog credentials")
 		return err
 	}
-	if err = mf.updateCredsIfNeeded(mf.apiKey, mf.appKey); err != nil {
+	if err = mf.updateCredsIfNeeded(mf.apiKey); err != nil {
 		mf.logger.Error(err, "cannot update Datadog credentials")
 		return err
 	}
@@ -440,35 +435,35 @@ func (mf *metricsForwarder) setLastReconcileError(newErr error) {
 }
 
 // initAPIClient initializes and validates the Datadog API client
-func (mf *metricsForwarder) initAPIClient(apiKey, appKey string) error {
+func (mf *metricsForwarder) initAPIClient(apiKey string) error {
 	if mf.delegator == nil {
 		mf.delegator = mf
 	}
-	datadogClient, err := mf.validateCreds(apiKey, appKey)
+	datadogClient, err := mf.validateCreds(apiKey)
 	if err != nil {
 		return err
 	}
 	mf.datadogClient = datadogClient
-	mf.keysHash = hashKeys(apiKey, appKey)
+	mf.keysHash = hashKeys(apiKey)
 	return nil
 }
 
-// updateCredsIfNeeded used to update Datadog apiKey and appKey if they change
-func (mf *metricsForwarder) updateCredsIfNeeded(apiKey, appKey string) error {
-	if mf.keysHash != hashKeys(apiKey, appKey) {
-		return mf.initAPIClient(apiKey, appKey)
+// updateCredsIfNeeded used to update Datadog apiKey if it changes
+func (mf *metricsForwarder) updateCredsIfNeeded(apiKey string) error {
+	if mf.keysHash != hashKeys(apiKey) {
+		return mf.initAPIClient(apiKey)
 	}
 	return nil
 }
 
-// validateCreds returns validates the creds by querying the Datadog API
-func (mf *metricsForwarder) validateCreds(apiKey, appKey string) (*api.Client, error) {
-	return mf.delegator.delegatedValidateCreds(apiKey, appKey)
+// validateCreds returns validates the API key by querying the Datadog API
+func (mf *metricsForwarder) validateCreds(apiKey string) (*api.Client, error) {
+	return mf.delegator.delegatedValidateCreds(apiKey)
 }
 
 // delegatedValidateCreds is separated from validateCreds to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.Client, error) {
-	datadogClient := api.NewClient(apiKey, appKey)
+func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, error) {
+	datadogClient := api.NewClient(apiKey, emptyAppKey)
 	datadogClient.SetBaseUrl(mf.baseURL)
 	valid, err := datadogClient.Validate()
 	if err != nil {
@@ -615,13 +610,14 @@ func (mf *metricsForwarder) getDatadogAgentV2() (*v2alpha1.DatadogAgent, error) 
 	return dda, err
 }
 
-func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string, string, error) {
+// getCredentialsV2 retrieves the api key configured in the DatadogAgent
+func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
-		return "", "", fmt.Errorf("credentials not configured in the DatadogAgent")
+		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
 	var err error
-	apiKey, appKey := "", ""
+	apiKey := ""
 
 	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
 
@@ -631,50 +627,36 @@ func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string
 		_, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
-			return "", "", err
-		}
-	}
-
-	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.AppKey != nil && *dda.Spec.Global.Credentials.AppKey != "" {
-		appKey = *dda.Spec.Global.Credentials.AppKey
-	} else {
-		_, secretName, secretKeyName := v2alpha1.GetAppKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
-		appKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
-		if err != nil {
-			return "", "", err
+			return "", err
 		}
 	}
 
 	if apiKey == "" {
-		return "", "", ErrEmptyAPIKey
+		return "", ErrEmptyAPIKey
 	}
 
-	if appKey == "" {
-		return "", "", ErrEmptyAppKey
-	}
-
-	return mf.resolveSecretsIfNeeded(apiKey, appKey)
+	return mf.resolveSecretsIfNeeded(apiKey)
 }
 
 // getCredentials returns the Datadog API Key and App Key, it returns an error if one key is missing
-func (mf *metricsForwarder) getCredentials(dda *v1alpha1.DatadogAgent) (string, string, error) {
-	apiKey, appKey, err := mf.getCredsFromDatadogAgent(dda)
+func (mf *metricsForwarder) getCredentials(dda *v1alpha1.DatadogAgent) (string, error) {
+	apiKey, err := mf.getCredsFromDatadogAgent(dda)
 	if err != nil {
-		if errors.Is(err, ErrEmptyAPIKey) || errors.Is(err, ErrEmptyAppKey) {
+		if errors.Is(err, ErrEmptyAPIKey) {
 			// Fallback to the operator config in this case
-			mf.logger.Info("API and/or App key aren't defined in the Custom Resource, getting credentials from the operator config")
+			mf.logger.Info("API key isn't defined in the Custom Resource, getting credentials from the operator config")
 			var creds config.Creds
 			creds, err = mf.credsManager.GetCredentials()
-			return creds.APIKey, creds.AppKey, err
+			return creds.APIKey, err
 		}
 	}
 
-	return apiKey, appKey, err
+	return apiKey, err
 }
 
-func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *v1alpha1.DatadogAgent) (string, string, error) {
+func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *v1alpha1.DatadogAgent) (string, error) {
 	var err error
-	apiKey, appKey := "", ""
+	apiKey := ""
 
 	if dda.Spec.Credentials.APIKey != "" {
 		apiKey = dda.Spec.Credentials.APIKey
@@ -682,70 +664,51 @@ func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *v1alpha1.DatadogAgent)
 		_, secretName, secretKeyName := v1alpha1.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, v1alpha1.GetDefaultCredentialsSecretName(dda))
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
-			return "", "", err
-		}
-	}
-
-	if dda.Spec.Credentials.AppKey != "" {
-		appKey = dda.Spec.Credentials.AppKey
-	} else {
-		_, secretName, secretKeyName := v1alpha1.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, v1alpha1.GetDefaultCredentialsSecretName(dda))
-		appKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
-		if err != nil {
-			return "", "", err
+			return "", err
 		}
 	}
 
 	if apiKey == "" {
-		return "", "", ErrEmptyAPIKey
+		return "", ErrEmptyAPIKey
 	}
 
-	if appKey == "" {
-		return "", "", ErrEmptyAppKey
-	}
-
-	return mf.resolveSecretsIfNeeded(apiKey, appKey)
+	return mf.resolveSecretsIfNeeded(apiKey)
 }
 
 // resolveSecretsIfNeeded calls the secret backend if creds are encrypted
-func (mf *metricsForwarder) resolveSecretsIfNeeded(apiKey, appKey string) (string, string, error) {
-	if !secrets.IsEnc(apiKey) && !secrets.IsEnc(appKey) {
+func (mf *metricsForwarder) resolveSecretsIfNeeded(apiKey string) (string, error) {
+	if !secrets.IsEnc(apiKey) {
 		// Credentials are not encrypted
-		return apiKey, appKey, nil
+		return apiKey, nil
 	}
 
 	// Try to get secrets from the local cache
-	if decAPIKey, decAppKey, cacheHit := mf.getSecretsFromCache(apiKey, appKey); cacheHit {
+	if decAPIKey, cacheHit := mf.getSecretsFromCache(apiKey); cacheHit {
 		// Creds are found in local cache
-		return decAPIKey, decAppKey, nil
+		return decAPIKey, nil
 	}
 
 	// Cache miss, call the secret decryptor
-	decrypted, err := mf.decryptor.Decrypt([]string{apiKey, appKey})
+	decrypted, err := mf.decryptor.Decrypt([]string{apiKey})
 	if err != nil {
 		mf.logger.Error(err, "cannot decrypt secrets")
-		return "", "", err
+		return "", err
 	}
 
 	// Update the local cache with the decrypted secrets
 	mf.resetSecretsCache(decrypted)
 
-	return decrypted[apiKey], decrypted[appKey], nil
+	return decrypted[apiKey], nil
 }
 
 // getSecretsFromCache returns the cached and decrypted values of encrypted creds
-func (mf *metricsForwarder) getSecretsFromCache(encAPIKey, encAppKey string) (string, string, bool) {
+func (mf *metricsForwarder) getSecretsFromCache(encAPIKey string) (string, bool) {
 	decAPIKey, found := mf.creds.Load(encAPIKey)
 	if !found {
-		return "", "", false
+		return "", false
 	}
 
-	decAppKey, found := mf.creds.Load(encAppKey)
-	if !found {
-		return "", "", false
-	}
-
-	return decAPIKey.(string), decAppKey.(string), true
+	return decAPIKey.(string), true
 }
 
 // resetSecretsCache updates the local secret cache with new secret values

@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -75,6 +74,8 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// SBOM collection configuration.
+	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 
 	// Cluster-level features
 
@@ -101,7 +102,7 @@ type DatadogFeatures struct {
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
 	// Enabled enables Application Performance Monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -315,6 +316,31 @@ type RemoteConfigurationFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
+// SBOM runs in the Agent.
+type SBOMFeatureConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
+	Host           *SBOMTypeConfig `json:"host,omitempty"`
+}
+
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMTypeConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -535,6 +561,11 @@ type ExternalMetricsServerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// RegisterAPIService registers the External Metrics endpoint as an APIService
+	// Default: true
+	// +optional
+	RegisterAPIService *bool `json:"registerAPIService,omitempty"`
+
 	// WPAController enables the informer and controller of the Watermark Pod Autoscaler.
 	// NOTE: The Watermark Pod Autoscaler controller needs to be installed.
 	// See also: https://github.com/DataDog/watermarkpodautoscaler.
@@ -676,7 +707,12 @@ type GlobalConfig struct {
 	ClusterName *string `json:"clusterName,omitempty"`
 
 	// Site is the Datadog intake site Agent data are sent to.
+	// Set to 'datadoghq.com' to send data to the US1 site (default).
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Set to 'us3.datadoghq.com' to send data to the US3 site.
+	// Set to 'us5.datadoghq.com' to send data to the US5 site.
+	// Set to 'ddog-gov.com' to send data to the US1-FED site.
+	// Set to 'ap1.datadoghq.com' to send data to the AP1 site.
 	// Default: 'datadoghq.com'
 	// +optional
 	Site *string `json:"site,omitempty"`
@@ -912,10 +948,6 @@ type DatadogAgentComponentOverride struct {
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Configure the SecurityContextConstraints for each component.
-	// +optional
-	SecurityContextConstraints *SecurityContextConstraintsConfig `json:"securityContextConstraints,omitempty"`
-
 	// Pod-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -958,19 +990,6 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
-}
-
-// SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.
-// +k8s:openapi-gen=true
-type SecurityContextConstraintsConfig struct {
-	// Create defines whether to create a SecurityContextConstraints for the current component.
-	// If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
-	// +optional
-	Create *bool `json:"create,omitempty"`
-
-	// CustomConfiguration defines a custom SCC configuration to use if Create is `true`.
-	// +optional
-	CustomConfiguration *securityv1.SecurityContextConstraints `json:"customConfiguration,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -1051,12 +1070,11 @@ type DatadogAgentStatus struct {
 	Conditions []metav1.Condition `json:"conditions"`
 	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
-	// +listType=map
-	// +listMapKey=desired
+	// +listType=atomic
 	Agent []*commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The combined actual state of the all Agent as daemonsets or extended daemonsets.
 	// +optional
-	CombinedAgent *commonv1.DaemonSetStatus `json:"combinedAgent,omitempty"`
+	AgentSummary *commonv1.DaemonSetStatus `json:"agentSummary,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
@@ -1070,7 +1088,7 @@ type DatadogAgentStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.combinedAgent.status"
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agentSummary.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
