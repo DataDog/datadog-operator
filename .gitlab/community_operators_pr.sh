@@ -27,8 +27,8 @@ update_bundle() {
 }
 
 create_pr() {
-  message="operator datadog-operator ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
-  body="operator datadog-operator ($VERSION)"
+  message="operator datadog-operator ($VERSION)"
+  body="operator datadog-operator ($VERSION).<br><br>Pull request triggered by $GITLAB_USER_EMAIL."
   git checkout -b "$PR_BRANCH_NAME"
   git add -A
   git commit -s -m "$message"
