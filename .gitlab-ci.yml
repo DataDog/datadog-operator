@@ -364,9 +364,10 @@ publish_redhat_marketplace_operators:
     - echo $VERSION
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
-    - apt-get update
-    - apt-get install -y gh skopeo
+    - apt-get update -y
+    - apt-get install -y gh
     - rm -rf /var/lib/apt/lists/*
+    - which skopeo
     - git config --global user.email $GITLAB_USER_EMAIL
     - git config --global user.name $GITLAB_USER_NAME
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
