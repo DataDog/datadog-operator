@@ -355,6 +355,8 @@ publish_redhat_marketplace_operators:
 #    - "submit_preflight_redhat_public_tag"
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
+  before_script:
+    - mkdir -p .cache
   script:
     # check env vars
     - echo "CI_COMMIT_TAG $CI_COMMIT_TAG"
@@ -387,5 +389,5 @@ publish_redhat_marketplace_operators:
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - hack/install-yq.sh v4.31.2
     - make bundle-redhat
+    - ls -la $CI_PROJECT_DIR
     - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod redhat-marketplace-operators certified-operators
-    - ls -la
