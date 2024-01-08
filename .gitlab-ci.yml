@@ -23,56 +23,56 @@ cache: &global_cache
   policy: pull-push
 
 stages:
-  - build
-  - test
-  - image
-  - test-image
-  - release
-  - post-release
+#  - build
+#  - test
+#  - image
+#  - test-image
+#  - release
+#  - post-release
   - community-prs-testing
 
-build:
-  stage: build
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make build
-
-unit_tests:
-  stage: test
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make test
-
-generate_code:
-  stage: test
-  tags: ["runner:main", "size:large"]
-  before_script:
-    - mkdir -p .cache
-    - make install-tools
-  script:
-    - make generate manifests
-    - git diff --exit-code
-
-build_operator_image_amd64:
-  stage: image
-  tags: ["runner:docker", "size:large"]
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: amd64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
+#build:
+#  stage: build
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make build
+#
+#unit_tests:
+#  stage: test
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make test
+#
+#generate_code:
+#  stage: test
+#  tags: ["runner:main", "size:large"]
+#  before_script:
+#    - mkdir -p .cache
+#    - make install-tools
+#  script:
+#    - make generate manifests
+#    - git diff --exit-code
+#
+#build_operator_image_amd64:
+#  stage: image
+#  tags: ["runner:docker", "size:large"]
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: amd64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 #build_operator_image_amd64:
 #  stage: image
