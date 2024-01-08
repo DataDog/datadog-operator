@@ -264,6 +264,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
 			newStatus.AgentList = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.AgentList, &now)
+			newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
 			// Stop reconcile loop since EDS hasn't changed
 			return reconcile.Result{}, nil
