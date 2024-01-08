@@ -17,6 +17,7 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -306,6 +307,20 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.APMEnabled {
 			ad.Spec.Agent.Apm.Enabled = apiutils.NewBoolPointer(true)
+			ad.Spec.Agent.Apm.Env = []corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMInstrumentationInstallId,
+					Value: component.AgentInstallId,
+				},
+				{
+					Name:  apicommon.DDAPMInstrumentationInstallTime,
+					Value: component.AgentInstallTime,
+				},
+				{
+					Name:  apicommon.DDAPMInstrumentationInstallType,
+					Value: component.DefaultAgentInstallType,
+				},
+			}
 		}
 
 		if options.ProcessEnabled {

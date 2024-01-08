@@ -310,15 +310,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  apicommon.DDInstrumentationInstallId,
+			Name:  apicommon.DDAPMInstrumentationInstallId,
 			Value: component.AgentInstallId,
 		},
 		{
-			Name:  apicommon.DDInstrumentationInstallTime,
+			Name:  apicommon.DDAPMInstrumentationInstallTime,
 			Value: component.AgentInstallTime,
 		},
 		{
-			Name:  apicommon.DDInstrumentationInstallType,
+			Name:  apicommon.DDAPMInstrumentationInstallType,
 			Value: component.DefaultAgentInstallType,
 		},
 	}

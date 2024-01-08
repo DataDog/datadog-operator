@@ -18,7 +18,6 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
-	//componentutils "github.com/DataDog/datadog-operator/pkg/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -147,15 +146,15 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: strconv.Itoa(int(apicommon.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  apicommon.DDInstrumentationInstallId,
+			Name:  apicommon.DDAPMInstrumentationInstallId,
 			Value: component.AgentInstallId,
 		},
 		{
-			Name:  apicommon.DDInstrumentationInstallTime,
+			Name:  apicommon.DDAPMInstrumentationInstallTime,
 			Value: component.AgentInstallTime,
 		},
 		{
-			Name:  apicommon.DDInstrumentationInstallType,
+			Name:  apicommon.DDAPMInstrumentationInstallType,
 			Value: component.DefaultAgentInstallType,
 		},
 	}
