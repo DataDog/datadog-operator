@@ -37,7 +37,6 @@ create_pr() {
                --body "$body" \
                --repo $ORG/"$repo" \
                --base main \
-               --draft
 }
 
 
