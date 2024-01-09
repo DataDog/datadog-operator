@@ -22,9 +22,10 @@ clone_and_sync_fork() {
   git checkout -b "$PR_BRANCH_NAME"
   git push -f --set-upstream origin $PR_BRANCH_NAME
   gh repo sync DataDog/"$repo" \
-  --branch main \
+  --branch "$PR_BRANCH_NAME" \
   --source "$ORG"/"$repo" \
   --force
+  git pull
 }
 
 update_bundle() {
