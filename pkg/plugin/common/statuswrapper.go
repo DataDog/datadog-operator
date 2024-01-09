@@ -71,7 +71,7 @@ func (sw v2StatusWrapper) GetStatusCondition() []metav1.Condition {
 
 func (sw v2StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
-		return sw.dda.Status.AgentSummary
+		return sw.dda.Status.Agent
 	}
 	return nil
 }

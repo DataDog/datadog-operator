@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -22,6 +23,7 @@ type ProviderStore struct {
 }
 
 const (
+	LegacyProvider  = ""
 	DefaultProvider = "default"
 	// GCP provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
 	GCPCosContainerdType = "cos_containerd"
@@ -190,4 +192,27 @@ func (p *ProviderStore) IsPresent(provider string) bool {
 	}
 
 	return false
+}
+
+// ComponentOverrideFromProvider generates a componentOverride with an override
+// for a provider-specific agent name
+func ComponentOverrideFromProvider(daemonSetName string, provider string) v2alpha1.DatadogAgentComponentOverride {
+	componentOverride := v2alpha1.DatadogAgentComponentOverride{}
+	overrideAgentName := GetAgentNameWithProvider(daemonSetName, provider, componentOverride.Name)
+	componentOverride.Name = &overrideAgentName
+	return componentOverride
+}
+
+// GetAgentNameWithProvider returns the agent name based on the ds name,
+// provider, and component override settings
+func GetAgentNameWithProvider(dsName, provider string, overrideName *string) string {
+	baseName := dsName
+	if overrideName != nil && *overrideName != "" {
+		baseName = *overrideName
+	}
+
+	if provider != "" && baseName != "" {
+		return baseName + "-" + strings.Replace(provider, "_", "-", -1)
+	}
+	return baseName
 }

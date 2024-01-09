@@ -568,14 +568,6 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
-// GetAgentNameWithProvider returns a provider-specific name for the agent component
-func GetAgentNameWithProvider(ddaName string, provider string) string {
-	if provider != "" {
-		return ddaName + "-" + strings.Replace(provider, "_", "-", -1)
-	}
-	return ddaName
-}
-
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy
 func BuildCiliumPolicy(dda metav1.Object, site string, ddURL string, hostNetwork bool, dnsSelectorEndpoints []metav1.LabelSelector, componentName v2alpha1.ComponentName) (string, string, []cilium.NetworkPolicySpec) {
 	policyName, podSelector := GetNetworkPolicyMetadata(dda, componentName)

@@ -16,7 +16,7 @@ import (
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
 func NewDeployment(owner metav1.Object, componentKind, componentName, version string, inputSelector *metav1.LabelSelector) *appsv1.Deployment {
-	labels, annotations, selector := GetDefaultMetadata(owner, componentKind, componentName, version, owner.GetName(), inputSelector)
+	labels, annotations, selector := GetDefaultMetadata(owner, componentKind, componentName, version, inputSelector)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -33,8 +33,8 @@ func NewDeployment(owner metav1.Object, componentKind, componentName, version st
 	return deployment
 }
 
-func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version, componentProviderName string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
-	labels := GetDefaultLabels(owner, componentKind, componentName, version, componentProviderName)
+func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+	labels := GetDefaultLabels(owner, componentKind, componentName, version)
 	annotations := object.GetDefaultAnnotations(owner)
 
 	if selector != nil {
@@ -44,7 +44,7 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 	} else {
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      componentProviderName,
+				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
 				apicommon.AgentDeploymentComponentLabelKey: componentKind,
 			},
 		}
@@ -52,9 +52,9 @@ func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 	return labels, annotations, selector
 }
 
-func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version, componentProviderName string) map[string]string {
+func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version string) map[string]string {
 	labels := object.GetDefaultLabels(owner, componentName, version)
-	labels[apicommon.AgentDeploymentNameLabelKey] = componentProviderName
+	labels[apicommon.AgentDeploymentNameLabelKey] = owner.GetName()
 	labels[apicommon.AgentDeploymentComponentLabelKey] = componentKind
 	labels[kubernetes.AppKubernetesComponentLabelKey] = componentKind
 

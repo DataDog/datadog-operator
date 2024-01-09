@@ -17,13 +17,12 @@ import (
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector, provider string) *appsv1.DaemonSet {
-	agentProviderName := component.GetAgentNameWithProvider(componentName, provider)
-	labels, annotations, selector := component.GetDefaultMetadata(owner, componentKind, componentName, version, agentProviderName, selector)
+func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
+	labels, annotations, selector := component.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        agentProviderName,
+			Name:        componentName,
 			Namespace:   owner.GetNamespace(),
 			Labels:      labels,
 			Annotations: annotations,
@@ -36,17 +35,16 @@ func NewDaemonset(owner metav1.Object, componentKind, componentName, version str
 }
 
 // NewExtendedDaemonset use to generate the skeleton of a new extended daemonset based on few information
-func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector, provider string) *edsv1alpha1.ExtendedDaemonSet {
+func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *edsv1alpha1.ExtendedDaemonSet {
 	// FIXME (@CharlyF): The EDS controller uses the Spec.Selector as a node selector to get the NodeList to rollout the agent.
 	// Per https://github.com/DataDog/extendeddaemonset/blob/28a8e082cee9890ae6d925a7d6247a36c6f6ba5d/controllers/extendeddaemonsetreplicaset/controller.go#L344-L360
 	// Up until v0.8.2, the Datadog Operator set the selector to nil, which circumvented this case.
 	// Until the EDS controller uses the Affinity field to get the NodeList instead of Spec.Selector, let's keep the previous behavior.
-	agentProviderName := component.GetAgentNameWithProvider(componentName, provider)
-	labels, annotations, _ := component.GetDefaultMetadata(owner, componentKind, componentName, version, agentProviderName, selector)
+	labels, annotations, _ := component.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &edsv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        agentProviderName,
+			Name:        componentName,
 			Namespace:   owner.GetNamespace(),
 			Labels:      labels,
 			Annotations: annotations,

@@ -48,7 +48,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers, provider)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
@@ -62,13 +62,28 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		var componentOverride *datadoghqv2alpha1.DatadogAgentComponentOverride
+		if co, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+			if r.options.IntrospectionEnabled {
+				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, co.Name)
+				co.Name = &agentNameWithProvider
+			}
+			componentOverride = co
+		} else {
+			if r.options.IntrospectionEnabled {
+				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
+				componentOverride = &overrideFromProvider
+			}
+		}
+
+		if componentOverride != nil {
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
 			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -85,19 +100,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
 
-		// Add provider-specific label
-		eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
+		if r.options.IntrospectionEnabled {
+			// Add provider-specific label
+			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
 
-		// Add provider node affinity
-		affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
-		combinedAffinity := r.generateNodeAffinity(provider, affinity)
-		eds.Spec.Template.Spec.Affinity = combinedAffinity
+			// Add provider node affinity
+			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
+			combinedAffinity := r.generateNodeAffinity(provider, affinity)
+			eds.Spec.Template.Spec.Affinity = combinedAffinity
+		}
 
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers, provider)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default daemonset
@@ -111,13 +128,28 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+	var componentOverride *datadoghqv2alpha1.DatadogAgentComponentOverride
+	if co, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		if r.options.IntrospectionEnabled {
+			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, co.Name)
+			co.Name = &agentNameWithProvider
+		}
+		componentOverride = co
+	} else {
+		if r.options.IntrospectionEnabled {
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
+			componentOverride = &overrideFromProvider
+		}
+	}
+
+	if componentOverride != nil {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
+
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -134,26 +166,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
 
-	// Add provider-specific label
-	daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
+	if r.options.IntrospectionEnabled {
+		// Add provider-specific label
+		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
 
-	// Add provider node affinity
-	affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
-	combinedAffinity := r.generateNodeAffinity(provider, affinity)
-	daemonset.Spec.Template.Spec.Affinity = combinedAffinity
+		// Add provider node affinity
+		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
+		combinedAffinity := r.generateNodeAffinity(provider, affinity)
+		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
+	}
 
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
 func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.Agent, &updateTime)
+	newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.AgentSummary = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.Agent)
+	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.Agent = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(eds, newStatus.Agent, &updateTime)
+	newStatus.AgentList = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func (r *Reconciler) cleanupV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -330,11 +365,11 @@ func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.
 // status based on the DaemonSet's name
 func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name string) {
 	if ddaStatus != nil {
-		for i, dsStatus := range ddaStatus.Agent {
+		for i, dsStatus := range ddaStatus.AgentList {
 			if dsStatus.DaemonsetName == name {
-				newStatus := make([]*common.DaemonSetStatus, 0, len(ddaStatus.Agent)-1)
-				newStatus = append(newStatus, ddaStatus.Agent[:i]...)
-				ddaStatus.Agent = append(newStatus, ddaStatus.Agent[i+1:]...)
+				newStatus := make([]*common.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
+				newStatus = append(newStatus, ddaStatus.AgentList[:i]...)
+				ddaStatus.AgentList = append(newStatus, ddaStatus.AgentList[i+1:]...)
 			}
 		}
 	}

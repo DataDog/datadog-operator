@@ -7769,7 +7769,7 @@ spec:
       subresources:
         status: {}
     - additionalPrinterColumns:
-        - jsonPath: .status.agentSummary.status
+        - jsonPath: .status.agent.status
           name: agent
           type: string
         - jsonPath: .status.clusterAgent.status
@@ -10952,6 +10952,52 @@ spec:
               description: DatadogAgentStatus defines the observed state of DatadogAgent.
               properties:
                 agent:
+                  description: The combined actual state of all Agents as daemonsets or extended daemonsets.
+                  properties:
+                    available:
+                      description: Number of available pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    current:
+                      description: Number of current pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the DaemonSet.
+                      type: string
+                    daemonsetName:
+                      description: DaemonsetName corresponds to the name of the created DaemonSet.
+                      type: string
+                    desired:
+                      description: Number of desired pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    ready:
+                      description: Number of ready pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the DaemonSet state.
+                      type: string
+                    status:
+                      description: Status corresponds to the DaemonSet computed status.
+                      type: string
+                    upToDate:
+                      description: Number of up to date pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                  required:
+                    - available
+                    - current
+                    - desired
+                    - ready
+                    - upToDate
+                  type: object
+                agentList:
                   description: The actual state of the Agent as a daemonset or an extended daemonset.
                   items:
                     description: DaemonSetStatus defines the observed state of Agent running as DaemonSet.
@@ -11001,52 +11047,6 @@ spec:
                     type: object
                   type: array
                   x-kubernetes-list-type: atomic
-                agentSummary:
-                  description: The combined actual state of the all Agent as daemonsets or extended daemonsets.
-                  properties:
-                    available:
-                      description: Number of available pods in the DaemonSet.
-                      format: int32
-                      type: integer
-                    current:
-                      description: Number of current pods in the DaemonSet.
-                      format: int32
-                      type: integer
-                    currentHash:
-                      description: CurrentHash is the stored hash of the DaemonSet.
-                      type: string
-                    daemonsetName:
-                      description: DaemonsetName corresponds to the name of the created DaemonSet.
-                      type: string
-                    desired:
-                      description: Number of desired pods in the DaemonSet.
-                      format: int32
-                      type: integer
-                    lastUpdate:
-                      description: LastUpdate is the last time the status was updated.
-                      format: date-time
-                      type: string
-                    ready:
-                      description: Number of ready pods in the DaemonSet.
-                      format: int32
-                      type: integer
-                    state:
-                      description: State corresponds to the DaemonSet state.
-                      type: string
-                    status:
-                      description: Status corresponds to the DaemonSet computed status.
-                      type: string
-                    upToDate:
-                      description: Number of up to date pods in the DaemonSet.
-                      format: int32
-                      type: integer
-                  required:
-                    - available
-                    - current
-                    - desired
-                    - ready
-                    - upToDate
-                  type: object
                 clusterAgent:
                   description: The actual state of the Cluster Agent as a deployment.
                   properties:
