@@ -57,6 +57,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/sbom"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/update"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 
@@ -76,6 +77,7 @@ type ReconcilerOptions struct {
 type Reconciler struct {
 	options      ReconcilerOptions
 	client       client.Client
+	updater      *update.Updater
 	versionInfo  *version.Info
 	platformInfo kubernetes.PlatformInfo
 	scheme       *runtime.Scheme
@@ -87,7 +89,8 @@ type Reconciler struct {
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
-	return &Reconciler{
+
+	reconciler := &Reconciler{
 		options:      options,
 		client:       client,
 		versionInfo:  versionInfo,
@@ -96,7 +99,14 @@ func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo 
 		log:          log,
 		recorder:     recorder,
 		forwarders:   metricForwarder,
-	}, nil
+		updater:      update.NewUpdater(client),
+	}
+
+	if err := reconciler.updater.Start(log); err != nil {
+		return nil, err
+	}
+
+	return reconciler, nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
