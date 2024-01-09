@@ -44,7 +44,8 @@ create_pr() {
   gh pr create --title "$message" \
                --body "$body" \
                --repo "$ORG"/"$repo" \
-               --base main
+               --base main \
+               --draft
 }
 
 
