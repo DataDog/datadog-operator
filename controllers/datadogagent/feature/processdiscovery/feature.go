@@ -58,8 +58,18 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 }
 
 func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	p.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers, provider)
+	return nil
+}
+
+func (p processDiscoveryFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	p.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers, provider)
+	return nil
+}
+
+func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, apicommonv1.ProcessAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	enableEnvVar := &corev1.EnvVar{
@@ -67,7 +77,7 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 		Value: "true",
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, enableEnvVar)
 
 	return nil
 }

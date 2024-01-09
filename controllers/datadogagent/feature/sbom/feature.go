@@ -99,6 +99,12 @@ func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	return nil
 }
 
+func (p sbomFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// This feature doesn't set env vars on specific containers, so no specific logic for the multi-process agent
+	p.ManageNodeAgent(managers, provider)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {

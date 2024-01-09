@@ -125,44 +125,58 @@ func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *logCollectionFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers, provider)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+
 	// pointerdir volume mount
 	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false)
-	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, agentContainerName)
 	managers.Volume().AddVolume(&pointerVol)
 
 	// pod logs volume mount
 	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, apicommon.PodLogVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, agentContainerName)
 	managers.Volume().AddVolume(&podLogVol)
 
 	// container logs volume mount
 	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, apicommon.ContainerLogVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, agentContainerName)
 	managers.Volume().AddVolume(&containerLogVol)
 
 	// symlink volume mount
 	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, apicommon.SymlinkContainerVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, agentContainerName)
 	managers.Volume().AddVolume(&symlinkVol)
 
 	// envvars
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLogsEnabled,
 		Value: "true",
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLogsConfigContainerCollectAll,
 		Value: strconv.FormatBool(f.containerCollectAll),
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLogsContainerCollectUsingFiles,
 		Value: strconv.FormatBool(f.containerCollectUsingFiles),
 	})
 	if f.openFilesLimit != 0 {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDLogsConfigOpenFilesLimit,
 			Value: strconv.FormatInt(int64(f.openFilesLimit), 10),
 		})

@@ -140,8 +140,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
-	requiredContainers := requiredComponents.Agent.Containers
-
 	// if introspection is enabled, for all providers, reconcile the node agent
 	// if introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
 	providersList := map[string]struct{}{kubernetes.LegacyProvider: {}}
@@ -152,7 +150,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 	}
 	for provider := range providersList {
-		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers, provider)
+		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}

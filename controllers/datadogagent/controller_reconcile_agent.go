@@ -32,7 +32,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
-	requiredContainers []common.AgentContainerName, provider string) (reconcile.Result, error) {
+	provider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -45,14 +45,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	disabledByOverride := false
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
+	multiProcessContainerEnabled := requiredComponents.Agent.MultiProcessContainerEnabled()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		eds.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -114,16 +115,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
-
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
-			return result, errFeat
+		if multiProcessContainerEnabled {
+			if errFeat := feat.ManageMultiProcessNodeAgent(podManagers, provider); errFeat != nil {
+				return result, errFeat
+			}
+		} else {
+			if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
+				return result, errFeat
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
@@ -137,7 +138,12 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 		if tt.Agent != nil {
 			tplManager, provider := tt.Agent.CreateFunc(t)
-			_ = feat.ManageNodeAgent(tplManager, provider)
+			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == apicommonv1.UnprivilegedMultiProcessAgentContainerName {
+				_ = feat.ManageMultiProcessNodeAgent(tplManager, provider)
+			} else {
+				_ = feat.ManageNodeAgent(tplManager, provider)
+			}
+
 			tt.Agent.WantFunc(t, tplManager)
 		}
 

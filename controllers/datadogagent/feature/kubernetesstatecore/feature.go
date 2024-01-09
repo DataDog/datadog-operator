@@ -82,6 +82,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
@@ -235,6 +236,19 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	})
 
 	return nil
+}
+
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
+	ignoreAutoConf := &corev1.EnvVar{
+		Name:  apicommon.DDIgnoreAutoConf,
+		Value: "kubernetes_state",
+	}
+
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedMultiProcessAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
