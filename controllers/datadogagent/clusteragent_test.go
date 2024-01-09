@@ -11,6 +11,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -204,6 +205,18 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_KUBE_RESOURCES_NAMESPACE",
 			Value: testDdaNamespace,
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+			Value: component.AgentInstallTime,
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+			Value: component.DefaultAgentInstallType,
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+			Value: component.AgentInstallId,
 		},
 	}
 }
