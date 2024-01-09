@@ -8,6 +8,7 @@ OPERATOR_SUBPATH="datadog-operator"
 BUNDLE_PATH="bundle"
 WORKING_DIR=$PWD
 PR_BRANCH_NAME="datadog-operator-$VERSION"
+CI_PROJECT_DIR="<YOUR_PATH_TO_LOCAL_DATADOG_OPERATOR_REPO"
 
 mkdir tmp
 
@@ -36,7 +37,7 @@ create_pr() {
   gh pr create --title "$message" \
                --body "$body" \
                --repo $ORG/"$repo" \
-               --base main \
+               --base main
 }
 
 
