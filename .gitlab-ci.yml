@@ -347,11 +347,11 @@ stages:
 publish_community_operators:
   stage: publish-community-operators
   rules:
-      - if: $CI_COMMIT_TAG
-        when: manual
-      - when: never
-  needs:
-    - "submit_preflight_redhat_public_tag"
+#      - if: $CI_COMMIT_TAG
+#        when: manual
+      - when: manual
+#  needs:
+#    - "submit_preflight_redhat_public_tag"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:
