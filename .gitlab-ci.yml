@@ -300,9 +300,9 @@ trigger_internal_operator_nightly_image:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${date +"%Y%m%d-main"}
-    BUILD_TAG: ${date +"%Y%m%d-main"}
-    RELEASE_STAGING: "true"
+    RELEASE_TAG: ${CI_COMMIT_TIMESTAMP:0:10}-main
+    BUILD_TAG: 20240109-main
+    RELEASE_STAGING: "false"
     RELEASE_PROD: "false"
 
 trigger_internal_operator_check_nightly_image:
@@ -319,9 +319,9 @@ trigger_internal_operator_check_nightly_image:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: $PROJECTNAME_CHECK
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${date +"%Y%m%d-main"}
+    RELEASE_TAG: $(date -d "$CI_COMMIT_TIMESTAMP" +"%Y%m%d-main")
     BUILD_TAG: ${date +"%Y%m%d-main"}
-    RELEASE_STAGING: "true"
+    RELEASE_STAGING: "false"
     RELEASE_PROD: "false"
 
 trigger_custom_operator_image_staging:
