@@ -25,6 +25,7 @@ clone_and_sync_fork() {
   --branch "$PR_BRANCH_NAME" \
   --source "$ORG"/"$repo" \
   --force
+  git pull
 }
 
 update_bundle() {
