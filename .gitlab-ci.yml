@@ -355,25 +355,28 @@ publish_community_operators:
   image: $JOB_DOCKER_IMAGE
   before_script:
     - mkdir -p .cache
+    - make install-tools
   script:
-    # set version
+    # Set version
     - VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
-    # install github-cli and skopeo deps
+    # Install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
     - apt-get update -y
     - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
     - rm -rf /var/lib/apt/lists/*
-    # build skopeo and install (needed for make bundle-redhat)
+    # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
     - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
     - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
-    # set up redhat registry access and install yq to generate bundle-redhat
+    # Set up redhat registry access to generate bundle-redhat
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
       ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - cd $CI_PROJECT_DIR
-    - hack/install-yq.sh v4.31.2
     - make bundle-redhat
     # configure git and github-cli
     - git config --global user.email $GITLAB_USER_EMAIL
@@ -382,4 +385,4 @@ publish_community_operators:
     - gh auth login --with-token < git-token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
-    - ./.gitlab/community_operators_pr.sh $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators
+    - $CI_PROJECT_DIR/.gitlab/community_operators_prs.sh $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators
