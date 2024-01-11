@@ -63,18 +63,23 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-		var componentOverride *datadoghqv2alpha1.DatadogAgentComponentOverride
-		if co, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
-			if r.options.IntrospectionEnabled {
-				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, co.Name)
-				co.Name = &agentNameWithProvider
-			}
-			componentOverride = co
-		} else {
-			if r.options.IntrospectionEnabled {
+		componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+		if r.options.IntrospectionEnabled {
+			// Add provider-specific label
+			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
+			// Add provider node affinity
+			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
+			combinedAffinity := r.generateNodeAffinity(provider, affinity)
+			eds.Spec.Template.Spec.Affinity = combinedAffinity
+			if overriden {
+				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, componentOverride.Name)
+				componentOverride.Name = &agentNameWithProvider
+			} else {
 				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
 				componentOverride = &overrideFromProvider
 			}
+		} else {
+			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
 		if componentOverride != nil {
@@ -100,17 +105,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			}
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
-
-		if r.options.IntrospectionEnabled {
-			// Add provider-specific label
-			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-
-			// Add provider node affinity
-			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
-			combinedAffinity := r.generateNodeAffinity(provider, affinity)
-			eds.Spec.Template.Spec.Affinity = combinedAffinity
-		}
-
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -134,18 +128,23 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-	var componentOverride *datadoghqv2alpha1.DatadogAgentComponentOverride
-	if co, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
-		if r.options.IntrospectionEnabled {
-			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, co.Name)
-			co.Name = &agentNameWithProvider
-		}
-		componentOverride = co
-	} else {
-		if r.options.IntrospectionEnabled {
+	componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+	if r.options.IntrospectionEnabled {
+		// Add provider-specific label
+		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
+		// Add provider node affinity
+		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
+		combinedAffinity := r.generateNodeAffinity(provider, affinity)
+		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
+		if overriden {
+			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, componentOverride.Name)
+			componentOverride.Name = &agentNameWithProvider
+		} else {
 			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
 			componentOverride = &overrideFromProvider
 		}
+	} else {
+		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
 	if componentOverride != nil {
@@ -171,17 +170,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
-
-	if r.options.IntrospectionEnabled {
-		// Add provider-specific label
-		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-
-		// Add provider node affinity
-		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
-		combinedAffinity := r.generateNodeAffinity(provider, affinity)
-		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
-	}
-
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
