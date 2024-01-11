@@ -566,7 +566,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 // GetAgentLocalServiceSelector creates the selector to be used for the agent local service
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
 }

@@ -62,13 +62,15 @@ func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *dummyFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
+func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.

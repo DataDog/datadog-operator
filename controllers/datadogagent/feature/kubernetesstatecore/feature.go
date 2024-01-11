@@ -241,7 +241,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  apicommon.DDIgnoreAutoConf,
@@ -253,7 +253,7 @@ func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMan
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  apicommon.DDIgnoreAutoConf,

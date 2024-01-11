@@ -17,6 +17,8 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
+	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
+	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations

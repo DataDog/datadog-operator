@@ -654,6 +654,17 @@ func (in *DatadogAgentStatus) DeepCopyInto(out *DatadogAgentStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.AgentList != nil {
+		in, out := &in.AgentList, &out.AgentList
+		*out = make([]*commonv1.DaemonSetStatus, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(commonv1.DaemonSetStatus)
+				(*in).DeepCopyInto(*out)
+			}
+		}
+	}
 	if in.Agent != nil {
 		in, out := &in.Agent, &out.Agent
 		*out = new(commonv1.DaemonSetStatus)

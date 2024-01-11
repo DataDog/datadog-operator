@@ -147,18 +147,18 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+func (f *eventCollectionFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers)
+func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers, provider)
 	return nil
 }
-func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDCollectKubernetesEvents,

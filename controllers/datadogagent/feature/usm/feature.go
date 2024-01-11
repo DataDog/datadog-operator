@@ -101,13 +101,13 @@ func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 

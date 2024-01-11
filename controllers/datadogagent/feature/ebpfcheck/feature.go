@@ -64,7 +64,7 @@ func (f *ebpfCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
@@ -104,7 +104,7 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ebpfCheckFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *ebpfCheckFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

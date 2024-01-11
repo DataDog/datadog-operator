@@ -16,8 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -203,17 +203,17 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
 // if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *clusterChecksFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(common.UnprivilegedMultiProcessAgentContainerName, managers)
+func (f *clusterChecksFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(common.UnprivilegedMultiProcessAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(common.CoreAgentContainerName, managers)
+func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(common.CoreAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *clusterChecksFeature) manageNodeAgent(agentContainerName common.AgentContainerName, managers feature.PodTemplateManagers) error {
+func (f *clusterChecksFeature) manageNodeAgent(agentContainerName common.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			agentContainerName,
