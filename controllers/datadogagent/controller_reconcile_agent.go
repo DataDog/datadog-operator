@@ -46,9 +46,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 
-	if r.options.ExtendedDaemonsetOptions.Enabled {
-		// TODO: handle profiles like we do for DaemonSets below
-
+	// When EDS is enabled and there are profiles defined, we only create an
+	// EDS for the default profile, for the other profiles we create
+	// DaemonSets.
+	// This is to make deployments simpler. With multiple EDS there would be
+	// multiple canaries, etc.
+	if r.options.ExtendedDaemonsetOptions.Enabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
@@ -64,7 +67,16 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
+		var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
 		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+			componentOverrides = append(componentOverrides, componentOverride)
+		}
+
+		// Apply overrides from profiles last, so they can override what's defined in the DDA.
+		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+		componentOverrides = append(componentOverrides, &overrideFromProfile)
+
+		for _, componentOverride := range componentOverrides {
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
