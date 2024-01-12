@@ -5,86 +5,79 @@ import (
 
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NodeStore stores a list of object metadata for each Node running in the cluster
 type NodeStore struct {
-	nodesMeta []metav1.ObjectMeta
-	log       logr.Logger
-	mutex     sync.Mutex
+	nodeLabels map[string]map[string]string
+	log        logr.Logger
+	mutex      sync.Mutex
 }
 
 // NewNodeStore generates an empty NodeStore instance
 func NewNodeStore(log logr.Logger) *NodeStore {
 	return &NodeStore{
-		nodesMeta: make([]metav1.ObjectMeta, 0),
-		log:       log,
+		nodeLabels: map[string]map[string]string{},
+		log:        log,
 	}
 }
 
 // SetOrUpdateNode creates a Nodes entry for a new Node if needed
-func (n *NodeStore) SetOrUpdateNode(obj client.Object) {
-	if node, ok := obj.(*v1.Node); ok {
-		// update node if present in node store
-		nodeUID := string(node.GetUID())
+func (n *NodeStore) SetOrUpdateNode(node *v1.Node) {
+	// update node if present in node store
+	nodeUID := string(node.UID)
 
-		if _, nodeIdx, ok := n.findNode(nodeUID); ok {
-			n.log.Info("New node labels detected. Updating node store", "node", nodeUID)
-			n.UpdateNode(nodeIdx, *node)
-			return
-		}
+	if _, ok := n.findLabelsByNode(nodeUID); ok {
+		n.updateNode(*node)
+		return
+	}
 
-		// add a new node definition if not present in node store
-		if _, _, ok := n.findNode(nodeUID); !ok {
-			n.log.Info("New node detected", "node", nodeUID)
-			n.SetNode(node)
-		}
+	// add a new node definition if not present in node store
+	if _, ok := n.findLabelsByNode(nodeUID); !ok {
+		n.log.Info("New node detected", "node", nodeUID)
+		n.setNode(node)
 	}
 
 }
 
 // SetNode creates a Node metadata entry for a new Node
-func (n *NodeStore) SetNode(node *v1.Node) {
+func (n *NodeStore) setNode(node *v1.Node) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	// add a new node definition
-	n.nodesMeta = append(n.nodesMeta, node.ObjectMeta)
+	n.nodeLabels[string(node.UID)] = node.Labels
 }
 
 // UpdateNode updates Node metadata entry for an existing node
-func (n *NodeStore) UpdateNode(nodeIdx int, newNode v1.Node) {
+func (n *NodeStore) updateNode(newNode v1.Node) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	// update node metadata definition
-	n.nodesMeta[nodeIdx] = newNode.ObjectMeta
+	n.nodeLabels[string(newNode.UID)] = newNode.Labels
 }
 
-// UnsetNode removes node metadata entry from NodeStore
-func (n *NodeStore) UnsetNode(obj client.Object) {
+// UnsetNode removes nodeLabels entry from NodeStore
+func (n *NodeStore) UnsetNode(nodeUID string) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
-	nodeUID := string(obj.GetUID())
-	if _, idx, ok := n.findNode(nodeUID); ok {
-		n.nodesMeta = append(n.nodesMeta[:idx], n.nodesMeta[idx+1:]...)
+	if _, ok := n.findLabelsByNode(nodeUID); ok {
+		delete(n.nodeLabels, nodeUID)
 	}
 }
 
+// do we really need this?
 // GetNodes retrieves list of nodes metadata from NodeStore
-func (n *NodeStore) GetNodes() []metav1.ObjectMeta {
+func (n *NodeStore) GetNodes() map[string]map[string]string {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	return n.nodesMeta
+	return n.nodeLabels
 }
 
-// findNode queries NodeStore for a node metadata entry by node UID
-func (n *NodeStore) findNode(nodeUID string) (metav1.ObjectMeta, int, bool) {
-	for i, node := range n.nodesMeta {
-		if string(node.UID) == nodeUID {
-			return node, i, true
-		}
+// findLabelsByNode queries NodeStore for a node labels entry by node UID
+func (n *NodeStore) findLabelsByNode(nodeUID string) (map[string]string, bool) {
+	if labels, ok := n.nodeLabels[nodeUID]; ok {
+		return labels, true
 	}
-	return metav1.ObjectMeta{}, 0, false
+	return map[string]string{}, false
 }

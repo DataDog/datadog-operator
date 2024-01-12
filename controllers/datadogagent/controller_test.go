@@ -10,13 +10,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	"time"
 
 	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/pkg/errors"
-	assert "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/require"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -2890,14 +2891,12 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 
 	tests := []struct {
 		name               string
-		client             client.Client
 		nodes              []corev1.Node
 		profilesByNode     map[string]types.NamespacedName
 		expectProfileLabel map[string]bool
 	}{
 		{
-			name:   "All nodes match profiles",
-			client: fake.NewClientBuilder().WithScheme(s).Build(),
+			name: "All nodes match profiles",
 			profilesByNode: map[string]types.NamespacedName{
 				"node-1": {
 					Name: "profile-1",
@@ -2930,8 +2929,7 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 			},
 		},
 		{
-			name:   "Some nodes match profiles",
-			client: fake.NewClientBuilder().WithScheme(s).Build(),
+			name: "Some nodes match profiles",
 			profilesByNode: map[string]types.NamespacedName{
 				"node-2": {
 					Name: "profile-2",
@@ -2962,7 +2960,6 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 		},
 		{
 			name:           "No nodes match profiles",
-			client:         fake.NewClientBuilder().WithScheme(s).Build(),
 			profilesByNode: map[string]types.NamespacedName{},
 			nodes: []corev1.Node{
 				{
@@ -2990,28 +2987,32 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(s).Build()
 			r := &Reconciler{
-				client:  tt.client,
+				client:  client,
 				scheme:  s,
 				log:     logf.Log.WithName(tt.name),
 				options: ReconcilerOptions{},
 			}
 			for _, node := range tt.nodes {
-				err := tt.client.Create(context.TODO(), &node)
-				assert.NoError(t, err, "Error creating node")
+				err := client.Create(context.TODO(), &node)
+				require.NoError(t, err, "Error creating node")
 			}
 			err := r.labelNodesWithProfiles(context.TODO(), tt.profilesByNode)
-			assert.NoErrorf(t, err, "Error labeling nodes. Error: %v", err)
+			require.NoErrorf(t, err, "Error labeling nodes. Error: %v", err)
 
 			gotNodes := &corev1.NodeList{}
-			err = tt.client.List(context.TODO(), gotNodes)
-			assert.NoError(t, err, "Node with matching profile label not found")
+			err = client.List(context.TODO(), gotNodes)
+			require.NoError(t, err, "Node with matching profile label not found")
 
 			for _, node := range gotNodes.Items {
 				if val, ok := tt.expectProfileLabel[node.Name]; ok {
 					if val {
 						assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], "true")
+						assert.Contains(t, node.Labels, agentprofile.ProfileLabelKey)
 					}
+				} else {
+					assert.NotContains(t, node.Labels, agentprofile.ProfileLabelKey)
 				}
 			}
 		})

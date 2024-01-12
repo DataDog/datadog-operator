@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -17,10 +18,10 @@ var (
 
 func Test_SetOrUpdateNode(t *testing.T) {
 	tests := []struct {
-		name          string
-		node          v1.Node
-		existingNodes *NodeStore
-		wantNodes     *NodeStore
+		name               string
+		node               v1.Node
+		existingNodeLabels map[string]map[string]string
+		wantNodeLabels     map[string]map[string]string
 	}{
 		{
 			name: "Set new node in empty node store",
@@ -34,17 +35,11 @@ func Test_SetOrUpdateNode(t *testing.T) {
 					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodes: nil,
-			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			existingNodeLabels: nil,
+			wantNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
 		},
@@ -60,37 +55,20 @@ func Test_SetOrUpdateNode(t *testing.T) {
 					UID: types.UID(nodeUID2),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			existingNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
-
-					{
-						Name: "node-2",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID2),
-					},
+			wantNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
+				},
+				nodeUID2: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
 		},
@@ -107,29 +85,17 @@ func Test_SetOrUpdateNode(t *testing.T) {
 					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			existingNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-							"new-label":   "new-val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			wantNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
+					"new-label":   "new-val",
 				},
 			},
 		},
@@ -145,28 +111,16 @@ func Test_SetOrUpdateNode(t *testing.T) {
 					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			existingNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "new-val",
-						},
-						UID: types.UID(nodeUID1),
-					},
+			wantNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "new-val",
 				},
 			},
 		},
@@ -183,45 +137,25 @@ func Test_SetOrUpdateNode(t *testing.T) {
 					UID: types.UID(nodeUID2),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
-					{
-						Name: "node-2",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID2),
-					},
+			existingNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
+				},
+				nodeUID2: {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
-					},
-					{
-						Name: "node-2",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "new-val",
-							"new-label":   "new-val",
-						},
-						UID: types.UID(nodeUID2),
-					},
+			wantNodeLabels: map[string]map[string]string{
+				nodeUID1: {
+					"some-label":  "val",
+					"other-label": "val",
+				},
+				nodeUID2: {
+					"some-label":  "val",
+					"other-label": "new-val",
+					"new-label":   "new-val",
 				},
 			},
 		},
@@ -229,16 +163,13 @@ func Test_SetOrUpdateNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var nodeStore *NodeStore
 			logger := logf.Log.WithName(t.Name())
-			if tt.existingNodes != nil && len(tt.existingNodes.nodesMeta) > 0 {
-				nodeStore = tt.existingNodes
-				nodeStore.log = logger
-			} else {
-				nodeStore = NewNodeStore(logger)
+			nodeStore := NewNodeStore(logger)
+			if tt.existingNodeLabels != nil && len(tt.existingNodeLabels) > 0 {
+				nodeStore.nodeLabels = tt.existingNodeLabels
 			}
 			nodeStore.SetOrUpdateNode(&tt.node)
-			assert.EqualValues(t, tt.wantNodes.nodesMeta, nodeStore.nodesMeta)
+			assert.EqualValues(t, tt.wantNodeLabels, nodeStore.nodeLabels)
 		})
 	}
 }
@@ -250,19 +181,15 @@ func Test_GetNodes(t *testing.T) {
 	}{
 		{
 			name:      "Get empty node store",
-			wantNodes: &NodeStore{nodesMeta: []metav1.ObjectMeta{}},
+			wantNodes: &NodeStore{nodeLabels: map[string]map[string]string{}},
 		},
 		{
 			name: "Get node store with 1 existing node",
 			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
+				nodeLabels: map[string]map[string]string{
+					nodeUID1: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
 				},
 			},
@@ -270,23 +197,15 @@ func Test_GetNodes(t *testing.T) {
 		{
 			name: "Get node store with multiple nodes",
 			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
+				nodeLabels: map[string]map[string]string{
+					nodeUID1: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
-					{
-						Name: "node-2",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "new-val",
-							"new-label":   "new-val",
-						},
-						UID: types.UID(nodeUID2),
+					nodeUID2: {
+						"some-label":  "val",
+						"other-label": "new-val",
+						"new-label":   "new-val",
 					},
 				},
 			},
@@ -294,16 +213,13 @@ func Test_GetNodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var nodeStore *NodeStore
 			logger := logf.Log.WithName(t.Name())
-			if tt.wantNodes != nil && len(tt.wantNodes.nodesMeta) > 0 {
+			nodeStore := NewNodeStore(logger)
+			if tt.wantNodes != nil && len(tt.wantNodes.nodeLabels) > 0 {
 				nodeStore = tt.wantNodes
-				nodeStore.log = logger
-			} else {
-				nodeStore = NewNodeStore(logger)
 			}
-			gotNodesMeta := nodeStore.GetNodes()
-			assert.EqualValues(t, tt.wantNodes.nodesMeta, gotNodesMeta)
+			gotNodesLabels := nodeStore.GetNodes()
+			assert.EqualValues(t, tt.wantNodes.nodeLabels, gotNodesLabels)
 		})
 	}
 }
@@ -329,7 +245,10 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: nil,
-			wantNodes:     &NodeStore{nodesMeta: []metav1.ObjectMeta{}},
+			wantNodes: &NodeStore{
+				nodeLabels: map[string]map[string]string{},
+				log:        logr.Logger{},
+			},
 		},
 		{
 			name: "Unset node from node store with 1 existing node",
@@ -345,18 +264,14 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
+				nodeLabels: map[string]map[string]string{
+					nodeUID1: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
 				},
 			},
-			wantNodes: &NodeStore{nodesMeta: []metav1.ObjectMeta{}},
+			wantNodes: &NodeStore{nodeLabels: map[string]map[string]string{}},
 		},
 		{
 			name: "Unset node from node store with multiple existing nodes",
@@ -371,35 +286,22 @@ func Test_UnsetNodes(t *testing.T) {
 				},
 			},
 			existingNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
+				nodeLabels: map[string]map[string]string{
+					nodeUID1: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
-					{
-
-						Name: "node-2",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID2),
+					nodeUID2: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
 				},
 			},
 			wantNodes: &NodeStore{
-				nodesMeta: []metav1.ObjectMeta{
-					{
-						Name: "node-1",
-						Labels: map[string]string{
-							"some-label":  "val",
-							"other-label": "val",
-						},
-						UID: types.UID(nodeUID1),
+				nodeLabels: map[string]map[string]string{
+					nodeUID1: {
+						"some-label":  "val",
+						"other-label": "val",
 					},
 				},
 			},
@@ -407,16 +309,13 @@ func Test_UnsetNodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var nodeStore *NodeStore
-			logger := logf.Log.WithName(t.Name())
-			if tt.existingNodes != nil && len(tt.existingNodes.nodesMeta) > 0 {
+			logger := logr.Logger{}
+			nodeStore := NewNodeStore(logger)
+			if tt.existingNodes != nil && len(tt.existingNodes.nodeLabels) > 0 {
 				nodeStore = tt.existingNodes
-				nodeStore.log = logger
-			} else {
-				nodeStore = NewNodeStore(logger)
 			}
-			nodeStore.UnsetNode(&tt.node)
-			assert.EqualValues(t, tt.wantNodes.nodesMeta, nodeStore.nodesMeta)
+			nodeStore.UnsetNode(string(tt.node.UID))
+			assert.EqualValues(t, tt.wantNodes, nodeStore)
 		})
 	}
 }

@@ -88,10 +88,10 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	nodeStore := *kubernetes.NewNodeStore(logger)
+	nodeStore := kubernetes.NewNodeStore(logger)
 
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, &nodeStore, platformInfo, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, nodeStore, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}

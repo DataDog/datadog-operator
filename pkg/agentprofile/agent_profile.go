@@ -38,9 +38,9 @@ const (
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesMetaList []metav1.ObjectMeta) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesLabels map[string]map[string]string) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
-	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodesMetaList))
+	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodesLabels))
 
 	sortedProfiles := sortProfiles(profiles)
 
@@ -48,19 +48,19 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesMeta
 		conflicts := false
 		nodesThatMatchProfile := map[string]bool{}
 
-		for _, nodeMeta := range nodesMetaList {
-			matchesNode, err := profileMatchesNode(&profile, &nodeMeta)
+		for nodeUID, nodeLabels := range nodesLabels {
+			matchesNode, err := profileMatchesNode(&profile, nodeLabels)
 			if err != nil {
 				return nil, nil, err
 			}
 
 			if matchesNode {
-				if _, found := profileAppliedPerNode[nodeMeta.Name]; found {
+				if _, found := profileAppliedPerNode[nodeUID]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
 					break
 				} else {
-					nodesThatMatchProfile[nodeMeta.Name] = true
+					nodesThatMatchProfile[nodeUID] = true
 				}
 			}
 		}
@@ -82,9 +82,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesMeta
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
-	for _, node := range nodesMetaList {
-		if _, found := profileAppliedPerNode[node.Name]; !found {
-			profileAppliedPerNode[node.Name] = types.NamespacedName{
+	for nodeUID := range nodesLabels {
+		if _, found := profileAppliedPerNode[nodeUID]; !found {
+			profileAppliedPerNode[nodeUID] = types.NamespacedName{
 				Name: defaultProfileName,
 			}
 		}
@@ -271,7 +271,7 @@ func sortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv
 	return sortedProfiles
 }
 
-func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeMeta *metav1.ObjectMeta) (bool, error) {
+func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
 	if profile.Spec.ProfileAffinity == nil {
 		return true, nil
 	}
@@ -286,7 +286,7 @@ func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeMeta
 			return false, err
 		}
 
-		if !selector.Matches(labels.Set(nodeMeta.Labels)) {
+		if !selector.Matches(labels.Set(nodeLabels)) {
 			return false, nil
 		}
 	}

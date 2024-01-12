@@ -277,19 +277,28 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 func enqueueIfNodeLabelsChange(r *DatadogAgentReconciler) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
-				r.NodeStore.SetOrUpdateNode(e.ObjectNew)
-				return true
+			if node, ok := e.ObjectNew.(*corev1.Node); ok {
+				if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
+					r.NodeStore.SetOrUpdateNode(node)
+					return true
+				}
 			}
 			return false
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			r.NodeStore.SetOrUpdateNode(e.Object)
-			return true
+			if node, ok := e.Object.(*corev1.Node); ok {
+				r.NodeStore.SetOrUpdateNode(node)
+				return true
+			}
+			return false
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			r.NodeStore.UnsetNode(e.Object)
-			return true
+			if node, ok := e.Object.(*corev1.Node); ok {
+				nodeUID := string(node.UID)
+				r.NodeStore.UnsetNode(nodeUID)
+				return true
+			}
+			return false
 		},
 	}
 }
