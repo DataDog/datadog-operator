@@ -77,7 +77,7 @@ const (
 
 	// UnprivilegedMultiProcessAgentContainerName is the name of a multi process container
 	// which may run any combination of core, trace and process agent processes.
-	UnprivilegedMultiProcessAgentContainerName AgentContainerName = "non-privileged-multi-process-agent"
+	UnprivilegedMultiProcessAgentContainerName AgentContainerName = "unprivileged-multi-process-agent"
 	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container
@@ -102,7 +102,7 @@ type ContainerProcessStrategyType string
 const (
 	// Run one process per container
 	SingleProcessContainers ContainerProcessStrategyType = "singleProcessContainers"
-	// Run non-privileged processes in a single container. If privileged process, for example `security-agent` or `system-probe`
+	// Run unprivileged processes in a single container. If privileged process, for example `security-agent` or `system-probe`
 	// is required, fall back to singleProcessContainer
 	UnprivilegedMultiProcessContainer ContainerProcessStrategyType = "unprivilegedMultiProcessContainer"
 )
