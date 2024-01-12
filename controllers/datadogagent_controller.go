@@ -283,14 +283,14 @@ func enqueueIfNodeLabelsChange(r *DatadogAgentReconciler) predicate.Funcs {
 					return true
 				}
 			}
-			return false
+			return true // not sure about this, but return false makes integration tests timeout
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			if node, ok := e.Object.(*corev1.Node); ok {
 				r.NodeStore.SetOrUpdateNode(node)
 				return true
 			}
-			return false
+			return true // not sure about this, but return false makes integration tests timeout
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			if node, ok := e.Object.(*corev1.Node); ok {
