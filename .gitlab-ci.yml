@@ -289,13 +289,13 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "celene/fix_nightly"'
       # Temporarily require manual build
       when: manual
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: celene/fix_nightly_image
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
@@ -309,13 +309,13 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "celene/fix_nightly"'
       # Temporarily require manual build
       when: manual
     - when: never
   trigger:
     project: DataDog/images
-    branch: master
+    branch: celene/fix_nightly_image
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
