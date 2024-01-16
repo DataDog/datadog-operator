@@ -1092,7 +1092,7 @@ type DatadogAgentStatus struct {
 type ContainerProcessStrategy struct {
 	// Type sets a predetermined grouping of processes across containers. There are two supported groupings:
 	// `singleProcessContainers` runs one process per container.
-	// `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container
+	// `unprivilegedMultiProcessContainer`, runs unprivileged processes in a single container
 	// unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe`
 	// is required, `singleProcessContainers` will be used.
 	// Default: `singleProcessContainers`
