@@ -76,6 +76,8 @@ const (
 	DefaultCSPMConf string = "cspm-config"
 	// DefaultCWSConf default CWS ConfigMap name
 	DefaultCWSConf string = "cws-config"
+	// DefaultHAUrl default HA URL
+	DefaultHAUrl string = "http://127.0.0.1:9125"
 
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
@@ -180,8 +182,9 @@ const (
 	// same path on host and container
 	SrcVolumePath = "/usr/src"
 
-	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
-	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	AgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog.yaml"
+	SystemProbeConfigVolumePath    = "/etc/datadog-agent/system-probe.yaml"
+	AgentDataPlaneConfigVolumePath = "/etc/datadog-agent/adp/config.yaml.jinja"
 
 	LogDatadogVolumeName                             = "logdatadog"
 	LogDatadogVolumePath                             = "/var/log/datadog"

@@ -335,6 +335,63 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
+		{
+			name: "DatadogAgent with HA enabled, create Daemonset with core, trace and process agents + agent-data-plane",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithHighAvailabilityEnabled(true).
+						WithMultiProcessContainer(false).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommonv1.CoreAgentContainerName),
+					string(apicommonv1.ProcessAgentContainerName),
+					string(apicommonv1.TraceAgentContainerName),
+					string(apicommonv1.AgentDataPlaneContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "[multi-process container] DatadogAgent with HA enabled, create Daemonset with a multi-process container",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithHighAvailabilityEnabled(true).
+						WithMultiProcessContainer(true).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
 	}
 
 	for _, tt := range tests {

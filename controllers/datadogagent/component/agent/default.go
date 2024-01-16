@@ -139,6 +139,8 @@ func agentSingleProcessContainers(dda metav1.Object, requiredContainers []common
 			containers = append(containers, securityAgentContainer(dda))
 		case common.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
+		case common.AgentDataPlaneContainerName:
+			containers = append(containers, agentDataPlaneContainer(dda))
 		}
 	}
 
@@ -213,6 +215,21 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
 			},
 		},
+	}
+}
+
+func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(common.AgentDataPlaneContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"agent-data-plane",
+			"run",
+			"--app-config",
+			apicommon.AgentDataPlaneConfigVolumePath,
+		},
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForAgentDataPlane(),
 	}
 }
 
@@ -425,6 +442,13 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForAuth(true),
+		component.GetVolumeMountForConfig(),
+	}
+}
+
+func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 	}

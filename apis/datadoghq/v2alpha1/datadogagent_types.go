@@ -76,6 +76,8 @@ type DatadogFeatures struct {
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
+	// High Availability configuration.
+	HighAvailability *HighAvailabilityFeatureConfig `json:"highAvailability,omitempty"`
 
 	// Cluster-level features
 
@@ -626,6 +628,16 @@ type PrometheusScrapeFeatureConfig struct {
 	// Default: 2
 	// +optional
 	Version *int `json:"version,omitempty"`
+}
+
+// HighAvailabilityFeatureConfig allows configuration of the High-Availability Multi-Region feature.
+// This feature is experimental and should be enabled unless instructed.
+// +k8s:openapi-gen=true
+type HighAvailabilityFeatureConfig struct {
+	// Enables running the Agent in high availability mode.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Generic support structs

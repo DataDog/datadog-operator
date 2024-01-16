@@ -57,6 +57,8 @@ const (
 	RemoteConfigurationIDType = "remote_config"
 	// SBOMIDType SBOM collection feature
 	SBOMIDType = "sbom"
+	// HighAvailabilityIDType High Availability feature.
+	HighAvailabilityIDType = "high_availability"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

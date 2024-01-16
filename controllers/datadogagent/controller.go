@@ -43,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/highavailability"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"

@@ -449,6 +449,20 @@ func (builder *DatadogAgentBuilder) WithOOMKillEnabled(enabled bool) *DatadogAge
 	return builder
 }
 
+// High Availability
+
+func (builder *DatadogAgentBuilder) initHighAvailability() {
+	if builder.datadogAgent.Spec.Features.HighAvailability == nil {
+		builder.datadogAgent.Spec.Features.HighAvailability = &v2alpha1.HighAvailabilityFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHighAvailabilityEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHighAvailability()
+	builder.datadogAgent.Spec.Features.HighAvailability.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
