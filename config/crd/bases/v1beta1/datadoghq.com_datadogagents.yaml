@@ -15672,6 +15672,13 @@ spec:
                           description: 'WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false'
                           type: boolean
                       type: object
+                    highAvailability:
+                      description: High Availability configuration.
+                      properties:
+                        enabled:
+                          description: 'Enables running the Agent in high availability mode. Default: false'
+                          type: boolean
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore check configuration.
                       properties:

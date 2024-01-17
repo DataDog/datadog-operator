@@ -205,6 +205,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -274,6 +277,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},
@@ -356,6 +362,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},
@@ -461,6 +470,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
 					},
 				},
 			},
@@ -571,6 +583,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -674,6 +689,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
 					},
 				},
 			},
@@ -780,6 +798,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
 					},
 				},
 			},
@@ -892,6 +913,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -999,6 +1023,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -1102,6 +1129,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
 					},
 				},
 			},
@@ -1209,6 +1239,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -1314,6 +1347,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
+					},
 				},
 			},
 		},
@@ -1343,6 +1379,7 @@ func Test_defaultFeatures(t *testing.T) {
 					ExternalMetricsServer:   &ExternalMetricsServerFeatureConfig{},
 					ClusterChecks:           &ClusterChecksFeatureConfig{},
 					PrometheusScrape:        &PrometheusScrapeFeatureConfig{},
+					HighAvailability:        &HighAvailabilityFeatureConfig{},
 				},
 			},
 			want: &DatadogAgentSpec{
@@ -1436,6 +1473,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HighAvailability: &HighAvailabilityFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHighAvailabilityEnabled),
 					},
 				},
 			},
