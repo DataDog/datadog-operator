@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -330,11 +331,89 @@ func TestProfilesToApply(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "invalid profile",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "invalid",
+					},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: configWithCPURequestOverrideForCoreAgent("100m"),
+					},
+				},
+			},
+			nodes: map[string]map[string]string{
+				"node1": {
+					"os": "linux",
+				},
+			},
+			expectedProfiles: []v1alpha1.DatadogAgentProfile{
+				defaultProfile(),
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+		},
+		{
+			name: "invalid profiles + valid profiles",
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "invalid-no-affinity",
+					},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						Config: configWithCPURequestOverrideForCoreAgent("100m"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "invalid-no-config",
+					},
+					Spec: v1alpha1.DatadogAgentProfileSpec{
+						ProfileAffinity: &v1alpha1.ProfileAffinity{
+							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+								{
+									Key:      "os",
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"linux"},
+								},
+							},
+						},
+					},
+				},
+				exampleProfileForLinux(),
+				exampleProfileForWindows(),
+			},
+			nodes: map[string]map[string]string{
+				"node1": {
+					"os": "linux",
+				},
+			},
+			expectedProfiles: []v1alpha1.DatadogAgentProfile{
+				exampleProfileForLinux(),
+				exampleProfileForWindows(),
+				defaultProfile(),
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes)
+			testLogger := zap.New(zap.UseDevMode(true))
+			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes, testLogger)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.expectedProfiles, profilesToApply)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)

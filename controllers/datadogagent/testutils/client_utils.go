@@ -23,6 +23,7 @@ import (
 func TestScheme(isV2 bool) *runtime.Scheme {
 	s := scheme.Scheme
 	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
+	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentProfile{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
