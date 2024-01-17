@@ -7,7 +7,6 @@ package agentprofile
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"testing"
 	"time"
 
@@ -26,12 +25,6 @@ import (
 
 const testNamespace = "default"
 
-var (
-	nodeUID1 = generateRandomNodeUUID()
-	nodeUID2 = generateRandomNodeUUID()
-	nodeUID3 = generateRandomNodeUUID()
-)
-
 func TestProfilesToApply(t *testing.T) {
 	t1 := time.Now()
 	t2 := t1.Add(time.Minute)
@@ -40,15 +33,15 @@ func TestProfilesToApply(t *testing.T) {
 	tests := []struct {
 		name                           string
 		profiles                       []v1alpha1.DatadogAgentProfile
-		nodesLabels                    map[string]map[string]string
+		nodes                          map[string]map[string]string
 		expectedProfiles               []v1alpha1.DatadogAgentProfile
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 	}{
 		{
 			name:     "no profiles",
 			profiles: []v1alpha1.DatadogAgentProfile{},
-			nodesLabels: map[string]map[string]string{
-				nodeUID1: {
+			nodes: map[string]map[string]string{
+				"node1": {
 					"os": "linux",
 				},
 			},
@@ -64,7 +57,7 @@ func TestProfilesToApply(t *testing.T) {
 				},
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				nodeUID1: {
+				"node1": {
 					Namespace: "",
 					Name:      "default",
 				},
@@ -76,8 +69,8 @@ func TestProfilesToApply(t *testing.T) {
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
 			},
-			nodesLabels: map[string]map[string]string{
-				nodeUID1: {
+			nodes: map[string]map[string]string{
+				"node1": {
 					"os": "linux",
 				},
 			},
@@ -87,7 +80,7 @@ func TestProfilesToApply(t *testing.T) {
 				defaultProfile(),
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				nodeUID1: {
+				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
 				},
@@ -162,18 +155,18 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodesLabels: map[string]map[string]string{
+			nodes: map[string]map[string]string{
 				// node1 matches profile-1 and profile-3
-				nodeUID1: {
+				"node1": {
 					"a": "1",
 					"c": "1",
 				},
 				// node2 matches profile-2
-				nodeUID2: {
+				"node2": {
 					"b": "1",
 				},
 				// node3 matches profile-1 and profile-2
-				nodeUID3: {
+				"node3": {
 					"a": "1",
 					"b": "1",
 				},
@@ -220,15 +213,15 @@ func TestProfilesToApply(t *testing.T) {
 				defaultProfile(),
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				nodeUID1: {
+				"node1": {
 					Namespace: testNamespace,
 					Name:      "profile-3",
 				},
-				nodeUID2: {
+				"node2": {
 					Namespace: testNamespace,
 					Name:      "profile-2",
 				},
-				nodeUID3: {
+				"node3": {
 					Namespace: testNamespace,
 					Name:      "profile-2",
 				},
@@ -300,9 +293,9 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodesLabels: map[string]map[string]string{
+			nodes: map[string]map[string]string{
 				// matches all profiles
-				nodeUID1: {
+				"node1": {
 					"a": "1",
 					"b": "1",
 					"c": "1",
@@ -331,7 +324,7 @@ func TestProfilesToApply(t *testing.T) {
 				defaultProfile(),
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				nodeUID1: {
+				"node1": {
 					Namespace: testNamespace,
 					Name:      "profile-1",
 				},
@@ -341,7 +334,7 @@ func TestProfilesToApply(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodesLabels)
+			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.expectedProfiles, profilesToApply)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)
@@ -543,9 +536,4 @@ func configWithCPURequestOverrideForCoreAgent(cpuRequest string) *v1alpha1.Confi
 			},
 		},
 	}
-}
-
-func generateRandomNodeUUID() string {
-	nodeUUID := uuid.New()
-	return nodeUUID.String()
 }

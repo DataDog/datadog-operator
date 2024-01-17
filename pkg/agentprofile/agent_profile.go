@@ -38,9 +38,9 @@ const (
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesLabels map[string]map[string]string) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes map[string]map[string]string) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
-	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodesLabels))
+	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
 
 	sortedProfiles := sortProfiles(profiles)
 
@@ -48,19 +48,19 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesLabe
 		conflicts := false
 		nodesThatMatchProfile := map[string]bool{}
 
-		for nodeUID, nodeLabels := range nodesLabels {
+		for nodeName, nodeLabels := range nodes {
 			matchesNode, err := profileMatchesNode(&profile, nodeLabels)
 			if err != nil {
 				return nil, nil, err
 			}
 
 			if matchesNode {
-				if _, found := profileAppliedPerNode[nodeUID]; found {
+				if _, found := profileAppliedPerNode[nodeName]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
 					break
 				} else {
-					nodesThatMatchProfile[nodeUID] = true
+					nodesThatMatchProfile[nodeName] = true
 				}
 			}
 		}
@@ -82,9 +82,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodesLabe
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
-	for nodeUID := range nodesLabels {
-		if _, found := profileAppliedPerNode[nodeUID]; !found {
-			profileAppliedPerNode[nodeUID] = types.NamespacedName{
+	for nodeName := range nodes {
+		if _, found := profileAppliedPerNode[nodeName]; !found {
+			profileAppliedPerNode[nodeName] = types.NamespacedName{
 				Name: defaultProfileName,
 			}
 		}

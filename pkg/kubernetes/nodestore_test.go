@@ -1,27 +1,24 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package kubernetes
 
 import (
-	"github.com/go-logr/logr"
-	"github.com/google/uuid"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"testing"
 )
 
-var (
-	nodeUID1 = generateRandomNodeUUID()
-	nodeUID2 = generateRandomNodeUUID()
-)
-
-func Test_SetOrUpdateNode(t *testing.T) {
+func Test_SetNode(t *testing.T) {
 	tests := []struct {
-		name               string
-		node               v1.Node
-		existingNodeLabels map[string]map[string]string
-		wantNodeLabels     map[string]map[string]string
+		name          string
+		node          v1.Node
+		existingNodes map[string]map[string]string
+		wantNodes     map[string]map[string]string
 	}{
 		{
 			name: "Set new node in empty node store",
@@ -32,12 +29,11 @@ func Test_SetOrUpdateNode(t *testing.T) {
 						"some-label":  "val",
 						"other-label": "val",
 					},
-					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodeLabels: nil,
-			wantNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			existingNodes: nil,
+			wantNodes: map[string]map[string]string{
+				"node-1": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
@@ -52,21 +48,20 @@ func Test_SetOrUpdateNode(t *testing.T) {
 						"some-label":  "val",
 						"other-label": "val",
 					},
-					UID: types.UID(nodeUID2),
 				},
 			},
-			existingNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			existingNodes: map[string]map[string]string{
+				"foo": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
 			},
-			wantNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			wantNodes: map[string]map[string]string{
+				"foo": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
-				nodeUID2: {
+				"node-2": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
@@ -82,17 +77,16 @@ func Test_SetOrUpdateNode(t *testing.T) {
 						"other-label": "val",
 						"new-label":   "new-val",
 					},
-					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			existingNodes: map[string]map[string]string{
+				"node-1": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
 			},
-			wantNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			wantNodes: map[string]map[string]string{
+				"node-1": {
 					"some-label":  "val",
 					"other-label": "val",
 					"new-label":   "new-val",
@@ -108,17 +102,16 @@ func Test_SetOrUpdateNode(t *testing.T) {
 						"some-label":  "val",
 						"other-label": "new-val",
 					},
-					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			existingNodes: map[string]map[string]string{
+				"node-1": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
 			},
-			wantNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			wantNodes: map[string]map[string]string{
+				"node-1": {
 					"some-label":  "val",
 					"other-label": "new-val",
 				},
@@ -134,25 +127,24 @@ func Test_SetOrUpdateNode(t *testing.T) {
 						"other-label": "new-val",
 						"new-label":   "new-val",
 					},
-					UID: types.UID(nodeUID2),
 				},
 			},
-			existingNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			existingNodes: map[string]map[string]string{
+				"foo": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
-				nodeUID2: {
+				"node-2": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
 			},
-			wantNodeLabels: map[string]map[string]string{
-				nodeUID1: {
+			wantNodes: map[string]map[string]string{
+				"foo": {
 					"some-label":  "val",
 					"other-label": "val",
 				},
-				nodeUID2: {
+				"node-2": {
 					"some-label":  "val",
 					"other-label": "new-val",
 					"new-label":   "new-val",
@@ -163,13 +155,12 @@ func Test_SetOrUpdateNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			nodeStore := NewNodeStore(logger)
-			if tt.existingNodeLabels != nil && len(tt.existingNodeLabels) > 0 {
-				nodeStore.nodeLabels = tt.existingNodeLabels
+			nodeStore := NewNodeStore()
+			if tt.existingNodes != nil && len(tt.existingNodes) > 0 {
+				nodeStore.nodes = tt.existingNodes
 			}
-			nodeStore.SetOrUpdateNode(&tt.node)
-			assert.EqualValues(t, tt.wantNodeLabels, nodeStore.nodeLabels)
+			nodeStore.SetNode(&tt.node)
+			assert.EqualValues(t, tt.wantNodes, nodeStore.nodes)
 		})
 	}
 }
@@ -177,49 +168,44 @@ func Test_SetOrUpdateNode(t *testing.T) {
 func Test_GetNodes(t *testing.T) {
 	tests := []struct {
 		name      string
-		wantNodes *NodeStore
+		wantNodes map[string]map[string]string
 	}{
 		{
 			name:      "Get empty node store",
-			wantNodes: &NodeStore{nodeLabels: map[string]map[string]string{}},
+			wantNodes: map[string]map[string]string{},
 		},
 		{
 			name: "Get node store with 1 existing node",
-			wantNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{
-					nodeUID1: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
+			wantNodes: map[string]map[string]string{
+				"foo": {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
 		},
 		{
 			name: "Get node store with multiple nodes",
-			wantNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{
-					nodeUID1: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
-					nodeUID2: {
-						"some-label":  "val",
-						"other-label": "new-val",
-						"new-label":   "new-val",
-					},
+			wantNodes: map[string]map[string]string{
+				"foo": {
+					"some-label":  "val",
+					"other-label": "val",
+				},
+				"bar": {
+					"some-label":  "val",
+					"other-label": "new-val",
+					"new-label":   "new-val",
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			nodeStore := NewNodeStore(logger)
-			if tt.wantNodes != nil && len(tt.wantNodes.nodeLabels) > 0 {
-				nodeStore = tt.wantNodes
+			nodeStore := NewNodeStore()
+			if tt.wantNodes != nil && len(tt.wantNodes) > 0 {
+				nodeStore.nodes = tt.wantNodes
 			}
-			gotNodesLabels := nodeStore.GetNodes()
-			assert.EqualValues(t, tt.wantNodes.nodeLabels, gotNodesLabels)
+			gotNodes := nodeStore.GetNodes()
+			assert.EqualValues(t, tt.wantNodes, gotNodes)
 		})
 	}
 }
@@ -228,8 +214,8 @@ func Test_UnsetNodes(t *testing.T) {
 	tests := []struct {
 		name          string
 		node          v1.Node
-		existingNodes *NodeStore
-		wantNodes     *NodeStore
+		existingNodes map[string]map[string]string
+		wantNodes     map[string]map[string]string
 	}{
 		{
 			name: "Unset node from empty node store",
@@ -241,14 +227,10 @@ func Test_UnsetNodes(t *testing.T) {
 						"other-label": "new-val",
 						"new-label":   "new-val",
 					},
-					UID: types.UID(nodeUID1),
 				},
 			},
 			existingNodes: nil,
-			wantNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{},
-				log:        logr.Logger{},
-			},
+			wantNodes:     map[string]map[string]string{},
 		},
 		{
 			name: "Unset node from node store with 1 existing node",
@@ -260,18 +242,15 @@ func Test_UnsetNodes(t *testing.T) {
 						"other-label": "new-val",
 						"new-label":   "new-val",
 					},
-					UID: types.UID(nodeUID1),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{
-					nodeUID1: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
+			existingNodes: map[string]map[string]string{
+				"node-1": {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{nodeLabels: map[string]map[string]string{}},
+			wantNodes: map[string]map[string]string{},
 		},
 		{
 			name: "Unset node from node store with multiple existing nodes",
@@ -282,45 +261,34 @@ func Test_UnsetNodes(t *testing.T) {
 						"some-label":  "val",
 						"other-label": "val",
 					},
-					UID: types.UID(nodeUID2),
 				},
 			},
-			existingNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{
-					nodeUID1: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
-					nodeUID2: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
+			existingNodes: map[string]map[string]string{
+				"foo": {
+					"some-label":  "val",
+					"other-label": "val",
+				},
+				"node-2": {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
-			wantNodes: &NodeStore{
-				nodeLabels: map[string]map[string]string{
-					nodeUID1: {
-						"some-label":  "val",
-						"other-label": "val",
-					},
+			wantNodes: map[string]map[string]string{
+				"foo": {
+					"some-label":  "val",
+					"other-label": "val",
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logr.Logger{}
-			nodeStore := NewNodeStore(logger)
-			if tt.existingNodes != nil && len(tt.existingNodes.nodeLabels) > 0 {
-				nodeStore = tt.existingNodes
+			nodeStore := NewNodeStore()
+			if tt.existingNodes != nil && len(tt.existingNodes) > 0 {
+				nodeStore.nodes = tt.existingNodes
 			}
-			nodeStore.UnsetNode(string(tt.node.UID))
-			assert.EqualValues(t, tt.wantNodes, nodeStore)
+			nodeStore.UnsetNode(tt.node.Name)
+			assert.EqualValues(t, tt.wantNodes, nodeStore.nodes)
 		})
 	}
-}
-
-func generateRandomNodeUUID() string {
-	nodeUUID := uuid.New()
-	return nodeUUID.String()
 }

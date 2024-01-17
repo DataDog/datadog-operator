@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -205,8 +206,28 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
 
-	// Watch nodes and enqueue if node labels changes for DatadogAgentAgent Profiles and other node label-based introspection
-	builder.Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).WithEventFilter(enqueueIfNodeLabelsChange(r))
+	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
+	if r.Options.V2Enabled {
+		builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+			req := []reconcile.Request{}
+			ddaList := datadoghqv2alpha1.DatadogAgentList{}
+			if err := r.Client.List(context.TODO(), &ddaList); err != nil {
+				return req
+			}
+
+			for _, dda := range ddaList.Items {
+				req = append(req, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      dda.Name,
+						Namespace: dda.Namespace,
+					},
+				})
+			}
+
+			return req
+
+		}), ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()))
+	}
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
@@ -274,28 +295,30 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 	return []reconcile.Request{{NamespacedName: owner}}
 }
 
-func enqueueIfNodeLabelsChange(r *DatadogAgentReconciler) predicate.Funcs {
+func (r *DatadogAgentReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if node, ok := e.ObjectNew.(*corev1.Node); ok {
 				if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
-					r.NodeStore.SetOrUpdateNode(node)
+					r.NodeStore.SetNode(node)
+					r.Log.V(1).Info("nodestore node labels updated", "node", node.Name)
 					return true
 				}
 			}
-			return true // not sure about this, but return false makes integration tests timeout
+			return false
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			if node, ok := e.Object.(*corev1.Node); ok {
-				r.NodeStore.SetOrUpdateNode(node)
+				r.NodeStore.SetNode(node)
+				r.Log.V(1).Info("nodestore new node detected", "node", node.Name)
 				return true
 			}
-			return true // not sure about this, but return false makes integration tests timeout
+			return false
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			if node, ok := e.Object.(*corev1.Node); ok {
-				nodeUID := string(node.UID)
-				r.NodeStore.UnsetNode(nodeUID)
+				r.NodeStore.UnsetNode(node.Name)
+				r.Log.V(1).Info("nodestore node deleted", "node", node.Name)
 				return true
 			}
 			return false

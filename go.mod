@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.0
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.5.8
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5
