@@ -9,15 +9,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 	"time"
-
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -27,6 +21,8 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -35,6 +31,9 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -44,7 +43,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -3009,7 +3007,6 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 				if val, ok := tt.expectProfileLabel[node.Name]; ok {
 					if val {
 						assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], "true")
-						assert.Contains(t, node.Labels, agentprofile.ProfileLabelKey)
 					}
 				} else {
 					assert.NotContains(t, node.Labels, agentprofile.ProfileLabelKey)

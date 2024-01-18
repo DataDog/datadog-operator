@@ -213,37 +213,19 @@ func Test_GetNodes(t *testing.T) {
 func Test_UnsetNodes(t *testing.T) {
 	tests := []struct {
 		name          string
-		node          v1.Node
+		node          string
 		existingNodes map[string]map[string]string
 		wantNodes     map[string]map[string]string
 	}{
 		{
-			name: "Unset node from empty node store",
-			node: v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node-1",
-					Labels: map[string]string{
-						"some-label":  "val",
-						"other-label": "new-val",
-						"new-label":   "new-val",
-					},
-				},
-			},
+			name:          "Unset node from empty node store",
+			node:          "node-1",
 			existingNodes: nil,
 			wantNodes:     map[string]map[string]string{},
 		},
 		{
 			name: "Unset node from node store with 1 existing node",
-			node: v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node-1",
-					Labels: map[string]string{
-						"some-label":  "val",
-						"other-label": "new-val",
-						"new-label":   "new-val",
-					},
-				},
-			},
+			node: "node-1",
 			existingNodes: map[string]map[string]string{
 				"node-1": {
 					"some-label":  "val",
@@ -254,15 +236,7 @@ func Test_UnsetNodes(t *testing.T) {
 		},
 		{
 			name: "Unset node from node store with multiple existing nodes",
-			node: v1.Node{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "node-2",
-					Labels: map[string]string{
-						"some-label":  "val",
-						"other-label": "val",
-					},
-				},
-			},
+			node: "node-2",
 			existingNodes: map[string]map[string]string{
 				"foo": {
 					"some-label":  "val",
@@ -287,7 +261,7 @@ func Test_UnsetNodes(t *testing.T) {
 			if tt.existingNodes != nil && len(tt.existingNodes) > 0 {
 				nodeStore.nodes = tt.existingNodes
 			}
-			nodeStore.UnsetNode(tt.node.Name)
+			nodeStore.UnsetNode(tt.node)
 			assert.EqualValues(t, tt.wantNodes, nodeStore.nodes)
 		})
 	}
