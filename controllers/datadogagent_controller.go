@@ -204,29 +204,18 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
-	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
+	builder.Watches(
+		&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}},
+		handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
+	)
 
 	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
 	if r.Options.V2Enabled {
-		builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-			req := []reconcile.Request{}
-			ddaList := datadoghqv2alpha1.DatadogAgentList{}
-			if err := r.Client.List(context.TODO(), &ddaList); err != nil {
-				return req
-			}
-
-			for _, dda := range ddaList.Items {
-				req = append(req, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      dda.Name,
-						Namespace: dda.Namespace,
-					},
-				})
-			}
-
-			return req
-
-		}), ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()))
+		builder.Watches(
+			&source.Kind{Type: &corev1.Node{}},
+			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
+			ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()),
+		)
 	}
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
@@ -323,5 +312,30 @@ func (r *DatadogAgentReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
 			}
 			return false
 		},
+	}
+}
+
+func (r *DatadogAgentReconciler) enqueueRequestsForAllDDAs() handler.MapFunc {
+	return func(obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		ddaList := datadoghqv2alpha1.DatadogAgentList{}
+		if err := r.List(context.Background(), &ddaList); err != nil {
+			return requests
+		}
+
+		for _, dda := range ddaList.Items {
+			requests = append(
+				requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: dda.Namespace,
+						Name:      dda.Name,
+					},
+				},
+			)
+		}
+
+		return requests
 	}
 }
