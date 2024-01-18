@@ -39,7 +39,7 @@ const (
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes map[string]map[string]string, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
 	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
 
@@ -54,19 +54,19 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 			continue
 		}
 
-		for _, node := range nodes {
-			matchesNode, err := profileMatchesNode(&profile, &node)
+		for nodeName, nodeLabels := range nodes {
+			matchesNode, err := profileMatchesNode(&profile, nodeLabels)
 			if err != nil {
 				return nil, nil, err
 			}
 
 			if matchesNode {
-				if _, found := profileAppliedPerNode[node.Name]; found {
+				if _, found := profileAppliedPerNode[nodeName]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
 					break
 				} else {
-					nodesThatMatchProfile[node.Name] = true
+					nodesThatMatchProfile[nodeName] = true
 				}
 			}
 		}
@@ -88,9 +88,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
-	for _, node := range nodes {
-		if _, found := profileAppliedPerNode[node.Name]; !found {
-			profileAppliedPerNode[node.Name] = types.NamespacedName{
+	for nodeName := range nodes {
+		if _, found := profileAppliedPerNode[nodeName]; !found {
+			profileAppliedPerNode[nodeName] = types.NamespacedName{
 				Name: defaultProfileName,
 			}
 		}
@@ -277,7 +277,7 @@ func sortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv
 	return sortedProfiles
 }
 
-func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, node *v1.Node) (bool, error) {
+func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
 	if profile.Spec.ProfileAffinity == nil {
 		return true, nil
 	}
@@ -292,7 +292,7 @@ func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, node *v1
 			return false, err
 		}
 
-		if !selector.Matches(labels.Set(node.Labels)) {
+		if !selector.Matches(labels.Set(nodeLabels)) {
 			return false, nil
 		}
 	}

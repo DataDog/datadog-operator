@@ -51,6 +51,8 @@ func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 		return ciliumv1.EmptyCiliumUnstructuredPolicy()
 	case SecurityContextConstraintsKind:
 		return &securityv1.SecurityContextConstraints{}
+	case NodeKind:
+		return &corev1.Node{}
 	}
 
 	return nil
