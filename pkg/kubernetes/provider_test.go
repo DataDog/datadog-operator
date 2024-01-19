@@ -18,8 +18,8 @@ import (
 
 var (
 	defaultProvider          = DefaultProvider
-	gcpCosContainerdProvider = generateValidProviderName(GCPCloudProvider, GCPCosContainerdType)
-	gcpCosProvider           = generateValidProviderName(GCPCloudProvider, GCPCosType)
+	gkeCosContainerdProvider = generateValidProviderName(GKECloudProvider, GKECosContainerdType)
+	gkeCosProvider           = generateValidProviderName(GKECloudProvider, GKECosType)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -41,20 +41,20 @@ func Test_determineProvider(t *testing.T) {
 			provider: defaultProvider,
 		},
 		{
-			name: "gcp provider",
+			name: "gke provider",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: GCPCosType,
+				GKEProviderLabel: GKECosType,
 			},
-			provider: generateValidProviderName(GCPCloudProvider, GCPCosType),
+			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
 		{
-			name: "gcp provider, underscore",
+			name: "gke provider, underscore",
 			labels: map[string]string{
 				"foo":            "bar",
-				GCPProviderLabel: GCPCosContainerdType,
+				GKEProviderLabel: GKECosContainerdType,
 			},
-			provider: generateValidProviderName(GCPCloudProvider, GCPCosContainerdType),
+			provider: generateValidProviderName(GKECloudProvider, GKECosContainerdType),
 		},
 	}
 
@@ -74,7 +74,7 @@ func Test_isProviderValueAllowed(t *testing.T) {
 	}{
 		{
 			name:  "valid value",
-			value: GCPCosContainerdType,
+			value: GKECosContainerdType,
 			want:  true,
 		},
 		{
@@ -111,14 +111,14 @@ func Test_sortProviders(t *testing.T) {
 		{
 			name: "one provider",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
+				gkeCosProvider: {},
 			},
-			wantSortedProviders: []string{gcpCosProvider},
+			wantSortedProviders: []string{gkeCosProvider},
 		},
 		{
 			name: "multiple providers",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
+				gkeCosProvider: {},
 				"abcde":        {},
 				"zyxwv":        {},
 				"12345":        {},
@@ -126,7 +126,7 @@ func Test_sortProviders(t *testing.T) {
 			wantSortedProviders: []string{
 				"12345",
 				"abcde",
-				gcpCosProvider,
+				gkeCosProvider,
 				"zyxwv",
 			},
 		},
@@ -162,15 +162,15 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		{
 			name: "one existing provider, default provider",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
+				gkeCosProvider: {},
 			},
 			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosType,
+						GKECosType,
 					},
 				},
 			},
@@ -178,15 +178,15 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		{
 			name: "one existing provider, ubuntu provider",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
+				gkeCosProvider: {},
 			},
-			provider: gcpCosContainerdProvider,
+			provider: gkeCosContainerdProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPCosContainerdType,
+						GKECosContainerdType,
 					},
 				},
 			},
@@ -194,28 +194,28 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		{
 			name: "multiple providers, default provider",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
-				"gcp-abcde":    {},
-				"gcp-zyxwv":    {},
+				gkeCosProvider: {},
+				"gke-abcde":    {},
+				"gke-zyxwv":    {},
 			},
 			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						"abcde",
 					},
 				},
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
-						GCPCosType,
+						GKECosType,
 					},
 				},
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						"zyxwv",
@@ -226,17 +226,17 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		{
 			name: "multiple providers, ubuntu provider",
 			existingProviders: map[string]struct{}{
-				gcpCosProvider: {},
+				gkeCosProvider: {},
 				"abcdef":       {},
 				"lmnop":        {},
 			},
-			provider: gcpCosContainerdProvider,
+			provider: gkeCosContainerdProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
-					Key:      GCPProviderLabel,
+					Key:      GKEProviderLabel,
 					Operator: corev1.NodeSelectorOpIn,
 					Values: []string{
-						GCPCosContainerdType,
+						GKECosContainerdType,
 					},
 				},
 			},
@@ -295,10 +295,10 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			wantValue: "",
 		},
 		{
-			name:      "gcp cos provider",
-			provider:  gcpCosProvider,
-			wantLabel: GCPProviderLabel,
-			wantValue: GCPCosType,
+			name:      "gke cos provider",
+			provider:  gkeCosProvider,
+			wantLabel: GKEProviderLabel,
+			wantValue: GKECosType,
 		},
 	}
 
@@ -321,13 +321,13 @@ func Test_Reset(t *testing.T) {
 		{
 			name: "replace empty providers",
 			newProviders: map[string]struct{}{
-				gcpCosProvider:  {},
+				gkeCosProvider:  {},
 				defaultProvider: {},
 			},
 			existingProviders: nil,
 			wantProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider:  {},
+					gkeCosProvider:  {},
 					defaultProvider: {},
 				},
 			},
@@ -335,7 +335,7 @@ func Test_Reset(t *testing.T) {
 		{
 			name: "replace existing providers",
 			newProviders: map[string]struct{}{
-				gcpCosProvider:  {},
+				gkeCosProvider:  {},
 				defaultProvider: {},
 			},
 			existingProviders: &ProviderStore{
@@ -345,7 +345,7 @@ func Test_Reset(t *testing.T) {
 			},
 			wantProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider:  {},
+					gkeCosProvider:  {},
 					defaultProvider: {},
 				},
 			},
@@ -355,12 +355,12 @@ func Test_Reset(t *testing.T) {
 			newProviders: map[string]struct{}{},
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider: {},
+					gkeCosProvider: {},
 				},
 			},
 			wantProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider: {},
+					gkeCosProvider: {},
 				},
 			},
 		},
@@ -392,7 +392,7 @@ func Test_IsPresent(t *testing.T) {
 			provider: defaultProvider,
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider:  {},
+					gkeCosProvider:  {},
 					defaultProvider: {},
 				},
 			},
@@ -403,7 +403,7 @@ func Test_IsPresent(t *testing.T) {
 			provider: defaultProvider,
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider: {},
+					gkeCosProvider: {},
 				},
 			},
 			want: false,
@@ -413,7 +413,7 @@ func Test_IsPresent(t *testing.T) {
 			provider: "",
 			existingProviders: &ProviderStore{
 				providers: map[string]struct{}{
-					gcpCosProvider: {},
+					gkeCosProvider: {},
 				},
 			},
 			want: false,
