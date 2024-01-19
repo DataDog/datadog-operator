@@ -96,7 +96,7 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 	// src volume mount
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GCPCosContainerdType && providerValue != kubernetes.GCPCosType {
+	if providerValue != kubernetes.GKECosContainerdType && providerValue != kubernetes.GKECosType {
 		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
 		managers.Volume().AddVolume(&srcVol)
