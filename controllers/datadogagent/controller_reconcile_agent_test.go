@@ -24,7 +24,7 @@ import (
 )
 
 const defaultProvider = kubernetes.DefaultProvider
-const gcpCosContainerdProvider = kubernetes.GCPCloudProvider + "-" + kubernetes.GCPCosContainerdType
+const gkeCosContainerdProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosContainerdType
 
 func Test_generateNodeAffinity(t *testing.T) {
 
@@ -44,10 +44,10 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "nil affinity, gcp cos containerd provider",
+			name: "nil affinity, gke cos containerd provider",
 			args: args{
 				affinity: nil,
-				provider: gcpCosContainerdProvider,
+				provider: gkeCosContainerdProvider,
 			},
 		},
 		{
@@ -58,10 +58,10 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, but empty, gcp cos containerd provider",
+			name: "existing affinity, but empty, gke cos containerd provider",
 			args: args{
 				affinity: &corev1.Affinity{},
-				provider: gcpCosContainerdProvider,
+				provider: gkeCosContainerdProvider,
 			},
 		},
 		{
@@ -101,7 +101,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 						},
 					},
 				},
-				provider: gcpCosContainerdProvider,
+				provider: gkeCosContainerdProvider,
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 						},
 					},
 				},
-				provider: gcpCosContainerdProvider,
+				provider: gkeCosContainerdProvider,
 			},
 		},
 	}
@@ -156,7 +156,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 				providerStore: &p,
 			}
 			existingProviders := map[string]struct{}{
-				"gcp-cos": {},
+				"gke-cos": {},
 				"default": {},
 			}
 			r.providerStore.Reset(existingProviders)
@@ -177,9 +177,9 @@ func generateWantedAffinity(provider string, na *corev1.NodeAffinity, pa *corev1
 				{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
-							Key:      kubernetes.GCPProviderLabel,
+							Key:      kubernetes.GKEProviderLabel,
 							Operator: corev1.NodeSelectorOpNotIn,
-							Values:   []string{kubernetes.GCPCosType},
+							Values:   []string{kubernetes.GKECosType},
 						},
 					},
 				},
@@ -246,30 +246,30 @@ func Test_updateProviderStore(t *testing.T) {
 			nodes: []client.Object{
 				&corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							kubernetes.GCPProviderLabel: kubernetes.GCPCosType,
+							kubernetes.GKEProviderLabel: kubernetes.GKECosType,
 						},
 					},
 				},
 			},
 			existingProviders: map[string]struct{}{
-				"gcp-cos_containerd": {},
+				"gke-cos_containerd": {},
 				"default":            {},
 			},
 			wantedProviders: map[string]struct{}{
-				"gcp-cos": {},
+				"gke-cos": {},
 			},
 		},
 		{
 			name:  "empty node list",
 			nodes: []client.Object{},
 			existingProviders: map[string]struct{}{
-				"gcp-cos_containerd": {},
+				"gke-cos_containerd": {},
 				"default":            {},
 			},
 			wantedProviders: map[string]struct{}{
-				"gcp-cos_containerd": {},
+				"gke-cos_containerd": {},
 				"default":            {},
 			},
 		},
@@ -313,16 +313,16 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
 			},
 			edsEnabled: false,
 			existingProviders: map[string]struct{}{
-				gcpCosContainerdProvider: {},
+				gkeCosContainerdProvider: {},
 			},
 			wantDS: &appsv1.DaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -332,9 +332,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gcp-cos-node",
+							Name: "gke-cos-node",
 							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 							},
 							ResourceVersion: "999",
 						},
@@ -347,16 +347,16 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
 			},
 			edsEnabled: true,
 			existingProviders: map[string]struct{}{
-				gcpCosContainerdProvider: {},
+				gkeCosContainerdProvider: {},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -366,9 +366,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gcp-cos-node",
+							Name: "gke-cos-node",
 							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 							},
 							ResourceVersion: "999",
 						},
@@ -381,9 +381,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
@@ -405,9 +405,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
@@ -429,7 +429,7 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents:     []client.Object{},
 			edsEnabled: false,
 			existingProviders: map[string]struct{}{
-				gcpCosContainerdProvider: {},
+				gkeCosContainerdProvider: {},
 			},
 			wantDS: &appsv1.DaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -444,7 +444,7 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents:     []client.Object{},
 			edsEnabled: true,
 			existingProviders: map[string]struct{}{
-				gcpCosContainerdProvider: {},
+				gkeCosContainerdProvider: {},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -459,9 +459,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
@@ -476,9 +476,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gcp-cos-node",
+							Name: "gke-cos-node",
 							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 							},
 							ResourceVersion: "999",
 						},
@@ -491,9 +491,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			agents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gcp-cos-node",
+						Name: "gke-cos-node",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 						},
 					},
 				},
@@ -508,9 +508,9 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gcp-cos-node",
+							Name: "gke-cos-node",
 							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gcpCosContainerdProvider,
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosContainerdProvider,
 							},
 							ResourceVersion: "999",
 						},

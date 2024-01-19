@@ -25,21 +25,21 @@ type ProviderStore struct {
 const (
 	LegacyProvider  = ""
 	DefaultProvider = "default"
-	// GCP provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	GCPCosContainerdType = "cos_containerd"
-	GCPCosType           = "cos"
+	// GKE provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	GKECosContainerdType = "cos_containerd"
+	GKECosType           = "cos"
 
 	// CloudProvider
-	GCPCloudProvider = "gcp"
+	GKECloudProvider = "gke"
 
 	// ProviderLabel
-	GCPProviderLabel = "cloud.google.com/gke-os-distribution"
+	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GCPCosContainerdType: {},
-	GCPCosType:           {},
+	GKECosContainerdType: {},
+	GKECosType:           {},
 }
 
 // NewProviderStore generates an empty ProviderStore instance
@@ -53,9 +53,9 @@ func NewProviderStore(log logr.Logger) ProviderStore {
 // DetermineProvider creates a Provider based on a map of labels
 func DetermineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
-		// GCP
-		if val, ok := labels[GCPProviderLabel]; ok {
-			if provider := generateValidProviderName(GCPCloudProvider, val); provider != "" {
+		// GKE
+		if val, ok := labels[GKEProviderLabel]; ok {
+			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
 				return provider
 			}
 		}
@@ -135,7 +135,7 @@ func isProviderValueAllowed(value string) bool {
 func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
-		GCPCloudProvider: GCPProviderLabel,
+		GKECloudProvider: GKEProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)
