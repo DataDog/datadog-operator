@@ -156,6 +156,34 @@ const (
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
+	ApkDirVolumeName = "host-apk-dir"
+	ApkDirVolumePath = "/var/lib/apk"
+	ApkDirMountPath  = "/host/var/lib/apk"
+
+	DpkgDirVolumeName = "host-dpkg-dir"
+	DpkgDirVolumePath = "/var/lib/dpkg"
+	DpkgDirMountPath  = "/host/var/lib/dpkg"
+
+	RpmDirVolumeName = "host-rpm-dir"
+	RpmDirVolumePath = "/var/lib/rpm"
+	RpmDirMountPath  = "/host/var/lib/rpm"
+
+	RedhatReleaseVolumeName = "etc-redhat-release"
+	RedhatReleaseVolumePath = "/etc/redhat-release"
+	RedhatReleaseMountPath  = "/host/etc/redhat-release"
+
+	FedoraReleaseVolumeName = "etc-fedora-release"
+	FedoraReleaseVolumePath = "/etc/fedora-release"
+	FedoraReleaseMountPath  = "/host/etc/fedora-release"
+
+	LsbReleaseVolumeName = "etc-lsb-release"
+	LsbReleaseVolumePath = "/etc/lsb-release"
+	LsbReleaseMountPath  = "/host/etc/lsb-release"
+
+	SystemReleaseVolumeName = "etc-system-release"
+	SystemReleaseVolumePath = "/etc/system-release"
+	SystemReleaseMountPath  = "/host/etc/system-release"
+
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
