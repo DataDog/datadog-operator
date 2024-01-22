@@ -7,6 +7,7 @@ package agent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -228,7 +229,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 			"--app-config",
 			apicommon.AgentDataPlaneConfigVolumePath,
 		},
-		Env:          commonEnvVars(dda),
+		Env:          envVarsForAgentDataPlane(dda),
 		VolumeMounts: volumeMountsForAgentDataPlane(),
 	}
 }
@@ -348,6 +349,17 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 		{
 			Name:  "HOST_ROOT",
 			Value: apicommon.HostRootMountPath,
+		},
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
+func envVarsForAgentDataPlane(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: filepath.Join(apicommon.AuthVolumePath, "token"),
 		},
 	}
 

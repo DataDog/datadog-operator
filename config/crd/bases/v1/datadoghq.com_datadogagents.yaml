@@ -9663,7 +9663,7 @@ spec:
                                 - mountPath
                               x-kubernetes-list-type: map
                           type: object
-                        description: 'Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, and `all`. Configuration under `all` applies to all configured containers.'
+                        description: 'Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, `agent-data-plane`, and `all`. Configuration under `all` applies to all configured containers.'
                         type: object
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
