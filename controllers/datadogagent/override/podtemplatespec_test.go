@@ -8,16 +8,16 @@ package override
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
-
-	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestPodTemplateSpec(t *testing.T) {
@@ -663,18 +663,41 @@ func TestPodTemplateSpec(t *testing.T) {
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.Affinity = &v1.Affinity{
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
-							{
-								Weight: 50,
-								PodAffinityTerm: v1.PodAffinityTerm{
-									LabelSelector: &metav1.LabelSelector{
-										MatchLabels: map[string]string{
-											"old-label": "123",
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "node-label-1",
+											Operator: v1.NodeSelectorOpExists,
 										},
 									},
-									TopologyKey: "kubernetes.io/hostname",
 								},
+							},
+						},
+					},
+					PodAffinity: &v1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-1": "value-1",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-2": "value-2",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
 							},
 						},
 					},
@@ -683,29 +706,128 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Affinity: &v1.Affinity{
-					PodAntiAffinity: &v1.PodAntiAffinity{
-						PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
-							{
-								Weight: 50,
-								PodAffinityTerm: v1.PodAffinityTerm{
-									LabelSelector: &metav1.LabelSelector{
-										MatchLabels: map[string]string{
-											"new-label": "456", // Changed
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "node-label-2",
+											Operator: v1.NodeSelectorOpExists,
 										},
 									},
-									TopologyKey: "kubernetes.io/hostname",
 								},
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "node-label-3",
+											Operator: v1.NodeSelectorOpExists,
+										},
+									},
+								},
+							},
+						},
+					},
+					PodAffinity: &v1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-3": "value-3",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-4": "value-4",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
 							},
 						},
 					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				assert.Equal(t,
-					map[string]string{"new-label": "456"},
-					manager.PodTemplateSpec().Spec.Affinity.PodAntiAffinity.
-						PreferredDuringSchedulingIgnoredDuringExecution[0].
-						PodAffinityTerm.LabelSelector.MatchLabels)
+				expectedAffinity := &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "node-label-1",
+											Operator: v1.NodeSelectorOpExists,
+										},
+										{
+											Key:      "node-label-2",
+											Operator: v1.NodeSelectorOpExists,
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "node-label-1",
+											Operator: v1.NodeSelectorOpExists,
+										},
+										{
+											Key:      "node-label-3",
+											Operator: v1.NodeSelectorOpExists,
+										},
+									},
+								},
+							},
+						},
+					},
+					PodAffinity: &v1.PodAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-1": "value-1",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-3": "value-3",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-2": "value-2",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"pod-label-4": "value-4",
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
+				}
+				assert.Equal(t, expectedAffinity, manager.PodTemplateSpec().Spec.Affinity)
 			},
 		},
 		{
