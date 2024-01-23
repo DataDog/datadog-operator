@@ -290,8 +290,7 @@ trigger_internal_operator_nightly_image:
   stage: release
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      # Temporarily require manual build
-      when: manual
+      when: on_success
     - when: never
   trigger:
     project: DataDog/images
@@ -310,8 +309,7 @@ trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      # Temporarily require manual build
-      when: manual
+      when: on_success
     - when: never
   trigger:
     project: DataDog/images
