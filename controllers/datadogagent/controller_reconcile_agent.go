@@ -64,6 +64,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 		componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+		componentOverrideCopy := componentOverride.DeepCopy()
 		if r.options.IntrospectionEnabled {
 			// Add provider-specific label
 			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
@@ -73,21 +74,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			eds.Spec.Template.Spec.Affinity = combinedAffinity
 			if overriden {
 				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, componentOverride.Name)
-				componentOverride.Name = &agentNameWithProvider
+				componentOverrideCopy.Name = &agentNameWithProvider
 			} else {
 				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
-				componentOverride = &overrideFromProvider
+				componentOverrideCopy = &overrideFromProvider
 			}
 		} else {
 			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
-		if componentOverride != nil {
-			if apiutils.BoolValue(componentOverride.Disabled) {
+		if componentOverrideCopy != nil {
+			if apiutils.BoolValue(componentOverrideCopy.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-			override.ExtendedDaemonSet(eds, componentOverride)
+			override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+			override.ExtendedDaemonSet(eds, componentOverrideCopy)
 		}
 
 		if disabledByOverride {
@@ -129,6 +130,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+	componentOverrideCopy := componentOverride.DeepCopy()
 	if r.options.IntrospectionEnabled {
 		// Add provider-specific label
 		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
@@ -138,21 +140,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
 		if overriden {
 			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, componentOverride.Name)
-			componentOverride.Name = &agentNameWithProvider
+			componentOverrideCopy.Name = &agentNameWithProvider
 		} else {
 			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
-			componentOverride = &overrideFromProvider
+			componentOverrideCopy = &overrideFromProvider
 		}
 	} else {
 		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
-	if componentOverride != nil {
-		if apiutils.BoolValue(componentOverride.Disabled) {
+	if componentOverrideCopy != nil {
+		if apiutils.BoolValue(componentOverrideCopy.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-		override.DaemonSet(daemonset, componentOverride)
+		override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+		override.DaemonSet(daemonset, componentOverrideCopy)
 	}
 
 	if disabledByOverride {
