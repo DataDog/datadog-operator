@@ -494,3 +494,14 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 	}
 	return builder
 }
+
+// Override
+
+func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1.ComponentName, override v2alpha1.DatadogAgentComponentOverride) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	return builder
+}
