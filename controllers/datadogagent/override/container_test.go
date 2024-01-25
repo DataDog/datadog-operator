@@ -263,6 +263,54 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override resources - when the override specifies a 0",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: string(commonv1.CoreAgentContainerName),
+								Resources: corev1.ResourceRequirements{
+									Limits: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden, should be kept
+										corev1.ResourceMemory: *resource.NewQuantity(2048, resource.DecimalSI), // Not overridden, should be kept
+									},
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+										corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden, should be kept
+									},
+								},
+							},
+						},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Resources: &corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU: *resource.NewQuantity(0, resource.DecimalSI),
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden
+								corev1.ResourceMemory: *resource.NewQuantity(2048, resource.DecimalSI), // Not overridden
+							},
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(0, resource.DecimalSI),    // Overridden
+								corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden
+							},
+						},
+						container.Resources)
+				})
+			},
+		},
+		{
 			name:          "override command",
 			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
