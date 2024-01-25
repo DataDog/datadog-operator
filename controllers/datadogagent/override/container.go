@@ -110,10 +110,6 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 
 	if override.Resources != nil {
 		for resource, quantity := range override.Resources.Requests {
-			if quantity.IsZero() {
-				continue
-			}
-
 			if container.Resources.Requests == nil {
 				container.Resources.Requests = corev1.ResourceList{}
 			}
@@ -121,10 +117,6 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 		}
 
 		for resource, quantity := range override.Resources.Limits {
-			if quantity.IsZero() {
-				continue
-			}
-
 			if container.Resources.Limits == nil {
 				container.Resources.Limits = corev1.ResourceList{}
 			}
