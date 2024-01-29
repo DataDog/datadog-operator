@@ -84,6 +84,12 @@ spec:
 | features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
+| features.helmCheck.collectEvents | CollectEvents Set this to true to enable event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
+| features.helmCheck.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.helmCheck.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
+| features.helmCheck.conf.configMap.name | Name is the name of the ConfigMap. |
+| features.helmCheck.enabled | Enabled enables Helm check. Default: false |
+| features.helmCheck.valuesAsTags | ValuesAsTags Collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Name is the name of the ConfigMap. |
