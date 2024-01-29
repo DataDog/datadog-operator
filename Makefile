@@ -183,14 +183,14 @@ docker-build-push-check-ci:
 
 # Push the docker images
 .PHONY: docker-push
-docker-push: docker-push-ci docker-push-check-ci
+docker-push: docker-push-img docker-push-check-img
 
-.PHONY: docker-push-ci
-docker-push-ci:
+.PHONY: docker-push-img
+docker-push-img:
 	docker push ${IMG}
 
-.PHONY: docker-push-check-ci
-docker-push-check-ci:
+.PHONY: docker-push-check-img
+docker-push-check-img:
 	docker push ${IMG_CHECK}
 
 ##@ Test
