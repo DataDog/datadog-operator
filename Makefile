@@ -174,12 +174,12 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --push
+	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
 docker-build-push-check-ci:
-	docker buildx build . -t ${IMG_CHECK} -f check-operator.Dockerfile --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --push
+	docker buildx build . -t ${IMG_CHECK} -f check-operator.Dockerfile --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
 
 # Push the docker images
 .PHONY: docker-push
