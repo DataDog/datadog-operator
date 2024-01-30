@@ -6,12 +6,14 @@
 package helmcheck
 
 import (
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
 
 func Test_buildHelmCheckConfigMap(t *testing.T) {

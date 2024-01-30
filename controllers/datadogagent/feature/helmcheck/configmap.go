@@ -7,10 +7,11 @@ package helmcheck
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
 )
 
 func (f *helmCheckFeature) buildHelmCheckConfigMap() (*corev1.ConfigMap, error) {

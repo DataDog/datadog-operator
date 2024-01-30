@@ -7,6 +7,11 @@ package helmcheck
 
 import (
 	"fmt"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
@@ -15,9 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var customConfData = `cluster_check: true
