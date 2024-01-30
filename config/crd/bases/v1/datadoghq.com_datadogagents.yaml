@@ -8126,7 +8126,7 @@ spec:
                       description: HelmCheck configuration.
                       properties:
                         collectEvents:
-                          description: 'CollectEvents Set this to true to enable event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false'
+                          description: 'CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false'
                           type: boolean
                         conf:
                           description: Conf overrides the configuration for the default Helm check. This must point to a ConfigMap containing a valid cluster check configuration.
@@ -8166,12 +8166,12 @@ spec:
                               type: object
                           type: object
                         enabled:
-                          description: 'Enabled enables Helm check. Default: false'
+                          description: 'Enabled enables the Helm check. Default: false'
                           type: boolean
                         valuesAsTags:
                           additionalProperties:
                             type: string
-                          description: 'ValuesAsTags Collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}'
+                          description: 'ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}'
                           type: object
                       type: object
                     kubeStateMetricsCore:

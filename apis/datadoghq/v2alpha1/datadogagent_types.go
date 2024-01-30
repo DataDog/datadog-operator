@@ -633,18 +633,18 @@ type PrometheusScrapeFeatureConfig struct {
 // HelmCheckFeatureConfig allows configuration of the Helm check feature.
 // +k8s:openapi-gen=true
 type HelmCheckFeatureConfig struct {
-	// Enabled enables Helm check.
+	// Enabled enables the Helm check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// CollectEvents Set this to true to enable event collection in the Helm check
+	// CollectEvents set to `true` enables event collection in the Helm check
 	// (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+)
 	// Default: false
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
 
-	// ValuesAsTags Collects Helm values from a release and uses them as tags
+	// ValuesAsTags collects Helm values from a release and uses them as tags
 	// (Requires Agent and Cluster Agent 7.40.0+).
 	// Default: {}
 	// +optional

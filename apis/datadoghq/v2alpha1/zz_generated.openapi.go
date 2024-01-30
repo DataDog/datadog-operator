@@ -668,21 +668,21 @@ func schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables Helm check. Default: false",
+							Description: "Enabled enables the Helm check. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CollectEvents Set this to true to enable event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false",
+							Description: "CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"valuesAsTags": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ValuesAsTags Collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}",
+							Description: "ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
