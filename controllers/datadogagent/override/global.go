@@ -219,7 +219,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
 						[]apicommonv1.AgentContainerName{
-							apicommonv1.UnprivilegedMultiProcessAgentContainerName,
+							apicommonv1.UnprivilegedSingleAgentContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&kubeletVol)
@@ -268,7 +268,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
 					[]apicommonv1.AgentContainerName{
-						apicommonv1.UnprivilegedMultiProcessAgentContainerName,
+						apicommonv1.UnprivilegedSingleAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)

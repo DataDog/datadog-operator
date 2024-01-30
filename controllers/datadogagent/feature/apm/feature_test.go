@@ -64,7 +64,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 apm not enabled with multi-process container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(false).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: false,
 		},
@@ -84,10 +84,10 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(false, 8126).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 		{
 			Name: "v2alpha1 apm enabled, use uds and host port",
@@ -105,10 +105,10 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, 8126).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 	}
 

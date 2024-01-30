@@ -345,7 +345,7 @@ func newV2AgentMultiProcess(set Settings) *v2alpha1.DatadogAgent {
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
-		WithMultiProcessContainer(true).
+		WithSingleContainerStrategy(true).
 		Build()
 }
 
@@ -391,7 +391,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -399,7 +399,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -407,7 +407,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),

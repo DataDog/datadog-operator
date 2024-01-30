@@ -109,7 +109,7 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 
 func agentMultiProcessContainer(dda metav1.Object) []corev1.Container {
 	agentMultiProcessContainer := corev1.Container{
-		Name:           string(common.UnprivilegedMultiProcessAgentContainerName),
+		Name:           string(common.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),

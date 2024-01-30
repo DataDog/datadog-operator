@@ -264,8 +264,8 @@ func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMa
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	if f.httpEnabled {
@@ -284,8 +284,8 @@ func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMa
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	return nil

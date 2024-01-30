@@ -109,7 +109,7 @@ func assertAll(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedE
 func assertAllAgentMultiProcessContainer(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-	agentMultiProcessContainerVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+	agentMultiProcessContainerVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 
 	assert.True(t, apiutils.IsEqualStruct(agentMultiProcessContainerVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(agentMultiProcessContainerVolumeMounts, []*corev1.VolumeMount(nil)))
 

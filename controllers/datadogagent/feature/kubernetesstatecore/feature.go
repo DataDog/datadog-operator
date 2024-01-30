@@ -248,7 +248,7 @@ func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMan
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedMultiProcessAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec

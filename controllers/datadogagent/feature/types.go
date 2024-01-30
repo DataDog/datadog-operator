@@ -77,7 +77,7 @@ func (rc *RequiredComponent) IsPrivileged() bool {
 
 func (rc *RequiredComponent) MultiProcessContainerEnabled() bool {
 	return len(rc.Containers) == 1 &&
-		rc.Containers[0] == apicommonv1.UnprivilegedMultiProcessAgentContainerName
+		rc.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName
 }
 
 // Merge use to merge 2 RequiredComponents
