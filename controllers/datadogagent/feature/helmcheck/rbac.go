@@ -6,11 +6,12 @@
 package helmcheck
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// getRBACRules generates the cluster role required for CSPM
+// getRBACRules generates the cluster role required for Helm Check
 func getRBACPolicyRules() []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
