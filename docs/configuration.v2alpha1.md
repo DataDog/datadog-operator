@@ -133,7 +133,7 @@ spec:
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
-| global.containerStrategy | ContainerStrategy determines whether Agents run in a single or multiple containers. Default: `optimized` |
+| global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.apiSecret.secretName | SecretName is the name of the secret. |
