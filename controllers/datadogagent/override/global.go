@@ -35,13 +35,13 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 }
 
 func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, usesMultiProcessCoreAgent bool) *corev1.PodTemplateSpec {
-	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.NodeAgentComponentName, usesMultiProcessCoreAgent)
+	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.NodeAgentComponentName, singleContainerStrategyEnabled)
 }
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, usesMultiProcessCoreAgent bool) *corev1.PodTemplateSpec {
+	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, singleContainerStrategyEnabled bool) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -215,11 +215,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					agentCAPath = apicommon.KubeletAgentCAPath
 				}
 				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
-				if usesMultiProcessCoreAgent {
+				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
 						[]apicommonv1.AgentContainerName{
-							apicommonv1.UnprivilegedMultiProcessAgentContainerName,
+							apicommonv1.UnprivilegedSingleAgentContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&kubeletVol)
@@ -264,11 +264,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 
-			if usesMultiProcessCoreAgent {
+			if singleContainerStrategyEnabled {
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
 					[]apicommonv1.AgentContainerName{
-						apicommonv1.UnprivilegedMultiProcessAgentContainerName,
+						apicommonv1.UnprivilegedSingleAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)
