@@ -15,17 +15,19 @@ import (
 type ContainerRegistry string
 
 const (
-	// AgentLatestVersion correspond to the latest stable agent release
+	// AgentLatestVersion corresponds to the latest stable agent release
 	AgentLatestVersion = "7.50.3"
-	// ClusterAgentLatestVersion correspond to the latest stable cluster-agent release
+	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
 	ClusterAgentLatestVersion = "7.50.3"
-	// GCRContainerRegistry correspond to the datadoghq GCR registry
+	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
+	FIPSProxyLatestVersion = "1.0.1"
+	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry ContainerRegistry = "gcr.io/datadoghq"
-	// DockerHubContainerRegistry correspond to the datadoghq docker.io registry
+	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry
 	DockerHubContainerRegistry ContainerRegistry = "docker.io/datadog"
-	// PublicECSContainerRegistry correspond to the datadoghq PublicECSContainerRegistry registry
+	// PublicECSContainerRegistry corresponds to the datadoghq PublicECSContainerRegistry registry
 	PublicECSContainerRegistry ContainerRegistry = "public.ecr.aws/datadog"
-	// DefaultImageRegistry correspond to the datadoghq containers registry
+	// DefaultImageRegistry corresponds to the datadoghq containers registry
 	DefaultImageRegistry = GCRContainerRegistry
 	// JMXTagSuffix prefix tag for agent JMX images
 	JMXTagSuffix = "-jmx"

@@ -95,6 +95,9 @@ const (
 
 	// ClusterChecksRunnersContainerName is the name of the Agent container in Cluster Checks Runners
 	ClusterChecksRunnersContainerName AgentContainerName = "agent"
+
+	// FIPSProxyContainerName is the name of the FIPS Proxy container
+	FIPSProxyContainerName AgentContainerName = "fips-proxy"
 )
 
 type ContainerProcessStrategyType string

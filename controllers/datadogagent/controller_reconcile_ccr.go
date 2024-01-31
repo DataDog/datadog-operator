@@ -80,6 +80,11 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 	}
 
+	// configure FIPS
+	if dda.Spec.Global.FIPS != nil && *dda.Spec.Global.FIPS.Enabled {
+		deployment.Spec.Template = *override.ApplyFIPSConfig(logger, podManagers, dda, resourcesManager)
+	}
+
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)
 }
 

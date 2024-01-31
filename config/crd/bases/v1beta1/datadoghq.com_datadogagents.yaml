@@ -16066,6 +16066,112 @@ spec:
                           description: URL defines the endpoint URL.
                           type: string
                       type: object
+                    fips:
+                      description: FIPS contains configuration used to customize the FIPS proxy sidecar.
+                      properties:
+                        customFIPSConfig:
+                          description: CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.
+                          properties:
+                            configData:
+                              description: ConfigData corresponds to the configuration file content.
+                              type: string
+                            configMap:
+                              description: ConfigMap references an existing ConfigMap with the configuration file content.
+                              properties:
+                                items:
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
+                                  items:
+                                    description: Maps a string key to a path within a volume.
+                                    properties:
+                                      key:
+                                        description: The key to project.
+                                        type: string
+                                      mode:
+                                        description: 'Optional: mode bits used to set permissions on this file. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. If not specified, the volume defaultMode will be used. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.'
+                                        format: int32
+                                        type: integer
+                                      path:
+                                        description: The relative path of the file to map the key to. May not be an absolute path. May not contain the path element '..'. May not start with the string '..'.
+                                        type: string
+                                    required:
+                                      - key
+                                      - path
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-map-keys:
+                                    - key
+                                  x-kubernetes-list-type: map
+                                name:
+                                  description: Name is the name of the ConfigMap.
+                                  type: string
+                              type: object
+                          type: object
+                        enabled:
+                          description: Enable FIPS sidecar.
+                          type: boolean
+                        image:
+                          description: The container image of the FIPS sidecar.
+                          properties:
+                            jmxEnabled:
+                              description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
+                              type: boolean
+                            name:
+                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                              type: string
+                            pullPolicy:
+                              description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
+                              type: string
+                            pullSecrets:
+                              description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                              items:
+                                description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                                properties:
+                                  name:
+                                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                                    type: string
+                                type: object
+                              type: array
+                            tag:
+                              description: Define the image tag to use. To be used if the Name field does not correspond to a full image string.
+                              type: string
+                          type: object
+                        localAddress:
+                          description: 'Set the local IP address. Default: `127.0.0.1`'
+                          type: string
+                        port:
+                          description: 'Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803'
+                          format: int32
+                          type: integer
+                        portRange:
+                          description: 'PortRange specifies the number of ports used. Default: 15'
+                          format: int32
+                          type: integer
+                        resources:
+                          description: Resources is the requests and limits for the FIPS sidecar container
+                          properties:
+                            limits:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                              type: object
+                          type: object
+                        useHTTPS:
+                          description: 'UseHTTPS enables HTTPS. Default: false'
+                          type: boolean
+                      type: object
                     kubelet:
                       description: Kubelet contains the kubelet configuration parameters.
                       properties:
