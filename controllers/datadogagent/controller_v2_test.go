@@ -112,7 +112,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithMultiProcessContainer(false).
+						WithSingleContainerStrategy(false).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -130,7 +130,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent default, create Daemonset with a multi-process container",
+			name: "[single container] DatadogAgent default, create Daemonset with a single container",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -140,7 +140,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithMultiProcessContainer(true).
+						WithSingleContainerStrategy(true).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -149,7 +149,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+					string(apicommonv1.UnprivilegedSingleAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -167,7 +167,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
-						WithMultiProcessContainer(false).
+						WithSingleContainerStrategy(false).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -185,7 +185,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM enabled, create Daemonset with a multi-process container",
+			name: "[single container] DatadogAgent with APM enabled, create Daemonset with a single container",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -196,7 +196,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
-						WithMultiProcessContainer(true).
+						WithSingleContainerStrategy(true).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -205,7 +205,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+					string(apicommonv1.UnprivilegedSingleAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -224,7 +224,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithCWSEnabled(true).
-						WithMultiProcessContainer(false).
+						WithSingleContainerStrategy(false).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -244,7 +244,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
+			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -256,7 +256,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithCWSEnabled(true).
-						WithMultiProcessContainer(true).
+						WithSingleContainerStrategy(true).
 						Build()
 
 					_ = c.Create(context.TODO(), dda)
@@ -289,7 +289,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithOOMKillEnabled(true).
-						WithMultiProcessContainer(false).
+						WithSingleContainerStrategy(false).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -308,7 +308,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
+			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -320,7 +320,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithOOMKillEnabled(true).
-						WithMultiProcessContainer(true).
+						WithSingleContainerStrategy(true).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
