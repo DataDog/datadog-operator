@@ -159,8 +159,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "[multi-process container] v2alpha1 gRPC and HTTP enabled, APM",
-			DDAv2: newV2AgentMultiProcess(Settings{
+			Name: "[single container] v2alpha1 gRPC and HTTP enabled, APM",
+			DDAv2: newV2AgentSingleContainer(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 				EnabledHTTP:  true,
@@ -168,7 +168,7 @@ func TestOTLPFeature(t *testing.T) {
 				APM:          true,
 			}),
 			WantConfigure: true,
-			Agent: testExpectedMultiProcess(Expected{
+			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
 						Name:  apicommon.DDOTLPgRPCEndpoint,
@@ -221,13 +221,13 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "[multi-process container] v2alpha1 gRPC enabled, no APM",
-			DDAv2: newV2AgentMultiProcess(Settings{
+			Name: "[single container] v2alpha1 gRPC enabled, no APM",
+			DDAv2: newV2AgentSingleContainer(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 			}),
 			WantConfigure: true,
-			Agent: testExpectedMultiProcess(Expected{
+			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
 						Name:  apicommon.DDOTLPgRPCEndpoint,
@@ -271,14 +271,14 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "[multi-process container] v2alpha1 HTTP enabled, APM",
-			DDAv2: newV2AgentMultiProcess(Settings{
+			Name: "[single container] v2alpha1 HTTP enabled, APM",
+			DDAv2: newV2AgentSingleContainer(Settings{
 				EnabledHTTP:  true,
 				EndpointHTTP: "somehostname:4318",
 				APM:          true,
 			}),
 			WantConfigure: true,
-			Agent: testExpectedMultiProcess(Expected{
+			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
 						Name:  apicommon.DDOTLPHTTPEndpoint,
@@ -340,12 +340,12 @@ func newV2Agent(set Settings) *v2alpha1.DatadogAgent {
 		Build()
 }
 
-func newV2AgentMultiProcess(set Settings) *v2alpha1.DatadogAgent {
+func newV2AgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
 	return v2alpha1test.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
-		WithMultiProcessContainer(true).
+		WithSingleContainerStrategy(true).
 		Build()
 }
 
@@ -386,12 +386,12 @@ func testExpected(exp Expected) *test.ComponentTest {
 	)
 }
 
-func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
+func testExpectedSingleContainer(exp Expected) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -399,7 +399,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -407,7 +407,7 @@ func testExpectedMultiProcess(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedMultiProcessAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),
