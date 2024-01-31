@@ -101,7 +101,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 cluster checks enabled and runners not enabled with multi-process container",
+			Name: "v2alpha1 cluster checks enabled and runners not enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
@@ -123,7 +123,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 cluster checks enabled and runners enabled with multi-process container",
+			Name: "v2alpha1 cluster checks enabled and runners enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).

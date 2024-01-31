@@ -75,7 +75,7 @@ func (rc *RequiredComponent) IsPrivileged() bool {
 	return false
 }
 
-func (rc *RequiredComponent) MultiProcessContainerEnabled() bool {
+func (rc *RequiredComponent) SingleContainerStrategyEnabled() bool {
 	return len(rc.Containers) == 1 &&
 		rc.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName
 }
@@ -141,10 +141,10 @@ type Feature interface {
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers, provider string) error
-	// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-	// if multi-process container usage is enabled and can be used with the current feature set
+	// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+	// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageMultiProcessNodeAgent(managers PodTemplateManagers, provider string) error
+	ManageSingleContainerNodeAgent(managers PodTemplateManagers, provider string) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error

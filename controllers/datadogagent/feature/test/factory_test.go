@@ -39,7 +39,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA with multi-process container, 1 multi-process container",
+			name: "Default DDA with single container strategy, 1 single container",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
@@ -67,7 +67,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM enabled with multi-process container, 1 multi-process container",
+			name: "APM enabled with single container strategy, 1 single container",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
@@ -97,7 +97,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM enabled with multi-process container, 4 agents",
+			name: "APM, NPM enabled with single container strategy, 4 agents",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
@@ -129,7 +129,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled with multi-process container, 5 agents",
+			name: "APM, NPM, CSPM enabled with single container strategy, 5 agents",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
@@ -154,7 +154,7 @@ func TestBuilder(t *testing.T) {
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 
 			for name, required := range tt.wantAgentContainer {
-				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "Chech", name)
+				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "Check", name)
 			}
 		})
 	}

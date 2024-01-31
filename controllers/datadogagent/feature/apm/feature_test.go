@@ -61,7 +61,7 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 apm not enabled with multi-process container",
+			Name: "v2alpha1 apm not enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(false).
 				WithSingleContainerStrategy(true).
@@ -79,7 +79,7 @@ func TestAPMFeature(t *testing.T) {
 			Agent:         testAgentUDSOnly(apicommonv1.TraceAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 apm enabled, use uds with multi-process container",
+			Name: "v2alpha1 apm enabled, use uds with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(false, 8126).
@@ -100,7 +100,7 @@ func TestAPMFeature(t *testing.T) {
 			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 apm enabled, use uds and host port with multi-process container",
+			Name: "v2alpha1 apm enabled, use uds and host port with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, 8126).

@@ -130,7 +130,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent default, create Daemonset with a multi-process container",
+			name: "[single container] DatadogAgent default, create Daemonset with a single container",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -185,7 +185,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM enabled, create Daemonset with a multi-process container",
+			name: "[single container] DatadogAgent with APM enabled, create Daemonset with a single container",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -244,7 +244,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
+			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -308,7 +308,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[multi-process container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
+			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
