@@ -261,17 +261,19 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
+		receiverPortEnvVarValue := apicommon.DefaultApmPort
 		// if using host network, host port should be set and needs to match container port
 		if f.useHostNetwork {
 			apmPort.ContainerPort = f.hostPortHostPort
+			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMReceiverPort,
-			Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
-		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMNonLocalTraffic,
 			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMReceiverPort,
+			Value: strconv.Itoa(receiverPortEnvVarValue),
 		})
 	}
 	managers.Port().AddPortToContainer(agentContainerName, apmPort)
