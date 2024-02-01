@@ -28,11 +28,11 @@ core,github.com/goccy/go-json,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
 core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause
+core,github.com/google/gnostic,Apache-2.0
 core,github.com/google/go-cmp/cmp,BSD-3-Clause
 core,github.com/google/gofuzz,Apache-2.0
 core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
-core,github.com/googleapis/gnostic,Apache-2.0
 core,github.com/imdario/mergo,BSD-3-Clause
 core,github.com/josharian/intern,MIT
 core,github.com/json-iterator/go,MIT
@@ -40,6 +40,7 @@ core,github.com/mailru/easyjson,MIT
 core,github.com/matttproud/golang_protobuf_extensions/pbutil,Apache-2.0
 core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
+core,github.com/munnerz/goautoneg,BSD-3-Clause
 core,github.com/openshift/api/security/v1,Apache-2.0
 core,github.com/pkg/errors,BSD-2-Clause
 core,github.com/pmezard/go-difflib/difflib,BSD-3-Clause
