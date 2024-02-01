@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -213,7 +213,7 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName) error {
+func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
 	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles); err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.Dat
 		return err
 	}
 
-	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode); err != nil {
+	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
 		return err
 	}
 
@@ -296,7 +296,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // might not always be evicted when there's a change in the profiles to apply.
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
-func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
+func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
 	for nodeName, profileNamespacedName := range profilesByNode {
 		// Get the agent pods running on the node
 		podList := &corev1.PodList{}
@@ -306,6 +306,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 			client.MatchingLabels(map[string]string{
 				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 			}),
+			client.InNamespace(ddaNamespace),
 			client.MatchingFields{"spec.nodeName": nodeName})
 		if err != nil {
 			return err
@@ -323,7 +324,13 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 				(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
 
 			if deletePod {
-				if err = r.client.Delete(ctx, &pod); err != nil {
+				toDelete := corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: pod.Namespace,
+						Name:      pod.Name,
+					},
+				}
+				if err = r.client.Delete(ctx, &toDelete); err != nil {
 					return err
 				}
 			}
