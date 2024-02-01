@@ -13608,20 +13608,10 @@ spec:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
                     type: string
-                  containerProcessStrategy:
-                    description: ContainerProcessStrategy determines whether agents
-                      run in single or multi-process containers.
-                    properties:
-                      type:
-                        description: 'Type sets a predetermined grouping of processes
-                          across containers. There are two supported groupings: `singleProcessContainers`
-                          runs one process per container. `unprivilegedMultiProcessContainer`,
-                          runs non-privileged processes in a single container unless
-                          the configuration requires a privileged agent. For example
-                          if `security-agent` or `system-probe` is required, `singleProcessContainers`
-                          will be used. Default: `singleProcessContainers`'
-                        type: string
-                    type: object
+                  containerStrategy:
+                    description: 'ContainerStrategy determines whether agents run
+                      in a single or multiple containers. Default: ''optimized'''
+                    type: string
                   credentials:
                     description: Credentials defines the Datadog credentials used
                       to submit data to/query data from Datadog.
