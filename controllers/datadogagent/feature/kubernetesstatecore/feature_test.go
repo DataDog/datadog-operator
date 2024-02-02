@@ -61,10 +61,10 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 ksm-core not enabled with multi-process container",
+			Name: "v2alpha1 ksm-core not enabled with single agent container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(false).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: false,
 		},
@@ -78,14 +78,14 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled with multi-process container",
+			Name: "v2alpha1 ksm-core enabled with single agent container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(false),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentMultiProcessWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFunc),
 		},
 		{
 			Name: "v2alpha1 ksm-core enabled, custom config",
@@ -98,15 +98,15 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled, custom config with multi-process container",
+			Name: "v2alpha1 ksm-core enabled, custom config with single agent container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentMultiProcessWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFunc),
 		},
 	}
 
@@ -169,8 +169,8 @@ func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers
 	ksmAgentWantFunc(t, mgrInterface, apicommonv1.CoreAgentContainerName)
 }
 
-func ksmAgentMultiProcessWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommonv1.UnprivilegedMultiProcessAgentContainerName)
+func ksmAgentSingleAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommonv1.UnprivilegedSingleAgentContainerName)
 }
 
 func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommonv1.AgentContainerName) {

@@ -94,7 +94,7 @@ const (
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 
-	defaultContainerProcessStrategyType = commonv1.SingleProcessContainers
+	defaultContainerStrategy = OptimizedContainerStrategy
 
 	defaultFIPSEnabled      bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
@@ -139,10 +139,9 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
 	}
 
-	if ddaSpec.Global.ContainerProcessStrategy == nil {
-		ddaSpec.Global.ContainerProcessStrategy = &ContainerProcessStrategy{
-			Type: defaultContainerProcessStrategyType,
-		}
+	if ddaSpec.Global.ContainerStrategy == nil {
+		dcs := defaultContainerStrategy
+		ddaSpec.Global.ContainerStrategy = &dcs
 	}
 
 	if ddaSpec.Global.FIPS == nil {

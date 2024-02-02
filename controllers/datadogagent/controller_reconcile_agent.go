@@ -45,7 +45,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	disabledByOverride := false
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
-	multiProcessContainerEnabled := requiredComponents.Agent.MultiProcessContainerEnabled()
+	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
@@ -53,7 +53,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
+		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -119,12 +119,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, multiProcessContainerEnabled)
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if multiProcessContainerEnabled {
-			if errFeat := feat.ManageMultiProcessNodeAgent(podManagers, provider); errFeat != nil {
+		if singleContainerStrategyEnabled {
+			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat
 			}
 		} else {

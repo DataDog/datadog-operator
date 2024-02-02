@@ -75,9 +75,9 @@ const (
 	// SeccompSetupContainerName is the name of the Seccomp Setup init container
 	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
 
-	// UnprivilegedMultiProcessAgentContainerName is the name of a multi process container
-	// which may run any combination of core, trace and process agent processes.
-	UnprivilegedMultiProcessAgentContainerName AgentContainerName = "unprivileged-multi-process-agent"
+	// UnprivilegedSingleAgentContainerName is the name of a container which may run
+	// any combination of Core, Trace and Process Agent processes in a single container.
+	UnprivilegedSingleAgentContainerName AgentContainerName = "unprivileged-single-agent"
 	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container
@@ -98,14 +98,4 @@ const (
 
 	// FIPSProxyContainerName is the name of the FIPS Proxy container
 	FIPSProxyContainerName AgentContainerName = "fips-proxy"
-)
-
-type ContainerProcessStrategyType string
-
-const (
-	// Run one process per container
-	SingleProcessContainers ContainerProcessStrategyType = "singleProcessContainers"
-	// Run unprivileged processes in a single container. If privileged process, for example `security-agent` or `system-probe`
-	// is required, fall back to singleProcessContainer
-	UnprivilegedMultiProcessContainer ContainerProcessStrategyType = "unprivilegedMultiProcessContainer"
 )

@@ -20,7 +20,6 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./apis/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
-		"./apis/datadoghq/v2alpha1.ContainerProcessStrategy":          schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref),
 		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
@@ -57,26 +56,6 @@ func schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.Referen
 						SchemaProps: spec.SchemaProps{
 							Description: "Enabled enables host benchmarks. Default: false",
 							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ContainerProcessStrategy determines how various agent processes are grouped across multiple containers.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type sets a predetermined grouping of processes across containers. There are two supported groupings: `singleProcessContainers` runs one process per container. `unprivilegedMultiProcessContainer`, runs unprivileged processes in a single container unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe` is required, `singleProcessContainers` will be used. Default: `singleProcessContainers`",
-							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

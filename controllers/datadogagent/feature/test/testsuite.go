@@ -138,8 +138,8 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 		if tt.Agent != nil {
 			tplManager, provider := tt.Agent.CreateFunc(t)
-			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == apicommonv1.UnprivilegedMultiProcessAgentContainerName {
-				_ = feat.ManageMultiProcessNodeAgent(tplManager, provider)
+			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName {
+				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
 			} else {
 				_ = feat.ManageNodeAgent(tplManager, provider)
 			}
