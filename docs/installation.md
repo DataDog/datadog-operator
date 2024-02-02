@@ -166,7 +166,7 @@ After deploying the Datadog Operator, create the `DatadogAgent` resource that tr
 
 1. Deploy the Datadog Agent with the above configuration file:
    ```shell
-   kubectl apply -f agent_spec=/path/to/your/datadog-agent.yaml
+   kubectl apply -f /path/to/your/datadog-agent.yaml
    ```
 
 In a cluster with two worker nodes, you should see the Agent Pods created on each node.
