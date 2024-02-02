@@ -30,7 +30,7 @@ func ApplyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS
 
-	// Add FIPS env vars to all containers
+	// Add FIPS env vars to all containers except System Probe
 	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
 		if cont.Name != string(common.SystemProbeContainerName) {
 			manager.EnvVar().AddEnvVarToContainer(common.AgentContainerName(cont.Name), &corev1.EnvVar{
@@ -57,6 +57,9 @@ func ApplyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 
 	image := apicommon.GetImage(fipsConfig.Image, globalConfig.Registry)
 	fipsContainer.Image = image
+	if fipsConfig.Image.PullPolicy != nil {
+		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
+	}
 
 	// Add FIPS container to pod
 	found := false
