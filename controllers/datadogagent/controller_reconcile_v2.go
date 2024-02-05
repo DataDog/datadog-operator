@@ -157,7 +157,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 	}
 
-	if err = r.handleProfiles(ctx, profiles, profilesByNode); err != nil {
+	if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace); err != nil {
 		return reconcile.Result{}, err
 	}
 
