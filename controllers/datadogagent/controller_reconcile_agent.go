@@ -291,7 +291,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			for label, value := range node.Labels {
 				newLabels[label] = value
 			}
-			newLabels[agentprofile.ProfileLabelKey] = "true"
+			newLabels[agentprofile.ProfileLabelKey] = fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
 		}
 
 		if len(newLabels) == 0 {
