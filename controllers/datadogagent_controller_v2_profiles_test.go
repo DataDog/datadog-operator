@@ -38,7 +38,8 @@ import (
 // Considerations:
 // - The nodes defined in suite_v2_test.go are used in these tests, but they are
 // not relevant, because they don't have any labels defined.
-// - All the profile and agent names are random to avoid conflicts between tests.
+// - All the profile, agent, and node names are random to avoid conflicts
+// between tests.
 
 // TODO: these tests are only for DaemonSets. We should add similar tests for
 // EDS.
@@ -67,8 +68,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 	Context("without profiles", func() {
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", nil),
-			testutils.NewNode("test-profiles-node-2", nil),
+			testutils.NewNode(randomKubernetesObjectName(), nil),
+			testutils.NewNode(randomKubernetesObjectName(), nil),
 		}
 
 		agent := testutils.NewDatadogAgentWithoutFeatures(namespace, randomKubernetesObjectName())
@@ -96,8 +97,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 
 	Context("with a profile that does not apply to any node", func() {
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+			testutils.NewNode(randomKubernetesObjectName(), map[string]string{"some-label": "1"}),
+			testutils.NewNode(randomKubernetesObjectName(), map[string]string{"some-label": "2"}),
 		}
 
 		profile := &v1alpha1.DatadogAgentProfile{
@@ -199,9 +200,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with a profile that applies to all nodes", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+			testutils.NewNode(nodeName1, map[string]string{"some-label": "1"}),
+			testutils.NewNode(nodeName2, map[string]string{"some-label": "2"}),
 		}
 
 		profile := &v1alpha1.DatadogAgentProfile{
@@ -292,8 +295,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
-			"test-profiles-node-2": true,
+			nodeName1: true,
+			nodeName2: true,
 		}
 
 		testScenario := profilesTestScenario{
@@ -308,9 +311,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with a profile that applies to some nodes", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+			testutils.NewNode(nodeName1, map[string]string{"some-label": "1"}),
+			testutils.NewNode(nodeName2, map[string]string{"some-label": "2"}),
 		}
 
 		profile := &v1alpha1.DatadogAgentProfile{
@@ -401,7 +406,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
+			nodeName1: true,
 		}
 
 		testScenario := profilesTestScenario{
@@ -416,10 +421,13 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with several profiles that don't conflict between them", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
+		nodeName3 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
-			testutils.NewNode("test-profiles-node-3", map[string]string{"some-label": "3"}),
+			testutils.NewNode(nodeName1, map[string]string{"some-label": "1"}),
+			testutils.NewNode(nodeName2, map[string]string{"some-label": "2"}),
+			testutils.NewNode(nodeName3, map[string]string{"some-label": "3"}),
 		}
 
 		profiles := []*v1alpha1.DatadogAgentProfile{
@@ -586,8 +594,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
-			"test-profiles-node-2": true,
+			nodeName1: true,
+			nodeName2: true,
 		}
 
 		testScenario := profilesTestScenario{
@@ -602,9 +610,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with several profiles that conflict between them", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+			testutils.NewNode(nodeName1, map[string]string{"some-label": "1"}),
+			testutils.NewNode(nodeName2, map[string]string{"some-label": "2"}),
 		}
 
 		// The order is important in this test. We cannot set the Creation
@@ -736,7 +746,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
+			nodeName1: true,
 		}
 
 		testScenario := profilesTestScenario{
@@ -752,9 +762,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with a profile that applies and an agent with some resource overrides", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+			testutils.NewNode(nodeName1, map[string]string{"some-label": "1"}),
+			testutils.NewNode(nodeName2, map[string]string{"some-label": "2"}),
 		}
 
 		profile := &v1alpha1.DatadogAgentProfile{
@@ -874,7 +886,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
+			nodeName1: true,
 		}
 
 		testScenario := profilesTestScenario{
@@ -889,9 +901,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 
 	Context("with a profile that has more than one node selector requirement", func() {
+		nodeName1 := randomKubernetesObjectName()
+		nodeName2 := randomKubernetesObjectName()
 		nodes := []*v1.Node{
-			testutils.NewNode("test-profiles-node-1", map[string]string{"a": "1", "b": "2"}),
-			testutils.NewNode("test-profiles-node-2", map[string]string{"a": "1"}),
+			testutils.NewNode(nodeName1, map[string]string{"a": "1", "b": "2"}),
+			testutils.NewNode(nodeName2, map[string]string{"a": "1"}),
 		}
 
 		profile := &v1alpha1.DatadogAgentProfile{
@@ -992,7 +1006,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 		}
 
 		expectedLabeledNodes := map[string]bool{
-			"test-profiles-node-1": true,
+			nodeName1: true,
 		}
 
 		testScenario := profilesTestScenario{
