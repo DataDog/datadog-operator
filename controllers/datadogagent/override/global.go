@@ -287,5 +287,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Apply FIPS config
+	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+		applyFIPSConfig(logger, manager, dda, resourcesManager)
+	}
+
 	return manager.PodTemplateSpec()
 }

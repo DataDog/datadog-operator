@@ -24,9 +24,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// ApplyFIPSConfig applies FIPS related configs to a pod template spec
-func ApplyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+// applyFIPSConfig applies FIPS related configs to a pod template spec
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers) {
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS
 
@@ -127,8 +127,6 @@ func ApplyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	if fipsConfig.Resources != nil {
 		fipsContainer.Resources = *fipsConfig.Resources
 	}
-
-	return manager.PodTemplateSpec()
 }
 
 func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
