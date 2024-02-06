@@ -11,11 +11,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-logr/logr"
+
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/go-logr/logr"
 
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

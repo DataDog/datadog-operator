@@ -649,11 +649,6 @@ type HelmCheckFeatureConfig struct {
 	// Default: {}
 	// +optional
 	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
-
-	// Conf overrides the configuration for the default Helm check.
-	// This must point to a ConfigMap containing a valid cluster check configuration.
-	// +optional
-	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
 // Generic support structs

@@ -475,15 +475,6 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithHelmCheckCustomConfigData(conf string) *DatadogAgentBuilder {
-	builder.initHelmCheck()
-	builder.datadogAgent.Spec.Features.HelmCheck.Conf = &v2alpha1.CustomConfig{
-		ConfigData: apiutils.NewStringPointer(conf),
-	}
-
-	return builder
-}
-
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {

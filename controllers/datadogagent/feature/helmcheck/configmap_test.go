@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
 
 func Test_buildHelmCheckConfigMap(t *testing.T) {
@@ -21,15 +20,6 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 		Name:      "test",
 		Namespace: "foo",
 	}
-	overrideConf := `---
-cluster_check: true
-init_config:
-instances:
-  - collect_events: true
-    helm_values_as_tags:
-      foo: bar
-      zip: zap
-`
 
 	type fields struct {
 		enable                   bool
@@ -37,7 +27,6 @@ instances:
 		rbacSuffix               string
 		serviceAccountName       string
 		owner                    metav1.Object
-		customConfig             *apicommonv1.CustomConfig
 		configMapName            string
 
 		collectEvents bool
@@ -57,20 +46,6 @@ instances:
 				configMapName: apicommon.DefaultHelmCheckConf,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(false, false, nil)),
-		},
-		{
-			name: "override configmap",
-			fields: fields{
-				owner:         owner,
-				enable:        true,
-				configMapName: apicommon.DefaultHelmCheckConf,
-				customConfig: &apicommonv1.CustomConfig{
-					ConfigData: &overrideConf,
-				},
-				collectEvents: false, // should be overridden by custom configMap
-				valuesAsTags:  nil,   // should be overridden by custom configMap
-			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, overrideConf),
 		},
 		{
 			name: "no cluster check runners",
@@ -134,7 +109,6 @@ instances:
 				rbacSuffix:               tt.fields.rbacSuffix,
 				serviceAccountName:       tt.fields.serviceAccountName,
 				owner:                    tt.fields.owner,
-				customConfig:             tt.fields.customConfig,
 				configMapName:            tt.fields.configMapName,
 				collectEvents:            tt.fields.collectEvents,
 				valuesAsTags:             tt.fields.valuesAsTags,

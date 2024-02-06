@@ -11,24 +11,21 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-var customConfData = `cluster_check: true
-init_config:
-instances:
-  - collectEvents: true
-    helm_values_as_tags:
-      foo: bar
-`
+const resourcesName = "foo"
+const resourcesNamespace = "bar"
 
 func Test_helmCheckFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -41,49 +38,82 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Helm check enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDAv2: v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
-				WithHelmCheckValuesAsTags(map[string]string{"foo": "bar"}).
-				WithHelmCheckCustomConfigData(customConfData).
+				WithHelmCheckValuesAsTags(map[string]string{"foo": "bar", "zip": "zap"}).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  helmCheckClusterAgentWantFunc(),
+			WantConfigure:        true,
+			WantDependenciesFunc: helmCheckWantDepsFunc(),
+			ClusterAgent:         helmCheckWantResourcesFunc(),
 		},
 		{
 			Name: "Helm check enabled and runs on cluster checks runner",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDAv2: v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
-				WithHelmCheckValuesAsTags(map[string]string{"foo": "bar"}).
-				WithHelmCheckCustomConfigData(customConfData).
+				WithHelmCheckValuesAsTags(map[string]string{"foo": "bar", "zip": "zap"}).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  helmCheckClusterAgentWantFunc(),
+			WantConfigure:        true,
+			WantDependenciesFunc: helmCheckWantDepsFunc(),
+			ClusterAgent:         helmCheckWantResourcesFunc(),
 		},
 	}
 
 	tests.Run(t, buildHelmCheckFeature)
 }
 
-func helmCheckClusterAgentWantFunc() *test.ComponentTest {
+func helmCheckWantDepsFunc() func(t testing.TB, store dependencies.StoreClient) {
+	return func(t testing.TB, store dependencies.StoreClient) {
+		configMapName := fmt.Sprintf("%s-%s", resourcesName, apicommon.DefaultHelmCheckConf)
+
+		if _, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, configMapName); !found {
+			t.Error("Should have created a ConfigMap")
+		}
+	}
+}
+
+func helmCheckWantResourcesFunc() *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
-
-			customConfig := apicommonv1.CustomConfig{
-				ConfigData: apiutils.NewStringPointer(customConfData),
+			expectedVols := []*corev1.Volume{
+				{
+					Name: apicommon.DefaultHelmCheckConf,
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "foo-helm-check-config",
+							},
+						},
+					},
+				},
 			}
-			hash, err := comparison.GenerateMD5ForSpec(&customConfig)
-			assert.NoError(t, err)
-			wantAnnotations := map[string]string{
-				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
-			}
-			annotations := mgr.AnnotationMgr.Annotations
-			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 
-		},
-	)
+			dcaVols := mgr.VolumeMgr.Volumes
+
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(dcaVols, expectedVols),
+				"DCA VolumeMounts \ndiff = %s", cmp.Diff(dcaVols, expectedVols),
+			)
+
+			expectedVolMounts := []*corev1.VolumeMount{
+				{
+					Name:      apicommon.DefaultHelmCheckConf,
+					MountPath: "/etc/datadog-agent/conf.d/helm.d",
+					ReadOnly:  true,
+				},
+			}
+
+			dcaVolMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ClusterAgentContainerName]
+
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(dcaVolMounts, expectedVolMounts),
+				"DCA VolumeMounts \ndiff = %s", cmp.Diff(dcaVolMounts, expectedVolMounts),
+			)
+		})
 }

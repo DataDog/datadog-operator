@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// getRBACRules generates the cluster role required for Helm Check
+// getRBACRules generates the cluster role policy rules required for the Helm Check
 func getRBACPolicyRules() []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{

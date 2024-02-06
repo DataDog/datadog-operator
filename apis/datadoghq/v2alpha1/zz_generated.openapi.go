@@ -696,17 +696,9 @@ func schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref common.Reference
 							},
 						},
 					},
-					"conf": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Conf overrides the configuration for the default Helm check. This must point to a ConfigMap containing a valid cluster check configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.CustomConfig"},
 	}
 }
 

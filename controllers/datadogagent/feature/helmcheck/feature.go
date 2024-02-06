@@ -19,9 +19,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -51,11 +49,8 @@ type helmCheckFeature struct {
 	serviceAccountName string
 	rbacSuffix         string
 
-	owner                       metav1.Object
-	customConfig                *apicommonv1.CustomConfig
-	configMapName               string
-	customConfigAnnotationKey   string
-	customConfigAnnotationValue string
+	owner         metav1.Object
+	configMapName string
 
 	logger logr.Logger
 }
@@ -74,19 +69,7 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
-		if helmCheck.Conf != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(helmCheck.Conf)
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for helm check custom config")
-			} else {
-				f.logger.V(2).Info("built helm check from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.HelmCheckIDType)
-			f.customConfigAnnotationValue = hash
-		}
-
-		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultHelmCheckConf)
+		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), apicommon.DefaultHelmCheckConf)
 		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
 		f.valuesAsTags = helmCheck.ValuesAsTags
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
@@ -110,22 +93,14 @@ func (f *helmCheckFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.Requi
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
-	// OR if the default configMap is needed.
+	// Create configMap based on feature flags.
 	cm, err := f.buildHelmCheckConfigMap()
 	if err != nil {
 		return err
 	}
-	if cm != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
 
-		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
-			return err
-		}
+	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+		return err
 	}
 
 	// Manage RBAC permission
@@ -140,30 +115,16 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 	// Manage Helm check config in configMap
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
-	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
-		// Custom config is referenced via ConfigMap
-		vol, volMount = volume.GetVolumesFromConfigMap(
-			f.customConfig.ConfigMap,
-			apicommon.HelmCheckConfigVolumeName,
-			f.configMapName,
-			helmCheckFolderName,
-		)
-	} else {
-		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(f.configMapName, apicommon.HelmCheckConfigVolumeName)
-		volMount = corev1.VolumeMount{
-			Name:      apicommon.HelmCheckConfigVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, helmCheckFolderName),
-			ReadOnly:  true,
-		}
+	// Mount default volumes for configMap
+	vol = volume.GetBasicVolume(f.configMapName, apicommon.HelmCheckConfigVolumeName)
+	volMount = corev1.VolumeMount{
+		Name:      apicommon.HelmCheckConfigVolumeName,
+		MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, helmCheckFolderName),
+		ReadOnly:  true,
 	}
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
-
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-	}
 
 	return nil
 }

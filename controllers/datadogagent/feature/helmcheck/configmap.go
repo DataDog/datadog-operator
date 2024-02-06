@@ -9,19 +9,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (f *helmCheckFeature) buildHelmCheckConfigMap() (*corev1.ConfigMap, error) {
-	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
-		return nil, nil
-	}
-	if f.customConfig != nil && f.customConfig.ConfigData != nil {
-		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, helmCheckConfFileName)
-	}
-
 	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, helmCheckConfig(f.runInClusterChecksRunner, f.collectEvents, f.valuesAsTags))
 	return configMap, nil
 }
@@ -39,6 +31,12 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 	return configMap
 }
 
+// Helm check should be configured as a cluster check only when there are Cluster Check
+// Runners deployed.
+// This check is not designed to work on the DaemonSet Agent. That's why when
+// cluster checks are enabled but without Cluster Check Runners, we don't want
+// to set this check as a cluster check, because then it would be scheduled in
+// the DaemonSet agent instead of the DCA.
 func helmCheckConfig(clusterCheck bool, collectEvents bool, valuesAsTags map[string]string) string {
 	clusterChecksVal := strconv.FormatBool(clusterCheck)
 	collectEventsVal := strconv.FormatBool(collectEvents)
