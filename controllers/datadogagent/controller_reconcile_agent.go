@@ -271,18 +271,42 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 
 		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
 
+		var newLabels map[string]string
+
+		// If the profile is the default one and the label exists in the node,
+		// it should be removed.
 		if isDefaultProfile && profileLabelExists {
-			delete(node.Labels, agentprofile.ProfileLabelKey)
-			if err := r.client.Update(ctx, node); err != nil {
-				return err
+			newLabels = make(map[string]string, len(node.Labels)-1)
+			for label, value := range node.Labels {
+				if label != agentprofile.ProfileLabelKey {
+					newLabels[label] = value
+				}
 			}
 		}
 
+		// If the profile is not the default one and the label does not exist in
+		// the node, it should be added.
 		if !isDefaultProfile && !profileLabelExists {
-			node.Labels[agentprofile.ProfileLabelKey] = "true"
-			if err := r.client.Update(ctx, node); err != nil {
-				return err
+			newLabels = make(map[string]string, len(node.Labels)+1)
+			for label, value := range node.Labels {
+				newLabels[label] = value
 			}
+			newLabels[agentprofile.ProfileLabelKey] = "true"
+		}
+
+		if len(newLabels) == 0 {
+			return nil
+		}
+
+		patch := corev1.Node{
+			TypeMeta:   node.TypeMeta,
+			ObjectMeta: node.ObjectMeta,
+		}
+		patch.Labels = newLabels
+
+		err := r.client.Patch(ctx, &patch, client.MergeFrom(node))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
 		}
 	}
 

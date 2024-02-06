@@ -296,11 +296,13 @@ func run(opts *options) error {
 
 // This function is used to configure the cache used by the manager. It is very
 // important to reduce memory usage.
-// For the profiles feature we need to list the agent pods, but were only
+// For the profiles feature we need to list the agent pods, but we're only
 // interested in the node name and the labels. This function removes all the
 // rest of fields to reduce memory usage.
-// Note that if in the future we need to list or get pods and use other fields
-// we'll need to modify this function.
+// Also for the profiles feature, we need to list the nodes, but we're only
+// interested in the node name and the labels.
+// Note that if in the future we need to list or get pods or nodes and use other
+// fields we'll need to modify this function.
 func cacheOptions() cache.Options {
 	return cache.Options{
 		SelectorsByObject: cache.SelectorsByObject{
@@ -329,6 +331,21 @@ func cacheOptions() cache.Options {
 				}
 
 				return newPod, nil
+			},
+
+			// Store only the node name and its labels.
+			&corev1.Node{}: func(obj interface{}) (interface{}, error) {
+				node := obj.(*corev1.Node)
+
+				newNode := &corev1.Node{
+					TypeMeta: node.TypeMeta,
+					ObjectMeta: v1.ObjectMeta{
+						Name:   node.Name,
+						Labels: node.Labels,
+					},
+				}
+
+				return newNode, nil
 			},
 		},
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -164,11 +165,26 @@ func (r *Reconciler) profilesCleanup() error {
 	}
 
 	for _, node := range nodeList.Items {
-		if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
-			delete(node.Labels, agentprofile.ProfileLabelKey)
-			if err := r.client.Update(context.TODO(), &node); err != nil {
-				return err
+		if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; !profileLabelExists {
+			continue
+		}
+
+		newLabels := make(map[string]string, len(node.Labels)-1)
+		for label, value := range node.Labels {
+			if label != agentprofile.ProfileLabelKey {
+				newLabels[label] = value
 			}
+		}
+
+		patch := corev1.Node{
+			TypeMeta:   node.TypeMeta,
+			ObjectMeta: node.ObjectMeta,
+		}
+		patch.Labels = newLabels
+
+		err := r.client.Patch(context.TODO(), &patch, client.MergeFrom(&node))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
 		}
 	}
 

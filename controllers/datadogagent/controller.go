@@ -76,7 +76,6 @@ type Reconciler struct {
 	client       client.Client
 	versionInfo  *version.Info
 	platformInfo kubernetes.PlatformInfo
-	nodeStore    *kubernetes.NodeStore
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
@@ -84,14 +83,13 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
-func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, nodeStore *kubernetes.NodeStore, platformInfo kubernetes.PlatformInfo,
+func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,
 		client:       client,
 		versionInfo:  versionInfo,
 		platformInfo: platformInfo,
-		nodeStore:    nodeStore,
 		scheme:       scheme,
 		log:          log,
 		recorder:     recorder,

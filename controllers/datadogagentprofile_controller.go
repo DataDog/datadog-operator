@@ -8,7 +8,6 @@ package controllers
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -21,12 +20,11 @@ import (
 
 // DatadogAgentProfileReconciler reconciles a DatadogAgentProfile object.
 type DatadogAgentProfileReconciler struct {
-	Client    client.Client
-	NodeStore *kubernetes.NodeStore
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
-	internal  *dap.Reconciler
+	Client   client.Client
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
+	internal *dap.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentprofiles,verbs=get;list;watch;create;update;patch;delete

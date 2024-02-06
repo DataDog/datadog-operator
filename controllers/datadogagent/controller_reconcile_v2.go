@@ -275,7 +275,11 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger) ([
 		return nil, nil, err
 	}
 
-	nodes := r.nodeStore.GetNodes()
+	nodeList := corev1.NodeList{}
+	err = r.client.List(ctx, &nodeList)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return agentprofile.ProfilesToApply(profilesList.Items, nodes, logger)
+	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items, logger)
 }
