@@ -93,9 +93,10 @@ const (
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 
-	defaultContainerProcessStrategyType      = commonv1.SingleProcessContainers
-	defaultHelmCheckEnabled             bool = false
-	defaultHelmCheckCollectEvents       bool = false
+	defaultContainerProcessStrategyType = commonv1.SingleProcessContainers
+
+	defaultHelmCheckEnabled       bool = false
+	defaultHelmCheckCollectEvents bool = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
