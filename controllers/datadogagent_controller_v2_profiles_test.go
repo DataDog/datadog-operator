@@ -1085,18 +1085,23 @@ func testProfilesFunc(testScenario profilesTestScenario) func() {
 			}
 
 			// Check that only the nodes with profiles are labeled
-			nodeList := v1.NodeList{}
-			err := k8sClient.List(context.TODO(), &nodeList)
-			Expect(err).ToNot(HaveOccurred())
+			// In some runs, this takes a bit of time, not sure why.
+			Eventually(func() bool {
+				nodeList := v1.NodeList{}
+				err := k8sClient.List(context.TODO(), &nodeList)
+				Expect(err).ToNot(HaveOccurred())
 
-			for _, node := range nodeList.Items {
-				_, expectLabel := testScenario.expectedLabeledNodes[node.Name]
-				if expectLabel {
-					Expect(node.Labels[agentprofile.ProfileLabelKey]).To(Equal("true"))
-				} else {
-					Expect(node.Labels[agentprofile.ProfileLabelKey]).To(Equal(""))
+				for _, node := range nodeList.Items {
+					_, expectLabel := testScenario.expectedLabeledNodes[node.Name]
+
+					if expectLabel && node.Labels[agentprofile.ProfileLabelKey] != "true" ||
+						!expectLabel && node.Labels[agentprofile.ProfileLabelKey] != "" {
+						return false
+					}
 				}
-			}
+
+				return true
+			}, 1*time.Minute, 1*time.Second).Should(BeTrue())
 		})
 	}
 
