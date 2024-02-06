@@ -44,7 +44,6 @@ type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo  *version.Info
 	PlatformInfo kubernetes.PlatformInfo
-	NodeStore    *kubernetes.NodeStore
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -175,7 +174,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
 
 // Profiles
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch,update
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -271,7 +270,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.NodeStore, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}
@@ -296,30 +295,13 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 func (r *DatadogAgentReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if node, ok := e.ObjectNew.(*corev1.Node); ok {
-				if !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
-					r.NodeStore.SetNode(node)
-					r.Log.V(1).Info("nodestore node labels updated", "node", node.Name)
-					return true
-				}
-			}
-			return false
+			return !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels())
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			if node, ok := e.Object.(*corev1.Node); ok {
-				r.NodeStore.SetNode(node)
-				r.Log.V(1).Info("nodestore new node detected", "node", node.Name)
-				return true
-			}
-			return false
+			return true
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			if node, ok := e.Object.(*corev1.Node); ok {
-				r.NodeStore.UnsetNode(node.Name)
-				r.Log.V(1).Info("nodestore node deleted", "node", node.Name)
-				return true
-			}
-			return false
+			return true
 		},
 	}
 }

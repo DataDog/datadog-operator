@@ -34,16 +34,21 @@ func TestProfilesToApply(t *testing.T) {
 	tests := []struct {
 		name                           string
 		profiles                       []v1alpha1.DatadogAgentProfile
-		nodes                          map[string]map[string]string
+		nodes                          []v1.Node
 		expectedProfiles               []v1alpha1.DatadogAgentProfile
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 	}{
 		{
 			name:     "no profiles",
 			profiles: []v1alpha1.DatadogAgentProfile{},
-			nodes: map[string]map[string]string{
-				"node1": {
-					"os": "linux",
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
@@ -70,9 +75,14 @@ func TestProfilesToApply(t *testing.T) {
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
 			},
-			nodes: map[string]map[string]string{
-				"node1": {
-					"os": "linux",
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
@@ -156,20 +166,35 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: map[string]map[string]string{
+			nodes: []v1.Node{
 				// node1 matches profile-1 and profile-3
-				"node1": {
-					"a": "1",
-					"c": "1",
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"a": "1",
+							"c": "1",
+						},
+					},
 				},
 				// node2 matches profile-2
-				"node2": {
-					"b": "1",
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							"b": "1",
+						},
+					},
 				},
 				// node3 matches profile-1 and profile-2
-				"node3": {
-					"a": "1",
-					"b": "1",
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node3",
+						Labels: map[string]string{
+							"a": "1",
+							"b": "1",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
@@ -294,12 +319,17 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: map[string]map[string]string{
+			nodes: []v1.Node{
 				// matches all profiles
-				"node1": {
-					"a": "1",
-					"b": "1",
-					"c": "1",
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"a": "1",
+							"b": "1",
+							"c": "1",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
@@ -344,9 +374,14 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			nodes: map[string]map[string]string{
-				"node1": {
-					"os": "linux",
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{
@@ -391,9 +426,14 @@ func TestProfilesToApply(t *testing.T) {
 				exampleProfileForLinux(),
 				exampleProfileForWindows(),
 			},
-			nodes: map[string]map[string]string{
-				"node1": {
-					"os": "linux",
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
 				},
 			},
 			expectedProfiles: []v1alpha1.DatadogAgentProfile{

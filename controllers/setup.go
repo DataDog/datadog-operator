@@ -58,7 +58,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoFailMaxRestarts  int
 }
 
-type starterFunc func(logr.Logger, manager.Manager, *version.Info, *kubernetes.NodeStore, kubernetes.PlatformInfo, SetupOptions) error
+type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
@@ -88,10 +88,8 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	nodeStore := kubernetes.NewNodeStore()
-
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, nodeStore, platformInfo, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}
@@ -110,7 +108,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, nodeStore *kubernetes.NodeStore, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -121,7 +119,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Client:       mgr.GetClient(),
 		VersionInfo:  vInfo,
 		PlatformInfo: pInfo,
-		NodeStore:    nodeStore,
 		Log:          ctrl.Log.WithName("controllers").WithName(agentControllerName),
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
@@ -144,7 +141,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, nodeStore *kubernetes.NodeStore, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 
@@ -166,7 +163,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info, nodeStore *kubernetes.NodeStore, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
 		return nil
@@ -189,12 +186,11 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 	return controller.SetupWithManager(mgr)
 }
 
-func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, nodeStore *kubernetes.NodeStore, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	return (&DatadogAgentProfileReconciler{
-		Client:    mgr.GetClient(),
-		NodeStore: nodeStore,
-		Log:       ctrl.Log.WithName("controllers").WithName(profileControllerName),
-		Scheme:    mgr.GetScheme(),
-		Recorder:  mgr.GetEventRecorderFor(profileControllerName),
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(profileControllerName),
 	}).SetupWithManager(mgr)
 }
