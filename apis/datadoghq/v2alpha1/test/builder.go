@@ -496,17 +496,15 @@ func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string
 	return builder
 }
 
-// Global ContainerProcessModel
+// Global ContainerStrategy
 
-func (builder *DatadogAgentBuilder) WithMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *DatadogAgentBuilder {
 	if enabled {
-		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{
-			Type: common.UnprivilegedMultiProcessContainer,
-		}
+		scs := v2alpha1.SingleContainerStrategy
+		builder.datadogAgent.Spec.Global.ContainerStrategy = &scs
 	} else {
-		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{
-			Type: common.SingleProcessContainers,
-		}
+		ocs := v2alpha1.OptimizedContainerStrategy
+		builder.datadogAgent.Spec.Global.ContainerStrategy = &ocs
 	}
 	return builder
 }
