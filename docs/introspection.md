@@ -4,9 +4,9 @@ This feature was released in operator v1.4.0 and is currently in beta.
 
 ## Overview
 
-Introspection allows the operator to detect a node's environment and automatically make configuration changes based on it. Each environment is referred to as a `provider`. Examples include GKE Container-Optimized OS (GKE COS), Azure Kubernetes Service (AKS), and Red Hat OpenShift. Depending on the node's provider, the Datadog Agent on that node may require certain configurations be set to run properly. Introspection creates a Datadog Agent deployment for each provider which includes provider-specific configurations needed to run the Agent and a provider-specific node affinity.
+Introspection allows the operator to detect a node's environment and automatically make configuration changes based on it. Each environment is referred to as a `provider`. Examples include GKE Container-Optimized OS (GKE COS), Azure Kubernetes Service (AKS), and Red Hat OpenShift. Depending on the node's provider, the Datadog Agent on that node may require certain configurations be set to run properly. Introspection creates a Datadog Agent deployment for each provider, which includes provider-specific configurations needed to run the Agent and a provider-specific node affinity.
 
-Any node that does not have an associated provider will have a `default` provider apply to them. The `default` provider does not contain any special configuration.
+Any node that does not have an associated provider will have a `default` provider applied to them. The `default` provider does not contain any special configuration.
 
 Example:
 
