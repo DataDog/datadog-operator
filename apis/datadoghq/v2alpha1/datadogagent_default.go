@@ -93,8 +93,8 @@ const (
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 
 	defaultContainerStrategy = OptimizedContainerStrategy
-  
-  defaultHelmCheckEnabled       bool = false
+
+	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
 )
 

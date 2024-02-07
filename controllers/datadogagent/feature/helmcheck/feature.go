@@ -55,6 +55,13 @@ type helmCheckFeature struct {
 	logger logr.Logger
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *helmCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
 // ID returns the ID of the Feature
 func (f *helmCheckFeature) ID() feature.IDType {
 	return feature.HelmCheckIDType
@@ -106,7 +113,7 @@ func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers,
 	// Manage RBAC permission
 	rbacName := getHelmCheckRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, helmCheckRBACPolicyRules)
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

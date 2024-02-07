@@ -8,7 +8,10 @@ package helmcheck
 import (
 	"fmt"
 
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 const (
@@ -16,6 +19,21 @@ const (
 	helmCheckFolderName   = "helm.d"
 	helmCheckRBACPrefix   = "helm-check"
 )
+
+var helmCheckRBACPolicyRules = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{
+			rbac.SecretsResource,
+			rbac.ConfigMapsResource,
+		},
+		Verbs: []string{
+			rbac.GetVerb,
+			rbac.ListVerb,
+			rbac.WatchVerb,
+		},
+	},
+}
 
 func getHelmCheckRBACResourceName(owner metav1.Object, rbacSuffix string) string {
 	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), helmCheckRBACPrefix, rbacSuffix)
