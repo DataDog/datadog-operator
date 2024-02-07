@@ -20,7 +20,7 @@ clone_and_sync_fork() {
   # sync forked repo on a new branch because of repo restrictions against merging upstream to default "main" branch
   echo "Syncing fork DataDog/$repo with upstream $ORG/$repo."
   git checkout -b "$PR_BRANCH_NAME"
-  git push -f --set-upstream origin $PR_BRANCH_NAME
+  git push -f --set-upstream origin "$PR_BRANCH_NAME"
   gh repo sync DataDog/"$repo" \
   --branch "$PR_BRANCH_NAME" \
   --source "$ORG"/"$repo" \

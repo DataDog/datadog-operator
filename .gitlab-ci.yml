@@ -385,4 +385,4 @@ publish_community_operators:
     - gh auth login --with-token < git-token.txt
     - gh auth setup-git
     # create pull request for each marketplace repo
-    - $CI_PROJECT_DIR/.gitlab/community_operators_prs.sh $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators
+    - make publish-community-bundles $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators
