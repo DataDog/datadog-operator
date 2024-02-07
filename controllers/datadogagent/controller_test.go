@@ -2891,16 +2891,18 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 		name               string
 		nodes              []corev1.Node
 		profilesByNode     map[string]types.NamespacedName
-		expectProfileLabel map[string]bool
+		expectProfileLabel map[string]string
 	}{
 		{
 			name: "All nodes match profiles",
 			profilesByNode: map[string]types.NamespacedName{
 				"node-1": {
-					Name: "profile-1",
+					Name:      "profile-1",
+					Namespace: "ns-1",
 				},
 				"node-2": {
-					Name: "profile-2",
+					Name:      "profile-2",
+					Namespace: "ns-2",
 				},
 			},
 			nodes: []corev1.Node{
@@ -2921,16 +2923,17 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 					},
 				},
 			},
-			expectProfileLabel: map[string]bool{
-				"node-1": true,
-				"node-2": true,
+			expectProfileLabel: map[string]string{
+				"node-1": "ns-1-profile-1",
+				"node-2": "ns-2-profile-2",
 			},
 		},
 		{
 			name: "Some nodes match profiles",
 			profilesByNode: map[string]types.NamespacedName{
 				"node-2": {
-					Name: "profile-2",
+					Name:      "profile-2",
+					Namespace: "ns-2",
 				},
 			},
 			nodes: []corev1.Node{
@@ -2951,9 +2954,9 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 					},
 				},
 			},
-			expectProfileLabel: map[string]bool{
-				"node-1": false,
-				"node-2": true,
+			expectProfileLabel: map[string]string{
+				"node-1": "",
+				"node-2": "ns-2-profile-2",
 			},
 		},
 		{
@@ -2977,9 +2980,9 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 					},
 				},
 			},
-			expectProfileLabel: map[string]bool{
-				"node-1": false,
-				"node-2": false,
+			expectProfileLabel: map[string]string{
+				"node-1": "",
+				"node-2": "",
 			},
 		},
 	}
@@ -3004,10 +3007,8 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 			require.NoError(t, err, "Node with matching profile label not found")
 
 			for _, node := range gotNodes.Items {
-				if val, ok := tt.expectProfileLabel[node.Name]; ok {
-					if val {
-						assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], "true")
-					}
+				if val, ok := tt.expectProfileLabel[node.Name]; ok && val != "" {
+					assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], val)
 				} else {
 					assert.NotContains(t, node.Labels, agentprofile.ProfileLabelKey)
 				}
