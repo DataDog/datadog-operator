@@ -182,8 +182,11 @@ func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 
 	if !excludeNonResourceRules {
 		policyRule = append(policyRule, rbacv1.PolicyRule{
-			NonResourceURLs: []string{rbac.MetricsURL},
-			Verbs:           []string{rbac.GetVerb},
+			NonResourceURLs: []string{
+				rbac.MetricsURL,
+				rbac.MetricsSLIsURL,
+			},
+			Verbs: []string{rbac.GetVerb},
 		})
 	}
 
