@@ -42,6 +42,7 @@ const (
 	deploymentFailureValue      = 0.0
 	deploymentMetricFormat      = "%s.%s.deployment.success"
 	stateTagFormat              = "state:%s"
+	crAgentNameTagFormat        = "cr_agent_name:%s"
 	clusterNameTagFormat        = "cluster_name:%s"
 	crNsTagFormat               = "cr_namespace:%s"
 	crNameTagFormat             = "cr_name:%s"
@@ -99,7 +100,7 @@ type metricsForwarder struct {
 	apiKey       string
 	clusterName  string
 	labels       map[string]string
-	dsStatus     *commonv1.DaemonSetStatus
+	dsStatus     []*commonv1.DaemonSetStatus
 	dcaStatus    *commonv1.DeploymentStatus
 	ccrStatus    *commonv1.DeploymentStatus
 
@@ -255,7 +256,7 @@ func (mf *metricsForwarder) setupV2() error {
 	mf.labels = dda.GetLabels()
 
 	status := dda.Status.DeepCopy()
-	mf.dsStatus = status.Agent
+	mf.dsStatus = status.AgentList
 	mf.dcaStatus = status.ClusterAgent
 	mf.ccrStatus = status.ClusterChecksRunner
 
@@ -282,7 +283,7 @@ func (mf *metricsForwarder) setup() error {
 	mf.clusterName = dda.Spec.ClusterName
 	mf.labels = dda.GetLabels()
 
-	mf.dsStatus = dda.Status.Agent
+	mf.dsStatus = append(mf.dsStatus, dda.Status.Agent)
 	mf.dcaStatus = dda.Status.ClusterAgent
 	mf.ccrStatus = dda.Status.ClusterChecksRunner
 
@@ -475,20 +476,23 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 	return datadogClient, nil
 }
 
-func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus, dcaStatus, ccrStatus *commonv1.DeploymentStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*commonv1.DaemonSetStatus, dcaStatus, ccrStatus *commonv1.DeploymentStatus) error {
 	var metricValue float64
 
 	// Agent deployment metrics
-	if dsStatus != nil {
-		if dsStatus.Available == dsStatus.Desired {
-			metricValue = deploymentSuccessValue
-		} else {
-			metricValue = deploymentFailureValue
-		}
-		tags := mf.tagsWithExtraTag(stateTagFormat, dsStatus.State)
-		tags = append(tags, mf.getCRVersionTags()...)
-		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
-			return err
+	if len(dsStatus) > 0 {
+		for _, status := range dsStatus {
+			if status.Available == status.Desired {
+				metricValue = deploymentSuccessValue
+			} else {
+				metricValue = deploymentFailureValue
+			}
+			tags := mf.tagsWithExtraTag(stateTagFormat, status.State)
+			tags = append(tags, mf.getCRVersionTags()...)
+			tags = append(tags, fmt.Sprintf(crAgentNameTagFormat, status.DaemonsetName))
+			if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
+				return err
+			}
 		}
 	}
 

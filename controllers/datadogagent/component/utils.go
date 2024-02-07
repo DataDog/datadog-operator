@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
+
+	"github.com/google/uuid"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -27,6 +30,15 @@ import (
 
 const (
 	localServiceDefaultMinimumVersion = "1.22-0"
+
+	DefaultAgentInstallType = "k8s_manual"
+)
+
+var (
+	// AgentInstallTime records the Agent install time
+	AgentInstallTime = strconv.FormatInt(time.Now().Unix(), 10)
+
+	AgentInstallId = uuid.NewString()
 )
 
 // GetVolumeForConfig return the volume that contains the agent config
@@ -348,11 +360,6 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
-// GetClusterAgentSCCName returns the Cluster-Agent SCC name based on the DatadogAgent name
-func GetClusterAgentSCCName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -375,11 +382,6 @@ func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
 		version = imageConfig.Tag
 	}
 	return version
-}
-
-// GetAgentSCCName returns the Agent SCC name based on the DatadogAgent name
-func GetAgentSCCName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
@@ -564,7 +566,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 // GetAgentLocalServiceSelector creates the selector to be used for the agent local service
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
 }

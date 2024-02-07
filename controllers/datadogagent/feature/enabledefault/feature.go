@@ -384,9 +384,18 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 	return nil
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *defaultFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.ManageNodeAgent(managers, provider)
+
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.addDefaultCommonEnvs(managers)
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)

@@ -17,32 +17,40 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
-
+	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
+	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
 
-// NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
-func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
+// NewDefaultAgentPodTemplateSpec returns a defaulted node agent PodTemplateSpec with a single multi-process container or multiple single-process containers
+func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.RequiredComponent, labels map[string]string) *corev1.PodTemplateSpec {
+	requiredContainers := agentComponent.Containers
+
+	var agentContainers []corev1.Container
+	if agentComponent.SingleContainerStrategyEnabled() {
+		agentContainers = agentSingleContainer(dda)
+	} else {
+		agentContainers = agentOptimizedContainers(dda, requiredContainers)
+	}
+
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -55,7 +63,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers:     initContainers(dda, requiredContainers),
-			Containers:         agentContainers(dda, requiredContainers),
+			Containers:         agentContainers,
 			Volumes:            volumesForAgent(dda, requiredContainers),
 		},
 	}
@@ -99,7 +107,24 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	return initContainers
 }
 
-func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+func agentSingleContainer(dda metav1.Object) []corev1.Container {
+	agentSingleContainer := corev1.Container{
+		Name:           string(common.UnprivilegedSingleAgentContainerName),
+		Image:          agentImage(),
+		Env:            envVarsForCoreAgent(dda),
+		VolumeMounts:   volumeMountsForCoreAgent(),
+		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+	}
+
+	containers := []corev1.Container{
+		agentSingleContainer,
+	}
+
+	return containers
+}
+
+func agentOptimizedContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
 
 	for _, containerName := range requiredContainers {
@@ -140,7 +165,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:           commonEnvVars(dda),
+		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
 		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
@@ -269,7 +294,32 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDLeaderElection,
-			Value: "true",
+			Value: apicommon.EnvVarTrueValue,
+		},
+		{
+			// we want to default it in 7.49.0
+			// but in 7.50.0 it will be already defaulted in the agent process.
+			Name:  apicommon.DDContainerImageEnabled,
+			Value: apicommon.EnvVarTrueValue,
+		},
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
+func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallId,
+			Value: component.AgentInstallId,
+		},
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallTime,
+			Value: component.AgentInstallTime,
+		},
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallType,
+			Value: component.DefaultAgentInstallType,
 		},
 	}
 
@@ -377,63 +427,6 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
-	}
-}
-
-// GetDefaultSCC returns the default SCC for the node agent component
-func GetDefaultSCC(dda *v2alpha1.DatadogAgent) *securityv1.SecurityContextConstraints {
-	return &securityv1.SecurityContextConstraints{
-		Users: []string{
-			fmt.Sprintf("system:serviceaccount:%s:%s", dda.Namespace, v2alpha1.GetAgentServiceAccount(dda)),
-		},
-		Priority:         apiutils.NewInt32Pointer(8),
-		AllowHostPorts:   v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
-		AllowHostNetwork: v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
-		Volumes: []securityv1.FSType{
-			securityv1.FSTypeConfigMap,
-			securityv1.FSTypeDownwardAPI,
-			securityv1.FSTypeEmptyDir,
-			securityv1.FSTypeHostPath,
-			securityv1.FSTypeSecret,
-		},
-		SELinuxContext: securityv1.SELinuxContextStrategyOptions{
-			Type: securityv1.SELinuxStrategyMustRunAs,
-			SELinuxOptions: &corev1.SELinuxOptions{
-				User:  "system_u",
-				Role:  "system_r",
-				Type:  "spc_t",
-				Level: "s0",
-			},
-		},
-		SeccompProfiles: []string{
-			"runtime/default",
-			"localhost/system-probe",
-		},
-		AllowedCapabilities: []corev1.Capability{
-			"SYS_ADMIN",
-			"SYS_RESOURCE",
-			"SYS_PTRACE",
-			"NET_ADMIN",
-			"NET_BROADCAST",
-			"NET_RAW",
-			"IPC_LOCK",
-			"CHOWN",
-			"AUDIT_CONTROL",
-			"AUDIT_READ",
-		},
-		AllowHostDirVolumePlugin: true,
-		AllowHostIPC:             true,
-		AllowPrivilegedContainer: false,
-		FSGroup: securityv1.FSGroupStrategyOptions{
-			Type: securityv1.FSGroupStrategyMustRunAs,
-		},
-		ReadOnlyRootFilesystem: false,
-		RunAsUser: securityv1.RunAsUserStrategyOptions{
-			Type: securityv1.RunAsUserStrategyRunAsAny,
-		},
-		SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
-			Type: securityv1.SupplementalGroupsStrategyRunAsAny,
-		},
 	}
 }
 

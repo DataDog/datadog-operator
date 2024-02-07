@@ -11,14 +11,15 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestContainer(t *testing.T) {
@@ -373,7 +374,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "override readiness probe",
+			name:          "override readiness probe with default HTTPGet",
 			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -400,13 +401,70 @@ func TestContainer(t *testing.T) {
 							PeriodSeconds:       30,
 							SuccessThreshold:    1,
 							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/ready",
+									Port: intstr.IntOrString{
+										IntVal: 5555,
+									},
+								},
+							},
 						},
 						container.ReadinessProbe)
 				})
 			},
 		},
 		{
-			name:          "override liveness probe",
+			name:          "override readiness probe",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				ReadinessProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/some/path",
+							Port: intstr.IntOrString{
+								IntVal: 1234,
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/some/path",
+									Port: intstr.IntOrString{
+										IntVal: 1234,
+									},
+								},
+							},
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+						},
+						container.ReadinessProbe)
+				})
+			},
+		},
+		{
+			name:          "override liveness probe with default HTTPGet",
 			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -433,6 +491,63 @@ func TestContainer(t *testing.T) {
 							PeriodSeconds:       30,
 							SuccessThreshold:    1,
 							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/live",
+									Port: intstr.IntOrString{
+										IntVal: 5555,
+									},
+								},
+							},
+						},
+						container.LivenessProbe)
+				})
+			},
+		},
+		{
+			name:          "override liveness probe",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				LivenessProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/some/path",
+							Port: intstr.IntOrString{
+								IntVal: 1234,
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/some/path",
+									Port: intstr.IntOrString{
+										IntVal: 1234,
+									},
+								},
+							},
 						},
 						container.LivenessProbe)
 				})

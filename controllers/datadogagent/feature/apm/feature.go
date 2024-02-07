@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +54,6 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
-	createSCC                     bool
 }
 
 // ID returns the ID of the Feature
@@ -89,8 +87,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 		}
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
-
-		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -226,18 +222,6 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// scc
-	if f.createSCC {
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{}
-
-		if f.hostPortEnabled {
-			scc.AllowHostPorts = true
-		}
-
-		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
-	}
-
 	return nil
 }
 
@@ -247,10 +231,24 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.TraceAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
 		Value: "true",
 	})
@@ -267,29 +265,29 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		if f.useHostNetwork {
 			apmPort.ContainerPort = f.hostPortHostPort
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverPort,
 			Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
 		})
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMNonLocalTraffic,
 			Value: "true",
 		})
 	}
-	managers.Port().AddPortToContainer(apicommonv1.TraceAgentContainerName, apmPort)
+	managers.Port().AddPortToContainer(agentContainerName, apmPort)
 
 	// uds
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverSocket,
 			Value: filepath.Join(apicommon.APMSocketVolumeLocalPath, sockName),
 		})
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.TraceAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}
 

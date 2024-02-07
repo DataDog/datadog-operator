@@ -24,7 +24,6 @@ core,github.com/go-openapi/jsonpointer,Apache-2.0
 core,github.com/go-openapi/jsonreference,Apache-2.0
 core,github.com/go-openapi/swag,Apache-2.0
 core,github.com/gobwas/glob,MIT
-core,github.com/goccy/go-json,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
 core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause

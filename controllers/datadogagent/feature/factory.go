@@ -10,6 +10,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
@@ -57,6 +58,17 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Merge(&reqComponents)
 	}
 
+	if dda.Spec.Global != nil &&
+		dda.Spec.Global.ContainerStrategy != nil &&
+		*dda.Spec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
+		// All features that need the NodeAgent must include it in their RequiredComponents;
+		// otherwise tests will fail when checking `requiredComponents.Agent.IsPrivileged()`.
+		requiredComponents.Agent.IsEnabled() &&
+		!requiredComponents.Agent.IsPrivileged() {
+
+		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedSingleAgentContainerName}
+		return output, requiredComponents
+	}
 	return output, requiredComponents
 }
 

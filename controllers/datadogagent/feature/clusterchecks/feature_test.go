@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -45,7 +46,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			DDAv1:         newV1Agent(true, false),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvs),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
 			Name:                "v1alpha1 cluster checks enabled and runners enabled",
@@ -53,7 +54,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvs),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.CoreAgentContainerName),
 		},
 
 		//////////////////////////
@@ -72,38 +73,73 @@ func TestClusterChecksFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 cluster checks not enabled and runners not enabled",
-			DDAv2:         newV2Agent(false, false),
+			Name: "v2alpha1 cluster checks not enabled and runners not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(false).
+				WithClusterChecksUseCLCEnabled(false).
+				Build(),
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasNonEmptyChecksumAnnotation),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 cluster checks not enabled and runners enabled",
-			DDAv2:         newV2Agent(false, true),
+			Name: "v2alpha1 cluster checks not enabled and runners enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(false).
+				WithClusterChecksUseCLCEnabled(true).
+				Build(),
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasNonEmptyChecksumAnnotation),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 cluster checks enabled and runners not enabled",
-			DDAv2:         newV2Agent(true, false),
+			Name: "v2alpha1 cluster checks enabled and runners not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
-			Name:                "v2alpha1 cluster checks enabled and runners enabled",
-			DDAv2:               newV2Agent(true, true),
+			Name: "v2alpha1 cluster checks enabled and runners not enabled with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(false).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 cluster checks enabled and runners enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.CoreAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 cluster checks enabled and runners enabled with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithClusterChecksEnabled(true).
+				WithClusterChecksUseCLCEnabled(true).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
+			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 	}
 
 	tests.Run(t, buildClusterChecksFeature)
 }
 
-func TestClusterAgentChecksumsDifferentForDiffferentConfig(t *testing.T) {
+func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("checksum unique")
 
@@ -123,10 +159,22 @@ func TestClusterAgentChecksumsDifferentForDiffferentConfig(t *testing.T) {
 				},
 			},
 		},
-		newV2Agent(false, false),
-		newV2Agent(false, true),
-		newV2Agent(true, false),
-		newV2Agent(true, true),
+		v2alpha1test.NewDatadogAgentBuilder().
+			WithClusterChecksEnabled(false).
+			WithClusterChecksUseCLCEnabled(false).
+			Build(),
+		v2alpha1test.NewDatadogAgentBuilder().
+			WithClusterChecksEnabled(false).
+			WithClusterChecksUseCLCEnabled(true).
+			Build(),
+		v2alpha1test.NewDatadogAgentBuilder().
+			WithClusterChecksEnabled(true).
+			WithClusterChecksUseCLCEnabled(false).
+			Build(),
+		v2alpha1test.NewDatadogAgentBuilder().
+			WithClusterChecksEnabled(true).
+			WithClusterChecksUseCLCEnabled(true).
+			Build(),
 	}
 
 	for _, datadogAgent := range datadogAgents {
@@ -150,19 +198,6 @@ func newV1Agent(enableClusterChecks bool, enableClusterCheckRunners bool) *v1alp
 			},
 			ClusterChecksRunner: v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
 				Enabled: apiutils.NewBoolPointer(enableClusterCheckRunners),
-			},
-		},
-	}
-}
-
-func newV2Agent(enableClusterChecks bool, enableClusterCheckRunners bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
-					Enabled:                 apiutils.NewBoolPointer(enableClusterChecks),
-					UseClusterChecksRunners: apiutils.NewBoolPointer(enableClusterCheckRunners),
-				},
 			},
 		},
 	}
@@ -232,12 +267,12 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 	)
 }
 
-func testAgentHasExpectedEnvsWithRunners() *test.ComponentTest {
+func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDExtraConfigProviders,
@@ -254,12 +289,12 @@ func testAgentHasExpectedEnvsWithRunners() *test.ComponentTest {
 	)
 }
 
-func testAgentHasExpectedEnvsWithNoRunners() *test.ComponentTest {
+func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDExtraConfigProviders,

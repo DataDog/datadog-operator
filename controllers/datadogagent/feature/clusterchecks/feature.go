@@ -16,8 +16,8 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,6 +72,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 		reqComp = feature.RequiredComponents{
+			Agent:               feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
 		}
@@ -199,10 +200,23 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *clusterChecksFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(common.UnprivilegedSingleAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(common.CoreAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *clusterChecksFeature) manageNodeAgent(agentContainerName common.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
-			common.CoreAgentContainerName,
+			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
 				Value: apicommon.EndpointsChecksConfigProvider,
@@ -210,7 +224,7 @@ func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		)
 	} else {
 		managers.EnvVar().AddEnvVarToContainer(
-			common.CoreAgentContainerName,
+			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
 				Value: apicommon.ClusterAndEndpointsConfigProviders,
