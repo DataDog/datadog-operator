@@ -193,7 +193,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 	return controller.SetupWithManager(mgr)
 }
 
-func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
 	return (&DatadogAgentProfileReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),

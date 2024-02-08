@@ -71,40 +71,36 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 		var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
-		componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
-		componentOverrideCopy := componentOverride.DeepCopy()
+		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+			componentOverrides = append(componentOverrides, componentOverride)
+		}
+
+		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+		componentOverrides = append(componentOverrides, &overrideFromProfile)
+
 		if r.options.IntrospectionEnabled {
-			// Add provider-specific label
-			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-			// Add provider node affinity
+			// use the last name override in the list to generate a provider-specific name
+			overrideName := eds.Name
+			for _, componentOverride := range componentOverrides {
+				if componentOverride.Name != nil && *componentOverride.Name != "" {
+					overrideName = *componentOverride.Name
+				}
+			}
 			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
 			combinedAffinity := r.generateNodeAffinity(provider, affinity)
-			eds.Spec.Template.Spec.Affinity = combinedAffinity
-			if overriden {
-				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, componentOverride.Name)
-				componentOverrideCopy.Name = &agentNameWithProvider
-			} else {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
-				componentOverrideCopy = &overrideFromProvider
-			}
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
-		if componentOverrideCopy != nil {
-			componentOverrides = append(componentOverrides, componentOverride)
-		}
-
-		// Apply overrides from profiles last, so they can override what's defined in the DDA.
-		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
-		componentOverrides = append(componentOverrides, &overrideFromProfile)
-
 		for _, componentOverride := range componentOverrides {
-			if apiutils.BoolValue(componentOverrideCopy.Disabled) {
+			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-			override.ExtendedDaemonSet(eds, componentOverrideCopy)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
 		if disabledByOverride {
@@ -146,40 +142,36 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
-	componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
-	componentOverrideCopy := componentOverride.DeepCopy()
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		componentOverrides = append(componentOverrides, componentOverride)
+	}
+
+	// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+	overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+	componentOverrides = append(componentOverrides, &overrideFromProfile)
+
 	if r.options.IntrospectionEnabled {
-		// Add provider-specific label
-		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-		// Add provider node affinity
+		// use the last name override in the list to generate a provider-specific name
+		overrideName := daemonset.Name
+		for _, componentOverride := range componentOverrides {
+			if componentOverride.Name != nil && *componentOverride.Name != "" {
+				overrideName = *componentOverride.Name
+			}
+		}
 		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
 		combinedAffinity := r.generateNodeAffinity(provider, affinity)
-		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
-		if overriden {
-			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, componentOverride.Name)
-			componentOverrideCopy.Name = &agentNameWithProvider
-		} else {
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
-			componentOverrideCopy = &overrideFromProvider
-		}
+		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
 		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
-	if componentOverrideCopy != nil {
-		componentOverrides = append(componentOverrides, componentOverride)
-	}
-
-	// Apply overrides from profiles last, so they can override what's defined in the DDA.
-	overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
-	componentOverrides = append(componentOverrides, &overrideFromProfile)
-
 	for _, componentOverride := range componentOverrides {
-		if apiutils.BoolValue(componentOverrideCopy.Disabled) {
+		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-		override.DaemonSet(daemonset, componentOverrideCopy)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+		override.DaemonSet(daemonset, componentOverride)
 	}
 
 	if disabledByOverride {
@@ -425,7 +417,15 @@ func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.C
 			Name:      profile.Name,
 		}
 
-		daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+		if r.options.IntrospectionEnabled {
+			providerList := r.providerStore.GetProviders()
+			for provider := range *providerList {
+				name.Name = kubernetes.GetAgentNameWithProvider(name.Name, provider)
+				daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+			}
+		} else {
+			daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+		}
 	}
 
 	for _, daemonSet := range daemonSets {
