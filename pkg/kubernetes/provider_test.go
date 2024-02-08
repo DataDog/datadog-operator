@@ -151,7 +151,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			wantNSR:           []corev1.NodeSelectorRequirement{},
 		},
 		{
-			name: "one existing provider, new default provider",
+			name: "one existing provider, default provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -171,11 +171,11 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
-			provider: gkeCosProvider,
+			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
 					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpIn,
+					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						GKECosType,
 					},
@@ -221,11 +221,11 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 				"abcdef":       {},
 				"lmnop":        {},
 			},
-			provider: gkeCosProvider,
+			provider: defaultProvider,
 			wantNSR: []corev1.NodeSelectorRequirement{
 				{
 					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpIn,
+					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						GKECosType,
 					},
