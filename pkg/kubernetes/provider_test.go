@@ -151,7 +151,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			wantNSR:           []corev1.NodeSelectorRequirement{},
 		},
 		{
-			name: "one existing provider, default provider",
+			name: "one existing provider, default/ubuntu provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -167,23 +167,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "one existing provider, ubuntu provider",
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			provider: defaultProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						GKECosType,
-					},
-				},
-			},
-		},
-		{
-			name: "multiple providers, default provider",
+			name: "multiple providers, default/ubuntu provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 				"gke-abcde":    {},
@@ -210,24 +194,6 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						"zyxwv",
-					},
-				},
-			},
-		},
-		{
-			name: "multiple providers, ubuntu provider",
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-				"abcdef":       {},
-				"lmnop":        {},
-			},
-			provider: defaultProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						GKECosType,
 					},
 				},
 			},
