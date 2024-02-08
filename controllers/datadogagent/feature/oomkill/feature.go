@@ -6,9 +6,10 @@
 package oomkill
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -96,7 +97,7 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 	// src volume mount
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GKECosContainerdType && providerValue != kubernetes.GKECosType {
+	if providerValue != kubernetes.GKECosType {
 		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
 		managers.Volume().AddVolume(&srcVol)
