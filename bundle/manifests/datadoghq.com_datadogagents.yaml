@@ -13659,6 +13659,11 @@ spec:
                     description: Path to the container runtime socket (if different
                       from Docker).
                     type: string
+                  disableNonResourceRules:
+                    description: Set DisableNonResourceRules to exclude NonResourceURLs
+                      from default ClusterRoles. Required 'true' for Google Cloud
+                      Marketplace.
+                    type: boolean
                   dockerSocketPath:
                     description: Path to the docker runtime socket.
                     type: string
