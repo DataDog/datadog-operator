@@ -952,7 +952,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		},
 	}
 
-	rbacRules := agent.GetDefaultAgentClusterRolePolicyRules()
+	rbacRules := agent.GetDefaultAgentClusterRolePolicyRules(false)
 
 	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
 	if *dda.Spec.Credentials.UseSecretBackend &&
