@@ -85,7 +85,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, NodeAffinity empty, cos containerd provider",
+			name: "existing affinity, NodeAffinity empty, cos provider",
 			args: args{
 				affinity: &corev1.Affinity{
 					PodAffinity: &corev1.PodAffinity{
@@ -127,7 +127,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, NodeAffinity filled, cos containerd provider",
+			name: "existing affinity, NodeAffinity filled, cos provider",
 			args: args{
 				affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
