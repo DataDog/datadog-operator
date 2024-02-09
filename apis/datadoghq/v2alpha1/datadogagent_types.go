@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -75,6 +74,8 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// SBOM collection configuration.
+	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 
 	// Cluster-level features
 
@@ -101,7 +102,7 @@ type DatadogFeatures struct {
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
 	// Enabled enables Application Performance Monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -315,6 +316,31 @@ type RemoteConfigurationFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
+// SBOM runs in the Agent.
+type SBOMFeatureConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
+	Host           *SBOMTypeConfig `json:"host,omitempty"`
+}
+
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMTypeConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -681,7 +707,12 @@ type GlobalConfig struct {
 	ClusterName *string `json:"clusterName,omitempty"`
 
 	// Site is the Datadog intake site Agent data are sent to.
+	// Set to 'datadoghq.com' to send data to the US1 site (default).
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Set to 'us3.datadoghq.com' to send data to the US3 site.
+	// Set to 'us5.datadoghq.com' to send data to the US5 site.
+	// Set to 'ddog-gov.com' to send data to the US1-FED site.
+	// Set to 'ap1.datadoghq.com' to send data to the AP1 site.
 	// Default: 'datadoghq.com'
 	// +optional
 	Site *string `json:"site,omitempty"`
@@ -749,6 +780,11 @@ type GlobalConfig struct {
 	// Path to the container runtime socket (if different from Docker).
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
+
+	// ContainerStrategy determines whether agents run in a single or multiple containers.
+	// Default: 'optimized'
+	// +optional
+	ContainerStrategy *ContainerStrategyType `json:"containerStrategy,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -917,10 +953,6 @@ type DatadogAgentComponentOverride struct {
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Configure the SecurityContextConstraints for each component.
-	// +optional
-	SecurityContextConstraints *SecurityContextConstraintsConfig `json:"securityContextConstraints,omitempty"`
-
 	// Pod-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -963,19 +995,6 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
-}
-
-// SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.
-// +k8s:openapi-gen=true
-type SecurityContextConstraintsConfig struct {
-	// Create defines whether to create a SecurityContextConstraints for the current component.
-	// If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
-	// +optional
-	Create *bool `json:"create,omitempty"`
-
-	// CustomConfiguration defines a custom SCC configuration to use if Create is `true`.
-	// +optional
-	CustomConfiguration *securityv1.SecurityContextConstraints `json:"customConfiguration,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -1046,6 +1065,17 @@ type DatadogAgentGenericContainer struct {
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
 }
 
+type ContainerStrategyType string
+
+const (
+	// OptimizedContainerStrategy indicates multiple Agent containers with one process per
+	// container (default)
+	OptimizedContainerStrategy ContainerStrategyType = "optimized"
+	// SingleContainerStrategy indicates a single Agent container with multiple (unprivileged)
+	// processes in one container
+	SingleContainerStrategy ContainerStrategyType = "single"
+)
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -1054,7 +1084,11 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as an extended daemonset.
+	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// +optional
+	// +listType=atomic
+	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
+	// The combined actual state of all Agents as daemonsets or extended daemonsets.
 	// +optional
 	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.

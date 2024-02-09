@@ -6,13 +6,12 @@
 package component
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information

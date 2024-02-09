@@ -19,6 +19,9 @@ const (
 	DDAdmissionControllerWebhookName                  = "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME"
 	DDAPIKey                                          = "DD_API_KEY"
 	DDAPMEnabled                                      = "DD_APM_ENABLED"
+	DDAPMInstrumentationInstallTime                   = "DD_INSTRUMENTATION_INSTALL_TIME"
+	DDAPMInstrumentationInstallId                     = "DD_INSTRUMENTATION_INSTALL_ID"
+	DDAPMInstrumentationInstallType                   = "DD_INSTRUMENTATION_INSTALL_TYPE"
 	DDAPMNonLocalTraffic                              = "DD_APM_NON_LOCAL_TRAFFIC"
 	DDAPMReceiverPort                                 = "DD_APM_RECEIVER_PORT"
 	DDAPMReceiverSocket                               = "DD_APM_RECEIVER_SOCKET"
@@ -68,6 +71,7 @@ const (
 	DDKubeletCAPath                                   = "DD_KUBELET_CLIENT_CA"
 	DDKubeletHost                                     = "DD_KUBERNETES_KUBELET_HOST"
 	DDKubeletTLSVerify                                = "DD_KUBELET_TLS_VERIFY"
+	DDKubeResourcesNamespace                          = "DD_KUBE_RESOURCES_NAMESPACE"
 	DDKubeStateMetricsCoreConfigMap                   = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDKubeStateMetricsCoreEnabled                     = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDLeaderElection                                  = "DD_LEADER_ELECTION"
@@ -105,6 +109,12 @@ const (
 	DDRuntimeSecurityConfigNetworkEnabled             = "DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED"
 	DDRuntimeSecurityConfigActivityDumpEnabled        = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED"
 	DDRuntimeSecurityConfigRemoteConfigurationEnabled = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED"
+	DDContainerImageEnabled                           = "DD_CONTAINER_IMAGE_ENABLED"
+	DDSBOMEnabled                                     = "DD_SBOM_ENABLED"
+	DDSBOMContainerImageEnabled                       = "DD_SBOM_CONTAINER_IMAGE_ENABLED"
+	DDSBOMContainerImageAnalyzers                     = "DD_SBOM_CONTAINER_IMAGE_ANALYZERS"
+	DDSBOMHostEnabled                                 = "DD_SBOM_HOST_ENABLED"
+	DDSBOMHostAnalyzers                               = "DD_SBOM_HOST_ANALYZERS"
 	DDSecretBackendCommand                            = "DD_SECRET_BACKEND_COMMAND"
 	DDSite                                            = "DD_SITE"
 	DDSystemProbeAgentEnabled                         = "DD_SYSTEM_PROBE_ENABLED"
@@ -131,4 +141,7 @@ const (
 	KubernetesEnvVar = "KUBERNETES"
 
 	ClusterChecksConfigProvider = "clusterchecks"
+
+	EnvVarTrueValue  = "true"
+	EnvVarFalseValue = "false"
 )

@@ -11,7 +11,8 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
+
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -35,22 +36,43 @@ func TestLiveContainerFeature(t *testing.T) {
 			Name:          "v1alpha1 live container collection enabled",
 			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
 		},
 
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v1alpha1 live container collection not enabled",
-			DDAv2:         newV2Agent(false),
+			Name: "v1alpha1 live container collection not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(false).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 live container collection enabled",
-			DDAv2:         newV2Agent(true),
+			Name: "v1alpha1 live container collection not enabled with single container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(false).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure: false,
+		},
+		{
+			Name: "v2alpha1 live container collection enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled with single container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithSingleContainerStrategy(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 	}
 
@@ -69,24 +91,12 @@ func newV1Agent(enableLiveContainer bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enableLiveContainer bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(enableLiveContainer),
-				},
-			},
-		},
-	}
-}
-
-func testExpectedAgent() *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDContainerCollectionEnabled,
@@ -97,10 +107,10 @@ func testExpectedAgent() *test.ComponentTest {
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Process Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+				"%s ENVs \ndiff = %s", agentContainerName, cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
+			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      apicommon.CgroupsVolumeName,
@@ -116,7 +126,7 @@ func testExpectedAgent() *test.ComponentTest {
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentVolumeMounts, expectedVolumeMounts),
-				"Process Agent VolumeMounts \ndiff = %s", cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
+				"%s VolumeMounts \ndiff = %s", agentContainerName, cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes

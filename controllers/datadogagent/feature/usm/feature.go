@@ -98,9 +98,16 @@ func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 

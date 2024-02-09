@@ -17,7 +17,7 @@ spec:
      apiKey: "<DATADOG_API_KEY>"
      appKey: "<DATADOG_APP_KEY>"
  override:
-  clusterAgent:
+  nodeAgent:
     extraConfd:
       configDataMap:
         http_check.yaml: |-

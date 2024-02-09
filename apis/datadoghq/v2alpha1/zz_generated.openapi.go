@@ -40,7 +40,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
-		"./apis/datadoghq/v2alpha1.SecurityContextConstraintsConfig":  schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
@@ -327,9 +326,27 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 							},
 						},
 					},
+					"agentList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
+									},
+								},
+							},
+						},
+					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as an extended daemonset.",
+							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
 						},
 					},
@@ -491,6 +508,12 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig"),
 						},
 					},
+					"sbom": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SBOM collection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.SBOMFeatureConfig"),
+						},
+					},
 					"eventCollection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "EventCollection configuration.",
@@ -537,7 +560,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -1021,34 +1044,6 @@ func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback)
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v2alpha1.CustomConfig"},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"create": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"customConfiguration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CustomConfiguration defines a custom SCC configuration to use if Create is `true`.",
-							Ref:         ref("github.com/openshift/api/security/v1.SecurityContextConstraints"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/openshift/api/security/v1.SecurityContextConstraints"},
 	}
 }
 
