@@ -44,7 +44,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "nil affinity, gke cos containerd provider",
+			name: "nil affinity, gke cos provider",
 			args: args{
 				affinity: nil,
 				provider: gkeCosProvider,
@@ -58,7 +58,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, but empty, gke cos containerd provider",
+			name: "existing affinity, but empty, gke cos provider",
 			args: args{
 				affinity: &corev1.Affinity{},
 				provider: gkeCosProvider,

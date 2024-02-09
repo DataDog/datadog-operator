@@ -151,7 +151,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			wantNSR:           []corev1.NodeSelectorRequirement{},
 		},
 		{
-			name: "one existing provider, default/ubuntu provider",
+			name: "one existing provider, default provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
@@ -167,7 +167,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple providers, default/ubuntu provider",
+			name: "multiple providers, default provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 				"gke-abcde":    {},

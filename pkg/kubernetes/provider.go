@@ -29,14 +29,14 @@ const (
 	// DefaultProvider Default provider name
 	DefaultProvider = "default"
 
-	// GKECosType GKE provider types: https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	// Default "cos" node runtime is cos_containerd in GKE v1.24+
+	// GKE provider types: https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	// GKECosType is the Container-Optimized OS node image offered by GKE
 	GKECosType = "cos"
 
 	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
-	// GKEProviderLabel GKE ProviderLabel
+	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
