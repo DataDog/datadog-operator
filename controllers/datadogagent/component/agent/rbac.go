@@ -20,13 +20,18 @@ func GetAgentRoleName(dda metav1.Object) string {
 }
 
 // GetDefaultAgentClusterRolePolicyRules returns the default policy rules for the Agent cluster role
-func GetDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		getMetricsEndpointPolicyRule(),
+func GetDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv1.PolicyRule {
+	policyRule := []rbacv1.PolicyRule{
 		getKubeletPolicyRule(),
 		getEndpointsPolicyRule(),
 		getLeaderElectionPolicyRule(),
 	}
+
+	if !excludeNonResourceRules {
+		policyRule = append(policyRule, getMetricsEndpointPolicyRule())
+	}
+
+	return policyRule
 }
 
 func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
