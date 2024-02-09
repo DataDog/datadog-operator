@@ -196,18 +196,20 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentC
 	if f.hostPortEnabled {
 		// f.hostPortHostPort will be 0 if HostPort is not set in v1alpha1
 		// f.hostPortHostPort will default to 8125 in v2alpha1
+		dsdPortEnvVarValue := apicommon.DefaultDogstatsdPort
 		if f.hostPortHostPort != 0 {
 			dogstatsdPort.HostPort = f.hostPortHostPort
 			// if using host network, host port should be set and needs to match container port
 			if f.useHostNetwork {
 				dogstatsdPort.ContainerPort = f.hostPortHostPort
+				dsdPortEnvVarValue = int(f.hostPortHostPort)
 			}
-			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-				// defaults to 8125 in datadog-agent code
-				Name:  apicommon.DDDogstatsdPort,
-				Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
-			})
 		}
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			// defaults to 8125 in datadog-agent code
+			Name:  apicommon.DDDogstatsdPort,
+			Value: strconv.Itoa(dsdPortEnvVarValue),
+		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
 			Value: "true",

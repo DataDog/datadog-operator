@@ -80,7 +80,7 @@ func Test_DogstatsdFeature_ConfigureV1(t *testing.T) {
 	wantCustomUDPEnvVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdPort,
-			Value: "1234",
+			Value: "8125",
 		},
 		{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
