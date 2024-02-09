@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -49,10 +50,51 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			),
 		},
 		{
-			Name: "v2alpha1 udp custom host port",
+			Name: "v2alpha1 udp host network",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
-				WithDogstatsdHostPortConfig(1234).BuildWithDefaults(),
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      8125,
+							ContainerPort: 8125,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 udp host network custom host port",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdHostPortConfig(1234).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -72,7 +114,75 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 						{
 							Name:          apicommon.DogstatsdHostPortName,
 							HostPort:      1234,
+							ContainerPort: 1234,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 udp custom host port",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdHostPortConfig(1234).BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      1234,
 							ContainerPort: apicommon.DogstatsdHostPortHostPort,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 udp host port enabled no custom host port",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      8125,
+							ContainerPort: apicommon.DefaultDogstatsdPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
