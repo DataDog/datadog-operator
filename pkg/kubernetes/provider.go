@@ -8,7 +8,6 @@ package kubernetes
 import (
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -16,13 +15,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
-
-type ProviderStore struct {
-	providers map[string]struct{}
-
-	log   logr.Logger
-	mutex sync.Mutex
-}
 
 const (
 	// LegacyProvider Legacy Provider (empty name)
@@ -46,16 +38,8 @@ var providerValueAllowlist = map[string]struct{}{
 	GKECosType: {},
 }
 
-// NewProviderStore generates an empty ProviderStore instance
-func NewProviderStore(log logr.Logger) ProviderStore {
-	return ProviderStore{
-		providers: make(map[string]struct{}),
-		log:       log,
-	}
-}
-
-// DetermineProvider creates a Provider based on a map of labels
-func DetermineProvider(labels map[string]string) string {
+// determineProvider creates a Provider based on a map of labels
+func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
@@ -68,25 +52,17 @@ func DetermineProvider(labels map[string]string) string {
 	return DefaultProvider
 }
 
-// GetProviders gets a list of providers
-func (p *ProviderStore) GetProviders() *map[string]struct{} {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	return &p.providers
-}
-
-// GenerateProviderNodeAffinity creates NodeSelectorTerms based on the provider
-func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.NodeSelectorRequirement {
+// getProviderNodeAffinity creates NodeSelectorTerms based on the provider
+func getProviderNodeAffinity(provider string, providerList map[string]struct{}) *corev1.Affinity {
+	if provider == "" || providerList == nil || len(providerList) == 0 {
+		return nil
+	}
 	// default provider has NodeAffinity to NOT match provider-specific labels
 	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
 	nsrList := []corev1.NodeSelectorRequirement{}
 	if provider == DefaultProvider {
 		// sort providers to get consistently ordered affinity
-		p.mutex.Lock()
-		sortedProviders := sortProviders(p.providers)
-		p.mutex.Unlock()
-
+		sortedProviders := sortProviders(providerList)
 		for _, providerDef := range sortedProviders {
 			key, value := GetProviderLabelKeyValue(providerDef)
 			if key != "" && value != "" {
@@ -99,21 +75,31 @@ func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.N
 				})
 			}
 		}
-		return nsrList
-	}
-	// create provider-specific NodeSelectorTerm for NodeAffinity
-	key, value := GetProviderLabelKeyValue(provider)
-	if key != "" && value != "" {
-		nsrList = append(nsrList, corev1.NodeSelectorRequirement{
-			Key:      key,
-			Operator: corev1.NodeSelectorOpIn,
-			Values: []string{
-				value,
-			},
-		})
+	} else {
+		// create provider-specific NodeSelectorTerm for NodeAffinity
+		key, value := GetProviderLabelKeyValue(provider)
+		if key != "" && value != "" {
+			nsrList = append(nsrList, corev1.NodeSelectorRequirement{
+				Key:      key,
+				Operator: corev1.NodeSelectorOpIn,
+				Values: []string{
+					value,
+				},
+			})
+		}
 	}
 
-	return nsrList
+	return &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+				NodeSelectorTerms: []corev1.NodeSelectorTerm{
+					{
+						MatchExpressions: nsrList,
+					},
+				},
+			},
+		},
+	}
 }
 
 // generateValidProviderName creates a provider name from the cloud provider
@@ -169,51 +155,34 @@ func sortProviders(providers map[string]struct{}) []string {
 	return sortedProviders
 }
 
-// Reset overwrites all providers in the provider store given a list of providers
-func (p *ProviderStore) Reset(providersList map[string]struct{}) map[string]struct{} {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if len(providersList) > 0 {
-		p.providers = providersList
-	}
-
-	return p.providers
-}
-
-// IsPresent returns whether the given provider exists in the provider store
-func (p *ProviderStore) IsPresent(provider string) bool {
-	if provider == "" {
-		return false
-	}
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	if len(p.providers) == 0 {
-		return false
-	}
-	if _, ok := p.providers[provider]; ok {
-		return true
-	}
-
-	return false
-}
-
-// ComponentOverrideFromProvider generates a componentOverride with an override
-// for a provider-specific agent name
-func ComponentOverrideFromProvider(overrideName string, provider string, affinity *corev1.Affinity) v2alpha1.DatadogAgentComponentOverride {
+// ComponentOverrideFromProvider generates a componentOverride with overrides for
+// the DatadogAgent name, provider, and label
+func ComponentOverrideFromProvider(overrideName, provider string, providerList map[string]struct{}) v2alpha1.DatadogAgentComponentOverride {
 	overrideDSName := GetAgentNameWithProvider(overrideName, provider)
 	return v2alpha1.DatadogAgentComponentOverride{
 		Name:     &overrideDSName,
-		Affinity: affinity,
+		Affinity: getProviderNodeAffinity(provider, providerList),
 		Labels:   map[string]string{apicommon.MD5AgentDeploymentProviderLabelKey: provider},
 	}
 }
 
-// GetAgentNameWithProvider returns the agent name based on the ds name,
-// provider, and component override settings
+// GetAgentNameWithProvider returns the agent name based on the ds name and provider
 func GetAgentNameWithProvider(overrideDSName, provider string) string {
 	if provider != "" && overrideDSName != "" {
 		return overrideDSName + "-" + strings.Replace(provider, "_", "-", -1)
 	}
 	return overrideDSName
+}
+
+// GetProviderListFromNodeList generates a list of providers given a list of nodes
+func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
+	providerList := make(map[string]struct{})
+	for _, node := range nodeList {
+		provider := determineProvider(node.Labels)
+		if _, ok := providerList[provider]; !ok {
+			providerList[provider] = struct{}{}
+			logger.V(1).Info("New provider detected", "provider", provider)
+		}
+	}
+	return providerList
 }

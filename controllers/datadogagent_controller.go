@@ -42,14 +42,13 @@ import (
 // DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
-	VersionInfo   *version.Info
-	PlatformInfo  kubernetes.PlatformInfo
-	ProviderStore *kubernetes.ProviderStore
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	Recorder      record.EventRecorder
-	Options       datadogagent.ReconcilerOptions
-	internal      *datadogagent.Reconciler
+	VersionInfo  *version.Info
+	PlatformInfo kubernetes.PlatformInfo
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	Options      datadogagent.ReconcilerOptions
+	internal     *datadogagent.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagents,verbs=get;list;watch;create;update;patch;delete
@@ -271,7 +270,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.ProviderStore, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

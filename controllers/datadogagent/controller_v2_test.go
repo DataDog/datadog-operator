@@ -398,6 +398,7 @@ func Test_Introspection(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
+		nodes    []client.Object
 		want     reconcile.Result
 		wantErr  bool
 		wantFunc func(t *testing.T, c client.Client) error
@@ -405,7 +406,6 @@ func Test_Introspection(t *testing.T) {
 		{
 			name: "[introspection] Daemonset names with affinity override",
 			fields: fields{
-				client:   fake.NewFakeClient(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -433,13 +433,30 @@ func Test_Introspection(t *testing.T) {
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-node",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gke-cos-node",
+						Labels: map[string]string{
+							kubernetes.GKEProviderLabel: kubernetes.GKECosType,
+						},
+					},
+				},
+			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
 				expectedDaemonsets := []string{
-					string("foo-agent-provider1"),
-					string("foo-agent-provider2"),
-					string("foo-agent-provider3"),
+					string("foo-agent-default"),
+					string("foo-agent-gke-cos"),
 				}
 
 				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
@@ -450,7 +467,7 @@ func Test_Introspection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:       tt.fields.client,
+				client:       fake.NewClientBuilder().WithObjects(tt.nodes...).Build(),
 				scheme:       tt.fields.scheme,
 				platformInfo: tt.fields.platformInfo,
 				recorder:     recorder,
@@ -465,15 +482,6 @@ func Test_Introspection(t *testing.T) {
 					IntrospectionEnabled: true,
 				},
 			}
-
-			p := kubernetes.NewProviderStore(logf.Log.WithName("test_generateNodeAffinity"))
-			r.providerStore = &p
-			existingProviders := map[string]struct{}{
-				"provider1": {},
-				"provider2": {},
-				"provider3": {},
-			}
-			r.providerStore.Reset(existingProviders)
 
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(r.client)
