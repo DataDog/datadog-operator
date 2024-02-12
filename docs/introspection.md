@@ -22,12 +22,14 @@ datadog-agent-gke-cos   2         2         2       2            2           <no
 ## Prerequisites
 
 * Operator v1.4.0+
+* Tests were performed on Kubernetes versions >= `1.27.0`
 
 ## Enabling Introspection
 
 Introspection is disabled by default. To enable introspection using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set `introspection.enabled=true` in your `values.yaml` file or as a flag in the command line arguments `--set introspection.enabled=true`.
 
-**Note:** Enabling introspection in an existing operator installation will create new DaemonSets or ExtendedDaemonSets without deleting the existing DaemonSet or ExtendedDaemonSet. The existing DaemonSet or ExtendedDaemonSet needs to be removed manually. This behavior will change in a future version of the operator to make the migration process smoother.
+> [!CAUTION]
+> Enabling introspection in an existing operator installation will create new DaemonSets or ExtendedDaemonSets without deleting the existing DaemonSet or ExtendedDaemonSet. The existing DaemonSet or ExtendedDaemonSet needs to be removed manually. This behavior will change in a future version of the operator to make the migration process smoother.
 
 ## Supported Providers
 
