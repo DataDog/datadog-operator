@@ -200,7 +200,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar())
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar())
 					assertWants(t, mgrInterface, "10", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
 				},
 			),
@@ -256,7 +256,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					assert.True(t, mgr.Tpl.Spec.HostPID, "13. Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
-					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar()}, getWantUDSEnvVarsV2(), getWantContainerPorts())
+					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar()}, getWantUDSEnvVarsV2(), getWantContainerPorts())
 				},
 			),
 		},
@@ -289,7 +289,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 						Name:  apicommon.DDDogstatsdTagCardinality,
 						Value: "orchestrator",
 					}
-					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), &wantTagCardinalityEnvVar)
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), &wantTagCardinalityEnvVar)
 					assertWants(t, mgrInterface, "15", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
 				},
 			),
@@ -333,6 +333,14 @@ func getOriginDetectionEnvVar() *corev1.EnvVar {
 		Value: "true",
 	}
 	return &originDetectionEnvVar
+}
+
+func getOriginDetectionClientEnvVar() *corev1.EnvVar {
+	originDetectionClientEnvVar := corev1.EnvVar{
+		Name:  apicommon.DDDogstatsdOriginDetectionClient,
+		Value: "true",
+	}
+	return &originDetectionClientEnvVar
 }
 
 func getCustomEnvVar() []*corev1.EnvVar {
