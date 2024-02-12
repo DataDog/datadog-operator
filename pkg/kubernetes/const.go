@@ -52,7 +52,8 @@ const (
 	PodSecurityPoliciesKind = "podsecuritypolicies"
 	// CiliumNetworkPoliciesKind CiliumNetworkPolicies resource kind
 	CiliumNetworkPoliciesKind = "ciliumnetworkpolicies"
-	NodeKind                  = "nodes"
+	// NodeKind Nodes resource kind
+	NodeKind = "nodes"
 )
 
 // GetResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies

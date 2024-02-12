@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
 type ProviderStore struct {
@@ -25,23 +25,25 @@ type ProviderStore struct {
 }
 
 const (
-	LegacyProvider  = ""
+	// LegacyProvider Legacy Provider (empty name)
+	LegacyProvider = ""
+	// DefaultProvider Default provider name
 	DefaultProvider = "default"
-	// GKE provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	GKECosContainerdType = "cos_containerd"
-	GKECosType           = "cos"
 
-	// CloudProvider
+	// GKE provider types: https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	// GKECosType is the Container-Optimized OS node image offered by GKE
+	GKECosType = "cos"
+
+	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
-	// ProviderLabel
+	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosContainerdType: {},
-	GKECosType:           {},
+	GKECosType: {},
 }
 
 // NewProviderStore generates an empty ProviderStore instance

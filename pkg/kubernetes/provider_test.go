@@ -18,9 +18,8 @@ import (
 )
 
 var (
-	defaultProvider          = DefaultProvider
-	gkeCosContainerdProvider = generateValidProviderName(GKECloudProvider, GKECosContainerdType)
-	gkeCosProvider           = generateValidProviderName(GKECloudProvider, GKECosType)
+	defaultProvider = DefaultProvider
+	gkeCosProvider  = generateValidProviderName(GKECloudProvider, GKECosType)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -49,14 +48,6 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
-		{
-			name: "gke provider, underscore",
-			labels: map[string]string{
-				"foo":            "bar",
-				GKEProviderLabel: GKECosContainerdType,
-			},
-			provider: generateValidProviderName(GKECloudProvider, GKECosContainerdType),
-		},
 	}
 
 	for _, tt := range tests {
@@ -75,7 +66,7 @@ func Test_isProviderValueAllowed(t *testing.T) {
 	}{
 		{
 			name:  "valid value",
-			value: GKECosContainerdType,
+			value: GKECosType,
 			want:  true,
 		},
 		{
@@ -177,22 +168,6 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "one existing provider, ubuntu provider",
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			provider: gkeCosContainerdProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						GKECosContainerdType,
-					},
-				},
-			},
-		},
-		{
 			name: "multiple providers, default provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
@@ -220,24 +195,6 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 					Operator: corev1.NodeSelectorOpNotIn,
 					Values: []string{
 						"zyxwv",
-					},
-				},
-			},
-		},
-		{
-			name: "multiple providers, ubuntu provider",
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-				"abcdef":       {},
-				"lmnop":        {},
-			},
-			provider: gkeCosContainerdProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpIn,
-					Values: []string{
-						GKECosContainerdType,
 					},
 				},
 			},
