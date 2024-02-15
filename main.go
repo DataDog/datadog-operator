@@ -128,6 +128,7 @@ type options struct {
 	v2APIEnabled                           bool
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
+	datadogAgentProfileEnabled             bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -161,6 +162,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
+	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -271,14 +273,15 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:          opts.supportCilium,
-		Creds:                  creds,
-		DatadogAgentEnabled:    opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:      opts.datadogSLOEnabled,
-		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
-		V2APIEnabled:           opts.v2APIEnabled,
-		IntrospectionEnabled:   opts.introspectionEnabled,
+		SupportCilium:              opts.supportCilium,
+		Creds:                      creds,
+		DatadogAgentEnabled:        opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:          opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
+		V2APIEnabled:               opts.v2APIEnabled,
+		IntrospectionEnabled:       opts.introspectionEnabled,
+		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
