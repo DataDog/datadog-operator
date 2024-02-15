@@ -1,13 +1,15 @@
 #!/bin/bash
 
-VERSION="$1" # 1st argument passed to script is the operator version
-shift
-REPOS=("$@") # Make an array of repos with the remaining arguments passed to script
+if [ -z "$VERSION" ]; then
+    echo "Missing operator version"
+    exit 1
+fi
 
 OPERATOR_SUBPATH="datadog-operator"
 BUNDLE_NAME="bundle"
 WORKING_DIR=$PWD
 PR_BRANCH_NAME="datadog-operator-$VERSION"
+REPOS=("community-operators" "community-operators-prod" "certified-operators" "redhat-marketplace-operators")
 
 mkdir tmp
 
