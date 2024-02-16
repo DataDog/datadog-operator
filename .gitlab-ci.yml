@@ -389,11 +389,11 @@ submit_preflight_redhat_public_tag:
 publish_community_operators:
   stage: post-release
   rules:
-      - if: $CI_COMMIT_TAG
-        when: manual
-      - when: never
-  needs:
-    - "submit_preflight_redhat_public_tag"
+      # - if: $CI_COMMIT_TAG
+        # when: manual
+      - when: manual
+  # needs:
+    # - "submit_preflight_redhat_public_tag"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:
@@ -401,7 +401,7 @@ publish_community_operators:
     - make install-tools
   script:
     # Set version
-    - export VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
+    - export VERSION=1.4.0 # vX.Y.Z => X.Y.Z
     # Install github-cli and skopeo deps
     - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
     - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
