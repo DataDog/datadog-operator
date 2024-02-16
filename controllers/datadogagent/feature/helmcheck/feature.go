@@ -55,13 +55,6 @@ type helmCheckFeature struct {
 	logger logr.Logger
 }
 
-// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
-// if SingleContainerStrategy is enabled and can be used with the configured feature set.
-// It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	return nil
-}
-
 // ID returns the ID of the Feature
 func (f *helmCheckFeature) ID() feature.IDType {
 	return feature.HelmCheckIDType
@@ -136,10 +129,10 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 	return nil
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *helmCheckFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *helmCheckFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
