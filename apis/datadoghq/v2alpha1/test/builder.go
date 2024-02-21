@@ -83,7 +83,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdHostPortEnabled(enabled bool) *
 
 func (builder *DatadogAgentBuilder) WithDogstatsdHostPortConfig(port int32) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
+	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(port)
 	return builder
 }
 
@@ -346,11 +346,13 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
 		Enabled: apiutils.NewBoolPointer(enabled),
-		Port:    apiutils.NewInt32Pointer(port),
+	}
+	if port != nil {
+		builder.datadogAgent.Spec.Features.APM.HostPortConfig.Port = port
 	}
 	return builder
 }
@@ -526,6 +528,6 @@ func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1
 		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
 	}
 
-	builder.datadogAgent.Spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	builder.datadogAgent.Spec.Override[componentName] = &override
 	return builder
 }
