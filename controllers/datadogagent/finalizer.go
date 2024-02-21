@@ -7,13 +7,17 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -24,7 +28,7 @@ const (
 	datadogAgentFinalizer = "finalizer.agent.datadoghq.com"
 )
 
-type finalizerDadFunc func(reqLogger logr.Logger, dda client.Object)
+type finalizerDadFunc func(reqLogger logr.Logger, dda client.Object) error
 
 func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, finalizerDad finalizerDadFunc) (reconcile.Result, error) {
 	// Check if the DatadogAgent instance is marked to be deleted, which is
@@ -35,7 +39,9 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			finalizerDad(reqLogger, dda)
+			if err := finalizerDad(reqLogger, dda); err != nil {
+				return reconcile.Result{}, err
+			}
 
 			// Remove datadogAgentFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
@@ -59,7 +65,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) {
+func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) error {
 	dda := obj.(*datadoghqv1alpha1.DatadogAgent)
 	_, err := r.cleanupMetricsServerAPIService(reqLogger, dda)
 	if err != nil {
@@ -78,9 +84,10 @@ func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) {
 
 	r.forwarders.Unregister(dda)
 	reqLogger.Info("Successfully finalized DatadogAgent")
+	return nil
 }
 
-func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
+func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
 	// We need to apply the defaults to be able to delete the resources
 	// associated with those defaults.
 	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
@@ -119,18 +126,20 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda)...)
 
 	if len(errs) > 0 {
-		reqLogger.Info("Errors calculating dependencies while finalizing the DatadogAgent", "errors", errs)
+		return fmt.Errorf("errors calculating dependencies while finalizing the DatadogAgent: %v", errs)
 	}
 
 	deleteErrs := depsStore.DeleteAll(context.TODO(), r.client)
-
-	if len(deleteErrs) == 0 {
-		reqLogger.Info("Successfully finalized DatadogAgent")
-	} else {
-		for _, deleteErr := range deleteErrs {
-			reqLogger.Error(deleteErr, "Error deleting dependencies while finalizing the DatadogAgent")
-		}
+	if len(deleteErrs) > 0 {
+		return fmt.Errorf("error deleting dependencies while finalizing the DatadogAgent: %v", deleteErrs)
 	}
+
+	if err := r.profilesCleanup(); err != nil {
+		return err
+	}
+
+	reqLogger.Info("Successfully finalized DatadogAgent")
+	return nil
 }
 
 func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {
@@ -143,5 +152,41 @@ func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) erro
 		reqLogger.Error(err, "Failed to update DatadogAgent with finalizer")
 		return err
 	}
+	return nil
+}
+
+// profilesCleanup performs the cleanups required for the profiles feature. The
+// only thing that we need to do is to ensure that no nodes are left with the
+// profile label.
+func (r *Reconciler) profilesCleanup() error {
+	nodeList := corev1.NodeList{}
+	if err := r.client.List(context.TODO(), &nodeList); err != nil {
+		return err
+	}
+
+	for _, node := range nodeList.Items {
+		if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; !profileLabelExists {
+			continue
+		}
+
+		newLabels := make(map[string]string, len(node.Labels)-1)
+		for label, value := range node.Labels {
+			if label != agentprofile.ProfileLabelKey {
+				newLabels[label] = value
+			}
+		}
+
+		patch := corev1.Node{
+			TypeMeta:   node.TypeMeta,
+			ObjectMeta: node.ObjectMeta,
+		}
+		patch.Labels = newLabels
+
+		err := r.client.Patch(context.TODO(), &patch, client.MergeFrom(&node))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
 	return nil
 }

@@ -1,0 +1,19 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: datadogagentprofile-sample
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+          - linux
+  config:
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 256m

@@ -43,4 +43,13 @@ resources:
   webhooks:
     conversion: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: com
+  group: datadoghq
+  kind: DatadogAgentProfile
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  version: v1alpha1
 version: "3"

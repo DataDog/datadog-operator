@@ -29,6 +29,7 @@ const (
 	agentControllerName   = "DatadogAgent"
 	monitorControllerName = "DatadogMonitor"
 	sloControllerName     = "DatadogSLO"
+	profileControllerName = "DatadogAgentProfile"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -65,6 +66,7 @@ var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
 	monitorControllerName: startDatadogMonitor,
 	sloControllerName:     startDatadogSLO,
+	profileControllerName: startDatadogAgentProfiles,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -189,4 +191,13 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 	}
 
 	return controller.SetupWithManager(mgr)
+}
+
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
+	return (&DatadogAgentProfileReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(profileControllerName),
+	}).SetupWithManager(mgr)
 }

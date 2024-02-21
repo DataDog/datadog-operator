@@ -7,18 +7,19 @@ package override
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestContainer(t *testing.T) {
@@ -177,7 +178,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "override resources",
+			name:          "override resources - when there are none defined",
 			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -205,6 +206,105 @@ func TestContainer(t *testing.T) {
 							},
 							Requests: map[corev1.ResourceName]resource.Quantity{
 								corev1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
+							},
+						},
+						container.Resources)
+				})
+			},
+		},
+		{
+			name:          "override resources - when there are some defined",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: string(commonv1.CoreAgentContainerName),
+								Resources: corev1.ResourceRequirements{
+									Limits: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI), // Not overridden, should be kept
+										corev1.ResourceMemory: *resource.NewQuantity(2048, resource.DecimalSI),
+									},
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+										corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden, should be kept
+									},
+								},
+							},
+						},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceMemory: *resource.NewQuantity(4096, resource.DecimalSI),
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden
+								corev1.ResourceMemory: *resource.NewQuantity(4096, resource.DecimalSI), // Overridden
+							},
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Overridden
+								corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden
+							},
+						},
+						container.Resources)
+				})
+			},
+		},
+		{
+			name:          "override resources - when the override specifies a 0",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name: string(commonv1.CoreAgentContainerName),
+								Resources: corev1.ResourceRequirements{
+									Limits: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden, should be kept
+										corev1.ResourceMemory: *resource.NewQuantity(2048, resource.DecimalSI), // Not overridden, should be kept
+									},
+									Requests: map[corev1.ResourceName]resource.Quantity{
+										corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+										corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden, should be kept
+									},
+								},
+							},
+						},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Resources: &corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU: *resource.NewQuantity(0, resource.DecimalSI),
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden
+								corev1.ResourceMemory: *resource.NewQuantity(2048, resource.DecimalSI), // Not overridden
+							},
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(0, resource.DecimalSI),    // Overridden
+								corev1.ResourceMemory: *resource.NewQuantity(1024, resource.DecimalSI), // Not overridden
 							},
 						},
 						container.Resources)

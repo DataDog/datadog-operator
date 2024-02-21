@@ -7,18 +7,20 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -32,7 +34,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
-	provider string) (reconcile.Result, error) {
+	provider string, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -47,7 +49,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 	singleContainerStrategyEnabled := requiredComponents.Agent.SingleContainerStrategyEnabled()
 
-	if r.options.ExtendedDaemonsetOptions.Enabled {
+	// When EDS is enabled and there are profiles defined, we only create an
+	// EDS for the default profile, for the other profiles we create
+	// DaemonSets.
+	// This is to make deployments simpler. With multiple EDS there would be
+	// multiple canaries, etc.
+	if r.options.ExtendedDaemonsetOptions.Enabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
@@ -63,32 +70,37 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-		componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
-		componentOverrideCopy := componentOverride.DeepCopy()
+		var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
+		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+			componentOverrides = append(componentOverrides, componentOverride)
+		}
+
+		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+		componentOverrides = append(componentOverrides, &overrideFromProfile)
+
 		if r.options.IntrospectionEnabled {
-			// Add provider-specific label
-			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-			// Add provider node affinity
+			// use the last name override in the list to generate a provider-specific name
+			overrideName := eds.Name
+			for _, componentOverride := range componentOverrides {
+				if componentOverride.Name != nil && *componentOverride.Name != "" {
+					overrideName = *componentOverride.Name
+				}
+			}
 			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
 			combinedAffinity := r.generateNodeAffinity(provider, affinity)
-			eds.Spec.Template.Spec.Affinity = combinedAffinity
-			if overriden {
-				agentNameWithProvider := kubernetes.GetAgentNameWithProvider(eds.Name, provider, componentOverride.Name)
-				componentOverrideCopy.Name = &agentNameWithProvider
-			} else {
-				overrideFromProvider := kubernetes.ComponentOverrideFromProvider(eds.Name, provider)
-				componentOverrideCopy = &overrideFromProvider
-			}
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
-		if componentOverrideCopy != nil {
-			if apiutils.BoolValue(componentOverrideCopy.Disabled) {
+		for _, componentOverride := range componentOverrides {
+			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-			override.ExtendedDaemonSet(eds, componentOverrideCopy)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
 		if disabledByOverride {
@@ -129,32 +141,37 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-	componentOverride, overriden := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
-	componentOverrideCopy := componentOverride.DeepCopy()
+	var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		componentOverrides = append(componentOverrides, componentOverride)
+	}
+
+	// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+	overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+	componentOverrides = append(componentOverrides, &overrideFromProfile)
+
 	if r.options.IntrospectionEnabled {
-		// Add provider-specific label
-		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
-		// Add provider node affinity
+		// use the last name override in the list to generate a provider-specific name
+		overrideName := daemonset.Name
+		for _, componentOverride := range componentOverrides {
+			if componentOverride.Name != nil && *componentOverride.Name != "" {
+				overrideName = *componentOverride.Name
+			}
+		}
 		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
 		combinedAffinity := r.generateNodeAffinity(provider, affinity)
-		daemonset.Spec.Template.Spec.Affinity = combinedAffinity
-		if overriden {
-			agentNameWithProvider := kubernetes.GetAgentNameWithProvider(daemonset.Name, provider, componentOverride.Name)
-			componentOverrideCopy.Name = &agentNameWithProvider
-		} else {
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(daemonset.Name, provider)
-			componentOverrideCopy = &overrideFromProvider
-		}
+		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
 		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
-	if componentOverrideCopy != nil {
-		if apiutils.BoolValue(componentOverrideCopy.Disabled) {
+	for _, componentOverride := range componentOverrides {
+		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverrideCopy, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
-		override.DaemonSet(daemonset, componentOverrideCopy)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+		override.DaemonSet(daemonset, componentOverride)
 	}
 
 	if disabledByOverride {
@@ -369,4 +386,173 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 			}
 		}
 	}
+}
+
+func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
+	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles); err != nil {
+		return err
+	}
+
+	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+		return err
+	}
+
+	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile) error {
+	daemonSets, err := r.agentProfileDaemonSetsCreatedByOperator(ctx)
+	if err != nil {
+		return err
+	}
+
+	daemonSetNamesBelongingToProfiles := map[string]struct{}{}
+	for _, profile := range profiles {
+		name := types.NamespacedName{
+			Namespace: profile.Namespace,
+			Name:      profile.Name,
+		}
+
+		if r.options.IntrospectionEnabled {
+			providerList := r.providerStore.GetProviders()
+			for provider := range *providerList {
+				name.Name = kubernetes.GetAgentNameWithProvider(name.Name, provider)
+				daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+			}
+		} else {
+			daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+		}
+	}
+
+	for _, daemonSet := range daemonSets {
+		if _, belongsToProfile := daemonSetNamesBelongingToProfiles[daemonSet.Name]; belongsToProfile {
+			continue
+		}
+
+		if err = r.client.Delete(ctx, &daemonSet); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// labelNodesWithProfiles sets the "agent.datadoghq.com/profile" label only in
+// the nodes where a profile is applied
+func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
+	for nodeName, profileNamespacedName := range profilesByNode {
+		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+
+		node := &corev1.Node{}
+		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
+			return err
+		}
+
+		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+
+		var newLabels map[string]string
+
+		// If the profile is the default one and the label exists in the node,
+		// it should be removed.
+		if isDefaultProfile && profileLabelExists {
+			newLabels = make(map[string]string, len(node.Labels)-1)
+			for label, value := range node.Labels {
+				if label != agentprofile.ProfileLabelKey {
+					newLabels[label] = value
+				}
+			}
+		}
+
+		// If the profile is not the default one and the label does not exist in
+		// the node, it should be added.
+		if !isDefaultProfile && !profileLabelExists {
+			newLabels = make(map[string]string, len(node.Labels)+1)
+			for label, value := range node.Labels {
+				newLabels[label] = value
+			}
+			newLabels[agentprofile.ProfileLabelKey] = fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+		}
+
+		if len(newLabels) == 0 {
+			return nil
+		}
+
+		patch := corev1.Node{
+			TypeMeta:   node.TypeMeta,
+			ObjectMeta: node.ObjectMeta,
+		}
+		patch.Labels = newLabels
+
+		err := r.client.Patch(ctx, &patch, client.MergeFrom(node))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// cleanupPodsForProfilesThatNoLongerApply deletes the agent pods that should
+// not be running according to the profiles that need to be applied. This is
+// needed because in the affinities we use
+// "RequiredDuringSchedulingIgnoredDuringExecution" which means that the pods
+// might not always be evicted when there's a change in the profiles to apply.
+// Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
+// available in Kubernetes yet.
+func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
+	for nodeName, profileNamespacedName := range profilesByNode {
+		// Get the agent pods running on the node
+		podList := &corev1.PodList{}
+		err := r.client.List(
+			ctx,
+			podList,
+			client.MatchingLabels(map[string]string{
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+			}),
+			client.InNamespace(ddaNamespace),
+			client.MatchingFields{"spec.nodeName": nodeName})
+		if err != nil {
+			return err
+		}
+
+		// Delete the agent pods that should be in the node according to the
+		// profiles that need to be applied
+		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+		for _, pod := range podList.Items {
+			profileLabelValue, profileLabelExists := pod.Labels[agentprofile.ProfileLabelKey]
+			expectedProfileLabelValue := fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+
+			deletePod := (isDefaultProfile && profileLabelExists) ||
+				(!isDefaultProfile && !profileLabelExists) ||
+				(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+
+			if deletePod {
+				toDelete := corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: pod.Namespace,
+						Name:      pod.Name,
+					},
+				}
+				if err = r.client.Delete(ctx, &toDelete); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) agentProfileDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
+	daemonSetList := appsv1.DaemonSetList{}
+
+	if err := r.client.List(ctx, &daemonSetList, client.HasLabels{agentprofile.ProfileLabelKey}); err != nil {
+		return nil, err
+	}
+
+	return daemonSetList.Items, nil
 }

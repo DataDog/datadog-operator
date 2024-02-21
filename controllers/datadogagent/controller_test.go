@@ -13,10 +13,6 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
-	"github.com/pkg/errors"
-	assert "github.com/stretchr/testify/require"
-
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -25,6 +21,8 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -33,6 +31,9 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -42,7 +43,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -2878,6 +2878,140 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			if tt.wantFunc != nil {
 				err := tt.wantFunc(r.client)
 				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func Test_LabelNodesWithProfiles(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Node{})
+
+	tests := []struct {
+		name               string
+		nodes              []corev1.Node
+		profilesByNode     map[string]types.NamespacedName
+		expectProfileLabel map[string]string
+	}{
+		{
+			name: "All nodes match profiles",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Name:      "profile-1",
+					Namespace: "ns-1",
+				},
+				"node-2": {
+					Name:      "profile-2",
+					Namespace: "ns-2",
+				},
+			},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]string{
+				"node-1": "ns-1-profile-1",
+				"node-2": "ns-2-profile-2",
+			},
+		},
+		{
+			name: "Some nodes match profiles",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-2": {
+					Name:      "profile-2",
+					Namespace: "ns-2",
+				},
+			},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]string{
+				"node-1": "",
+				"node-2": "ns-2-profile-2",
+			},
+		},
+		{
+			name:           "No nodes match profiles",
+			profilesByNode: map[string]types.NamespacedName{},
+			nodes: []corev1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							"some-label": "value",
+						},
+					},
+				},
+			},
+			expectProfileLabel: map[string]string{
+				"node-1": "",
+				"node-2": "",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(s).Build()
+			r := &Reconciler{
+				client:  client,
+				scheme:  s,
+				log:     logf.Log.WithName(tt.name),
+				options: ReconcilerOptions{},
+			}
+			for _, node := range tt.nodes {
+				err := client.Create(context.TODO(), &node)
+				require.NoError(t, err, "Error creating node")
+			}
+			err := r.labelNodesWithProfiles(context.TODO(), tt.profilesByNode)
+			require.NoErrorf(t, err, "Error labeling nodes. Error: %v", err)
+
+			gotNodes := &corev1.NodeList{}
+			err = client.List(context.TODO(), gotNodes)
+			require.NoError(t, err, "Node with matching profile label not found")
+
+			for _, node := range gotNodes.Items {
+				if val, ok := tt.expectProfileLabel[node.Name]; ok && val != "" {
+					assert.Equal(t, node.Labels[agentprofile.ProfileLabelKey], val)
+				} else {
+					assert.NotContains(t, node.Labels, agentprofile.ProfileLabelKey)
+				}
 			}
 		})
 	}
