@@ -1148,6 +1148,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.DisableNonResourceRules != nil {
+		in, out := &in.DisableNonResourceRules, &out.DisableNonResourceRules
+		*out = new(bool)
+		**out = **in
+	}
 	if in.ContainerStrategy != nil {
 		in, out := &in.ContainerStrategy, &out.ContainerStrategy
 		*out = new(ContainerStrategyType)

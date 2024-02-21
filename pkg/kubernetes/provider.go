@@ -10,9 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
 type ProviderStore struct {
@@ -23,23 +25,25 @@ type ProviderStore struct {
 }
 
 const (
-	LegacyProvider  = ""
+	// LegacyProvider Legacy Provider (empty name)
+	LegacyProvider = ""
+	// DefaultProvider Default provider name
 	DefaultProvider = "default"
-	// GKE provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	GKECosContainerdType = "cos_containerd"
-	GKECosType           = "cos"
 
-	// CloudProvider
+	// GKE provider types: https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	// GKECosType is the Container-Optimized OS node image offered by GKE
+	GKECosType = "cos"
+
+	// GKECloudProvider GKE CloudProvider name
 	GKECloudProvider = "gke"
 
-	// ProviderLabel
+	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosContainerdType: {},
-	GKECosType:           {},
+	GKECosType: {},
 }
 
 // NewProviderStore generates an empty ProviderStore instance
@@ -196,23 +200,20 @@ func (p *ProviderStore) IsPresent(provider string) bool {
 
 // ComponentOverrideFromProvider generates a componentOverride with an override
 // for a provider-specific agent name
-func ComponentOverrideFromProvider(daemonSetName string, provider string) v2alpha1.DatadogAgentComponentOverride {
-	componentOverride := v2alpha1.DatadogAgentComponentOverride{}
-	overrideAgentName := GetAgentNameWithProvider(daemonSetName, provider, componentOverride.Name)
-	componentOverride.Name = &overrideAgentName
-	return componentOverride
+func ComponentOverrideFromProvider(overrideName string, provider string, affinity *corev1.Affinity) v2alpha1.DatadogAgentComponentOverride {
+	overrideDSName := GetAgentNameWithProvider(overrideName, provider)
+	return v2alpha1.DatadogAgentComponentOverride{
+		Name:     &overrideDSName,
+		Affinity: affinity,
+		Labels:   map[string]string{apicommon.MD5AgentDeploymentProviderLabelKey: provider},
+	}
 }
 
 // GetAgentNameWithProvider returns the agent name based on the ds name,
 // provider, and component override settings
-func GetAgentNameWithProvider(dsName, provider string, overrideName *string) string {
-	baseName := dsName
-	if overrideName != nil && *overrideName != "" {
-		baseName = *overrideName
+func GetAgentNameWithProvider(overrideDSName, provider string) string {
+	if provider != "" && overrideDSName != "" {
+		return overrideDSName + "-" + strings.Replace(provider, "_", "-", -1)
 	}
-
-	if provider != "" && baseName != "" {
-		return baseName + "-" + strings.Replace(provider, "_", "-", -1)
-	}
-	return baseName
+	return overrideDSName
 }

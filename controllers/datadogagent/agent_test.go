@@ -841,8 +841,12 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
+			Name:  apicommon.DDDogstatsdOriginDetection,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
+		},
+		{
+			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
@@ -1931,8 +1935,12 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
+			Name:  apicommon.DDDogstatsdOriginDetection,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
+		},
+		{
+			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",

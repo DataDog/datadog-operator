@@ -781,6 +781,11 @@ type GlobalConfig struct {
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
 
+	// Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.
+	// Required 'true' for Google Cloud Marketplace.
+	// +optional
+	DisableNonResourceRules *bool `json:"disableNonResourceRules,omitempty"`
+
 	// ContainerStrategy determines whether agents run in a single or multiple containers.
 	// Default: 'optimized'
 	// +optional

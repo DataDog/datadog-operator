@@ -318,11 +318,15 @@ kubectl-datadog: lint
 check-operator: fmt vet lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
+.PHONY: publish-community-bundles
+publish-community-bundles: ## Publish bundles to community repositories
+	hack/publish-community-bundles.sh
+
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.51.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.23.0

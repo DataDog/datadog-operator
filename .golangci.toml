@@ -99,6 +99,10 @@
     "deadcode",
     "rowserrcheck",
     "sqlclosecheck",
+    "depguard",
+    "perfsprint",
+    "inamedparam",
+    "nakedret",
   ]
 
 [issues]

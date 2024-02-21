@@ -48,6 +48,8 @@ func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 		return &policyv1beta1.PodSecurityPolicy{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredPolicy()
+	case NodeKind:
+		return &corev1.Node{}
 	}
 
 	return nil
