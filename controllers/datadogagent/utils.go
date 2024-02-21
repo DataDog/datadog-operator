@@ -884,12 +884,16 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 	envVars = append(envVars, commonEnvVars...)
 
 	if isDogstatsdConfigured(&spec) {
-		envVars = append(envVars,
-			corev1.EnvVar{
+		envVars = append(envVars, []corev1.EnvVar{
+			{
 				Name:  apicommon.DDDogstatsdOriginDetection,
 				Value: strconv.FormatBool(*spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection),
 			},
-		)
+			{
+				Name:  apicommon.DDDogstatsdOriginDetectionClient,
+				Value: strconv.FormatBool(*spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection),
+			},
+		}...)
 		// Always add DD_DOGSTATSD_SOCKET env var, to allow JMX-Fetch to use it inside pod's containers.
 		envVars = append(envVars, getEnvVarDogstatsdSocket(dda))
 

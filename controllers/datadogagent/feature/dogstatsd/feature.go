@@ -238,6 +238,10 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentC
 			Name:  apicommon.DDDogstatsdOriginDetection,
 			Value: "true",
 		})
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Value: "true",
+		})
 		if f.udsEnabled {
 			managers.PodTemplateSpec().Spec.HostPID = true
 		}
