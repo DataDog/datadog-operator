@@ -12,7 +12,7 @@ spec:
     webhook:
       clientConfig:
         service:
-          name: webhook-service
+          name: datadog-operator-webhook-service
           namespace: system
           path: /convert
       conversionReviewVersions:

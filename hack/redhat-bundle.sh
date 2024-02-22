@@ -8,7 +8,7 @@ SCRIPTS_DIR="$(dirname "$0")"
 # Provides $OS,$ARCH,$PLATFORM,$ROOT variables
 source "$SCRIPTS_DIR/os-env.sh"
 
-RH_BUNDLE_PATH="$ROOT/bundle-redhat"
+RH_BUNDLE_PATH="$ROOT/bundle-redhat-certified"
 YQ="$ROOT/bin/$PLATFORM/yq"
 
 # RH Bundle folder
@@ -29,7 +29,7 @@ $ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin "$RH_BUNDLE_PATH/manifes
 rm -rf "$RH_BUNDLE_PATH/tests"
 
 # Generate the marketplace bundle
-RHMP_BUNDLE_PATH="$RH_BUNDLE_PATH-mp"
+RHMP_BUNDLE_PATH="$ROOT/bundle-redhat-marketplace"
 rm -rf "$RHMP_BUNDLE_PATH"
 cp -R "$RH_BUNDLE_PATH" "$RHMP_BUNDLE_PATH"
 
