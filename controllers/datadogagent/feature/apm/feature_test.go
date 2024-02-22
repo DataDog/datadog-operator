@@ -348,7 +348,7 @@ func testTraceAgentEnabled(containerName apicommonv1.AgentContainerName) *test.C
 					Name:  apicommon.DDAPMEnabled,
 					Value: "true",
 				},
-        {
+				{
 					Name:  apicommon.DDAPMNonLocalTraffic,
 					Value: "true",
 				},
