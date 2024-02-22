@@ -34,7 +34,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
-	provider string, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
+	provider string, providerList map[string]struct{}, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -87,9 +87,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					overrideName = *componentOverride.Name
 				}
 			}
-			affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
-			combinedAffinity := r.generateNodeAffinity(provider, affinity)
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
 			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
@@ -159,9 +157,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				overrideName = *componentOverride.Name
 			}
 		}
-		affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
-		combinedAffinity := r.generateNodeAffinity(provider, affinity)
-		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, combinedAffinity)
+		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
 		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
@@ -258,118 +254,63 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *corev1.Affinity {
-	nodeSelectorReq := r.providerStore.GenerateProviderNodeAffinity(p)
-	if len(nodeSelectorReq) > 0 {
-		// check for an existing affinity and merge
-		if affinity == nil {
-			affinity = &corev1.Affinity{}
-		}
-		if affinity.NodeAffinity == nil {
-			affinity.NodeAffinity = &corev1.NodeAffinity{}
-		}
-		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
-		}
-		// NodeSelectorTerms are ORed
-		if len(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
-				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
-				corev1.NodeSelectorTerm{},
-			)
-		}
-		// NodeSelectorTerms are ANDed
-		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions == nil {
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = []corev1.NodeSelectorRequirement{}
-		}
-		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(
-			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
-			nodeSelectorReq...,
-		)
-	}
+func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus,
+	nodeList []corev1.Node, logger logr.Logger) (map[string]struct{}, error) {
+	providerList := kubernetes.GetProviderListFromNodeList(nodeList, logger)
 
-	return affinity
-}
-
-func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) (map[string]struct{}, error) {
-	providerList, err := r.updateProviderStore(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda, ddaStatus); err != nil {
+	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda, ddaStatus, providerList); err != nil {
 		return nil, err
 	}
 
 	return providerList, nil
 }
 
-// updateProviderStore recomputes the required providers by making a
-// call to the apiserver for an updated list of nodes
-func (r *Reconciler) updateProviderStore(ctx context.Context) (map[string]struct{}, error) {
-	nodeList := corev1.NodeList{}
-	err := r.client.List(ctx, &nodeList)
-	if err != nil {
-		return nil, err
-	}
-
-	// recompute providers using updated node list
-	providersList := make(map[string]struct{})
-	for _, node := range nodeList.Items {
-		provider := kubernetes.DetermineProvider(node.Labels)
-		if _, ok := providersList[provider]; !ok {
-			providersList[provider] = struct{}{}
-			r.log.V(1).Info("New provider detected", "provider", provider)
-		}
-	}
-
-	return r.providerStore.Reset(providersList), nil
-}
-
 // cleanupDaemonSetsForProvidersThatNoLongerApply deletes ds/eds from providers
 // that are not present in the provider store. If there are no providers in the
 // provider store, do not delete any ds/eds since that would delete all node
 // agents.
-func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
-	if r.options.ExtendedDaemonsetOptions.Enabled {
-		edsList := edsv1alpha1.ExtendedDaemonSetList{}
-		if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
-			return err
-		}
-
-		for _, eds := range edsList.Items {
-			provider := eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-			if len(*r.providerStore.GetProviders()) > 0 && !r.providerStore.IsPresent(provider) {
-				if err := r.client.Delete(ctx, &eds); err != nil {
-					return err
-				}
-				r.log.Info("Deleted ExtendedDaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-				event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
-				r.recordEvent(dda, event)
-
-				removeStaleStatus(ddaStatus, eds.Name)
-			}
-		}
-
-		return nil
-	}
-
-	daemonSetList := appsv1.DaemonSetList{}
-	if err := r.client.List(ctx, &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
-		return err
-	}
-
-	for _, ds := range daemonSetList.Items {
-		provider := ds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-		if len(*r.providerStore.GetProviders()) > 0 && !r.providerStore.IsPresent(provider) {
-			if err := r.client.Delete(ctx, &ds); err != nil {
+func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent,
+	ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, providerList map[string]struct{}) error {
+	if len(providerList) > 0 {
+		if r.options.ExtendedDaemonsetOptions.Enabled {
+			edsList := edsv1alpha1.ExtendedDaemonSetList{}
+			if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
 				return err
 			}
-			r.log.Info("Deleted DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-			event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
-			r.recordEvent(dda, event)
 
-			removeStaleStatus(ddaStatus, ds.Name)
+			for _, eds := range edsList.Items {
+				provider := eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
+				if _, ok := providerList[provider]; !ok {
+					if err := r.client.Delete(ctx, &eds); err != nil {
+						return err
+					}
+					r.log.Info("Deleted ExtendedDaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
+					event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+					r.recordEvent(dda, event)
+
+					removeStaleStatus(ddaStatus, eds.Name)
+				}
+			}
+
+			return nil
+		}
+
+		daemonSetList := appsv1.DaemonSetList{}
+		if err := r.client.List(ctx, &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
+			return err
+		}
+		for _, ds := range daemonSetList.Items {
+			provider := ds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
+			if _, ok := providerList[provider]; !ok {
+				if err := r.client.Delete(ctx, &ds); err != nil {
+					return err
+				}
+				r.log.Info("Deleted DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
+				event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+				r.recordEvent(dda, event)
+
+				removeStaleStatus(ddaStatus, ds.Name)
+			}
 		}
 	}
 
@@ -390,8 +331,9 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 	}
 }
 
-func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles); err != nil {
+func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName,
+	ddaNamespace string, providerList map[string]struct{}) error {
+	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles, providerList); err != nil {
 		return err
 	}
 
@@ -406,7 +348,7 @@ func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.Dat
 	return nil
 }
 
-func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile) error {
+func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, providerList map[string]struct{}) error {
 	daemonSets, err := r.agentProfileDaemonSetsCreatedByOperator(ctx)
 	if err != nil {
 		return err
@@ -418,15 +360,14 @@ func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.C
 			Namespace: profile.Namespace,
 			Name:      profile.Name,
 		}
+		dsProfileName := agentprofile.DaemonSetName(name)
 
 		if r.options.IntrospectionEnabled {
-			providerList := r.providerStore.GetProviders()
-			for provider := range *providerList {
-				name.Name = kubernetes.GetAgentNameWithProvider(name.Name, provider)
-				daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+			for provider := range providerList {
+				daemonSetNamesBelongingToProfiles[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
 			}
 		} else {
-			daemonSetNamesBelongingToProfiles[agentprofile.DaemonSetName(name)] = struct{}{}
+			daemonSetNamesBelongingToProfiles[dsProfileName] = struct{}{}
 		}
 	}
 

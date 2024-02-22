@@ -143,30 +143,36 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
-	profiles, profilesByNode, err := r.profilesToApply(ctx, logger)
+	// Get a node list for profiles and introspection
+	nodeList, err := r.getNodeList(ctx)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
+	profiles, profilesByNode, err := r.profilesToApply(ctx, logger, nodeList)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+
 	for _, profile := range profiles {
-		// if introspection is enabled, for all providers, reconcile the node agent
-		// if introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
-		providersList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+		// If introspection is enabled, for all providers, reconcile the node agent
+		// If introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
 		if r.options.IntrospectionEnabled {
-			providersList, err = r.handleProviders(ctx, instance, newStatus)
+			providerList, err = r.handleProviders(ctx, instance, newStatus, nodeList, logger)
 			if err != nil {
 				errs = append(errs, err)
 			}
 		}
-		for provider := range providersList {
-			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, &profile)
+		for provider := range providerList {
+			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
 			if utils.ShouldReturn(result, err) {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 			}
 		}
 	}
 
-	if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace); err != nil {
+	if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace, providerList); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -277,18 +283,22 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 	// }
 }
 
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	return agentprofile.ProfilesToApply(profilesList.Items, nodeList, logger)
+}
+
+func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
 	nodeList := corev1.NodeList{}
-	err = r.client.List(ctx, &nodeList)
+	err := r.client.List(ctx, &nodeList)
 	if err != nil {
-		return nil, nil, err
+		return nodeList.Items, err
 	}
 
-	return agentprofile.ProfilesToApply(profilesList.Items, nodeList.Items, logger)
+	return nodeList.Items, nil
 }
