@@ -7,9 +7,10 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/go-logr/logr"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -17,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,13 +42,14 @@ import (
 // DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
-	VersionInfo  *version.Info
-	PlatformInfo kubernetes.PlatformInfo
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	Recorder     record.EventRecorder
-	Options      datadogagent.ReconcilerOptions
-	internal     *datadogagent.Reconciler
+	VersionInfo   *version.Info
+	PlatformInfo  kubernetes.PlatformInfo
+	ProviderStore *kubernetes.ProviderStore
+	Log           logr.Logger
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	Options       datadogagent.ReconcilerOptions
+	internal      *datadogagent.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagents,verbs=get;list;watch;create;update;patch;delete
@@ -171,6 +174,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=extensions,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
 
+// Profiles
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
+
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
@@ -178,6 +184,23 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// This is for the agent profiles feature. To delete the pods of profiles
+	// that no longer apply, we need to be able to get the agent pods of a
+	// specific node.
+	// Notice that only node agent pods are indexed.
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
+		pod := rawObj.(*corev1.Pod)
+
+		// Don't store the pod if it's not a node agent pod
+		if pod.Labels[apicommon.AgentDeploymentComponentLabelKey] != apicommon.DefaultAgentResourceSuffix {
+			return nil
+		}
+
+		return []string{pod.Spec.NodeName}
+	}); err != nil {
+		return err
+	}
+
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
@@ -189,6 +212,20 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// We let PlatformInfo supply PDB object based on the current API version
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
+
+	builder.Watches(
+		&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}},
+		handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
+	)
+
+	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
+	if r.Options.V2Enabled {
+		builder.Watches(
+			&source.Kind{Type: &corev1.Node{}},
+			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
+			ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()),
+		)
+	}
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
@@ -234,7 +271,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.ProviderStore, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}
@@ -254,4 +291,43 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}
+}
+
+func (r *DatadogAgentReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels())
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+	}
+}
+
+func (r *DatadogAgentReconciler) enqueueRequestsForAllDDAs() handler.MapFunc {
+	return func(obj client.Object) []reconcile.Request {
+		var requests []reconcile.Request
+
+		ddaList := datadoghqv2alpha1.DatadogAgentList{}
+		if err := r.List(context.Background(), &ddaList); err != nil {
+			return requests
+		}
+
+		for _, dda := range ddaList.Items {
+			requests = append(
+				requests,
+				reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: dda.Namespace,
+						Name:      dda.Name,
+					},
+				},
+			)
+		}
+
+		return requests
+	}
 }

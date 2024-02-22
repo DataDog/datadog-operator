@@ -93,22 +93,22 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 	return nil
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers)
+func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)

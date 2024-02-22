@@ -156,28 +156,41 @@ generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
 generate-docs: manifests
 	go run ./hack/generate-docs.go
 
-# Build the docker images
+# Build the docker images, for local use
 .PHONY: docker-build
 docker-build: generate docker-build-ci docker-build-check-ci
 
+# For local use
 .PHONY: docker-build-ci
 docker-build-ci:
 	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
+# For local use
 .PHONY: docker-build-check-ci
 docker-build-check-ci:
 	docker build . -t ${IMG_CHECK} -f check-operator.Dockerfile --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
+
+# For Gitlab use
+.PHONY: docker-build-push-ci
+docker-build-push-ci:
+	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
+
+# For Gitlab use
+.PHONY: docker-build-push-check-ci
+docker-build-push-check-ci:
+	docker buildx build . -t ${IMG_CHECK} -f check-operator.Dockerfile --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
+
 # Push the docker images
 .PHONY: docker-push
-docker-push: docker-push-ci docker-push-check-ci
+docker-push: docker-push-img docker-push-check-img
 
-.PHONY: docker-push-ci
-docker-push-ci:
+.PHONY: docker-push-img
+docker-push-img:
 	docker push ${IMG}
 
-.PHONY: docker-push-check-ci
-docker-push-check-ci:
+.PHONY: docker-push-check-img
+docker-push-check-img:
 	docker push ${IMG_CHECK}
 
 ##@ Test
@@ -213,7 +226,7 @@ bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker buildx build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
@@ -305,11 +318,15 @@ kubectl-datadog: lint
 check-operator: fmt vet lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
+.PHONY: publish-community-bundles
+publish-community-bundles: ## Publish bundles to community repositories
+	hack/publish-community-bundles.sh
+
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.51.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.23.0

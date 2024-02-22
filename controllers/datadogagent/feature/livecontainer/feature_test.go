@@ -50,10 +50,10 @@ func TestLiveContainerFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "v1alpha1 live container collection not enabled with multi-process container",
+			Name: "v1alpha1 live container collection not enabled with single container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(false).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: false,
 		},
@@ -66,13 +66,13 @@ func TestLiveContainerFeature(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 live container collection enabled with multi-process container",
+			Name: "v2alpha1 live container collection enabled with single container",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 	}
 

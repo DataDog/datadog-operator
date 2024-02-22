@@ -83,7 +83,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdHostPortEnabled(enabled bool) *
 
 func (builder *DatadogAgentBuilder) WithDogstatsdHostPortConfig(port int32) *DatadogAgentBuilder {
 	builder.initDogstatsd()
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
+	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(port)
 	return builder
 }
 
@@ -359,11 +359,13 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
 		Enabled: apiutils.NewBoolPointer(enabled),
-		Port:    apiutils.NewInt32Pointer(port),
+	}
+	if port != nil {
+		builder.datadogAgent.Spec.Features.APM.HostPortConfig.Port = port
 	}
 	return builder
 }
@@ -494,17 +496,15 @@ func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string
 	return builder
 }
 
-// Global ContainerProcessModel
+// Global ContainerStrategy
 
-func (builder *DatadogAgentBuilder) WithMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *DatadogAgentBuilder {
 	if enabled {
-		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{
-			Type: common.UnprivilegedMultiProcessContainer,
-		}
+		scs := v2alpha1.SingleContainerStrategy
+		builder.datadogAgent.Spec.Global.ContainerStrategy = &scs
 	} else {
-		builder.datadogAgent.Spec.Global.ContainerProcessStrategy = &v2alpha1.ContainerProcessStrategy{
-			Type: common.SingleProcessContainers,
-		}
+		ocs := v2alpha1.OptimizedContainerStrategy
+		builder.datadogAgent.Spec.Global.ContainerStrategy = &ocs
 	}
 	return builder
 }
@@ -516,5 +516,16 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 		APIKey: utils.NewStringPointer(apiKey),
 		AppKey: utils.NewStringPointer(appKey),
 	}
+	return builder
+}
+
+// Override
+
+func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1.ComponentName, override v2alpha1.DatadogAgentComponentOverride) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+
+	builder.datadogAgent.Spec.Override[componentName] = &override
 	return builder
 }

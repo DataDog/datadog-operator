@@ -317,22 +317,22 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedMultiProcessAgentContainerName, managers)
+func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.TraceAgentContainerName, managers)
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.TraceAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
@@ -347,17 +347,19 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
+		receiverPortEnvVarValue := apicommon.DefaultApmPort
 		// if using host network, host port should be set and needs to match container port
 		if f.useHostNetwork {
 			apmPort.ContainerPort = f.hostPortHostPort
+			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMReceiverPort,
-			Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
-		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMNonLocalTraffic,
 			Value: "true",
+		})
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMReceiverPort,
+			Value: strconv.Itoa(receiverPortEnvVarValue),
 		})
 	}
 	managers.Port().AddPortToContainer(agentContainerName, apmPort)

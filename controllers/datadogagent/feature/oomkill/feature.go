@@ -7,6 +7,7 @@ package oomkill
 
 import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -75,16 +76,16 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 	return nil
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
@@ -94,9 +95,12 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
-	managers.Volume().AddVolume(&srcVol)
+	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+	if providerValue != kubernetes.GKECosType {
+		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
+		managers.Volume().AddVolume(&srcVol)
+	}
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)

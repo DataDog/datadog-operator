@@ -101,15 +101,15 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 cluster checks enabled and runners not enabled with multi-process container",
+			Name: "v2alpha1 cluster checks enabled and runners not enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 		{
 			Name: "v2alpha1 cluster checks enabled and runners enabled",
@@ -123,16 +123,16 @@ func TestClusterChecksFeature(t *testing.T) {
 			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.CoreAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 cluster checks enabled and runners enabled with multi-process container",
+			Name: "v2alpha1 cluster checks enabled and runners enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 	}
 

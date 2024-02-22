@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
+
+	"github.com/google/uuid"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -27,6 +30,15 @@ import (
 
 const (
 	localServiceDefaultMinimumVersion = "1.22-0"
+
+	DefaultAgentInstallType = "k8s_manual"
+)
+
+var (
+	// AgentInstallTime records the Agent install time
+	AgentInstallTime = strconv.FormatInt(time.Now().Unix(), 10)
+
+	AgentInstallId = uuid.NewString()
 )
 
 // GetVolumeForConfig return the volume that contains the agent config
@@ -554,7 +566,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 // GetAgentLocalServiceSelector creates the selector to be used for the agent local service
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
 }

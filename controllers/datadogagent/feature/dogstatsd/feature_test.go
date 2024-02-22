@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -49,6 +50,81 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			),
 		},
 		{
+			Name: "v2alpha1 udp host network",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      8125,
+							ContainerPort: 8125,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 udp host network custom host port",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdHostPortConfig(1234).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "1234",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      1234,
+							ContainerPort: 1234,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
 			Name: "v2alpha1 udp custom host port",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
@@ -60,7 +136,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 					wantCustomUDPEnvVars := []*corev1.EnvVar{
 						{
 							Name:  apicommon.DDDogstatsdPort,
-							Value: "1234",
+							Value: "8125",
 						},
 						{
 							Name:  apicommon.DDDogstatsdNonLocalTraffic,
@@ -83,6 +159,40 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			),
 		},
 		{
+			Name: "v2alpha1 udp host port enabled no custom host port",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					// custom udp envvar
+					wantCustomUDPEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDDogstatsdPort,
+							Value: "8125",
+						},
+						{
+							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Value: "true",
+						},
+					}
+
+					customPorts := []*corev1.ContainerPort{
+						{
+							Name:          apicommon.DogstatsdHostPortName,
+							HostPort:      8125,
+							ContainerPort: apicommon.DefaultDogstatsdPort,
+							Protocol:      corev1.ProtocolUDP,
+						},
+					}
+
+					assertWants(t, mgrInterface, "9", getWantVolumeMounts(), getWantVolumes(), wantCustomUDPEnvVars, getWantUDSEnvVarsV2(), customPorts)
+
+				},
+			),
+		},
+		{
 			Name: "v2alpha1 udp origin detection enabled",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
@@ -90,7 +200,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar())
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar())
 					assertWants(t, mgrInterface, "10", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
 				},
 			),
@@ -146,7 +256,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					assert.True(t, mgr.Tpl.Spec.HostPID, "13. Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
-					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar()}, getWantUDSEnvVarsV2(), getWantContainerPorts())
+					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar()}, getWantUDSEnvVarsV2(), getWantContainerPorts())
 				},
 			),
 		},
@@ -179,7 +289,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 						Name:  apicommon.DDDogstatsdTagCardinality,
 						Value: "orchestrator",
 					}
-					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), &wantTagCardinalityEnvVar)
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), &wantTagCardinalityEnvVar)
 					assertWants(t, mgrInterface, "15", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
 				},
 			),
@@ -223,6 +333,14 @@ func getOriginDetectionEnvVar() *corev1.EnvVar {
 		Value: "true",
 	}
 	return &originDetectionEnvVar
+}
+
+func getOriginDetectionClientEnvVar() *corev1.EnvVar {
+	originDetectionClientEnvVar := corev1.EnvVar{
+		Name:  apicommon.DDDogstatsdOriginDetectionClient,
+		Value: "true",
+	}
+	return &originDetectionClientEnvVar
 }
 
 func getCustomEnvVar() []*corev1.EnvVar {

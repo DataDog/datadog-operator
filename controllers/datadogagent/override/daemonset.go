@@ -13,14 +13,14 @@ import (
 
 // DaemonSet overrides a DaemonSet according to the given override options
 func DaemonSet(daemonSet *v1.DaemonSet, override *v2alpha1.DatadogAgentComponentOverride) {
-	if override.Name != nil {
+	if override.Name != nil && *override.Name != "" {
 		daemonSet.Name = *override.Name
 	}
 }
 
 // ExtendedDaemonSet overrides an ExtendedDaemonSet according to the given override options
 func ExtendedDaemonSet(eds *edsv1alpha1.ExtendedDaemonSet, override *v2alpha1.DatadogAgentComponentOverride) {
-	if override.Name != nil {
+	if override.Name != nil && *override.Name != "" {
 		eds.Name = *override.Name
 	}
 }

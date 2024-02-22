@@ -106,10 +106,130 @@ func Test_sbomFeature_Configure(t *testing.T) {
 				Name:  apicommon.DDSBOMHostEnabled,
 				Value: "true",
 			},
+			{
+				Name:  apicommon.DDHostRootEnvVar,
+				Value: "/host",
+			},
 		}
 
 		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
+
+		wantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
+				MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.ApkDirVolumeName,
+				MountPath: apicommon.ApkDirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.DpkgDirVolumeName,
+				MountPath: apicommon.DpkgDirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.RpmDirVolumeName,
+				MountPath: apicommon.RpmDirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.RedhatReleaseVolumeName,
+				MountPath: apicommon.RedhatReleaseMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.FedoraReleaseVolumeName,
+				MountPath: apicommon.FedoraReleaseMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.LsbReleaseVolumeName,
+				MountPath: apicommon.LsbReleaseMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.SystemReleaseVolumeName,
+				MountPath: apicommon.SystemReleaseMountPath,
+				ReadOnly:  true,
+			},
+		}
+
+		agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(agentVolumeMounts, wantVolumeMounts), "Agent volume mounts \ndiff = %s", cmp.Diff(agentVolumeMounts, wantVolumeMounts))
+
+		wantVolumes := []corev1.Volume{
+			{
+				Name: apicommon.SystemProbeOSReleaseDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.ApkDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.ApkDirVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.DpkgDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.DpkgDirVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.RpmDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.RpmDirVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.RedhatReleaseVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.RedhatReleaseVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.FedoraReleaseVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.FedoraReleaseVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.LsbReleaseVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.LsbReleaseVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.SystemReleaseVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.SystemReleaseVolumePath,
+					},
+				},
+			},
+		}
+
+		volumes := mgr.VolumeMgr.Volumes
+		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 	}
 
 	tests := test.FeatureTestSuite{

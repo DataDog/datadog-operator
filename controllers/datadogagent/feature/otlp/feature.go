@@ -239,10 +239,10 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 	return 0, fmt.Errorf("%q does not have a port explicitly set", endpoint)
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
@@ -264,8 +264,8 @@ func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMa
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	if f.httpEnabled {
@@ -284,8 +284,8 @@ func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMa
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	return nil
@@ -293,7 +293,7 @@ func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateMa
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")

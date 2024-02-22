@@ -17,6 +17,8 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
+	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
+	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
@@ -54,6 +56,8 @@ const (
 	DefaultAdmissionControllerTargetPort = 8000
 	// DefaultAdmissionControllerWebhookName default admission controller webhook name
 	DefaultAdmissionControllerWebhookName string = "datadog-webhook"
+	// DefaultDogstatsdOriginDetection default Origin Detection
+	DefaultDogstatsdOriginDetection = "false"
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
@@ -155,6 +159,34 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
+	ApkDirVolumeName = "host-apk-dir"
+	ApkDirVolumePath = "/var/lib/apk"
+	ApkDirMountPath  = "/host/var/lib/apk"
+
+	DpkgDirVolumeName = "host-dpkg-dir"
+	DpkgDirVolumePath = "/var/lib/dpkg"
+	DpkgDirMountPath  = "/host/var/lib/dpkg"
+
+	RpmDirVolumeName = "host-rpm-dir"
+	RpmDirVolumePath = "/var/lib/rpm"
+	RpmDirMountPath  = "/host/var/lib/rpm"
+
+	RedhatReleaseVolumeName = "etc-redhat-release"
+	RedhatReleaseVolumePath = "/etc/redhat-release"
+	RedhatReleaseMountPath  = "/host/etc/redhat-release"
+
+	FedoraReleaseVolumeName = "etc-fedora-release"
+	FedoraReleaseVolumePath = "/etc/fedora-release"
+	FedoraReleaseMountPath  = "/host/etc/fedora-release"
+
+	LsbReleaseVolumeName = "etc-lsb-release"
+	LsbReleaseVolumePath = "/etc/lsb-release"
+	LsbReleaseMountPath  = "/host/etc/lsb-release"
+
+	SystemReleaseVolumeName = "etc-system-release"
+	SystemReleaseVolumePath = "/etc/system-release"
+	SystemReleaseMountPath  = "/host/etc/system-release"
 
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"

@@ -60,7 +60,8 @@ generate_code:
 
 build_operator_image_amd64:
   stage: image
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
   variables:
     GOARCH: amd64
@@ -70,12 +71,13 @@ build_operator_image_amd64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
+    - IMG=$TARGET_IMAGE make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 build_operator_image_arm64:
   stage: image
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags:
+    - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
   variables:
     GOARCH: arm64
@@ -85,12 +87,13 @@ build_operator_image_arm64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
+    - IMG=$TARGET_IMAGE make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 build_operator_check_image_amd64:
   stage: image
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
   variables:
     GOARCH: amd64
@@ -100,12 +103,13 @@ build_operator_check_image_amd64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-check-ci docker-push-check-ci
+    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 build_operator_check_image_arm64:
   stage: image
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags:
+    - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
   variables:
     GOARCH: arm64
@@ -115,12 +119,13 @@ build_operator_check_image_arm64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-check-ci docker-push-check-ci
+    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 build_bundle_image:
   stage: image
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
   variables:
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
@@ -136,12 +141,12 @@ preflight_redhat_image_amd64:
     - if: $CI_COMMIT_TAG
       when: on_success
     - when: never
-  tags: ["runner:docker", "size:large"]
+  tags:
+    - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
   variables:
     IMG: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
   script:
-    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - make preflight-redhat-container
@@ -286,6 +291,44 @@ trigger_internal_operator_check_image:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
+trigger_internal_operator_nightly_image:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
+    BUILD_NIGHTLY: "true"
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
+trigger_internal_operator_check_nightly_image:
+  stage: release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME_CHECK
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
+    BUILD_NIGHTLY: "true"
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
 trigger_custom_operator_image_staging:
   stage: release
   rules:
@@ -341,3 +384,48 @@ submit_preflight_redhat_public_tag:
     - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container-submit
+
+
+publish_community_operators:
+  stage: post-release
+  rules:
+      - if: $CI_COMMIT_TAG
+        when: manual
+      - when: never
+  needs:
+    - "submit_preflight_redhat_public_tag"
+  tags: [ "runner:docker", "size:large" ]
+  image: $JOB_DOCKER_IMAGE
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    # Set version
+    - VERSION=${CI_COMMIT_TAG:1} # vX.Y.Z => X.Y.Z
+    # Install github-cli and skopeo deps
+    - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+    - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+    - apt-get update -y
+    - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
+    - rm -rf /var/lib/apt/lists/*
+    # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
+    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
+    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
+    # Set up redhat registry access to generate bundle-redhat
+    - mkdir ~/.redhat
+    - aws ssm get-parameter --region us-east-1 --name
+      ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
+    - cd $CI_PROJECT_DIR
+    - make bundle-redhat
+    # configure git and github-cli
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - git config --global user.name $GITLAB_USER_NAME
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
+    - gh auth login --with-token < git-token.txt
+    - gh auth setup-git
+    # create pull request for each marketplace repo
+    - make publish-community-bundles $VERSION community-operators community-operators-prod certified-operators redhat-marketplace-operators

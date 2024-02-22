@@ -216,12 +216,12 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 	return nil
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
-// if multi-process container usage is enabled and can be used with the current feature set
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedMultiProcessAgentContainerName, env)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, env)
 	}
 
 	return nil
@@ -229,7 +229,7 @@ func (f *orchestratorExplorerFeature) ManageMultiProcessNodeAgent(managers featu
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)

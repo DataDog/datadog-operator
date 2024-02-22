@@ -59,14 +59,14 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 	}
 
 	if dda.Spec.Global != nil &&
-		dda.Spec.Global.ContainerProcessStrategy != nil &&
-		dda.Spec.Global.ContainerProcessStrategy.Type == common.UnprivilegedMultiProcessContainer &&
+		dda.Spec.Global.ContainerStrategy != nil &&
+		*dda.Spec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
 		// All features that need the NodeAgent must include it in their RequiredComponents;
 		// otherwise tests will fail when checking `requiredComponents.Agent.IsPrivileged()`.
 		requiredComponents.Agent.IsEnabled() &&
 		!requiredComponents.Agent.IsPrivileged() {
 
-		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedMultiProcessAgentContainerName}
+		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedSingleAgentContainerName}
 		return output, requiredComponents
 	}
 	return output, requiredComponents

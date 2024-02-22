@@ -45,10 +45,10 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 	requiredContainers := agentComponent.Containers
 
 	var agentContainers []corev1.Container
-	if agentComponent.MultiProcessContainerEnabled() {
-		agentContainers = agentMultiProcessContainer(dda)
+	if agentComponent.SingleContainerStrategyEnabled() {
+		agentContainers = agentSingleContainer(dda)
 	} else {
-		agentContainers = agentSingleProcessContainers(dda, requiredContainers)
+		agentContainers = agentOptimizedContainers(dda, requiredContainers)
 	}
 
 	return &corev1.PodTemplateSpec{
@@ -107,9 +107,9 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	return initContainers
 }
 
-func agentMultiProcessContainer(dda metav1.Object) []corev1.Container {
-	agentMultiProcessContainer := corev1.Container{
-		Name:           string(common.UnprivilegedMultiProcessAgentContainerName),
+func agentSingleContainer(dda metav1.Object) []corev1.Container {
+	agentSingleContainer := corev1.Container{
+		Name:           string(common.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
@@ -118,13 +118,13 @@ func agentMultiProcessContainer(dda metav1.Object) []corev1.Container {
 	}
 
 	containers := []corev1.Container{
-		agentMultiProcessContainer,
+		agentSingleContainer,
 	}
 
 	return containers
 }
 
-func agentSingleProcessContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+func agentOptimizedContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
 
 	for _, containerName := range requiredContainers {
@@ -165,7 +165,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:           commonEnvVars(dda),
+		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
 		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
@@ -301,6 +301,25 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			// but in 7.50.0 it will be already defaulted in the agent process.
 			Name:  apicommon.DDContainerImageEnabled,
 			Value: apicommon.EnvVarTrueValue,
+		},
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
+func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallId,
+			Value: component.AgentInstallId,
+		},
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallTime,
+			Value: component.AgentInstallTime,
+		},
+		{
+			Name:  apicommon.DDAPMInstrumentationInstallType,
+			Value: component.DefaultAgentInstallType,
 		},
 	}
 

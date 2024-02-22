@@ -17,6 +17,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -840,8 +841,12 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
+			Name:  apicommon.DDDogstatsdOriginDetection,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
+		},
+		{
+			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
@@ -940,6 +945,18 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 		{
 			Name:  apicommon.DDAuthTokenFilePath,
 			Value: "/etc/datadog-agent/auth/token",
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
+			Value: component.AgentInstallTime,
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
+			Value: component.DefaultAgentInstallType,
+		},
+		{
+			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
+			Value: component.AgentInstallId,
 		},
 	}
 }
@@ -1918,8 +1935,12 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
+			Name:  apicommon.DDDogstatsdOriginDetection,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
+		},
+		{
+			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Value: apicommon.DefaultDogstatsdOriginDetection,
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",

@@ -83,7 +83,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 	tests := []struct {
 		name      string
 		loadFunc  func() (*metricsForwarder, *fakeMetricsForwarder)
-		dsStatus  *commonv1.DaemonSetStatus
+		dsStatus  []*commonv1.DaemonSetStatus
 		dcaStatus *commonv1.DeploymentStatus
 		ccrStatus *commonv1.DeploymentStatus
 		wantErr   bool
@@ -109,20 +109,23 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				mf.delegator = f
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1337),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: nil,
 			ccrStatus: nil,
 			wantErr:   false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -135,21 +138,24 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, available + tags not empty",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				mf.delegator = f
 				mf.tags = []string{"cluster_name:testcluster"}
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1337),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: nil,
 			ccrStatus: nil,
 			wantErr:   false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -162,21 +168,24 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				mf.delegator = f
 				mf.tags = []string{}
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1336),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateFailed),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1336),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateFailed),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: nil,
 			ccrStatus: nil,
 			wantErr:   false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -189,16 +198,19 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "all components, all available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
 				f.On("delegatedSendDeploymentMetric", 1.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
 				mf.delegator = f
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1337),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: &commonv1.DeploymentStatus{
 				Replicas:          int32(2),
@@ -212,7 +224,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
@@ -231,15 +243,18 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent and clusteragent, clusteragent not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
 				mf.delegator = f
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1337),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: &commonv1.DeploymentStatus{
 				Replicas:          int32(2),
@@ -249,7 +264,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			ccrStatus: nil,
 			wantErr:   false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
@@ -265,16 +280,19 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "all components, clusterchecksrunner not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
 				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
 				f.On("delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
 				mf.delegator = f
 				return mf, f
 			},
-			dsStatus: &commonv1.DaemonSetStatus{
-				Desired:   int32(1337),
-				Available: int32(1337),
-				State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
 			},
 			dcaStatus: &commonv1.DeploymentStatus{
 				Replicas:          int32(2),
@@ -288,7 +306,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
@@ -298,6 +316,61 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
+					return errors.New("Wrong number of calls")
+				}
+				return nil
+			},
+		},
+		{
+			name: "all components, agent has multiple DaemonSetStatus",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-bar"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"})
+				mf.delegator = f
+				return mf, f
+			},
+			dsStatus: []*commonv1.DaemonSetStatus{
+				{
+					Desired:       int32(1337),
+					Available:     int32(1337),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-foo",
+				},
+				{
+					Desired:       int32(90),
+					Available:     int32(90),
+					State:         string(datadoghqv1alpha1.DatadogAgentStateRunning),
+					DaemonsetName: "ds-bar",
+				},
+			},
+			dcaStatus: &commonv1.DeploymentStatus{
+				Replicas:          int32(2),
+				AvailableReplicas: int32(2),
+				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			},
+			ccrStatus: &commonv1.DeploymentStatus{
+				Replicas:          int32(3),
+				AvailableReplicas: int32(1),
+				State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
+			},
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-foo"}) {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1", "cr_agent_name:ds-bar"}) {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running", "cr_preferred_version:v1", "cr_other_version:v1alpha1"}) {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 4) {
 					return errors.New("Wrong number of calls")
 				}
 				return nil

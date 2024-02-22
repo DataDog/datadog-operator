@@ -812,9 +812,15 @@ type GlobalConfig struct {
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
 
-	// ContainerProcessStrategy determines whether agents run in single or multi-process containers.
+	// Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.
+	// Required 'true' for Google Cloud Marketplace.
 	// +optional
-	ContainerProcessStrategy *ContainerProcessStrategy `json:"containerProcessStrategy,omitempty"`
+	DisableNonResourceRules *bool `json:"disableNonResourceRules,omitempty"`
+
+	// ContainerStrategy determines whether agents run in a single or multiple containers.
+	// Default: 'optimized'
+	// +optional
+	ContainerStrategy *ContainerStrategyType `json:"containerStrategy,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1095,6 +1101,17 @@ type DatadogAgentGenericContainer struct {
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
 }
 
+type ContainerStrategyType string
+
+const (
+	// OptimizedContainerStrategy indicates multiple Agent containers with one process per
+	// container (default)
+	OptimizedContainerStrategy ContainerStrategyType = "optimized"
+	// SingleContainerStrategy indicates a single Agent container with multiple (unprivileged)
+	// processes in one container
+	SingleContainerStrategy ContainerStrategyType = "single"
+)
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -1103,7 +1120,11 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as an extended daemonset.
+	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// +optional
+	// +listType=atomic
+	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
+	// The combined actual state of all Agents as daemonsets or extended daemonsets.
 	// +optional
 	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
@@ -1112,19 +1133,6 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
-}
-
-// ContainerProcessStrategy determines how various agent processes are grouped across multiple containers.
-// +k8s:openapi-gen=true
-type ContainerProcessStrategy struct {
-	// Type sets a predetermined grouping of processes across containers. There are two supported groupings:
-	// `singleProcessContainers` runs one process per container.
-	// `unprivilegedMultiProcessContainer`, runs non-privileged processes in a single container
-	// unless the configuration requires a privileged agent. For example if `security-agent` or `system-probe`
-	// is required, `singleProcessContainers` will be used.
-	// Default: `singleProcessContainers`
-	// +optional
-	Type commonv1.ContainerProcessStrategyType `json:"type,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

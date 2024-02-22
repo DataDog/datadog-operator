@@ -4,4 +4,5 @@ resources:
 - datadog-operator-hub-example-v1alpha1.yaml
 - datadogmetric-v1alpha1.yaml
 - datadoghq_v1alpha1_datadogmonitor.yaml
+- datadoghq_v1alpha1_datadogagentprofile.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

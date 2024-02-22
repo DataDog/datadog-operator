@@ -6,6 +6,7 @@
 package apm
 
 import (
+	"strconv"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -92,7 +93,7 @@ func TestAPMFeature(t *testing.T) {
 			Name:          "v1alpha1 apm enabled, use uds and hostport",
 			DDAv1:         newV1Agent(true, true),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, false),
 		},
 
 		//////////////////////////
@@ -106,10 +107,10 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 apm not enabled with multi-process container",
+			Name: "v2alpha1 apm not enabled with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(false).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: false,
 		},
@@ -117,53 +118,145 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 apm enabled, use uds",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, 8126).
+				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(apicommonv1.TraceAgentContainerName),
 		},
 		{
-			Name: "v2alpha1 apm enabled, use uds with multi-process container",
+			Name: "v2alpha1 apm enabled, use uds with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, 8126).
+				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithMultiProcessContainer(true).
+				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedSingleAgentContainerName),
 		},
 		{
 			Name: "v2alpha1 apm enabled, use uds and host port",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				Build(),
+				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, false),
 		},
 		{
-			Name: "v2alpha1 apm enabled, use uds and host port with multi-process container",
+			Name: "v2alpha1 apm enabled, use uds and host port with single container strategy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithMultiProcessContainer(true).
-				Build(),
+				WithSingleContainerStrategy(true).
+				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedMultiProcessAgentContainerName),
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, false),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and custom host port",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 1234, false),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and custom host port with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithSingleContainerStrategy(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 1234, false),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and host port enabled but no custom host port",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, nil).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, false),
+		},
+		{
+			Name: "v2alpha1 apm enabled, use uds and host port enabled but no custom host port with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, nil).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithSingleContainerStrategy(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, false),
+		},
+		{
+			Name: "v2alpha1 apm enabled, host port enabled host network",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, nil).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, true),
+		},
+		{
+			Name: "v2alpha1 apm enabled, host port enabled host network with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, nil).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				WithSingleContainerStrategy(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, true),
+		},
+		{
+			Name: "v2alpha1 apm enabled, custom host port host network",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 1234, true),
+		},
+		{
+			Name: "v2alpha1 apm enabled, custom host port host network with single container strategy",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(1234)).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					HostNetwork: apiutils.NewBoolPointer(true),
+				}).
+				WithSingleContainerStrategy(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 1234, true),
 		},
 		{
 			Name: "v2alpha1 basic apm single step instrumentation",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
-				WithMultiProcessContainer(false).
+				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
@@ -172,7 +265,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 error apm single step instrumentation",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
 				WithAPMSingleStepInstrumentationEnabled(true,
@@ -181,7 +274,7 @@ func TestAPMFeature(t *testing.T) {
 					map[string]string{
 						"java": "1.2.4",
 					}).
-				WithMultiProcessContainer(false).
+				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationFull(),
@@ -190,7 +283,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 step instrumentation precedence",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(false).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
 				WithAdmissionControllerEnabled(true).
@@ -201,11 +294,11 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 step instrumentation w/o AC",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
 				WithAdmissionControllerEnabled(false).
-				WithMultiProcessContainer(false).
+				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
 			Agent:         testTraceAgentEnabled(apicommonv1.TraceAgentContainerName),
@@ -215,7 +308,7 @@ func TestAPMFeature(t *testing.T) {
 			Name: "v2alpha1 single step instrumentation namespace specific",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(true, 8126).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}).
 				WithAdmissionControllerEnabled(true).
@@ -255,13 +348,13 @@ func testTraceAgentEnabled(containerName apicommonv1.AgentContainerName) *test.C
 					Name:  apicommon.DDAPMEnabled,
 					Value: "true",
 				},
+        {
+					Name:  apicommon.DDAPMNonLocalTraffic,
+					Value: "true",
+				},
 				{
 					Name:  apicommon.DDAPMReceiverPort,
 					Value: "8126",
-				},
-				{
-					Name:  apicommon.DDAPMNonLocalTraffic,
-					Value: "true",
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
@@ -289,12 +382,12 @@ func testAgentHostPortOnly() *test.ComponentTest {
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverPort,
-					Value: "8126",
-				},
-				{
 					Name:  apicommon.DDAPMNonLocalTraffic,
 					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAPMReceiverPort,
+					Value: "8126",
 				},
 			}
 			assert.True(
@@ -489,10 +582,15 @@ func testAPMInstrumentation() *test.ComponentTest {
 	)
 }
 
-func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName, hostPort int32, hostNetwork bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			receiverPortValue := int32(8126)
+			if hostNetwork {
+				receiverPortValue = hostPort
+			}
 
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
@@ -501,12 +599,12 @@ func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName) *te
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverPort,
-					Value: "8126",
-				},
-				{
 					Name:  apicommon.DDAPMNonLocalTraffic,
 					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAPMReceiverPort,
+					Value: strconv.Itoa(int(receiverPortValue)),
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
@@ -557,9 +655,12 @@ func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName) *te
 				{
 					Name:          "traceport",
 					ContainerPort: 8126,
-					HostPort:      8126,
+					HostPort:      hostPort,
 					Protocol:      corev1.ProtocolTCP,
 				},
+			}
+			if hostNetwork {
+				expectedPorts[0].ContainerPort = hostPort
 			}
 			assert.True(
 				t,
