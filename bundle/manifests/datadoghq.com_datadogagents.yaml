@@ -13608,6 +13608,10 @@ spec:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
                     type: string
+                  containerStrategy:
+                    description: 'ContainerStrategy determines whether agents run
+                      in a single or multiple containers. Default: ''optimized'''
+                    type: string
                   credentials:
                     description: Credentials defines the Datadog credentials used
                       to submit data to/query data from Datadog.
@@ -13655,6 +13659,11 @@ spec:
                     description: Path to the container runtime socket (if different
                       from Docker).
                     type: string
+                  disableNonResourceRules:
+                    description: Set DisableNonResourceRules to exclude NonResourceURLs
+                      from default ClusterRoles. Required 'true' for Google Cloud
+                      Marketplace.
+                    type: boolean
                   dockerSocketPath:
                     description: Path to the docker runtime socket.
                     type: string
@@ -17824,7 +17833,8 @@ spec:
             description: DatadogAgentStatus defines the observed state of DatadogAgent.
             properties:
               agent:
-                description: The actual state of the Agent as an extended daemonset.
+                description: The combined actual state of all Agents as daemonsets
+                  or extended daemonsets.
                 properties:
                   available:
                     description: Number of available pods in the DaemonSet.
@@ -17870,6 +17880,59 @@ spec:
                 - ready
                 - upToDate
                 type: object
+              agentList:
+                description: The actual state of the Agent as a daemonset or an extended
+                  daemonset.
+                items:
+                  description: DaemonSetStatus defines the observed state of Agent
+                    running as DaemonSet.
+                  properties:
+                    available:
+                      description: Number of available pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    current:
+                      description: Number of current pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the DaemonSet.
+                      type: string
+                    daemonsetName:
+                      description: DaemonsetName corresponds to the name of the created
+                        DaemonSet.
+                      type: string
+                    desired:
+                      description: Number of desired pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    ready:
+                      description: Number of ready pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the DaemonSet state.
+                      type: string
+                    status:
+                      description: Status corresponds to the DaemonSet computed status.
+                      type: string
+                    upToDate:
+                      description: Number of up to date pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                  required:
+                  - available
+                  - current
+                  - desired
+                  - ready
+                  - upToDate
+                  type: object
+                type: array
+                x-kubernetes-list-type: atomic
               clusterAgent:
                 description: The actual state of the Cluster Agent as a deployment.
                 properties:
