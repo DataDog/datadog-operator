@@ -155,9 +155,44 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			wantAffinity: nil,
 		},
 		{
-			name: "one existing provider, default provider",
+			name: "single default provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+			},
+			provider:     defaultProvider,
+			wantAffinity: nil,
+		},
+		{
+			name: "single cos provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
+			},
+			provider: gkeCosProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "one other provider, default provider",
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
 			},
 			provider: defaultProvider,
 			wantAffinity: &corev1.Affinity{
@@ -181,9 +216,10 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "one existing provider, cos provider",
+			name: "one other provider, cos provider",
 			existingProviders: map[string]struct{}{
 				defaultProvider: {},
+				gkeCosProvider:  {},
 			},
 			provider: gkeCosProvider,
 			wantAffinity: &corev1.Affinity{
@@ -209,9 +245,10 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 		{
 			name: "multiple providers, default provider",
 			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-				"gke-abcde":    {},
-				"gke-zyxwv":    {},
+				gkeCosProvider:  {},
+				"gke-abcde":     {},
+				"gke-zyxwv":     {},
+				defaultProvider: {},
 			},
 			provider: defaultProvider,
 			wantAffinity: &corev1.Affinity{
@@ -254,6 +291,7 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 				defaultProvider: {},
 				"abcdef":        {},
 				"lmnop":         {},
+				gkeCosProvider:  {},
 			},
 			provider: gkeCosProvider,
 			wantAffinity: &corev1.Affinity{

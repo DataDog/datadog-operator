@@ -57,6 +57,11 @@ func getProviderNodeAffinity(provider string, providerList map[string]struct{}) 
 	if provider == "" || providerList == nil || len(providerList) == 0 {
 		return nil
 	}
+	// if only the default provider exists, there should be no affinity override
+	if provider == DefaultProvider && len(providerList) == 1 {
+		return nil
+	}
+
 	// default provider has NodeAffinity to NOT match provider-specific labels
 	// build NodeSelectorRequirement list with negative (`OpNotIn`) operator
 	nsrList := []corev1.NodeSelectorRequirement{}
