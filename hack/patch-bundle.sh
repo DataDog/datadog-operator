@@ -33,3 +33,15 @@ $YQ -i ".annotations.\"com.redhat.openshift.versions\" = \"v4.6\"" bundle/metada
 
 # Patch deploymentName, as `operator-sdk generate bundle` sets it to something that doesn't exist
 eval $SED 's/datadog-operator-webhook/datadog-operator-manager/g' bundle/manifests/datadog-operator.clusterserviceversion.yaml
+
+# Use correct webhook-service name. TODO remove when deprecated 
+eval $SED 's/webhook-service/datadog-operator-webhook-service/g' bundle/manifests/datadoghq.com_datadogagents.yaml
+
+
+# The Operators in k8s-operatorhub/community-operators have slightly different requirements
+COMM_OPS_PATH="bundle-community-operators/"
+rm -rf "$COMM_OPS_PATH"
+cp -R "bundle/" "$COMM_OPS_PATH"
+
+# Delete spec.replaces
+$YQ -i "del(.spec.\"replaces\")" "$COMM_OPS_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
