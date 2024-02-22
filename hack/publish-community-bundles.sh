@@ -53,23 +53,25 @@ for repo in "${REPOS[@]}"
 do
   # set up env vars for each repo
   case "$repo" in
-    community-operators | community-operators-prod)
+    community-operators)
+      ORG="k8s-operatorhub"
+      OPERATOR_SUBPATH="datadog-operator"
+      BUNDLE_NAME="bundle-community-operators"
+      ;;&
+    community-operators-prod)
+      ORG="redhat-openshift-ecosystem"
       OPERATOR_SUBPATH="datadog-operator"
       BUNDLE_NAME="bundle"
       ;;&
-    community-operators-prod | redhat-marketplace-operators | certified-operators)
-      ORG="redhat-openshift-ecosystem"
-      ;;&
-    community-operators)
-      ORG="k8s-operatorhub"
-      ;;
-    redhat-marketplace-operators)
-      OPERATOR_SUBPATH="datadog-operator-certified-rhmp"
-      BUNDLE_NAME="bundle-redhat-mp"
-      ;;
     certified-operators)
+      ORG="redhat-openshift-ecosystem"
       OPERATOR_SUBPATH="datadog-operator-certified"
       BUNDLE_NAME="bundle-redhat"
+      ;;
+    redhat-marketplace-operators)
+      ORG="redhat-openshift-ecosystem"
+      OPERATOR_SUBPATH="datadog-operator-certified-rhmp"
+      BUNDLE_NAME="bundle-redhat-marketplace"
       ;;
     *)
       ;;
