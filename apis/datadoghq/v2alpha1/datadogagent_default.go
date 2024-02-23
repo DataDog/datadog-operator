@@ -96,6 +96,9 @@ const (
 
 	defaultContainerStrategy = OptimizedContainerStrategy
 
+	defaultHelmCheckEnabled       bool = false
+	defaultHelmCheckCollectEvents bool = false
+
 	defaultFIPSEnabled      bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
 	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
@@ -408,5 +411,15 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if *ddaSpec.Features.PrometheusScrape.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints, defaultPrometheusScrapeEnableServiceEndpoints)
 		apiutils.DefaultIntIfUnset(&ddaSpec.Features.PrometheusScrape.Version, defaultPrometheusScrapeVersion)
+	}
+
+	// Helm Check Feature
+	if ddaSpec.Features.HelmCheck == nil {
+		ddaSpec.Features.HelmCheck = &HelmCheckFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.Enabled, defaultHelmCheckEnabled)
+
+	if *ddaSpec.Features.HelmCheck.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.CollectEvents, defaultHelmCheckCollectEvents)
 	}
 }

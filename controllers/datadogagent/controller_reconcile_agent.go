@@ -54,7 +54,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
-	if r.options.ExtendedDaemonsetOptions.Enabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+	if (r.options.ExtendedDaemonsetOptions.Enabled && !r.options.DatadogAgentProfileEnabled) || (r.options.ExtendedDaemonsetOptions.Enabled &&
+		r.options.DatadogAgentProfileEnabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name)) {
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
@@ -75,9 +76,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			componentOverrides = append(componentOverrides, componentOverride)
 		}
 
-		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
-		componentOverrides = append(componentOverrides, &overrideFromProfile)
+		if r.options.DatadogAgentProfileEnabled {
+			// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+			overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+			componentOverrides = append(componentOverrides, &overrideFromProfile)
+		}
 
 		if r.options.IntrospectionEnabled {
 			// use the last name override in the list to generate a provider-specific name
@@ -145,9 +148,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		componentOverrides = append(componentOverrides, componentOverride)
 	}
 
-	// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-	overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
-	componentOverrides = append(componentOverrides, &overrideFromProfile)
+	if r.options.DatadogAgentProfileEnabled {
+		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
+		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+		componentOverrides = append(componentOverrides, &overrideFromProfile)
+	}
 
 	if r.options.IntrospectionEnabled {
 		// use the last name override in the list to generate a provider-specific name

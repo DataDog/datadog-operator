@@ -78,6 +78,8 @@ const (
 	DefaultCSPMConf string = "cspm-config"
 	// DefaultCWSConf default CWS ConfigMap name
 	DefaultCWSConf string = "cws-config"
+	// DefaultHelmCheckConf default Helm Check ConfigMap name
+	DefaultHelmCheckConf string = "helm-check-config"
 
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
@@ -285,6 +287,8 @@ const (
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
 	FIPSProxyCustomConfigMapName    = "%s-fips-config"
 	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
+
+	HelmCheckConfigVolumeName = "helm-check-config"
 )
 
 const (

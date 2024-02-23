@@ -103,10 +103,11 @@ var _ = BeforeSuite(func() {
 		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
 			Enabled: false,
 		},
-		Creds:                 config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
-		DatadogAgentEnabled:   true,
-		DatadogMonitorEnabled: true,
-		V2APIEnabled:          true,
+		Creds:                      config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		DatadogAgentEnabled:        true,
+		DatadogMonitorEnabled:      true,
+		DatadogAgentProfileEnabled: true,
+		V2APIEnabled:               true,
 	}
 
 	err = SetupControllers(logger, mgr, options)

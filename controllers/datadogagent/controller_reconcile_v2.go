@@ -143,37 +143,46 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
-	// Get a node list for profiles and introspection
-	nodeList, err := r.getNodeList(ctx)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	profiles, profilesByNode, err := r.profilesToApply(ctx, logger, nodeList)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+	// Start with an "empty" profile and provider
+	// If profiles is disabled, reconcile the agent once using an empty profile
+	// If introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
+	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 
-	for _, profile := range profiles {
-		// If introspection is enabled, for all providers, reconcile the node agent
-		// If introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
+	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
+		// Get a node list for profiles and introspection
+		nodeList, e := r.getNodeList(ctx)
+		if e != nil {
+			return reconcile.Result{}, e
+		}
+
 		if r.options.IntrospectionEnabled {
 			providerList, err = r.handleProviders(ctx, instance, newStatus, nodeList, logger)
 			if err != nil {
 				errs = append(errs, err)
 			}
 		}
+
+		if r.options.DatadogAgentProfileEnabled {
+			profileList, profilesByNode, e := r.profilesToApply(ctx, logger, nodeList)
+			if err != nil {
+				return reconcile.Result{}, e
+			}
+			profiles = profileList
+
+			if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace, providerList); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
+	for _, profile := range profiles {
 		for provider := range providerList {
 			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
 			if utils.ShouldReturn(result, err) {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 			}
 		}
-	}
-
-	if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace, providerList); err != nil {
-		return reconcile.Result{}, err
 	}
 
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)

@@ -43,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
@@ -65,11 +66,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	V2Enabled                bool
-	IntrospectionEnabled     bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	V2Enabled                  bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

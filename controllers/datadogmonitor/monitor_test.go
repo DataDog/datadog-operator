@@ -61,6 +61,7 @@ func Test_buildMonitor(t *testing.T) {
 				NoDataTimeframe:        &noDataTimeframe,
 				NotificationPresetName: "show_all",
 				NotifyNoData:           &valTrue,
+				OnMissingData:          "default",
 				RenotifyInterval:       &renotifyInterval,
 				TimeoutH:               &timeoutH,
 				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
@@ -117,6 +118,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
+
+	assert.Equal(t, string(dm.Spec.Options.OnMissingData), string(monitor.Options.GetOnMissingData()), "discrepancy found in parameter: OnMissingData")
+	assert.Equal(t, string(dm.Spec.Options.OnMissingData), string(monitorUR.Options.GetOnMissingData()), "discrepancy found in parameter: OnMissingData")
 
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitor.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitorUR.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
