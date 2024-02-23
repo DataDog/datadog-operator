@@ -93,6 +93,9 @@ const (
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 
 	defaultContainerStrategy = OptimizedContainerStrategy
+
+	defaultHelmCheckEnabled       bool = false
+	defaultHelmCheckCollectEvents bool = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -377,5 +380,15 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if *ddaSpec.Features.PrometheusScrape.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints, defaultPrometheusScrapeEnableServiceEndpoints)
 		apiutils.DefaultIntIfUnset(&ddaSpec.Features.PrometheusScrape.Version, defaultPrometheusScrapeVersion)
+	}
+
+	// Helm Check Feature
+	if ddaSpec.Features.HelmCheck == nil {
+		ddaSpec.Features.HelmCheck = &HelmCheckFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.Enabled, defaultHelmCheckEnabled)
+
+	if *ddaSpec.Features.HelmCheck.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.CollectEvents, defaultHelmCheckCollectEvents)
 	}
 }

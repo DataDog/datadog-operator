@@ -451,6 +451,32 @@ func (builder *DatadogAgentBuilder) WithOOMKillEnabled(enabled bool) *DatadogAge
 	return builder
 }
 
+// Helm Check
+
+func (builder *DatadogAgentBuilder) initHelmCheck() {
+	if builder.datadogAgent.Spec.Features.HelmCheck == nil {
+		builder.datadogAgent.Spec.Features.HelmCheck = &v2alpha1.HelmCheckFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithHelmCheckEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initHelmCheck()
+	builder.datadogAgent.Spec.Features.HelmCheck.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithHelmCheckCollectEvents(enabled bool) *DatadogAgentBuilder {
+	builder.initHelmCheck()
+	builder.datadogAgent.Spec.Features.HelmCheck.CollectEvents = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[string]string) *DatadogAgentBuilder {
+	builder.initHelmCheck()
+	builder.datadogAgent.Spec.Features.HelmCheck.ValuesAsTags = valuesAsTags
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {

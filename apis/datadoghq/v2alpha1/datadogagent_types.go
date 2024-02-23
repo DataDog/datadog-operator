@@ -93,6 +93,8 @@ type DatadogFeatures struct {
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
+	// HelmCheck configuration.
+	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -626,6 +628,27 @@ type PrometheusScrapeFeatureConfig struct {
 	// Default: 2
 	// +optional
 	Version *int `json:"version,omitempty"`
+}
+
+// HelmCheckFeatureConfig allows configuration of the Helm check feature.
+// +k8s:openapi-gen=true
+type HelmCheckFeatureConfig struct {
+	// Enabled enables the Helm check.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CollectEvents set to `true` enables event collection in the Helm check
+	// (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+)
+	// Default: false
+	// +optional
+	CollectEvents *bool `json:"collectEvents,omitempty"`
+
+	// ValuesAsTags collects Helm values from a release and uses them as tags
+	// (Requires Agent and Cluster Agent 7.40.0+).
+	// Default: {}
+	// +optional
+	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
 }
 
 // Generic support structs
