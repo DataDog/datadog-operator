@@ -8,11 +8,12 @@ package v2alpha1
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 const (
@@ -80,6 +81,50 @@ func Test_defaultGlobal(t *testing.T) {
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultGovSite),
 					Registry: apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test FIPS defaulting - disabled",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
+					},
+					Site:     apiutils.NewStringPointer(defaultSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test FIPS defaulting - enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Image: &common.AgentImageConfig{
+							Name: defaultFIPSImageName,
+							Tag:  defaultFIPSImageTag,
+						},
+						LocalAddress: apiutils.NewStringPointer(defaultFIPSLocalAddress),
+						Port:         apiutils.NewInt32Pointer(defaultFIPSPort),
+						PortRange:    apiutils.NewInt32Pointer(defaultFIPSPortRange),
+						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
+					},
+					Site:     apiutils.NewStringPointer(defaultSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},

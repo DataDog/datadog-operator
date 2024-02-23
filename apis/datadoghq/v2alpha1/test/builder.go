@@ -531,3 +531,14 @@ func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1
 	builder.datadogAgent.Spec.Override[componentName] = &override
 	return builder
 }
+
+// FIPS
+
+func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global == nil {
+		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgent.Spec.Global.FIPS = &fipsConfig
+	return builder
+}

@@ -284,6 +284,11 @@ const (
 	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
 	HelmCheckConfigVolumeName = "helm-check-config"
+
+	FIPSProxyCustomConfigVolumeName = "fips-proxy-cfg"
+	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
+	FIPSProxyCustomConfigMapName    = "%s-fips-config"
+	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
 )
 
 const (

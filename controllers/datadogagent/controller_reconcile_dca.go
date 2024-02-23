@@ -69,6 +69,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		// If the override is not defined, then disable based on dcaEnabled value
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
+
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
 }
 

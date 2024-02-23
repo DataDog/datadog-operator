@@ -119,6 +119,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			}
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
+
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
@@ -190,6 +191,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
+
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 

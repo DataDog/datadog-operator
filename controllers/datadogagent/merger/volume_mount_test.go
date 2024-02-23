@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -116,6 +118,146 @@ func TestAddVolumeMountToContainer(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("AddVolumeMountToContainer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAddVolumeMountWithMergeFunc(t *testing.T) {
+	podTmpl := corev1.PodTemplateSpec{}
+	volumemountFoo := &corev1.VolumeMount{
+		Name:      "foo",
+		MountPath: "/path/foo",
+	}
+	tests := []struct {
+		name        string
+		description string
+		containers  []corev1.Container
+		want        []corev1.VolumeMount
+	}{
+		{
+			name:        "node agent container",
+			description: "all containers should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.CoreAgentContainerName),
+				},
+				{
+					Name: string(commonv1.TraceAgentContainerName),
+				},
+				{
+					Name: string(commonv1.ProcessAgentContainerName),
+				},
+				{
+					Name: string(commonv1.SecurityAgentContainerName),
+				},
+				{
+					Name: string(commonv1.SystemProbeContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "node agent container with fips",
+			description: "all containers except fips should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.CoreAgentContainerName),
+				},
+				{
+					Name: string(commonv1.TraceAgentContainerName),
+				},
+				{
+					Name: string(commonv1.FIPSProxyContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "dca container",
+			description: "all containers should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.ClusterAgentContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "dca container with fips",
+			description: "all containers except fips should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.ClusterAgentContainerName),
+				},
+				{
+					Name: string(commonv1.FIPSProxyContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "ccr container",
+			description: "all containers should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.ClusterChecksRunnersContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "ccr container with fips",
+			description: "all containers except fips should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.ClusterChecksRunnersContainerName),
+				},
+				{
+					Name: string(commonv1.FIPSProxyContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "optimized container",
+			description: "all containers should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.UnprivilegedSingleAgentContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+		{
+			name:        "optimized container with fips",
+			description: "all containers except fips should have volume mount added",
+			containers: []corev1.Container{
+				{
+					Name: string(commonv1.UnprivilegedSingleAgentContainerName),
+				},
+				{
+					Name: string(commonv1.FIPSProxyContainerName),
+				},
+			},
+			want: []corev1.VolumeMount{*volumemountFoo},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("description: %s", tt.description)
+			manager := &volumeMountManagerImpl{
+				podTmpl: &podTmpl,
+			}
+			err := manager.AddVolumeMountWithMergeFunc(volumemountFoo, DefaultVolumeMountMergeFunction)
+			assert.NoError(t, err)
+
+			for _, cont := range manager.podTmpl.Spec.Containers {
+				if cont.Name == string(commonv1.FIPSProxyContainerName) {
+					assert.Len(t, cont.VolumeMounts, 0)
+				} else {
+					assert.Contains(t, cont.VolumeMounts, tt.want)
+				}
 			}
 		})
 	}

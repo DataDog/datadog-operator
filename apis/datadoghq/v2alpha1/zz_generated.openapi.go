@@ -28,6 +28,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
 		"./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.FIPSConfig":                        schema__apis_datadoghq_v2alpha1_FIPSConfig(ref),
 		"./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig":            schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
@@ -635,6 +636,74 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FIPSConfig contains the FIPS configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable FIPS sidecar.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The container image of the FIPS sidecar.",
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig"),
+						},
+					},
+					"localAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set the local IP address. Default: `127.0.0.1`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"portRange": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PortRange specifies the number of ports used. Default: 15",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is the requests and limits for the FIPS sidecar container.",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"useHTTPS": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseHTTPS enables HTTPS. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"customFIPSConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig", "k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
