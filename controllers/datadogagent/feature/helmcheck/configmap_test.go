@@ -6,13 +6,13 @@
 package helmcheck
 
 import (
-	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/pkg/equality"
 )
 
 func Test_buildHelmCheckConfigMap(t *testing.T) {
@@ -45,7 +45,20 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				enable:        true,
 				configMapName: apicommon.DefaultHelmCheckConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(false, false, nil)),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: false
+init_config:
+instances:
+  - collect_events: false
+`,
+				},
+			},
 		},
 		{
 			name: "no cluster check runners",
@@ -55,7 +68,20 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				runInClusterChecksRunner: false,
 				configMapName:            apicommon.DefaultHelmCheckConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(false, false, nil)),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: false
+init_config:
+instances:
+  - collect_events: false
+`,
+				},
+			},
 		},
 		{
 			name: "collect events",
@@ -66,7 +92,20 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				configMapName:            apicommon.DefaultHelmCheckConf,
 				collectEvents:            true,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(true, true, nil)),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: true
+init_config:
+instances:
+  - collect_events: true
+`,
+				},
+			},
 		},
 		{
 			name: "collect events, no cluster check runners",
@@ -77,7 +116,20 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				configMapName:            apicommon.DefaultHelmCheckConf,
 				collectEvents:            true,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(false, true, nil)),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: false
+init_config:
+instances:
+  - collect_events: true
+`,
+				},
+			},
 		},
 		{
 			name: "values as tags",
@@ -86,9 +138,25 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configMapName:            apicommon.DefaultHelmCheckConf,
-				valuesAsTags:             map[string]string{"foo": "bar", "zip": "zap"},
+				valuesAsTags:             map[string]string{"zip": "zap", "foo": "bar"}, // tags map should get sorted alphabetically by key
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(true, false, map[string]string{"foo": "bar", "zip": "zap"})),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: true
+init_config:
+instances:
+  - collect_events: false
+    helm_values_as_tags:
+      foo: bar
+      zip: zap
+`,
+				},
+			},
 		},
 		{
 			name: "values as tags, no cluster check runners",
@@ -99,7 +167,23 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				configMapName:            apicommon.DefaultHelmCheckConf,
 				valuesAsTags:             map[string]string{"foo": "bar", "zip": "zap"},
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultHelmCheckConf, helmCheckConfig(false, false, map[string]string{"foo": "bar", "zip": "zap"})),
+			want: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apicommon.DefaultHelmCheckConf,
+					Namespace: owner.GetNamespace(),
+				},
+				Data: map[string]string{
+					helmCheckConfFileName: `---
+cluster_check: false
+init_config:
+instances:
+  - collect_events: false
+    helm_values_as_tags:
+      foo: bar
+      zip: zap
+`,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -114,12 +198,13 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 				valuesAsTags:             tt.fields.valuesAsTags,
 			}
 			got, err := f.buildHelmCheckConfigMap()
+
 			if (err != nil) != tt.wantErr {
-				t.Errorf("helmCheckFeature.buildHelmCheckConfigMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("got helmCheckFeature.buildHelmCheckConfigMap() = %#v,\nwant %#v", got, tt.want)
+			if !equality.IsEqualConfigMap(got, tt.want) {
+				t.Errorf("got = %#v,\nwant %#v", got, tt.want)
 			}
 		})
 	}

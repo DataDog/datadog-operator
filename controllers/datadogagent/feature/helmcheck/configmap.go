@@ -7,6 +7,7 @@ package helmcheck
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +41,7 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 func helmCheckConfig(clusterCheck bool, collectEvents bool, valuesAsTags map[string]string) string {
 	clusterChecksVal := strconv.FormatBool(clusterCheck)
 	collectEventsVal := strconv.FormatBool(collectEvents)
+	sortedTagsKeys := sortTagsKeys(valuesAsTags)
 	config := fmt.Sprintf(`---
 cluster_check: %s
 init_config:
@@ -49,10 +51,22 @@ instances:
 
 	if len(valuesAsTags) > 0 {
 		config += "    helm_values_as_tags:\n"
-		for key, val := range valuesAsTags {
-			config += fmt.Sprintf("      %s: %s\n", key, val)
+		for _, key := range sortedTagsKeys {
+			config += fmt.Sprintf("      %s: %s\n", key, valuesAsTags[key])
 		}
 	}
 
 	return config
+}
+
+func sortTagsKeys(tags map[string]string) []string {
+	keys := make([]string, 0, len(tags))
+
+	for k := range tags {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	return keys
 }
