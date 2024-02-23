@@ -211,7 +211,7 @@ func run(opts *options) error {
 			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
 			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
 			"DatadogAgent v1alpha1 and conversion webhook hook will be removed from v1.8.0. "+
-			"See migration page for more details https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
+			"See migration page for more details: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
 	if opts.profilingEnabled {
