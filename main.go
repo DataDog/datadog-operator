@@ -210,7 +210,7 @@ func run(opts *options) error {
 		setupLog.Error(nil, "The 'v2APIEnabled' flag is deprecated since v1.2.0+ and will be removed in a v1.7.0. "+
 			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
 			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
-			"DatadogAgent v1alpha1 and conversion webhook hook will be removed from v1.8.0. "+
+			"DatadogAgent v1alpha1 and conversion webhook hook will be removed in v1.8.0. "+
 			"See migration page for more details: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
