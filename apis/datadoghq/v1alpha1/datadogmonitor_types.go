@@ -78,16 +78,6 @@ const (
 	DatadogMonitorOptionsNotificationPresetHideAll     DatadogMonitorOptionsNotificationPreset = "hide_all"
 )
 
-// DatadogMonitorOptionsOnMissingData controls how groups or monitors are treated if an evaluation does not return any data points
-type DatadogMonitorOptionsOnMissingData string
-
-const (
-	DatadogMonitorOptionsOnMissingDataShowNoData          DatadogMonitorOptionsOnMissingData = "show_no_data"
-	DatadogMonitorOptionsOnMissingDataShowAndNotifyNoData DatadogMonitorOptionsOnMissingData = "show_and_notify_no_data"
-	DatadogMonitorOptionsOnMissingDataResolve             DatadogMonitorOptionsOnMissingData = "resolve"
-	DatadogMonitorOptionsOnMissingDataDefault             DatadogMonitorOptionsOnMissingData = "default"
-)
-
 // DatadogMonitorOptions define the optional parameters of a monitor
 // +k8s:openapi-gen=true
 type DatadogMonitorOptions struct {
@@ -262,6 +252,16 @@ const (
 	DatadogMonitorStateIgnored DatadogMonitorState = "Ignored"
 	// DatadogMonitorStateUnknown means the DatadogMonitor is in an unknown state
 	DatadogMonitorStateUnknown DatadogMonitorState = "Unknown"
+)
+
+// DatadogMonitorOptionsOnMissingData controls how groups or monitors are treated if an evaluation does not return any data points
+type DatadogMonitorOptionsOnMissingData string
+
+const (
+	DatadogMonitorOptionsOnMissingDataShowNoData          DatadogMonitorOptionsOnMissingData = "show_no_data"
+	DatadogMonitorOptionsOnMissingDataShowAndNotifyNoData DatadogMonitorOptionsOnMissingData = "show_and_notify_no_data"
+	DatadogMonitorOptionsOnMissingDataResolve             DatadogMonitorOptionsOnMissingData = "resolve"
+	DatadogMonitorOptionsOnMissingDataDefault             DatadogMonitorOptionsOnMissingData = "default"
 )
 
 // MonitorStateSyncStatusMessage is the message reflecting the health of monitor state syncs to Datadog
