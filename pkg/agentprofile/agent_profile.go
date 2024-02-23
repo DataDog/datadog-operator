@@ -103,6 +103,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 // ComponentOverrideFromProfile returns the component override that should be
 // applied according to the given profile.
 func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+	if profile.Name == "" && profile.Namespace == "" {
+		return v2alpha1.DatadogAgentComponentOverride{}
+	}
 	overrideDSName := DaemonSetName(types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,

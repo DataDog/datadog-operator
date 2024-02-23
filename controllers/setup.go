@@ -34,15 +34,16 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset ExtendedDaemonsetOptions
-	SupportCilium            bool
-	Creds                    config.Creds
-	DatadogAgentEnabled      bool
-	DatadogMonitorEnabled    bool
-	DatadogSLOEnabled        bool
-	OperatorMetricsEnabled   bool
-	V2APIEnabled             bool
-	IntrospectionEnabled     bool
+	SupportExtendedDaemonset   ExtendedDaemonsetOptions
+	SupportCilium              bool
+	Creds                      config.Creds
+	DatadogAgentEnabled        bool
+	DatadogMonitorEnabled      bool
+	DatadogSLOEnabled          bool
+	OperatorMetricsEnabled     bool
+	V2APIEnabled               bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -137,10 +138,11 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:          options.SupportCilium,
-			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
-			V2Enabled:              options.V2APIEnabled,
-			IntrospectionEnabled:   options.IntrospectionEnabled,
+			SupportCilium:              options.SupportCilium,
+			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
+			V2Enabled:                  options.V2APIEnabled,
+			IntrospectionEnabled:       options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
 		},
 	}).SetupWithManager(mgr)
 }
@@ -191,6 +193,11 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 }
 
 func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogAgentProfileEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", profileControllerName)
+		return nil
+	}
+
 	return (&DatadogAgentProfileReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),

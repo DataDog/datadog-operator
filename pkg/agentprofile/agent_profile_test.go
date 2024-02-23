@@ -471,6 +471,11 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 		expectedOverride v2alpha1.DatadogAgentComponentOverride
 	}{
 		{
+			name:             "empty profile",
+			profile:          v1alpha1.DatadogAgentProfile{},
+			expectedOverride: v2alpha1.DatadogAgentComponentOverride{},
+		},
+		{
 			name: "profile without affinity or config",
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
