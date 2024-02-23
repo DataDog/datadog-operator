@@ -682,7 +682,7 @@ func schema__apis_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) co
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Resources is the requests and limits for the FIPS sidecar container",
+							Description: "Resources is the requests and limits for the FIPS sidecar container.",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},

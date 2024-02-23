@@ -16161,7 +16161,7 @@ spec:
                           format: int32
                           type: integer
                         resources:
-                          description: Resources is the requests and limits for the FIPS sidecar container
+                          description: Resources is the requests and limits for the FIPS sidecar container.
                           properties:
                             limits:
                               additionalProperties:

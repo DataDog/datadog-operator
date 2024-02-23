@@ -1151,7 +1151,7 @@ type FIPSConfig struct {
 	// Default: 15
 	// +optional
 	PortRange *int32 `json:"portRange,omitempty"`
-	// Resources is the requests and limits for the FIPS sidecar container
+	// Resources is the requests and limits for the FIPS sidecar container.
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 	// UseHTTPS enables HTTPS.

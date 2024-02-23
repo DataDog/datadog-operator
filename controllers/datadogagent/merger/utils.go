@@ -18,6 +18,6 @@ var AllAgentContainers = map[commonv1.AgentContainerName]struct{}{
 	// DCA containers
 	commonv1.ClusterAgentContainerName: {},
 	// CCR container name is equivalent to core agent container name
-	// optimized containers
+	// Single Agent container
 	commonv1.UnprivilegedSingleAgentContainerName: {},
 }
