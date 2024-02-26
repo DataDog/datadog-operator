@@ -8,13 +8,8 @@ package kubernetes
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -52,7 +47,7 @@ func Test_determineProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := DetermineProvider(tt.labels)
+			p := determineProvider(tt.labels)
 			assert.Equal(t, tt.provider, p)
 		})
 	}
@@ -126,43 +121,123 @@ func Test_sortProviders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			p := NewProviderStore(logger)
-			if tt.existingProviders != nil {
-				p.providers = tt.existingProviders
-			}
-
-			sortedProviders := sortProviders(p.providers)
+			sortedProviders := sortProviders(tt.existingProviders)
 			assert.Equal(t, tt.wantSortedProviders, sortedProviders)
 		})
 	}
 }
 
-func Test_GenerateProviderNodeAffinity(t *testing.T) {
+func Test_getProviderNodeAffinity(t *testing.T) {
 	tests := []struct {
 		name              string
 		existingProviders map[string]struct{}
 		provider          string
-		wantNSR           []corev1.NodeSelectorRequirement
+		wantAffinity      *corev1.Affinity
 	}{
 		{
-			name:              "empty providers",
+			name:              "nil provider list",
 			existingProviders: nil,
 			provider:          defaultProvider,
-			wantNSR:           []corev1.NodeSelectorRequirement{},
+			wantAffinity:      nil,
 		},
 		{
-			name: "one existing provider, default provider",
+			name:              "empty provider list",
+			existingProviders: map[string]struct{}{},
+			provider:          defaultProvider,
+			wantAffinity:      nil,
+		},
+		{
+			name: "empty provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
 			},
+			provider:     "",
+			wantAffinity: nil,
+		},
+		{
+			name: "single default provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+			},
+			provider:     defaultProvider,
+			wantAffinity: nil,
+		},
+		{
+			name: "single cos provider",
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			provider: gkeCosProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "one other provider, default provider",
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
+			},
 			provider: defaultProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						GKECosType,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "one other provider, cos provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				gkeCosProvider:  {},
+			},
+			provider: gkeCosProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -170,31 +245,71 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 		{
 			name: "multiple providers, default provider",
 			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-				"gke-abcde":    {},
-				"gke-zyxwv":    {},
+				gkeCosProvider:  {},
+				"gke-abcde":     {},
+				"gke-zyxwv":     {},
+				defaultProvider: {},
 			},
 			provider: defaultProvider,
-			wantNSR: []corev1.NodeSelectorRequirement{
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						"abcde",
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											"abcde",
+										},
+									},
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpNotIn,
+										Values: []string{
+											"zyxwv",
+										},
+									},
+								},
+							},
+						},
 					},
 				},
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						GKECosType,
-					},
-				},
-				{
-					Key:      GKEProviderLabel,
-					Operator: corev1.NodeSelectorOpNotIn,
-					Values: []string{
-						"zyxwv",
+			},
+		},
+		{
+			name: "multiple providers, cos provider",
+			existingProviders: map[string]struct{}{
+				defaultProvider: {},
+				"abcdef":        {},
+				"lmnop":         {},
+				gkeCosProvider:  {},
+			},
+			provider: gkeCosProvider,
+			wantAffinity: &corev1.Affinity{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
+							{
+								MatchExpressions: []corev1.NodeSelectorRequirement{
+									{
+										Key:      GKEProviderLabel,
+										Operator: corev1.NodeSelectorOpIn,
+										Values: []string{
+											GKECosType,
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -203,14 +318,8 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			p := NewProviderStore(logger)
-			if tt.existingProviders != nil {
-				p.providers = tt.existingProviders
-			}
-
-			nsr := p.GenerateProviderNodeAffinity(tt.provider)
-			assert.Equal(t, tt.wantNSR, nsr)
+			affinity := getProviderNodeAffinity(tt.provider, tt.existingProviders)
+			assert.Equal(t, tt.wantAffinity, affinity)
 		})
 	}
 }
@@ -265,170 +374,6 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			label, value := GetProviderLabelKeyValue(tt.provider)
 			assert.Equal(t, tt.wantLabel, label)
 			assert.Equal(t, tt.wantValue, value)
-		})
-	}
-}
-
-func Test_Reset(t *testing.T) {
-	tests := []struct {
-		name              string
-		newProviders      map[string]struct{}
-		existingProviders *ProviderStore
-		wantProviders     *ProviderStore
-	}{
-		{
-			name: "replace empty providers",
-			newProviders: map[string]struct{}{
-				gkeCosProvider:  {},
-				defaultProvider: {},
-			},
-			existingProviders: nil,
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider:  {},
-					defaultProvider: {},
-				},
-			},
-		},
-		{
-			name: "replace existing providers",
-			newProviders: map[string]struct{}{
-				gkeCosProvider:  {},
-				defaultProvider: {},
-			},
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					"test": {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider:  {},
-					defaultProvider: {},
-				},
-			},
-		},
-		{
-			name:         "empty new providers",
-			newProviders: map[string]struct{}{},
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider: {},
-				},
-			},
-			wantProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider: {},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			providerStore := NewProviderStore(logger)
-			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
-				providerStore.providers = tt.existingProviders.providers
-			}
-
-			providerStore.Reset(tt.newProviders)
-			assert.Equal(t, tt.wantProviders.providers, providerStore.providers)
-		})
-	}
-}
-
-func Test_IsPresent(t *testing.T) {
-	tests := []struct {
-		name              string
-		provider          string
-		existingProviders *ProviderStore
-		want              bool
-	}{
-		{
-			name:     "provider in provider store",
-			provider: defaultProvider,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider:  {},
-					defaultProvider: {},
-				},
-			},
-			want: true,
-		},
-		{
-			name:     "provider not in provider store",
-			provider: defaultProvider,
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider: {},
-				},
-			},
-			want: false,
-		},
-		{
-			name:     "empty provider",
-			provider: "",
-			existingProviders: &ProviderStore{
-				providers: map[string]struct{}{
-					gkeCosProvider: {},
-				},
-			},
-			want: false,
-		},
-		{
-			name:              "empty provider store",
-			provider:          defaultProvider,
-			existingProviders: &ProviderStore{},
-			want:              false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			logger := logf.Log.WithName(t.Name())
-			providerStore := NewProviderStore(logger)
-			if tt.existingProviders != nil && tt.existingProviders.providers != nil {
-				providerStore.providers = tt.existingProviders.providers
-			}
-
-			assert.Equal(t, tt.want, providerStore.IsPresent(tt.provider))
-		})
-	}
-}
-
-func Test_ComponentOverrideFromProvider(t *testing.T) {
-	tests := []struct {
-		name          string
-		daemonSetName string
-		provider      string
-		affinity      *corev1.Affinity
-		want          v2alpha1.DatadogAgentComponentOverride
-	}{
-		{
-			name:          "component override",
-			daemonSetName: "foo",
-			provider:      defaultProvider,
-			want: v2alpha1.DatadogAgentComponentOverride{
-				Name:   apiutils.NewStringPointer("foo-default"),
-				Labels: map[string]string{apicommon.MD5AgentDeploymentProviderLabelKey: defaultProvider},
-			},
-		},
-		{
-			name:          "empty provider",
-			daemonSetName: "foo",
-			provider:      "",
-			want: v2alpha1.DatadogAgentComponentOverride{
-				Name:   apiutils.NewStringPointer("foo"),
-				Labels: map[string]string{apicommon.MD5AgentDeploymentProviderLabelKey: ""},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			componentOverride := ComponentOverrideFromProvider(tt.daemonSetName, tt.provider, tt.affinity)
-			assert.Equal(t, tt.want, componentOverride)
 		})
 	}
 }

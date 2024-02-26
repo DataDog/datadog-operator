@@ -61,9 +61,10 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 			}
 
 			if matchesNode {
-				if _, found := profileAppliedPerNode[node.Name]; found {
+				if existingProfile, found := profileAppliedPerNode[node.Name]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
+					logger.Info("profile %s conflicts with existing profile %s, skipping", profile.Namespace+"/"+profile.Name, existingProfile.String())
 					break
 				} else {
 					nodesThatMatchProfile[node.Name] = true
@@ -102,6 +103,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 // ComponentOverrideFromProfile returns the component override that should be
 // applied according to the given profile.
 func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+	if profile.Name == "" && profile.Namespace == "" {
+		return v2alpha1.DatadogAgentComponentOverride{}
+	}
 	overrideDSName := DaemonSetName(types.NamespacedName{
 		Namespace: profile.Namespace,
 		Name:      profile.Name,

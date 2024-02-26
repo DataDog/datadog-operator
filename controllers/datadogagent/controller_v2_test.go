@@ -17,19 +17,17 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
-	assert "github.com/stretchr/testify/require"
-
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -338,6 +336,38 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
+		{
+			name: "DatadogAgent with FIPS enabled",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					fipsConfig := v2alpha1.FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					}
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithFIPS(fipsConfig).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommonv1.CoreAgentContainerName),
+					string(apicommonv1.ProcessAgentContainerName),
+					string(apicommonv1.TraceAgentContainerName),
+					string(apicommonv1.FIPSProxyContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -398,6 +428,7 @@ func Test_Introspection(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
+		nodes    []client.Object
 		want     reconcile.Result
 		wantErr  bool
 		wantFunc func(t *testing.T, c client.Client) error
@@ -405,7 +436,6 @@ func Test_Introspection(t *testing.T) {
 		{
 			name: "[introspection] Daemonset names with affinity override",
 			fields: fields{
-				client:   fake.NewFakeClient(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -433,13 +463,30 @@ func Test_Introspection(t *testing.T) {
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-node",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gke-cos-node",
+						Labels: map[string]string{
+							kubernetes.GKEProviderLabel: kubernetes.GKECosType,
+						},
+					},
+				},
+			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(t *testing.T, c client.Client) error {
 				expectedDaemonsets := []string{
-					string("foo-agent-provider1"),
-					string("foo-agent-provider2"),
-					string("foo-agent-provider3"),
+					string("foo-agent-default"),
+					string("foo-agent-gke-cos"),
 				}
 
 				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
@@ -450,7 +497,7 @@ func Test_Introspection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:       tt.fields.client,
+				client:       fake.NewClientBuilder().WithObjects(tt.nodes...).Build(),
 				scheme:       tt.fields.scheme,
 				platformInfo: tt.fields.platformInfo,
 				recorder:     recorder,
@@ -465,15 +512,6 @@ func Test_Introspection(t *testing.T) {
 					IntrospectionEnabled: true,
 				},
 			}
-
-			p := kubernetes.NewProviderStore(logf.Log.WithName("test_generateNodeAffinity"))
-			r.providerStore = &p
-			existingProviders := map[string]struct{}{
-				"provider1": {},
-				"provider2": {},
-				"provider3": {},
-			}
-			r.providerStore.Reset(existingProviders)
 
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(r.client)

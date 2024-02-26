@@ -128,6 +128,7 @@ type options struct {
 	v2APIEnabled                           bool
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
+	datadogAgentProfileEnabled             bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -161,6 +162,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
+	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -205,9 +207,11 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if !opts.v2APIEnabled {
-		setupLog.Info("The 'v2APIEnabled' flag is deprecated in v1.2.0+ and will be removed in a future release. " +
-			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. " +
-			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled').")
+		setupLog.Error(nil, "The 'v2APIEnabled' flag is deprecated since v1.2.0+ and will be removed in v1.7.0. "+
+			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
+			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
+			"DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
+			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
 	if opts.profilingEnabled {
@@ -271,14 +275,15 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:          opts.supportCilium,
-		Creds:                  creds,
-		DatadogAgentEnabled:    opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:      opts.datadogSLOEnabled,
-		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
-		V2APIEnabled:           opts.v2APIEnabled,
-		IntrospectionEnabled:   opts.introspectionEnabled,
+		SupportCilium:              opts.supportCilium,
+		Creds:                      creds,
+		DatadogAgentEnabled:        opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:          opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
+		V2APIEnabled:               opts.v2APIEnabled,
+		IntrospectionEnabled:       opts.introspectionEnabled,
+		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

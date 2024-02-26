@@ -34,15 +34,16 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset ExtendedDaemonsetOptions
-	SupportCilium            bool
-	Creds                    config.Creds
-	DatadogAgentEnabled      bool
-	DatadogMonitorEnabled    bool
-	DatadogSLOEnabled        bool
-	OperatorMetricsEnabled   bool
-	V2APIEnabled             bool
-	IntrospectionEnabled     bool
+	SupportExtendedDaemonset   ExtendedDaemonsetOptions
+	SupportCilium              bool
+	Creds                      config.Creds
+	DatadogAgentEnabled        bool
+	DatadogMonitorEnabled      bool
+	DatadogSLOEnabled          bool
+	OperatorMetricsEnabled     bool
+	V2APIEnabled               bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -60,7 +61,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
-type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, *kubernetes.ProviderStore, SetupOptions) error
+type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
@@ -90,10 +91,8 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	providerStore := kubernetes.NewProviderStore(logger)
-
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, platformInfo, &providerStore, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}
@@ -112,7 +111,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -120,13 +119,12 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 	}
 
 	return (&DatadogAgentReconciler{
-		Client:        mgr.GetClient(),
-		VersionInfo:   vInfo,
-		PlatformInfo:  pInfo,
-		ProviderStore: providerStore,
-		Log:           ctrl.Log.WithName("controllers").WithName(agentControllerName),
-		Scheme:        mgr.GetScheme(),
-		Recorder:      mgr.GetEventRecorderFor(agentControllerName),
+		Client:       mgr.GetClient(),
+		VersionInfo:  vInfo,
+		PlatformInfo: pInfo,
+		Log:          ctrl.Log.WithName("controllers").WithName(agentControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
 				Enabled:                             options.SupportExtendedDaemonset.Enabled,
@@ -140,15 +138,16 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:          options.SupportCilium,
-			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
-			V2Enabled:              options.V2APIEnabled,
-			IntrospectionEnabled:   options.IntrospectionEnabled,
+			SupportCilium:              options.SupportCilium,
+			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
+			V2Enabled:                  options.V2APIEnabled,
+			IntrospectionEnabled:       options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
 		},
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 
@@ -170,7 +169,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
+func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
 		return nil
@@ -193,7 +192,12 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 	return controller.SetupWithManager(mgr)
 }
 
-func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providerStore *kubernetes.ProviderStore, options SetupOptions) error {
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogAgentProfileEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", profileControllerName)
+		return nil
+	}
+
 	return (&DatadogAgentProfileReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),

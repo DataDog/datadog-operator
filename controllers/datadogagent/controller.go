@@ -43,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
@@ -65,40 +66,38 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	V2Enabled                bool
-	IntrospectionEnabled     bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	V2Enabled                  bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options       ReconcilerOptions
-	client        client.Client
-	versionInfo   *version.Info
-	platformInfo  kubernetes.PlatformInfo
-	providerStore *kubernetes.ProviderStore
-	scheme        *runtime.Scheme
-	log           logr.Logger
-	recorder      record.EventRecorder
-	forwarders    datadog.MetricForwardersManager
+	options      ReconcilerOptions
+	client       client.Client
+	versionInfo  *version.Info
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	log          logr.Logger
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricForwardersManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
-	providerStore *kubernetes.ProviderStore, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder,
-	metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
-		options:       options,
-		client:        client,
-		versionInfo:   versionInfo,
-		platformInfo:  platformInfo,
-		providerStore: providerStore,
-		scheme:        scheme,
-		log:           log,
-		recorder:      recorder,
-		forwarders:    metricForwarder,
+		options:      options,
+		client:       client,
+		versionInfo:  versionInfo,
+		platformInfo: platformInfo,
+		scheme:       scheme,
+		log:          log,
+		recorder:     recorder,
+		forwarders:   metricForwarder,
 	}, nil
 }
 
