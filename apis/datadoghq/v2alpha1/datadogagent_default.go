@@ -34,17 +34,17 @@ const (
 
 	defaultEBPFCheckEnabled bool = false
 
-	defaultAPMEnabled                       bool   = true
-	defaultAPMHostPortEnabled               bool   = false
-	defaultAPMHostPort                      int32  = 8126
-	defaultAPMSocketEnabled                 bool   = true
-	defaultAPMSocketHostPath                string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	defaultSingleStepInstrumentationEnabled bool   = false
-	defaultCSPMEnabled                      bool   = false
-	defaultCWSEnabled                       bool   = false
-	defaultCWSSyscallMonitorEnabled         bool   = false
-	defaultCWSNetworkEnabled                bool   = true
-	defaultCWSSecurityProfilesEnabled       bool   = true
+	defaultAPMEnabled                 bool   = true
+	defaultAPMHostPortEnabled         bool   = false
+	defaultAPMHostPort                int32  = 8126
+	defaultAPMSocketEnabled           bool   = true
+	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultAPMSingleStepInstrEnabled  bool   = false
+	defaultCSPMEnabled                bool   = false
+	defaultCWSEnabled                 bool   = false
+	defaultCWSSyscallMonitorEnabled   bool   = false
+	defaultCWSNetworkEnabled          bool   = true
+	defaultCWSSecurityProfilesEnabled bool   = true
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -224,7 +224,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
 			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
 		}
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultSingleStepInstrumentationEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 	}
 
 	// CSPM (Cloud Security Posture Management) Feature

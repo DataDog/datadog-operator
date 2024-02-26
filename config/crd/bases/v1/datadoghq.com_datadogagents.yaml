@@ -7840,10 +7840,10 @@ spec:
                               type: integer
                           type: object
                         instrumentation:
-                          description: 'Single Step Instrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster. Feature is in beta. See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm Enabled Default: false'
+                          description: 'SingleStepInstrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster. Feature is in beta. See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm Enabled Default: false'
                           properties:
                             disabledNamespaces:
-                              description: DisabledNamespaces specifies the namespaces of the pods to not inject the Datadog APM libraries into.
+                              description: DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.
                               items:
                                 type: string
                               type: array
@@ -7852,7 +7852,7 @@ spec:
                               description: 'Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false'
                               type: boolean
                             enabledNamespaces:
-                              description: EnabledNamespaces specifies the namespaces of the pods to inject the Datadog APM libraries into.
+                              description: EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
                               items:
                                 type: string
                               type: array
@@ -7860,7 +7860,7 @@ spec:
                             libVersions:
                               additionalProperties:
                                 type: string
-                              description: 'Inject specific version of tracing libraries with Single Step Instrumentation <Library>: <Version> ex: "java": "v1.18.0"'
+                              description: 'LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0"'
                               type: object
                           type: object
                         unixDomainSocketConfig:

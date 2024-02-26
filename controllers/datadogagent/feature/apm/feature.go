@@ -82,8 +82,7 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	}
 
 	// SingleStepInstrumentation requires APM Enabled
-	if apmConf.SingleStepInstrumentation != nil &&
-		(apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) || len(apmConf.SingleStepInstrumentation.EnabledNamespaces) > 0) {
+	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
 		return true
 	}
 
@@ -128,7 +127,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 		if apm.SingleStepInstrumentation != nil &&
 			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
-			// add debug log in case Admission controller is disabled (it's a required feature).
+			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
 			f.singleStepInstrumentation = &instrumentationConfig{}
 			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
