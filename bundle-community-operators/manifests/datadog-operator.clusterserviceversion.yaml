@@ -1085,4 +1085,3 @@ spec:
   provider:
     name: Datadog
   version: 1.5.0-rc.1
-  replaces: datadog-operator.v1.4.0

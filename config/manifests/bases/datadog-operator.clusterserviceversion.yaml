@@ -17,6 +17,12 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: DatadogAgentProfile is the Schema for the datadogagentprofiles
+        API
+      displayName: Datadog Agent Profile
+      kind: DatadogAgentProfile
+      name: datadogagentprofiles.datadoghq.com
+      version: v1alpha1
     - description: DatadogAgent Deployment with the Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
