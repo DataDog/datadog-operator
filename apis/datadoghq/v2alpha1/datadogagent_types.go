@@ -120,6 +120,37 @@ type APMFeatureConfig struct {
 	// Path Default: `/var/run/datadog/apm.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
+
+	// SingleStepInstrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster.
+	// Feature is in beta.
+	// See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
+	// Enabled Default: false
+	// +optional
+	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
+}
+
+// SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
+type SingleStepInstrumentation struct {
+	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
+	// +optional
+	// +listType=set
+	EnabledNamespaces []string `json:"enabledNamespaces,omitempty"`
+
+	// DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.
+	// +optional
+	// +listType=set
+	DisabledNamespaces []string `json:"disabledNamespaces,omitempty"`
+
+	// LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.
+	// <Library>: <Version>
+	// ex: "java": "v1.18.0"
+	// +optional
+	LibVersions map[string]string `json:"libVersions,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
