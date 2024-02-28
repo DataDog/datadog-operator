@@ -224,9 +224,9 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
-.PHONY: bundle-build-load
-bundle-build-load: ## Build and load the bundle image.
-	docker buildx build --load -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+.PHONY: bundle-build-push
+bundle-build-push: ## Build and load the bundle image.
+	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
