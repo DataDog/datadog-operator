@@ -166,7 +166,8 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
-			newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.Agent, &now)
+			newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.AgentList, &now)
+			newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
 			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil
@@ -262,7 +263,8 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
-			newStatus.Agent = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.Agent, &now)
+			newStatus.AgentList = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.AgentList, &now)
+			newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
 			// Stop reconcile loop since EDS hasn't changed
 			return reconcile.Result{}, nil

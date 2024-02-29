@@ -63,9 +63,11 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainers(volumeMount *core
 }
 
 func (impl *volumeMountManagerImpl) AddVolumeMountWithMergeFunc(volumeMount *corev1.VolumeMount, volumeMountMergeFunc VolumeMountMergeFunction) error {
-	for id := range impl.podTmpl.Spec.Containers {
-		if _, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc); err != nil {
-			return err
+	for id, cont := range impl.podTmpl.Spec.Containers {
+		if _, ok := AllAgentContainers[commonv1.AgentContainerName(cont.Name)]; ok {
+			if _, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

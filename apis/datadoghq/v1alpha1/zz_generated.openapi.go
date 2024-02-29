@@ -2145,6 +2145,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "int64",
 						},
 					},
+					"notificationPresetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "An enum that toggles the display of additional content sent in the monitor notification.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"notifyAudit": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A Boolean indicating whether tagged users are notified on changes to this monitor.",
@@ -2156,6 +2163,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 						SchemaProps: spec.SchemaProps{
 							Description: "A Boolean indicating whether this monitor notifies when data stops reporting.",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"onMissingData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "An enum that controls how groups or monitors are treated if an evaluation does not return data points. The default option results in different behavior depending on the monitor query type. For monitors using Count queries, an empty monitor evaluation is treated as 0 and is compared to the threshold conditions. For monitors using any query type other than Count, for example Gauge, Measure, or Rate, the monitor shows the last known status. This option is only available for APM Trace Analytics, Audit Trail, CI, Error Tracking, Event, Logs, and RUM monitors",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

@@ -29,18 +29,21 @@ const (
 	agentControllerName   = "DatadogAgent"
 	monitorControllerName = "DatadogMonitor"
 	sloControllerName     = "DatadogSLO"
+	profileControllerName = "DatadogAgentProfile"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset ExtendedDaemonsetOptions
-	SupportCilium            bool
-	Creds                    config.Creds
-	DatadogAgentEnabled      bool
-	DatadogMonitorEnabled    bool
-	DatadogSLOEnabled        bool
-	OperatorMetricsEnabled   bool
-	V2APIEnabled             bool
+	SupportExtendedDaemonset   ExtendedDaemonsetOptions
+	SupportCilium              bool
+	Creds                      config.Creds
+	DatadogAgentEnabled        bool
+	DatadogMonitorEnabled      bool
+	DatadogSLOEnabled          bool
+	OperatorMetricsEnabled     bool
+	V2APIEnabled               bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -49,12 +52,13 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration             time.Duration
-	CanaryReplicas             string
-	CanaryAutoPauseEnabled     bool
-	CanaryAutoPauseMaxRestarts int
-	CanaryAutoFailEnabled      bool
-	CanaryAutoFailMaxRestarts  int
+	CanaryDuration                      time.Duration
+	CanaryReplicas                      string
+	CanaryAutoPauseEnabled              bool
+	CanaryAutoPauseMaxRestarts          int
+	CanaryAutoFailEnabled               bool
+	CanaryAutoFailMaxRestarts           int
+	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -63,6 +67,7 @@ var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
 	monitorControllerName: startDatadogMonitor,
 	sloControllerName:     startDatadogSLO,
+	profileControllerName: startDatadogAgentProfiles,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -122,19 +127,22 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                    options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:          options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:     options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				CanaryDuration:             options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:             options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:     options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseMaxRestarts: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
-				CanaryAutoFailEnabled:      options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailMaxRestarts:  int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
+				Enabled:                             options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
+				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
+				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
+				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
+				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
+				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:          options.SupportCilium,
-			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
-			V2Enabled:              options.V2APIEnabled,
+			SupportCilium:              options.SupportCilium,
+			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
+			V2Enabled:                  options.V2APIEnabled,
+			IntrospectionEnabled:       options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
 		},
 	}).SetupWithManager(mgr)
 }
@@ -182,4 +190,18 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 	}
 
 	return controller.SetupWithManager(mgr)
+}
+
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogAgentProfileEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", profileControllerName)
+		return nil
+	}
+
+	return (&DatadogAgentProfileReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(profileControllerName),
+	}).SetupWithManager(mgr)
 }

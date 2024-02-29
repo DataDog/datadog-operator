@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2021 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogmonitor
 
@@ -143,6 +143,14 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 
 	if options.TimeoutH != nil {
 		o.SetTimeoutH(*options.TimeoutH)
+	}
+
+	if options.NotificationPresetName != "" {
+		o.SetNotificationPresetName(datadogV1.MonitorOptionsNotificationPresets(string(options.NotificationPresetName)))
+	}
+
+	if options.OnMissingData != "" {
+		o.SetOnMissingData(datadogV1.OnMissingDataOption(string(options.OnMissingData)))
 	}
 
 	m := datadogV1.NewMonitor(query, monitorType)

@@ -82,12 +82,8 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 }
 
 // GetDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner
-func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		{
-			NonResourceURLs: []string{rbac.MetricsURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
+func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
+	policyRule := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
@@ -183,6 +179,18 @@ func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object) []rb
 			},
 		},
 	}
+
+	if !excludeNonResourceRules {
+		policyRule = append(policyRule, rbacv1.PolicyRule{
+			NonResourceURLs: []string{
+				rbac.MetricsURL,
+				rbac.MetricsSLIsURL,
+			},
+			Verbs: []string{rbac.GetVerb},
+		})
+	}
+
+	return policyRule
 }
 
 // GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName

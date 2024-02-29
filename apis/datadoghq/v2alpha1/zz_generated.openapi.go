@@ -28,6 +28,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
 		"./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.FIPSConfig":                        schema__apis_datadoghq_v2alpha1_FIPSConfig(ref),
+		"./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig":            schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
 		"./apis/datadoghq/v2alpha1.MultiCustomConfig":                 schema__apis_datadoghq_v2alpha1_MultiCustomConfig(ref),
@@ -40,7 +42,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
-		"./apis/datadoghq/v2alpha1.SecurityContextConstraintsConfig":  schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
@@ -327,9 +328,27 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 							},
 						},
 					},
+					"agentList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
+									},
+								},
+							},
+						},
+					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as an extended daemonset.",
+							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
 						},
 					},
@@ -539,11 +558,17 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig"),
 						},
 					},
+					"helmCheck": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HelmCheck configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -606,6 +631,117 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 							Description: "CollectKubernetesEvents enables Kubernetes event collection. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "FIPSConfig contains the FIPS configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable FIPS sidecar.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The container image of the FIPS sidecar.",
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig"),
+						},
+					},
+					"localAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set the local IP address. Default: `127.0.0.1`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"portRange": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PortRange specifies the number of ports used. Default: 15",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Resources is the requests and limits for the FIPS sidecar container.",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"useHTTPS": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseHTTPS enables HTTPS. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"customFIPSConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HelmCheckFeatureConfig allows configuration of the Helm check feature.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables the Helm check. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"valuesAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {}",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -1027,34 +1163,6 @@ func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback)
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v2alpha1.CustomConfig"},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"create": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"customConfiguration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CustomConfiguration defines a custom SCC configuration to use if Create is `true`.",
-							Ref:         ref("github.com/openshift/api/security/v1.SecurityContextConstraints"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"github.com/openshift/api/security/v1.SecurityContextConstraints"},
 	}
 }
 

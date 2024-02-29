@@ -17,6 +17,8 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
+	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
+	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
@@ -54,6 +56,8 @@ const (
 	DefaultAdmissionControllerTargetPort = 8000
 	// DefaultAdmissionControllerWebhookName default admission controller webhook name
 	DefaultAdmissionControllerWebhookName string = "datadog-webhook"
+	// DefaultDogstatsdOriginDetection default Origin Detection
+	DefaultDogstatsdOriginDetection = "false"
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
@@ -74,6 +78,8 @@ const (
 	DefaultCSPMConf string = "cspm-config"
 	// DefaultCWSConf default CWS ConfigMap name
 	DefaultCWSConf string = "cws-config"
+	// DefaultHelmCheckConf default Helm Check ConfigMap name
+	DefaultHelmCheckConf string = "helm-check-config"
 
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
@@ -96,6 +102,9 @@ const (
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
 	DefaultImageRegistry         string = "gcr.io/datadoghq"
+	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
+	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
+	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"
@@ -152,6 +161,34 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
+	ApkDirVolumeName = "host-apk-dir"
+	ApkDirVolumePath = "/var/lib/apk"
+	ApkDirMountPath  = "/host/var/lib/apk"
+
+	DpkgDirVolumeName = "host-dpkg-dir"
+	DpkgDirVolumePath = "/var/lib/dpkg"
+	DpkgDirMountPath  = "/host/var/lib/dpkg"
+
+	RpmDirVolumeName = "host-rpm-dir"
+	RpmDirVolumePath = "/var/lib/rpm"
+	RpmDirMountPath  = "/host/var/lib/rpm"
+
+	RedhatReleaseVolumeName = "etc-redhat-release"
+	RedhatReleaseVolumePath = "/etc/redhat-release"
+	RedhatReleaseMountPath  = "/host/etc/redhat-release"
+
+	FedoraReleaseVolumeName = "etc-fedora-release"
+	FedoraReleaseVolumePath = "/etc/fedora-release"
+	FedoraReleaseMountPath  = "/host/etc/fedora-release"
+
+	LsbReleaseVolumeName = "etc-lsb-release"
+	LsbReleaseVolumePath = "/etc/lsb-release"
+	LsbReleaseMountPath  = "/host/etc/lsb-release"
+
+	SystemReleaseVolumeName = "etc-system-release"
+	SystemReleaseVolumePath = "/etc/system-release"
+	SystemReleaseMountPath  = "/host/etc/system-release"
 
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
@@ -245,6 +282,13 @@ const (
 	ClusterAgentCustomConfigVolumeName    = "custom-cluster-agent-yaml"
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
 	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
+
+	HelmCheckConfigVolumeName = "helm-check-config"
+
+	FIPSProxyCustomConfigVolumeName = "fips-proxy-cfg"
+	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
+	FIPSProxyCustomConfigMapName    = "%s-fips-config"
+	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
 )
 
 const (

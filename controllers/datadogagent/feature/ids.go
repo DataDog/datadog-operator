@@ -57,6 +57,8 @@ const (
 	RemoteConfigurationIDType = "remote_config"
 	// SBOMIDType SBOM collection feature
 	SBOMIDType = "sbom"
+	// HelmCheckIDType Helm Check feature.
+	HelmCheckIDType = "helm_check"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

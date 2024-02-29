@@ -14,14 +14,21 @@ import (
 	"strings"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	klog "k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -82,8 +89,9 @@ const (
 	defaultCanaryAutoPauseEnabled = true
 	defaultCanaryAutoFailEnabled  = true
 	// default to 0, to use default value from EDS.
-	defaultCanaryAutoPauseMaxRestarts = 0
-	defaultCanaryAutoFailMaxRestarts  = 0
+	defaultCanaryAutoPauseMaxRestarts          = 0
+	defaultCanaryAutoFailMaxRestarts           = 0
+	defaultCanaryAutoPauseMaxSlowStartDuration = 0
 )
 
 type options struct {
@@ -101,23 +109,26 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset      bool
-	edsMaxPodUnavailable          string
-	edsMaxPodSchedulerFailure     string
-	edsCanaryDuration             time.Duration
-	edsCanaryReplicas             string
-	edsCanaryAutoPauseEnabled     bool
-	edsCanaryAutoPauseMaxRestarts int
-	edsCanaryAutoFailEnabled      bool
-	edsCanaryAutoFailMaxRestarts  int
-	supportCilium                 bool
-	datadogAgentEnabled           bool
-	datadogMonitorEnabled         bool
-	datadogSLOEnabled             bool
-	operatorMetricsEnabled        bool
-	webhookEnabled                bool
-	v2APIEnabled                  bool
-	maximumGoroutines             int
+	supportExtendedDaemonset               bool
+	edsMaxPodUnavailable                   string
+	edsMaxPodSchedulerFailure              string
+	edsCanaryDuration                      time.Duration
+	edsCanaryReplicas                      string
+	edsCanaryAutoPauseEnabled              bool
+	edsCanaryAutoPauseMaxRestarts          int
+	edsCanaryAutoFailEnabled               bool
+	edsCanaryAutoFailMaxRestarts           int
+	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
+	supportCilium                          bool
+	datadogAgentEnabled                    bool
+	datadogMonitorEnabled                  bool
+	datadogSLOEnabled                      bool
+	operatorMetricsEnabled                 bool
+	webhookEnabled                         bool
+	v2APIEnabled                           bool
+	maximumGoroutines                      int
+	introspectionEnabled                   bool
+	datadogAgentProfileEnabled             bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -150,6 +161,8 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
+	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
+	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -161,6 +174,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
 	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
+	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
 	// Parsing flags
 	flag.Parse()
@@ -193,9 +207,11 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if !opts.v2APIEnabled {
-		setupLog.Info("The 'v2APIEnabled' flag is deprecated in v1.2.0+ and will be removed in a future release. " +
-			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. " +
-			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled').")
+		setupLog.Error(nil, "The 'v2APIEnabled' flag is deprecated since v1.2.0+ and will be removed in v1.7.0. "+
+			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
+			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
+			"DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
+			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
 	if opts.profilingEnabled {
@@ -230,6 +246,7 @@ func run(opts *options) error {
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
+		NewCache:                   cache.BuilderWithOptions(cacheOptions()),
 	}))
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
@@ -247,23 +264,26 @@ func run(opts *options) error {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
-			Enabled:                    opts.supportExtendedDaemonset,
-			MaxPodUnavailable:          opts.edsMaxPodUnavailable,
-			CanaryDuration:             opts.edsCanaryDuration,
-			CanaryReplicas:             opts.edsCanaryReplicas,
-			CanaryAutoPauseEnabled:     opts.edsCanaryAutoPauseEnabled,
-			CanaryAutoPauseMaxRestarts: opts.edsCanaryAutoPauseMaxRestarts,
-			CanaryAutoFailEnabled:      opts.edsCanaryAutoFailEnabled,
-			CanaryAutoFailMaxRestarts:  opts.edsCanaryAutoFailMaxRestarts,
-			MaxPodSchedulerFailure:     opts.edsMaxPodSchedulerFailure,
+			Enabled:                             opts.supportExtendedDaemonset,
+			MaxPodUnavailable:                   opts.edsMaxPodUnavailable,
+			CanaryDuration:                      opts.edsCanaryDuration,
+			CanaryReplicas:                      opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:              opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseMaxRestarts:          opts.edsCanaryAutoPauseMaxRestarts,
+			CanaryAutoFailEnabled:               opts.edsCanaryAutoFailEnabled,
+			CanaryAutoFailMaxRestarts:           opts.edsCanaryAutoFailMaxRestarts,
+			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
+			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:          opts.supportCilium,
-		Creds:                  creds,
-		DatadogAgentEnabled:    opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:      opts.datadogSLOEnabled,
-		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
-		V2APIEnabled:           opts.v2APIEnabled,
+		SupportCilium:              opts.supportCilium,
+		Creds:                      creds,
+		DatadogAgentEnabled:        opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:          opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
+		V2APIEnabled:               opts.v2APIEnabled,
+		IntrospectionEnabled:       opts.introspectionEnabled,
+		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
@@ -284,6 +304,63 @@ func run(opts *options) error {
 	}
 
 	return nil
+}
+
+// This function is used to configure the cache used by the manager. It is very
+// important to reduce memory usage.
+// For the profiles feature we need to list the agent pods, but we're only
+// interested in the node name and the labels. This function removes all the
+// rest of fields to reduce memory usage.
+// Also for the profiles feature, we need to list the nodes, but we're only
+// interested in the node name and the labels.
+// Note that if in the future we need to list or get pods or nodes and use other
+// fields we'll need to modify this function.
+func cacheOptions() cache.Options {
+	return cache.Options{
+		SelectorsByObject: cache.SelectorsByObject{
+			// Store pods only if they are node agent pods.
+			&corev1.Pod{}: {
+				Label: labels.SelectorFromSet(map[string]string{
+					apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+				}),
+			},
+		},
+		TransformByObject: map[client.Object]toolscache.TransformFunc{
+			// Store only the node name and the labels of the pod.
+			&corev1.Pod{}: func(obj interface{}) (interface{}, error) {
+				pod := obj.(*corev1.Pod)
+
+				newPod := &corev1.Pod{
+					TypeMeta: pod.TypeMeta,
+					ObjectMeta: v1.ObjectMeta{
+						Namespace: pod.Namespace,
+						Name:      pod.Name,
+						Labels:    pod.Labels,
+					},
+					Spec: corev1.PodSpec{
+						NodeName: pod.Spec.NodeName,
+					},
+				}
+
+				return newPod, nil
+			},
+
+			// Store only the node name and its labels.
+			&corev1.Node{}: func(obj interface{}) (interface{}, error) {
+				node := obj.(*corev1.Node)
+
+				newNode := &corev1.Node{
+					TypeMeta: node.TypeMeta,
+					ObjectMeta: v1.ObjectMeta{
+						Name:   node.Name,
+						Labels: node.Labels,
+					},
+				}
+
+				return newNode, nil
+			},
+		},
+	}
 }
 
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {

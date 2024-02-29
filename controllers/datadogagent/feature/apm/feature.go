@@ -6,10 +6,11 @@
 package apm
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +56,15 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
-	createSCC                     bool
+
+	singleStepInstrumentation *instrumentationConfig
+}
+
+type instrumentationConfig struct {
+	enabled            bool
+	enabledNamespaces  []string
+	disabledNamespaces []string
+	libVersions        map[string]string
 }
 
 // ID returns the ID of the Feature
@@ -63,11 +72,28 @@ func (f *apmFeature) ID() feature.IDType {
 	return feature.APMIDType
 }
 
+func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
+	if apmConf == nil {
+		return false
+	}
+
+	if apmConf.Enabled != nil {
+		return apiutils.BoolValue(apmConf.Enabled)
+	}
+
+	// SingleStepInstrumentation requires APM Enabled
+	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
+		return true
+	}
+
+	return false
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := dda.Spec.Features.APM
-	if apm != nil && apiutils.BoolValue(apm.Enabled) {
+	if shouldEnableAPM(apm) {
 		f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
@@ -90,8 +116,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
-		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
-
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -100,6 +124,21 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 					apicommonv1.TraceAgentContainerName,
 				},
 			},
+		}
+		if apm.SingleStepInstrumentation != nil &&
+			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
+			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
+			f.singleStepInstrumentation = &instrumentationConfig{}
+			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
+			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
+			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+			reqComp.ClusterAgent = feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.ClusterAgentContainerName,
+				},
+			}
 		}
 	}
 
@@ -226,31 +265,75 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// scc
-	if f.createSCC {
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{}
-
-		if f.hostPortEnabled {
-			scc.AllowHostPorts = true
-		}
-
-		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
-	}
-
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	if f.singleStepInstrumentation != nil {
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			// This configuration is not supported
+			return fmt.Errorf("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMInstrumentationEnabled,
+			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
+		})
+
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.disabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.enabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if f.singleStepInstrumentation.libVersions != nil {
+			libs, err := json.Marshal(f.singleStepInstrumentation.libVersions)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationLibVersions,
+				Value: string(libs),
+			})
+		}
+
+	}
+	return nil
+}
+
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.manageNodeAgent(apicommonv1.TraceAgentContainerName, managers, provider)
+	return nil
+}
+
+func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
 		Value: "true",
 	})
@@ -263,33 +346,35 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
+		receiverPortEnvVarValue := apicommon.DefaultApmPort
 		// if using host network, host port should be set and needs to match container port
 		if f.useHostNetwork {
 			apmPort.ContainerPort = f.hostPortHostPort
+			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMReceiverPort,
-			Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
-		})
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMNonLocalTraffic,
 			Value: "true",
 		})
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMReceiverPort,
+			Value: strconv.Itoa(receiverPortEnvVarValue),
+		})
 	}
-	managers.Port().AddPortToContainer(apicommonv1.TraceAgentContainerName, apmPort)
+	managers.Port().AddPortToContainer(agentContainerName, apmPort)
 
 	// uds
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverSocket,
 			Value: filepath.Join(apicommon.APMSocketVolumeLocalPath, sockName),
 		})
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.TraceAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}
 

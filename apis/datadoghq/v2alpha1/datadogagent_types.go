@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -94,6 +93,8 @@ type DatadogFeatures struct {
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
+	// HelmCheck configuration.
+	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -103,7 +104,7 @@ type DatadogFeatures struct {
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
 	// Enabled enables Application Performance Monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -119,6 +120,37 @@ type APMFeatureConfig struct {
 	// Path Default: `/var/run/datadog/apm.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
+
+	// SingleStepInstrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster.
+	// Feature is in beta.
+	// See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
+	// Enabled Default: false
+	// +optional
+	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
+}
+
+// SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
+type SingleStepInstrumentation struct {
+	// Enabled enables injecting the Datadog APM libraries into all pods in the cluster.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.
+	// +optional
+	// +listType=set
+	EnabledNamespaces []string `json:"enabledNamespaces,omitempty"`
+
+	// DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.
+	// +optional
+	// +listType=set
+	DisabledNamespaces []string `json:"disabledNamespaces,omitempty"`
+
+	// LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.
+	// <Library>: <Version>
+	// ex: "java": "v1.18.0"
+	// +optional
+	LibVersions map[string]string `json:"libVersions,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
@@ -629,6 +661,27 @@ type PrometheusScrapeFeatureConfig struct {
 	Version *int `json:"version,omitempty"`
 }
 
+// HelmCheckFeatureConfig allows configuration of the Helm check feature.
+// +k8s:openapi-gen=true
+type HelmCheckFeatureConfig struct {
+	// Enabled enables the Helm check.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CollectEvents set to `true` enables event collection in the Helm check
+	// (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+)
+	// Default: false
+	// +optional
+	CollectEvents *bool `json:"collectEvents,omitempty"`
+
+	// ValuesAsTags collects Helm values from a release and uses them as tags
+	// (Requires Agent and Cluster Agent 7.40.0+).
+	// Default: {}
+	// +optional
+	ValuesAsTags map[string]string `json:"valuesAsTags,omitempty"`
+}
+
 // Generic support structs
 
 // HostPortConfig contains host port configuration.
@@ -708,7 +761,12 @@ type GlobalConfig struct {
 	ClusterName *string `json:"clusterName,omitempty"`
 
 	// Site is the Datadog intake site Agent data are sent to.
+	// Set to 'datadoghq.com' to send data to the US1 site (default).
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Set to 'us3.datadoghq.com' to send data to the US3 site.
+	// Set to 'us5.datadoghq.com' to send data to the US5 site.
+	// Set to 'ddog-gov.com' to send data to the US1-FED site.
+	// Set to 'ap1.datadoghq.com' to send data to the AP1 site.
 	// Default: 'datadoghq.com'
 	// +optional
 	Site *string `json:"site,omitempty"`
@@ -776,6 +834,19 @@ type GlobalConfig struct {
 	// Path to the container runtime socket (if different from Docker).
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
+
+	// Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles.
+	// Required 'true' for Google Cloud Marketplace.
+	// +optional
+	DisableNonResourceRules *bool `json:"disableNonResourceRules,omitempty"`
+
+	// ContainerStrategy determines whether agents run in a single or multiple containers.
+	// Default: 'optimized'
+	// +optional
+	ContainerStrategy *ContainerStrategyType `json:"containerStrategy,omitempty"`
+
+	// FIPS contains configuration used to customize the FIPS proxy sidecar.
+	FIPS *FIPSConfig `json:"fips,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -944,10 +1015,6 @@ type DatadogAgentComponentOverride struct {
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// Configure the SecurityContextConstraints for each component.
-	// +optional
-	SecurityContextConstraints *SecurityContextConstraintsConfig `json:"securityContextConstraints,omitempty"`
-
 	// Pod-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -990,19 +1057,6 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
-}
-
-// SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.
-// +k8s:openapi-gen=true
-type SecurityContextConstraintsConfig struct {
-	// Create defines whether to create a SecurityContextConstraints for the current component.
-	// If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
-	// +optional
-	Create *bool `json:"create,omitempty"`
-
-	// CustomConfiguration defines a custom SCC configuration to use if Create is `true`.
-	// +optional
-	CustomConfiguration *securityv1.SecurityContextConstraints `json:"customConfiguration,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -1073,6 +1127,17 @@ type DatadogAgentGenericContainer struct {
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
 }
 
+type ContainerStrategyType string
+
+const (
+	// OptimizedContainerStrategy indicates multiple Agent containers with one process per
+	// container (default)
+	OptimizedContainerStrategy ContainerStrategyType = "optimized"
+	// SingleContainerStrategy indicates a single Agent container with multiple (unprivileged)
+	// processes in one container
+	SingleContainerStrategy ContainerStrategyType = "single"
+)
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -1081,7 +1146,11 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as an extended daemonset.
+	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// +optional
+	// +listType=atomic
+	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
+	// The combined actual state of all Agents as daemonsets or extended daemonsets.
 	// +optional
 	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
@@ -1090,6 +1159,42 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+}
+
+// FIPSConfig contains the FIPS configuration.
+// +k8s:openapi-gen=true
+type FIPSConfig struct {
+	// Enable FIPS sidecar.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// The container image of the FIPS sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+	// Set the local IP address.
+	// Default: `127.0.0.1`
+	// +optional
+	LocalAddress *string `json:"localAddress,omitempty"`
+	// Port specifies which port is used by the containers to communicate to the FIPS sidecar.
+	// Default: 9803
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+	// PortRange specifies the number of ports used.
+	// Default: 15
+	// +optional
+	PortRange *int32 `json:"portRange,omitempty"`
+	// Resources is the requests and limits for the FIPS sidecar container.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// UseHTTPS enables HTTPS.
+	// Default: false
+	// +optional
+	UseHTTPS *bool `json:"useHTTPS,omitempty"`
+	// CustomFIPSConfig configures a custom configMap to provide the FIPS configuration.
+	// Specify custom contents for the FIPS proxy sidecar container config
+	// (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS
+	// proxy sidecar container config is used.
+	// +optional
+	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

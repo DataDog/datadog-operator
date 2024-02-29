@@ -23,14 +23,13 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/patch"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
@@ -44,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/helmcheck"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
@@ -67,10 +67,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
-	SupportCilium            bool
-	OperatorMetricsEnabled   bool
-	V2Enabled                bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	V2Enabled                  bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

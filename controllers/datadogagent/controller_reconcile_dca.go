@@ -32,7 +32,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.ClusterAgentComponentName)
+	deployment.Spec.Template = *override.ApplyGlobalSettingsClusterAgent(logger, podManagers, dda, resourcesManager)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -69,6 +69,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		// If the override is not defined, then disable based on dcaEnabled value
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
+
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
 }
 

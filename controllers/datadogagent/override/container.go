@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
@@ -109,7 +110,19 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 
 	if override.Resources != nil {
-		container.Resources = *override.Resources
+		for resource, quantity := range override.Resources.Requests {
+			if container.Resources.Requests == nil {
+				container.Resources.Requests = corev1.ResourceList{}
+			}
+			container.Resources.Requests[resource] = quantity
+		}
+
+		for resource, quantity := range override.Resources.Limits {
+			if container.Resources.Limits == nil {
+				container.Resources.Limits = corev1.ResourceList{}
+			}
+			container.Resources.Limits[resource] = quantity
+		}
 	}
 
 	if override.Command != nil {
@@ -121,11 +134,11 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 
 	if override.ReadinessProbe != nil {
-		container.ReadinessProbe = override.ReadinessProbe
+		container.ReadinessProbe = overrideReadinessProbe(override.ReadinessProbe)
 	}
 
 	if override.LivenessProbe != nil {
-		container.LivenessProbe = override.LivenessProbe
+		container.LivenessProbe = overrideLivenessProbe(override.LivenessProbe)
 	}
 
 	if override.SecurityContext != nil {
@@ -205,4 +218,24 @@ func overrideAppArmorProfile(containerName commonv1.AgentContainerName, manager 
 
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)
 	}
+}
+
+func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe {
+	// Add default httpGet.path and httpGet.port if not present in readinessProbe override
+	if readinessProbeOverride.HTTPGet == nil {
+		readinessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
+			Path: common.DefaultReadinessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
+	}
+	return readinessProbeOverride
+}
+
+func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
+	// Add default httpGet.path and httpGet.port if not present in livenessProbe override
+	if livenessProbeOverride.HTTPGet == nil {
+		livenessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
+			Path: common.DefaultLivenessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
+	}
+	return livenessProbeOverride
 }

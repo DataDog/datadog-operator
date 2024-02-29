@@ -6,7 +6,6 @@
 package cspm
 
 import (
-	"fmt"
 	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -14,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
@@ -23,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -49,7 +46,6 @@ type cspmFeature struct {
 	enable                bool
 	serviceAccountName    string
 	checkInterval         string
-	createSCC             bool
 	createPSP             bool
 	hostBenchmarksEnabled bool
 
@@ -93,7 +89,6 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
 		// TODO add settings to configure f.createPSP
-		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		if dda.Spec.Features.CSPM.HostBenchmarks != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
@@ -164,15 +159,6 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
-		}
-	}
-
-	if f.createSCC {
-		// Manage SecurityContextConstraints
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{AllowHostPID: true}
-		if err := managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc); err != nil {
-			return fmt.Errorf("error adding scc to store: %w", err)
 		}
 	}
 
@@ -253,9 +239,16 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	return nil
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *cspmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// security context capabilities
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",

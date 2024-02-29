@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2020 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package get
 
@@ -152,7 +152,7 @@ func (o *options) runV2() error {
 func (o *options) renderTable(statuses []common.StatusWrapper) {
 	table := newTable(o.Out)
 	for _, item := range statuses {
-		data := []string{item.GetObjectMeta().GetName(), item.GetObjectMeta().GetNamespace()}
+		data := []string{item.GetObjectMeta().GetNamespace(), item.GetObjectMeta().GetName()}
 		if item.GetAgentStatus() != nil {
 			data = append(data, item.GetAgentStatus().Status)
 		} else {

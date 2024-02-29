@@ -75,6 +75,9 @@ const (
 	// SeccompSetupContainerName is the name of the Seccomp Setup init container
 	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
 
+	// UnprivilegedSingleAgentContainerName is the name of a container which may run
+	// any combination of Core, Trace and Process Agent processes in a single container.
+	UnprivilegedSingleAgentContainerName AgentContainerName = "unprivileged-single-agent"
 	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container
@@ -92,4 +95,7 @@ const (
 
 	// ClusterChecksRunnersContainerName is the name of the Agent container in Cluster Checks Runners
 	ClusterChecksRunnersContainerName AgentContainerName = "agent"
+
+	// FIPSProxyContainerName is the name of the FIPS Proxy container
+	FIPSProxyContainerName AgentContainerName = "fips-proxy"
 )

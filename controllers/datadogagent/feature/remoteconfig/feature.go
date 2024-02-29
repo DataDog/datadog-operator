@@ -124,9 +124,17 @@ func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) err
 	return nil
 }
 
+// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
+// if SingleContainerStrategy is enabled and can be used with the configured feature set.
+// It should do nothing if the feature doesn't need to configure it.
+func (f *rcFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	f.ManageNodeAgent(managers, provider)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),

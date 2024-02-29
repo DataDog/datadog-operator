@@ -80,7 +80,7 @@ func Test_DogstatsdFeature_ConfigureV1(t *testing.T) {
 	wantCustomUDPEnvVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdPort,
-			Value: "1234",
+			Value: "8125",
 		},
 		{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
@@ -107,6 +107,12 @@ func Test_DogstatsdFeature_ConfigureV1(t *testing.T) {
 	// origin detection envvar
 	originDetectionEnvVar := corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdOriginDetection,
+		Value: "true",
+	}
+
+	// origin detection client envvar
+	originDetectionClientEnvVar := corev1.EnvVar{
+		Name:  apicommon.DDDogstatsdOriginDetectionClient,
 		Value: "true",
 	}
 
@@ -191,7 +197,7 @@ func Test_DogstatsdFeature_ConfigureV1(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume{}), "3. Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					customEnvVars := append([]*corev1.EnvVar{}, &originDetectionEnvVar)
+					customEnvVars := []*corev1.EnvVar{&originDetectionEnvVar, &originDetectionClientEnvVar}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "3. Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "3. Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
@@ -265,7 +271,7 @@ func Test_DogstatsdFeature_ConfigureV1(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV1), "6. Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV1))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, []*corev1.EnvVar{&originDetectionEnvVar}), "6. Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, []*corev1.EnvVar{&originDetectionEnvVar}))
+					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, []*corev1.EnvVar{&originDetectionEnvVar, &originDetectionClientEnvVar}), "6. Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, []*corev1.EnvVar{&originDetectionEnvVar}))
 					allEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
 					assert.True(t, apiutils.IsEqualStruct(allEnvVars, wantUDSEnvVarsV1), "6. All Containers envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantUDSEnvVarsV2))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
