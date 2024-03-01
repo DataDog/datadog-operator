@@ -17,7 +17,7 @@ import (
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
+func NewDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
 	labels, annotations, selector := component.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
@@ -30,6 +30,13 @@ func NewDaemonset(owner metav1.Object, componentKind, componentName, version str
 		Spec: appsv1.DaemonSetSpec{
 			Selector: selector,
 		},
+	}
+	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
+		daemonset.Spec.UpdateStrategy = appsv1.DaemonSetUpdateStrategy{
+			RollingUpdate: &appsv1.RollingUpdateDaemonSet{
+				MaxUnavailable: newIntOrStringPointer(edsOptions.MaxPodUnavailable),
+			},
+		}
 	}
 	return daemonset
 }
