@@ -19,7 +19,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -49,8 +51,11 @@ type helmCheckFeature struct {
 	serviceAccountName string
 	rbacSuffix         string
 
-	owner         metav1.Object
-	configMapName string
+	owner                 metav1.Object
+	config                *corev1.ConfigMap
+	configMapName         string
+	configAnnotationKey   string
+	configAnnotationValue string
 
 	logger logr.Logger
 }
@@ -80,6 +85,24 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 		}
+
+		// Build configMap based on feature flags.
+		cm, err := f.buildHelmCheckConfigMap()
+		if err != nil {
+			f.logger.Error(err, "couldn't generate configMap for helm check")
+		}
+		f.config = cm
+
+		// Create hash based on configMap.
+		hash, err := comparison.GenerateMD5ForSpec(cm.Data)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for helm check config")
+		} else {
+			f.logger.V(2).Info("built helm check from config", "hash", hash)
+		}
+
+		f.configAnnotationValue = hash
+		f.configAnnotationKey = fmt.Sprintf("checksum/%s-config", feature.HelmCheckIDType)
 	}
 
 	return reqComp
@@ -93,14 +116,15 @@ func (f *helmCheckFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.Requi
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	// Create configMap based on feature flags.
-	cm, err := f.buildHelmCheckConfigMap()
-	if err != nil {
-		return err
-	}
-
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
-		return err
+	if f.config != nil {
+		// Add md5 hash annotation for configMap
+		if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
+			annotations := object.MergeAnnotationsLabels(f.logger, f.config.GetAnnotations(), map[string]string{f.configAnnotationKey: f.configAnnotationValue}, "*")
+			f.config.SetAnnotations(annotations)
+		}
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, f.config); err != nil {
+			return err
+		}
 	}
 
 	// Manage RBAC permission
@@ -125,6 +149,11 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
+
+	// Add md5 hash annotation for configMap
+	if f.configAnnotationKey != "" && f.configAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.configAnnotationKey, f.configAnnotationValue)
+	}
 
 	return nil
 }

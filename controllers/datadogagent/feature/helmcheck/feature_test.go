@@ -7,6 +7,7 @@ package helmcheck
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -50,7 +52,7 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: helmCheckWantDepsFunc(false, true, valuesAsTags, "dca"),
-			ClusterAgent:         helmCheckWantResourcesFunc(),
+			ClusterAgent:         helmCheckWantResourcesFunc(false, true),
 		},
 		{
 			Name: "Helm check enabled and runs on cluster checks runner",
@@ -63,7 +65,7 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: helmCheckWantDepsFunc(true, true, valuesAsTags, "ccr"),
-			ClusterAgent:         helmCheckWantResourcesFunc(),
+			ClusterAgent:         helmCheckWantResourcesFunc(true, true),
 		},
 	}
 
@@ -132,7 +134,7 @@ func helmCheckWantDepsFunc(ccr bool, collectEvents bool, valuesAsTags map[string
 	}
 }
 
-func helmCheckWantResourcesFunc() *test.ComponentTest {
+func helmCheckWantResourcesFunc(ccr bool, collectEvents bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -175,5 +177,28 @@ func helmCheckWantResourcesFunc() *test.ComponentTest {
 				apiutils.IsEqualStruct(dcaVolMounts, expectedVolMounts),
 				"DCA VolumeMounts \ndiff = %s", cmp.Diff(dcaVolMounts, expectedVolMounts),
 			)
+
+			// Validate configMap annotations
+			config := map[string]string{
+				"helm.yaml": fmt.Sprintf(`---
+cluster_check: %s
+init_config:
+instances:
+  - collect_events: %s
+    helm_values_as_tags:
+      foo: bar
+      zip: zap
+`, strconv.FormatBool(ccr), strconv.FormatBool(collectEvents)),
+			}
+
+			hash, err := comparison.GenerateMD5ForSpec(config)
+			assert.NoError(t, err)
+
+			wantAnnotations := map[string]string{
+				fmt.Sprintf("checksum/%s-config", feature.HelmCheckIDType): hash,
+			}
+
+			annotations := mgr.AnnotationMgr.Annotations
+			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 		})
 }
