@@ -9,7 +9,6 @@ import (
 	"context"
 	"reflect"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -183,23 +182,6 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 // SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// This is for the agent profiles feature. To delete the pods of profiles
-	// that no longer apply, we need to be able to get the agent pods of a
-	// specific node.
-	// Notice that only node agent pods are indexed.
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &corev1.Pod{}, "spec.nodeName", func(rawObj client.Object) []string {
-		pod := rawObj.(*corev1.Pod)
-
-		// Don't store the pod if it's not a node agent pod
-		if pod.Labels[apicommon.AgentDeploymentComponentLabelKey] != apicommon.DefaultAgentResourceSuffix {
-			return nil
-		}
-
-		return []string{pod.Spec.NodeName}
-	}); err != nil {
-		return err
-	}
-
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
