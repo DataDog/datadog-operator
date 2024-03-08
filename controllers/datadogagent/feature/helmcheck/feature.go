@@ -102,7 +102,7 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		}
 
 		f.configAnnotationValue = hash
-		f.configAnnotationKey = fmt.Sprintf("checksum/%s-config", feature.HelmCheckIDType)
+		f.configAnnotationKey = object.GetChecksumAnnotationKey(feature.HelmCheckIDType)
 	}
 
 	return reqComp

@@ -195,7 +195,7 @@ instances:
 			assert.NoError(t, err)
 
 			wantAnnotations := map[string]string{
-				fmt.Sprintf("checksum/%s-config", feature.HelmCheckIDType): hash,
+				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
 			}
 
 			annotations := mgr.AnnotationMgr.Annotations
