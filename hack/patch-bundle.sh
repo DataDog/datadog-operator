@@ -23,7 +23,7 @@ $YQ -i ".metadata.annotations.support = \"Datadog, Inc.\"" bundle/manifests/data
 
 # Add feature annotations (required)
 $YQ -i '.metadata.annotations."features.operators.openshift.io/disconnected" = "true"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
-$YQ -i '.metadata.annotations."features.operators.openshift.io/fips-compliant" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
+$YQ -i '.metadata.annotations."features.operators.openshift.io/fips-compliant" = "true"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
 $YQ -i '.metadata.annotations."features.operators.openshift.io/proxy-aware" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
 $YQ -i '.metadata.annotations."features.operators.openshift.io/tls-profiles" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
 $YQ -i '.metadata.annotations."features.operators.openshift.io/token-auth-aws" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
