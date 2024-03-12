@@ -75,3 +75,46 @@ kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/v2alpha1/min.yaml
 
 
 The Operator should start deploying the `agent` and `cluster-agent`.
+
+
+## Tests
+
+### Unit and Integration Tests
+
+```shell
+# Run unit tests and integration tests
+$ make test
+
+# Run v1 integration tests
+$ make integration-tests
+
+# Run v2 integration tests
+$ make integration-tests-v2
+```
+
+### End-to-End Tests
+
+The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed test infrastructures, defined as "stacks". The test infrastructures are deployed using the [`test-infra-definitions`][test-infra-repo] and [`datadog-agent`][agent-e2e-source] E2E frameworks.
+
+**Prerequisites**
+
+Internal Datadog users may run E2E locally after completing the following prerequisites:
+
+* Access to the AWS `agent-sandbox` account
+* AWS keypair with your public ssh key created in the `agent-sandbox` account
+* Set environment variable `PULUMI_CONFIG_PASSPHRASE`
+* Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
+
+```shell
+# Run E2E tests and destroy environment stacks after tests complete.
+$ make e2e-tests
+
+# Run E2E tests and keep environment stacks running
+$ make e2e-tests-keep-stacks
+```
+
+
+[pulumi]:https://www.pulumi.com/
+[test-infra-repo]:https://github.com/DataDog/test-infra-definitions
+[agent-e2e-source]:https://github.com/DataDog/datadog-agent/tree/main/test/new-e2e
+[test-infra-quickstart]:https://github.com/DataDog/test-infra-definitions#quick-start-guide

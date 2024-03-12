@@ -147,8 +147,25 @@ build_operator_check_image_arm64:
 
 e2e:
   extends: .new_e2e_template
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+  needs:
+    - "build_operator_image_amd64"
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - 1.16.4
+          - 1.18.20
+          - 1.22.17
+          - 1.24.17
+          - 1.25.16
+          - 1.26.13
   script:
-    - cd test/e2e && go test ./...
+    - make e2e-test
 
 build_bundle_image:
   stage: image
