@@ -103,6 +103,7 @@
     "perfsprint",
     "inamedparam",
     "nakedret",
+    "gomoddirectives",
   ]
 
 [issues]
