@@ -222,7 +222,7 @@ func overrideAppArmorProfile(containerName commonv1.AgentContainerName, manager 
 
 func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe {
 	// Add default httpGet.path and httpGet.port if not present in readinessProbe override
-	if readinessProbeOverride.HTTPGet == nil {
+	if readinessProbeOverride == nil && readinessProbeOverride.HTTPGet == nil {
 		readinessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
 			Path: common.DefaultReadinessProbeHTTPPath,
 			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
@@ -232,7 +232,7 @@ func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe 
 
 func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
 	// Add default httpGet.path and httpGet.port if not present in livenessProbe override
-	if livenessProbeOverride.HTTPGet == nil {
+	if livenessProbeOverride == nil && livenessProbeOverride.HTTPGet == nil {
 		livenessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
 			Path: common.DefaultLivenessProbeHTTPPath,
 			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
