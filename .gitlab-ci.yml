@@ -16,8 +16,6 @@ variables:
   TEST_INFRA_DEFINITIONS_BUILDIMAGES: a1d921006e35
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
-  RUN_E2E_TEST:
-    description: "set RUN_E2E_TEST to 'true' if you want to trigger the e2e test on your pipeline."
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -155,17 +153,14 @@ e2e:
     - "build_operator_image_amd64"
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: always
+    - if: $CI_COMMIT_BRANCH
       changes:
         paths:
-          - "*.go"
-          - "*.yaml"
+          - "*.md"
         compare_to: "refs/heads/main"
-      when: always
-    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: never
-    - if: $CI_COMMIT_BRANCH == "main"
-      when: always
-    - if: $RUN_E2E_TEST == "true"
+    - if: $CI_COMMIT_BRANCH
       when: manual
     - when: never
   parallel:
