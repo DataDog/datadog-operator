@@ -104,6 +104,14 @@ Internal Datadog users may run E2E locally after completing the following prereq
 * AWS keypair with your public ssh key created in the `agent-sandbox` account
 * Set environment variable `PULUMI_CONFIG_PASSPHRASE`
 * Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
+* Add `go.work` file to root directory:
+
+```shell
+go work init
+go work use . ./test/e2e
+```
+
+#### Run E2E Tests
 
 ```shell
 # Run E2E tests and destroy environment stacks after tests complete.

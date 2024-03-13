@@ -173,7 +173,7 @@ e2e:
           - 1.25.16
           - 1.26.13
   script:
-    - make e2e-test
+    - make e2e-tests
 
 build_bundle_image:
   stage: image
