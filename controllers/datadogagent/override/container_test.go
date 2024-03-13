@@ -394,22 +394,23 @@ func TestContainer(t *testing.T) {
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
-					return reflect.DeepEqual(
-						&corev1.Probe{
-							InitialDelaySeconds: 10,
-							TimeoutSeconds:      5,
-							PeriodSeconds:       30,
-							SuccessThreshold:    1,
-							FailureThreshold:    5,
-							ProbeHandler: corev1.ProbeHandler{
-								HTTPGet: &corev1.HTTPGetAction{
-									Path: "/ready",
-									Port: intstr.IntOrString{
-										IntVal: 5555,
-									},
+					want := &corev1.Probe{
+						InitialDelaySeconds: 10,
+						TimeoutSeconds:      5,
+						PeriodSeconds:       30,
+						SuccessThreshold:    1,
+						FailureThreshold:    5,
+						ProbeHandler: corev1.ProbeHandler{
+							HTTPGet: &corev1.HTTPGetAction{
+								Path: "/ready",
+								Port: intstr.IntOrString{
+									IntVal: 5555,
 								},
 							},
 						},
+					}
+					return reflect.DeepEqual(
+						want,
 						container.ReadinessProbe)
 				})
 			},
