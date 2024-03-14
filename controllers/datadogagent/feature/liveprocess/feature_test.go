@@ -46,6 +46,15 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFuncWithScrubStripArgs),
 		},
+		{
+			Name: "v2alpha1 live process collection enabled with run in core agent enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveProcessEnabled(true).
+				WithLiveProcessRunInCoreAgent(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessCoreAgentNodeWantFunc),
+		},
 	}
 
 	tests.Run(t, buildLiveProcessFeature)
@@ -141,4 +150,50 @@ func liveProcessAgentNodeWantFuncWithScrubStripArgs(t testing.TB, mgrInterface f
 
 	processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, wantEnvVars))
+}
+
+func liveProcessCoreAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+	// check volume mounts
+	wantVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      apicommon.PasswdVolumeName,
+			MountPath: apicommon.PasswdMountPath,
+			ReadOnly:  true,
+		},
+	}
+
+	coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, wantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, wantVolumeMounts))
+
+	// check volumes
+	wantVolumes := []corev1.Volume{
+		{
+			Name: apicommon.PasswdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: apicommon.PasswdHostPath,
+				},
+			},
+		},
+	}
+
+	volumes := mgr.VolumeMgr.Volumes
+	assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+
+	// check env vars
+	wantEnvVars := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDProcessCollectionEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Value: "true",
+		},
+	}
+
+	coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 }

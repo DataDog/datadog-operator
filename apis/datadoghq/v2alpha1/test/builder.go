@@ -150,6 +150,11 @@ func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stri
 	builder.datadogAgent.Spec.Features.LiveProcessCollection.StripProcessArguments = apiutils.NewBoolPointer(stripEnabled)
 	return builder
 }
+func (builder *DatadogAgentBuilder) WithLiveProcessRunInCoreAgent(runInCoreAgent bool) *DatadogAgentBuilder {
+	builder.initLiveProcesses()
+	builder.datadogAgent.Spec.Features.LiveProcessCollection.RunInCoreAgent = &v2alpha1.ProcessesRunInCoreAgent{Enabled: apiutils.NewBoolPointer(runInCoreAgent)}
+	return builder
+}
 
 // Admission Controller
 func (builder *DatadogAgentBuilder) initAdmissionController() {

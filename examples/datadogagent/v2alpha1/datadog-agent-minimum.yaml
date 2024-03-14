@@ -3,6 +3,32 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
+  override:
+    nodeAgent:
+      image:
+        name: agent-dev
+        tag: daniel-tafoya-connections-check-independent-localresolver-py3
+        pullPolicy: IfNotPresent
   global:
+    registry: docker.io/datadog
+    kubelet:
+      # this fixes an issue in kind where the agent isn't able to start due to a hostname issue
+      tlsVerify: false 
     credentials:
-      apiKey: <DATADOG_API_KEY>
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+  features:
+    liveProcessCollection:
+      enabled: true
+      runInCoreAgent:
+        enabled: false
+    orchestratorExplorer:
+      enabled: false
+    processDiscovery:
+      enabled: false
+    liveContainerCollection:
+      enabled: false
