@@ -8211,6 +8211,13 @@ spec:
                         enabled:
                           description: 'Enables container collection for the Live Container View. Default: true'
                           type: boolean
+                        runInCoreAgent:
+                          description: RunInCoreAgent controls enablement of running the feature in the core agent.
+                          properties:
+                            enabled:
+                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              type: boolean
+                          type: object
                       type: object
                     liveProcessCollection:
                       description: LiveProcessCollection configuration.
@@ -8218,6 +8225,13 @@ spec:
                         enabled:
                           description: 'Enabled enables Process monitoring. Default: false'
                           type: boolean
+                        runInCoreAgent:
+                          description: RunInCoreAgent controls enablement of running the feature in the core agent.
+                          properties:
+                            enabled:
+                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              type: boolean
+                          type: object
                         scrubProcessArguments:
                           description: 'ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true'
                           type: boolean
@@ -8374,6 +8388,13 @@ spec:
                         enabled:
                           description: 'Enabled enables the Process Discovery check in the Agent. Default: true'
                           type: boolean
+                        runInCoreAgent:
+                          description: RunInCoreAgent controls enablement of running the feature in the core agent.
+                          properties:
+                            enabled:
+                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              type: boolean
+                          type: object
                       type: object
                     prometheusScrape:
                       description: PrometheusScrape configuration.

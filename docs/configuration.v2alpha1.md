@@ -96,7 +96,9 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.name | Name is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enabled enables Kube State Metrics Core. Default: true |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
+| features.liveContainerCollection.runInCoreAgent.enabled | Enabled enables running parent feature in core agent Default: false |
 | features.liveProcessCollection.enabled | Enabled enables Process monitoring. Default: false |
+| features.liveProcessCollection.runInCoreAgent.enabled | Enabled enables running parent feature in core agent Default: false |
 | features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
 | features.liveProcessCollection.stripProcessArguments | StripProcessArguments enables stripping of all process arguments. Default: false |
 | features.logCollection.containerCollectAll | ContainerCollectAll enables Log collection from all containers. Default: false |
@@ -124,6 +126,7 @@ spec:
 | features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
 | features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.processDiscovery.enabled | Enabled enables the Process Discovery check in the Agent. Default: true |
+| features.processDiscovery.runInCoreAgent.enabled | Enabled enables running parent feature in core agent Default: false |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |

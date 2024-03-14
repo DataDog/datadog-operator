@@ -204,6 +204,15 @@ type LogCollectionFeatureConfig struct {
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
 }
 
+// ProcessesRunInCoreAgent is used to allow certain process agent features to run in the core agent.
+// Applies to Live Process Collection, Live Container Collection, and Process Discovery.
+type ProcessesRunInCoreAgent struct {
+	// Enabled enables running parent feature in core agent
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // LiveProcessCollectionFeatureConfig contains Process Collection configuration.
 // Process Collection is run in the Process Agent.
 type LiveProcessCollectionFeatureConfig struct {
@@ -221,6 +230,10 @@ type LiveProcessCollectionFeatureConfig struct {
 	// Default: false
 	// +optional
 	StripProcessArguments *bool `json:"stripProcessArguments,omitempty"`
+
+	// RunInCoreAgent controls enablement of running the feature in the core agent.
+	// +optional
+	RunInCoreAgent *ProcessesRunInCoreAgent `json:"runInCoreAgent,omitempty"`
 }
 
 // LiveContainerCollectionFeatureConfig contains Container Collection configuration.
@@ -230,6 +243,10 @@ type LiveContainerCollectionFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// RunInCoreAgent controls enablement of running the feature in the core agent.
+	// +optional
+	RunInCoreAgent *ProcessesRunInCoreAgent `json:"runInCoreAgent,omitempty"`
 }
 
 // ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
@@ -239,6 +256,10 @@ type ProcessDiscoveryFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// RunInCoreAgent controls enablement of running the feature in the core agent.
+	// +optional
+	RunInCoreAgent *ProcessesRunInCoreAgent `json:"runInCoreAgent,omitempty"`
 }
 
 // OOMKillFeatureConfig configures the OOM Kill monitoring feature.
