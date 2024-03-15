@@ -137,7 +137,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	if f.hostEnabled {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDHostRootEnvVar,
 			Value: "/host",
 		})
