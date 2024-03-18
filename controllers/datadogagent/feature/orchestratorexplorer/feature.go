@@ -129,6 +129,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
+	f.processAgentRequired = true
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
