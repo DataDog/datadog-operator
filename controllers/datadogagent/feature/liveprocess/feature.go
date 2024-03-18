@@ -49,6 +49,11 @@ func (f *liveProcessFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
+		requiredContainers := []apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+			apicommonv1.ProcessAgentContainerName,
+		}
+
 		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
@@ -59,14 +64,11 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 		if dda.Spec.Features.LiveProcessCollection.RunInCoreAgent != nil {
 			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
 			f.runInCoreAgentCfg.enabled = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
-		}
-
-		requiredContainers := []apicommonv1.AgentContainerName{
-			apicommonv1.CoreAgentContainerName,
-		}
-
-		if f.runInCoreAgentCfg == nil || (f.runInCoreAgentCfg != nil && !apiutils.BoolValue(f.runInCoreAgentCfg.enabled)) {
-			requiredContainers = append(requiredContainers, apicommonv1.ProcessAgentContainerName)
+			if apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+				requiredContainers = []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+				}
+			}
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -125,6 +127,15 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		containerName = apicommonv1.CoreAgentContainerName
 	}
 
+	if f.runInCoreAgentCfg != nil {
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(f.runInCoreAgentCfg.enabled),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+	}
+
 	f.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
@@ -157,14 +168,6 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommonv1.Agen
 			Value: apiutils.BoolToString(f.stripArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, stripArgsEnvVar)
-	}
-
-	if f.runInCoreAgentCfg != nil {
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(f.runInCoreAgentCfg.enabled),
-		}
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, runInCoreAgentEnvVar)
 	}
 
 	return nil

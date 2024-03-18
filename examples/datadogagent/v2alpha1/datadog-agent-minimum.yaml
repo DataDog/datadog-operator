@@ -25,10 +25,10 @@ spec:
     liveProcessCollection:
       enabled: true
       runInCoreAgent:
-        enabled: false
+        enabled: true
     orchestratorExplorer:
       enabled: false
     processDiscovery:
       enabled: false
     liveContainerCollection:
-      enabled: false
+      enabled: true
