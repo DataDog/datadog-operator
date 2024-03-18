@@ -62,6 +62,8 @@ type orchestratorExplorerFeature struct {
 	logger                      logr.Logger
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+
+	processAgentNotRequired bool
 }
 
 // ID returns the ID of the Feature
@@ -73,14 +75,15 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
-	nodeAgentImage := dda.Spec.Override[v2alpha1.NodeAgentComponentName].Image
+	nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
+	f.processAgentNotRequired = ok && nodeAgent.Image != nil && utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0")
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName}
 
 		// Process Agent is no longer needed as of 7.51.0
-		if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgentImage), "7.51.0") {
+		if f.processAgentNotRequired {
 			reqContainers = []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
 		}
 
@@ -241,7 +244,9 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+		if !f.processAgentNotRequired {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)
 	}
 

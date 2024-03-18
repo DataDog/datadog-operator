@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -67,10 +68,11 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
 		},
 		{
 			Name: "v2alpha1 orchestrator explorer enabled and runs on cluster checks runner",
@@ -82,11 +84,26 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        orchestratorExplorerClusterAgentWantFuncV2(),
-			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
+		},
+		{
+			Name: "v2alpha1 orchestrator explorer enabled on version requiring process agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithOrchestratorExplorerEnabled(true).
+				WithOrchestratorExplorerScrubContainers(true).
+				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
+				WithOrchestratorExplorerDDUrl("https://foo.bar").
+				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.50.0"}}).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
 	}
 
@@ -97,6 +114,16 @@ func orchestratorExplorerNodeAgentWantFunc(t testing.TB, mgrInterface feature.Po
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
+	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Core agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
+}
+
+func orchestratorExplorerNodeAgentNoProcessAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, nil), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
+	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Core agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
 }
 
 func orchestratorExplorerClusterChecksRunnerWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
