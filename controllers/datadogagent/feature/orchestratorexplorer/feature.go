@@ -63,7 +63,7 @@ type orchestratorExplorerFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
-	processAgentNotRequired bool
+	processAgentRequired bool
 }
 
 // ID returns the ID of the Feature
@@ -76,15 +76,15 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	f.owner = dda
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 	nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
-	f.processAgentNotRequired = ok && nodeAgent.Image != nil && utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0")
+	// Process Agent is not required on versions as of 7.51.0
+	f.processAgentRequired = ok && nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0")
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName}
+		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
 
-		// Process Agent is no longer needed as of 7.51.0
-		if f.processAgentNotRequired {
-			reqContainers = []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
+		if f.processAgentRequired {
+			reqContainers = []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName}
 		}
 
 		reqComp.Agent = feature.RequiredComponent{
@@ -244,7 +244,7 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
-		if !f.processAgentNotRequired {
+		if f.processAgentRequired {
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)
