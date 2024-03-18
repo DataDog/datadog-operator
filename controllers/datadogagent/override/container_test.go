@@ -415,6 +415,49 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override readiness probe with non-HTTPGet handler",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				ReadinessProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"echo", "foo", "bar"},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"echo", "foo", "bar"},
+								},
+							},
+						},
+						container.ReadinessProbe)
+				})
+			},
+		},
+		{
 			name:          "override readiness probe",
 			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
@@ -497,6 +540,49 @@ func TestContainer(t *testing.T) {
 									Port: intstr.IntOrString{
 										IntVal: 5555,
 									},
+								},
+							},
+						},
+						container.LivenessProbe)
+				})
+			},
+		},
+		{
+			name:          "override liveness probe with non-HTTPGet handler",
+			containerName: commonv1.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				LivenessProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"echo", "foo", "bar"},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"echo", "foo", "bar"},
 								},
 							},
 						},
