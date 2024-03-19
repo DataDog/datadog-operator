@@ -31,7 +31,13 @@ func buildLiveContainerFeature(options *feature.Options) feature.Feature {
 	return liveContainerFeat
 }
 
-type liveContainerFeature struct{}
+type runInCoreAgentConfig struct {
+	enabled *bool
+}
+
+type liveContainerFeature struct {
+	runInCoreAgentCfg *runInCoreAgentConfig
+}
 
 // ID returns the ID of the Feature
 func (f *liveContainerFeature) ID() feature.IDType {
@@ -40,14 +46,28 @@ func (f *liveContainerFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
+	liveProcessesEnabled := dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled)
+
+	if !liveProcessesEnabled && (dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled)) {
+		requiredContainers := []apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+			apicommonv1.ProcessAgentContainerName,
+		}
+
+		if dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
+			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
+			f.runInCoreAgentCfg.enabled = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
+			if apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+				requiredContainers = []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+				}
+			}
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-				},
+				Containers: requiredContainers,
 			},
 		}
 	}
@@ -95,7 +115,21 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers, provider)
+	containerName := apicommonv1.ProcessAgentContainerName
+	if f.runInCoreAgentCfg != nil && apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+		containerName = apicommonv1.CoreAgentContainerName
+	}
+
+	if f.runInCoreAgentCfg != nil {
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(f.runInCoreAgentCfg.enabled),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+	}
+
+	f.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
 

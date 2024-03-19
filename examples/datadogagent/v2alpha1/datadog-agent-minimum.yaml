@@ -10,6 +10,7 @@ spec:
         tag: daniel-tafoya-connections-check-independent-localresolver-py3
         pullPolicy: IfNotPresent
   global:
+    clusterName: dtaf-dev
     registry: docker.io/datadog
     kubelet:
       # this fixes an issue in kind where the agent isn't able to start due to a hostname issue
@@ -23,12 +24,8 @@ spec:
         keyName: app-key
   features:
     liveProcessCollection:
-      enabled: true
+      enabled: false
       runInCoreAgent:
         enabled: true
     orchestratorExplorer:
       enabled: false
-    processDiscovery:
-      enabled: false
-    liveContainerCollection:
-      enabled: true
