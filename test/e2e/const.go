@@ -18,6 +18,7 @@ import (
 const (
 	ddaExamplesPath     = "../../examples/datadogagent/v2alpha1"
 	mgrKustomizeDirPath = "../../config/default"
+	imagePullSecretName = "registry-credentials"
 )
 
 var (
@@ -65,6 +66,7 @@ func operatorTransformationFunc() func(state map[string]interface{}, opts ...pul
 		if imageTag != "" && state["kind"] == "Deployment" && name == "datadog-operator-manager" {
 			template := state["spec"].(map[string]interface{})["template"]
 			templateSpec := template.(map[string]interface{})["spec"]
+			templateSpec.(map[string]interface{})["imagePullSecrets"] = imagePullSecretName
 			containers := templateSpec.(map[string]interface{})["containers"]
 			container := containers.([]interface{})[0]
 			container.(map[string]interface{})["image"] = imageTag

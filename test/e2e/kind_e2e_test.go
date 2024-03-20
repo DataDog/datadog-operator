@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
+	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
@@ -97,6 +98,11 @@ func kindProvisioner(k8sVersion string, ddaConfig string, namespace string) e2e.
 			return err
 		}
 
+		// Create imagePullSecret
+		_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespace)
+		if err != nil {
+			return err
+		}
 		// Deploy resources from kustomize config/default directory
 		kustomizeDirPath, err := filepath.Abs(mgrKustomizeDirPath)
 		if err != nil {
