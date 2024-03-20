@@ -302,7 +302,7 @@ func run(opts *options) error {
 	// Start RemoteConfig service and client
 	if os.Getenv("DD_OPERATOR_REMOTE_CONFIGURATION_ENABLED") == "true" {
 		setupLog.Info("starting remote config")
-		if err := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient()).Setup(ctrl.Log.WithName("remote_config"), options.Creds); err != nil {
+		if err := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(options.Creds); err != nil {
 			return err
 		}
 	}
