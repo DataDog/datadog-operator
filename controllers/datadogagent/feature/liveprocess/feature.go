@@ -32,7 +32,7 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type runInCoreAgentConfig struct {
-	enabled *bool
+	enabled bool
 }
 
 type liveProcessFeature struct {
@@ -63,8 +63,8 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 		if dda.Spec.Features.LiveProcessCollection.RunInCoreAgent != nil {
 			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
-			f.runInCoreAgentCfg.enabled = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
-			if apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+			f.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
+			if f.runInCoreAgentCfg.enabled {
 				requiredContainers = []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				}
@@ -115,6 +115,12 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	runInCoreAgent := f.runInCoreAgentCfg != nil && f.runInCoreAgentCfg.enabled
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
@@ -123,25 +129,22 @@ func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	containerName := apicommonv1.ProcessAgentContainerName
-	if f.runInCoreAgentCfg != nil && apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+	runInCoreAgent := f.runInCoreAgentCfg != nil && f.runInCoreAgentCfg.enabled
+	if runInCoreAgent {
 		containerName = apicommonv1.CoreAgentContainerName
 	}
-
-	if f.runInCoreAgentCfg != nil {
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(f.runInCoreAgentCfg.enabled),
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
 	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
 
 	f.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
 
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)

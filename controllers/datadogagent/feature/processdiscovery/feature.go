@@ -23,7 +23,7 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 	return &processDiscoveryFeature{}
 }
 
-// AppendToValueEnvVarMergeFunction used when we add the new value to the existing corev1.EnvVar.
+// RespectCurrentEnvVarMergeFunction to only add envvar when not already set.
 func RespectCurrentEnvVarMergeFunction(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
 	if current.Value != "" {
 		return current.DeepCopy(), nil
@@ -32,7 +32,7 @@ func RespectCurrentEnvVarMergeFunction(current, newEnv *corev1.EnvVar) (*corev1.
 }
 
 type runInCoreAgentConfig struct {
-	enabled *bool
+	enabled bool
 }
 
 type processDiscoveryFeature struct {
@@ -43,20 +43,19 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 	return feature.ProcessDiscoveryIDType
 }
 
-func (p processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
 	liveProcessesEnabled := dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled)
-
 	if !liveProcessesEnabled && (dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled)) {
 		requiredContainers := []apicommonv1.AgentContainerName{
 			apicommonv1.CoreAgentContainerName,
 			apicommonv1.ProcessAgentContainerName,
 		}
 
-		if dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
+		if dda.Spec.Features.ProcessDiscovery != nil && dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
 			p.runInCoreAgentCfg = &runInCoreAgentConfig{}
-			p.runInCoreAgentCfg.enabled = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
-			if apiutils.BoolValue(p.runInCoreAgentCfg.enabled) {
+			p.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.RunInCoreAgent.Enabled)
+			if p.runInCoreAgentCfg.enabled {
 				requiredContainers = []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				}
@@ -87,24 +86,29 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 
 func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	containerName := apicommonv1.ProcessAgentContainerName
-	if p.runInCoreAgentCfg != nil && apiutils.BoolValue(p.runInCoreAgentCfg.enabled) {
+	runInCoreAgent := p.runInCoreAgentCfg != nil && p.runInCoreAgentCfg.enabled
+	if runInCoreAgent {
 		containerName = apicommonv1.CoreAgentContainerName
 	}
 
-	if p.runInCoreAgentCfg != nil {
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(p.runInCoreAgentCfg.enabled),
-		}
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
-		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
 	}
+	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
+	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
 
 	p.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
 
 func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	runInCoreAgent := p.runInCoreAgentCfg != nil && p.runInCoreAgentCfg.enabled
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
 	p.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }

@@ -131,6 +131,12 @@ func (builder *DatadogAgentBuilder) WithLiveContainerCollectionEnabled(enabled b
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithLiveContainerRunInCoreAgent(runInCoreAgent bool) *DatadogAgentBuilder {
+	builder.initLiveContainer()
+	builder.datadogAgent.Spec.Features.LiveContainerCollection.RunInCoreAgent = &v2alpha1.ProcessesRunInCoreAgent{Enabled: apiutils.NewBoolPointer(runInCoreAgent)}
+	return builder
+}
+
 // Live Processes
 func (builder *DatadogAgentBuilder) initLiveProcesses() {
 	if builder.datadogAgent.Spec.Features.LiveProcessCollection == nil {
@@ -153,6 +159,25 @@ func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stri
 func (builder *DatadogAgentBuilder) WithLiveProcessRunInCoreAgent(runInCoreAgent bool) *DatadogAgentBuilder {
 	builder.initLiveProcesses()
 	builder.datadogAgent.Spec.Features.LiveProcessCollection.RunInCoreAgent = &v2alpha1.ProcessesRunInCoreAgent{Enabled: apiutils.NewBoolPointer(runInCoreAgent)}
+	return builder
+}
+
+// Process Discovery
+func (builder *DatadogAgentBuilder) initProcessDiscovery() {
+	if builder.datadogAgent.Spec.Features.ProcessDiscovery == nil {
+		builder.datadogAgent.Spec.Features.ProcessDiscovery = &v2alpha1.ProcessDiscoveryFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initProcessDiscovery()
+	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithProcessDiscoveryRunInCoreAgent(runInCoreAgent bool) *DatadogAgentBuilder {
+	builder.initProcessDiscovery()
+	builder.datadogAgent.Spec.Features.ProcessDiscovery.RunInCoreAgent = &v2alpha1.ProcessesRunInCoreAgent{Enabled: apiutils.NewBoolPointer(runInCoreAgent)}
 	return builder
 }
 

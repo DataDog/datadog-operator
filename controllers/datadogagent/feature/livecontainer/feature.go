@@ -32,7 +32,7 @@ func buildLiveContainerFeature(options *feature.Options) feature.Feature {
 }
 
 type runInCoreAgentConfig struct {
-	enabled *bool
+	enabled bool
 }
 
 type liveContainerFeature struct {
@@ -54,10 +54,10 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			apicommonv1.ProcessAgentContainerName,
 		}
 
-		if dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
+		if dda.Spec.Features.LiveContainerCollection.RunInCoreAgent != nil {
 			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
-			f.runInCoreAgentCfg.enabled = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.RunInCoreAgent.Enabled)
-			if apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+			f.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.RunInCoreAgent.Enabled)
+			if f.runInCoreAgentCfg.enabled {
 				requiredContainers = []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				}
@@ -108,6 +108,12 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	runInCoreAgent := f.runInCoreAgentCfg != nil && f.runInCoreAgentCfg.enabled
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
@@ -116,18 +122,16 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	containerName := apicommonv1.ProcessAgentContainerName
-	if f.runInCoreAgentCfg != nil && apiutils.BoolValue(f.runInCoreAgentCfg.enabled) {
+	runInCoreAgent := f.runInCoreAgentCfg != nil && f.runInCoreAgentCfg.enabled
+	if runInCoreAgent {
 		containerName = apicommonv1.CoreAgentContainerName
 	}
-
-	if f.runInCoreAgentCfg != nil {
-		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigRunInCoreAgent,
-			Value: apiutils.BoolToString(f.runInCoreAgentCfg.enabled),
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&runInCoreAgent),
 	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
 
 	f.manageNodeAgent(containerName, managers, provider)
 	return nil
