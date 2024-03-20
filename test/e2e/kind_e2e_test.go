@@ -146,19 +146,40 @@ func kindProvisioner(k8sVersion string, ddaConfig string, namespace string) e2e.
 		"ddagent:fakeintake":                       auto.ConfigValue{Value: "false"},
 		"dddogstatsd:deploy":                       auto.ConfigValue{Value: "false"},
 		"ddinfra:deployFakeintakeWithLoadBalancer": auto.ConfigValue{Value: "false"},
+		"ddagent:imagePullRegistry":                auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"},
+		"ddagent:imagePullUsername":                auto.ConfigValue{Value: "AWS"},
+		"ddagent:imagePullPassword":                auto.ConfigValue{Value: imgPullPassword},
 	})
 }
 
 func (suite *kindSuite) SetupSuite() {
 	// Setup kind E2E test suite with CI environment variables
-	if tag, ok := os.LookupEnv("TARGET_IMAGE"); ok {
+	tag, ok := os.LookupEnv("TARGET_IMAGE")
+	if ok {
 		//suite.ImageTag = tag
 		imageTag = tag
+		suite.T().Logf("TARGET_IMAGE: %s", tag)
+	} else {
+		suite.T().Logf("Couldn't get TARGET_IMAGE env var.")
 	}
-	if version, ok := os.LookupEnv("K8S_VERSION"); ok {
+	// TODO: fix k8s version for kind cluster
+	version, ok := os.LookupEnv("K8S_VERSION")
+	if ok {
+		suite.T().Logf("K8S VERSION: %s", version)
 		//suite.K8sVersion = version
 		k8sVersion = version
+	} else {
+		suite.T().Logf("Couldn't get K8S_VERSION env var.")
 	}
+
+	pw, ok := os.LookupEnv("IMAGE_PULL_PASSWORD")
+	if ok {
+		imgPullPassword = pw
+		suite.T().Logf("Got IMAGE_PULL_PASSWORD env var.")
+	} else {
+		suite.T().Logf("Couldn't get IMAGE_PULL_PASSWORD env var.")
+	}
+
 	suite.BaseSuite.SetupSuite()
 }
 

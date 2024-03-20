@@ -434,7 +434,7 @@ e2e:
           - 1.25.16
           - 1.26.13
   script:
-    - make e2e-tests
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) make e2e-tests
 
 submit_preflight_redhat_public_tag:
   stage: post-release

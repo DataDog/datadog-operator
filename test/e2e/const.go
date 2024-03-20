@@ -22,9 +22,10 @@ const (
 )
 
 var (
-	k8sVersion string
-	ddaConfig  string
-	imageTag   string
+	k8sVersion      string
+	ddaConfig       string
+	imageTag        string
+	imgPullPassword string
 
 	ddaMinimalPath = filepath.Join(ddaExamplesPath, "datadog-agent-minimum.yaml")
 
