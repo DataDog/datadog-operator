@@ -98,11 +98,12 @@ func kindProvisioner(k8sVersion string, ddaConfig string, namespace string) e2e.
 			return err
 		}
 
-		// Create imagePullSecret
-		_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespace)
+		// Create imagePullSecret to pull E2E operator image from ECR
+		_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespace, pulumi.Provider(kindKubeProvider))
 		if err != nil {
 			return err
 		}
+
 		// Deploy resources from kustomize config/default directory
 		kustomizeDirPath, err := filepath.Abs(mgrKustomizeDirPath)
 		if err != nil {
