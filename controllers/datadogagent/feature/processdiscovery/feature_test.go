@@ -72,6 +72,39 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName, false),
 		},
+		{
+			Name: "v2alpha1 process discovery disabled in core agent + container collection in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(true).
+				WithProcessDiscoveryEnabled(true).
+				WithProcessDiscoveryRunInCoreAgent(false).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
+		{
+			Name: "v2alpha1 process discovery enabled in core agent + container collection false in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithProcessDiscoveryEnabled(true).
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(false).
+				WithProcessDiscoveryRunInCoreAgent(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+		},
+		{
+			Name: "v2alpha1 process discovery disabled in core agent + process collection in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveProcessEnabled(true).
+				WithLiveProcessRunInCoreAgent(true).
+				WithProcessDiscoveryEnabled(true).
+				WithProcessDiscoveryRunInCoreAgent(false).
+				Build(),
+			WantConfigure: false,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }

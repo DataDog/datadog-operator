@@ -47,19 +47,26 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 	var reqComp feature.RequiredComponents
 	// Process Discovery's functionality is a subset of Live Process Collection
 	liveProcessesEnabled := dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled)
+
 	if !liveProcessesEnabled && (dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled)) {
 		requiredContainers := []apicommonv1.AgentContainerName{
 			apicommonv1.CoreAgentContainerName,
 			apicommonv1.ProcessAgentContainerName,
 		}
 
-		if dda.Spec.Features.ProcessDiscovery != nil && dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
+		// Container Collection can run at the same time as Process Discovery
+		// The value set by the live containers feature takes precedence
+		if dda.Spec.Features.LiveContainerCollection != nil && dda.Spec.Features.LiveContainerCollection.RunInCoreAgent != nil {
+			p.runInCoreAgentCfg = &runInCoreAgentConfig{}
+			p.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.RunInCoreAgent.Enabled)
+		} else if dda.Spec.Features.ProcessDiscovery != nil && dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
 			p.runInCoreAgentCfg = &runInCoreAgentConfig{}
 			p.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.RunInCoreAgent.Enabled)
-			if p.runInCoreAgentCfg.enabled {
-				requiredContainers = []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				}
+		}
+
+		if p.runInCoreAgentCfg != nil && p.runInCoreAgentCfg.enabled {
+			requiredContainers = []apicommonv1.AgentContainerName{
+				apicommonv1.CoreAgentContainerName,
 			}
 		}
 
@@ -96,8 +103,8 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&runInCoreAgent),
 	}
-	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
-	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
 
 	p.manageNodeAgent(containerName, managers, provider)
 	return nil
@@ -109,7 +116,7 @@ func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&runInCoreAgent),
 	}
-	managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar, RespectCurrentEnvVarMergeFunction)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	p.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }

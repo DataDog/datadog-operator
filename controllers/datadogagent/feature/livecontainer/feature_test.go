@@ -103,6 +103,50 @@ func TestLiveContainerFeature(t *testing.T) {
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
+		{
+			Name: "v2alpha1 live container collection disabled in core agent + process collection in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveProcessRunInCoreAgent(true).
+				WithLiveProcessEnabled(true).
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(false).
+				Build(),
+			WantConfigure: false,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled in core agent + process collection not in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveProcessRunInCoreAgent(false).
+				WithLiveProcessEnabled(true).
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(true).
+				Build(),
+			WantConfigure: false,
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled in core agent + process discovery not in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithProcessDiscoveryRunInCoreAgent(false).
+				WithProcessDiscoveryEnabled(true).
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled in core agent + process discovery in core agent",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithProcessDiscoveryRunInCoreAgent(true).
+				WithProcessDiscoveryEnabled(true).
+				WithLiveContainerCollectionEnabled(true).
+				WithLiveContainerRunInCoreAgent(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
 	}
 
 	tests.Run(t, buildLiveContainerFeature)

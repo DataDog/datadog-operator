@@ -55,13 +55,19 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			apicommonv1.ProcessAgentContainerName,
 		}
 
-		if dda.Spec.Features.LiveContainerCollection.RunInCoreAgent != nil {
+		// Container Collection can run at the same time as Process Discovery
+		// The value set by the live containers feature takes precedence
+		if dda.Spec.Features.LiveContainerCollection != nil && dda.Spec.Features.LiveContainerCollection.RunInCoreAgent != nil {
 			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
 			f.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.RunInCoreAgent.Enabled)
-			if f.runInCoreAgentCfg.enabled {
-				requiredContainers = []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				}
+		} else if dda.Spec.Features.ProcessDiscovery != nil && dda.Spec.Features.ProcessDiscovery.RunInCoreAgent != nil {
+			f.runInCoreAgentCfg = &runInCoreAgentConfig{}
+			f.runInCoreAgentCfg.enabled = apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.RunInCoreAgent.Enabled)
+		}
+
+		if f.runInCoreAgentCfg != nil && f.runInCoreAgentCfg.enabled {
+			requiredContainers = []apicommonv1.AgentContainerName{
+				apicommonv1.CoreAgentContainerName,
 			}
 		}
 
