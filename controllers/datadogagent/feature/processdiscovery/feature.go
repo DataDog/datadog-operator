@@ -118,6 +118,16 @@ func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommonv1.
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
+	// cgroups volume mount
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
+	managers.Volume().AddVolume(&cgroupsVol)
+
+	// procdir volume mount
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
+	managers.Volume().AddVolume(&procdirVol)
+
 	enableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDProcessDiscoveryEnabled,
 		Value: "true",
