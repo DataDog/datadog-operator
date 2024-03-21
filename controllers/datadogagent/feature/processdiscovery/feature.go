@@ -45,6 +45,7 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 
 func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
+	// Process Discovery's functionality is a subset of Live Process Collection
 	liveProcessesEnabled := dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled)
 	if !liveProcessesEnabled && (dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled)) {
 		requiredContainers := []apicommonv1.AgentContainerName{
