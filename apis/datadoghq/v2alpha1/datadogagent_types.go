@@ -204,7 +204,7 @@ type LogCollectionFeatureConfig struct {
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
 }
 
-// ProcessesRunInCoreAgent is used to allow certain process agent features to run in the core agent.
+// ProcessesRunInCoreAgent is used to allow certain process agent features to run in the core agent (experimental).
 // Applies to Live Process Collection, Live Container Collection, and Process Discovery.
 type ProcessesRunInCoreAgent struct {
 	// Enabled enables running parent feature in core agent
