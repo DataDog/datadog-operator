@@ -57,5 +57,7 @@ spec:
             path: /healthz/
             port: 8081
           periodSeconds: 10
+      imagePullSecrets:
+        - name: registry-credentials
       terminationGracePeriodSeconds: 10
       serviceAccountName: controller-manager
