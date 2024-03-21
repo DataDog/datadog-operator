@@ -15765,7 +15765,7 @@ spec:
                           description: RunInCoreAgent controls enablement of running the feature in the core agent.
                           properties:
                             enabled:
-                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              description: 'Enabled enables running parent feature in core agent (experimental) Default: false'
                               type: boolean
                           type: object
                       type: object
@@ -15779,7 +15779,7 @@ spec:
                           description: RunInCoreAgent controls enablement of running the feature in the core agent.
                           properties:
                             enabled:
-                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              description: 'Enabled enables running parent feature in core agent (experimental) Default: false'
                               type: boolean
                           type: object
                         scrubProcessArguments:
@@ -15942,7 +15942,7 @@ spec:
                           description: RunInCoreAgent controls enablement of running the feature in the core agent.
                           properties:
                             enabled:
-                              description: 'Enabled enables running parent feature in core agent Default: false'
+                              description: 'Enabled enables running parent feature in core agent (experimental) Default: false'
                               type: boolean
                           type: object
                       type: object

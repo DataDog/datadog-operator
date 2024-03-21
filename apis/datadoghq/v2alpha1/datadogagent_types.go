@@ -205,9 +205,10 @@ type LogCollectionFeatureConfig struct {
 }
 
 // ProcessesRunInCoreAgent is used to allow certain process agent features to run in the core agent (experimental).
-// Applies to Live Process Collection, Live Container Collection, and Process Discovery.
+// Applies to Live Process Collection, Live Container Collection, and Process Discovery. If set for multiple
+// features, the value chosen is based on the following precedence: Live Process > Live Containers > Process Discovery.
 type ProcessesRunInCoreAgent struct {
-	// Enabled enables running parent feature in core agent
+	// Enabled enables running parent feature in core agent (experimental)
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
