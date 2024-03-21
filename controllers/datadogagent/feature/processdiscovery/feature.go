@@ -23,14 +23,6 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 	return &processDiscoveryFeature{}
 }
 
-// RespectCurrentEnvVarMergeFunction to only add envvar when not already set.
-func RespectCurrentEnvVarMergeFunction(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
-	if current.Value != "" {
-		return current.DeepCopy(), nil
-	}
-	return newEnv, nil
-}
-
 type runInCoreAgentConfig struct {
 	enabled bool
 }
