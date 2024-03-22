@@ -2126,7 +2126,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					},
 					"groupbySimpleMonitor": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.",
+							Description: "A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

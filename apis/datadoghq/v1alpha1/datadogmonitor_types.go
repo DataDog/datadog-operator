@@ -91,7 +91,7 @@ type DatadogMonitorOptions struct {
 	EvaluationDelay *int64 `json:"evaluationDelay,omitempty"`
 	// A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
 	IncludeTags *bool `json:"includeTags,omitempty"`
-	// Whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
+	// A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
 	GroupbySimpleMonitor *bool `json:"groupbySimpleMonitor,omitempty"`
 	// Whether or not the monitor is locked (only editable by creator and admins).
 	Locked *bool `json:"locked,omitempty"`

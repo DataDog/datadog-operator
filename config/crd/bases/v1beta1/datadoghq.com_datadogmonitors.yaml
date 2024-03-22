@@ -80,7 +80,7 @@ spec:
                   format: int64
                   type: integer
                 groupbySimpleMonitor:
-                  description: Whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
+                  description: A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
                   type: boolean
                 includeTags:
                   description: A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
