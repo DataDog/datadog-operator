@@ -427,12 +427,11 @@ e2e:
   parallel:
     matrix:
       - K8S_VERSION:
-          - 1.16.4
-          - 1.18.20
-          - 1.22.17
-          - 1.24.17
-          - 1.25.16
-          - 1.26.13
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
   script:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) make e2e-tests
 

@@ -98,19 +98,13 @@ func kindProvisioner(k8sVersion string, ddaConfig string, namespace string) e2e.
 			return err
 		}
 
-		// Create imagePullSecret to pull E2E operator image from ECR
-		_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespace, pulumi.Provider(kindKubeProvider))
-		if err != nil {
-			return err
-		}
-
 		// Deploy resources from kustomize config/default directory
 		kustomizeDirPath, err := filepath.Abs(mgrKustomizeDirPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = kustomize.NewDirectory(ctx, "e2e-default",
+		defaultDir, err := kustomize.NewDirectory(ctx, "e2e-default",
 			kustomize.DirectoryArgs{
 				Directory: pulumi.String(kustomizeDirPath),
 				Transformations: []yaml.Transformation{
@@ -118,7 +112,12 @@ func kindProvisioner(k8sVersion string, ddaConfig string, namespace string) e2e.
 				},
 			},
 			pulumi.Provider(kindKubeProvider))
+		if err != nil {
+			return err
+		}
 
+		// Create imagePullSecret to pull E2E operator image from ECR
+		_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespace, pulumi.Provider(kindKubeProvider), pulumi.DependsOn([]pulumi.Resource{defaultDir}))
 		if err != nil {
 			return err
 		}
