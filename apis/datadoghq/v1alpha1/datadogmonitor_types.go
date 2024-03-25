@@ -110,7 +110,7 @@ type DatadogMonitorOptions struct {
 	// For instance, a monitor grouped by cluster, namespace, and pod can be configured to only notify on each new
 	// cluster violating the alert conditions by setting notify_by to ["cluster"]. Tags mentioned in notify_by must
 	// be a subset of the grouping tags in the query. For example, a query grouped by cluster and namespace cannot
-	// notify on region. Setting notify_by to [*] configures the monitor  to notify as a simple-alert.
+	// notify on region. Setting notify_by to [*] configures the monitor to notify as a simple-alert.
 	NotifyBy []string `json:"notifyBy,omitempty"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
 	NotifyNoData *bool `json:"notifyNoData,omitempty"`
