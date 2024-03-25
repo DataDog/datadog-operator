@@ -8,11 +8,12 @@ package v2alpha1
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 const (
@@ -84,6 +85,50 @@ func Test_defaultGlobal(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test FIPS defaulting - disabled",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
+					},
+					Site:     apiutils.NewStringPointer(defaultSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test FIPS defaulting - enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					FIPS: &FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+						Image: &common.AgentImageConfig{
+							Name: defaultFIPSImageName,
+							Tag:  defaultFIPSImageTag,
+						},
+						LocalAddress: apiutils.NewStringPointer(defaultFIPSLocalAddress),
+						Port:         apiutils.NewInt32Pointer(defaultFIPSPort),
+						PortRange:    apiutils.NewInt32Pointer(defaultFIPSPortRange),
+						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
+					},
+					Site:     apiutils.NewStringPointer(defaultSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -145,6 +190,9 @@ func Test_defaultFeatures(t *testing.T) {
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -412,6 +460,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -524,6 +575,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -631,6 +685,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -737,6 +794,9 @@ func Test_defaultFeatures(t *testing.T) {
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -854,6 +914,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -961,6 +1024,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1034,7 +1100,7 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					ClusterChecks: &ClusterChecksFeatureConfig{
-						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 				},
 			},
@@ -1070,6 +1136,9 @@ func Test_defaultFeatures(t *testing.T) {
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -1157,6 +1226,20 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 					},
@@ -1168,17 +1251,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						HostPortConfig: &HostPortConfig{
-							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						},
-						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
-						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1286,6 +1358,9 @@ func Test_defaultFeatures(t *testing.T) {
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -1414,6 +1489,9 @@ func Test_defaultFeatures(t *testing.T) {
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{

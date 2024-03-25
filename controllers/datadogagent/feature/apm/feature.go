@@ -6,6 +6,8 @@
 package apm
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
@@ -54,6 +56,15 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
+
+	singleStepInstrumentation *instrumentationConfig
+}
+
+type instrumentationConfig struct {
+	enabled            bool
+	enabledNamespaces  []string
+	disabledNamespaces []string
+	libVersions        map[string]string
 }
 
 // ID returns the ID of the Feature
@@ -61,11 +72,28 @@ func (f *apmFeature) ID() feature.IDType {
 	return feature.APMIDType
 }
 
+func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
+	if apmConf == nil {
+		return false
+	}
+
+	if apmConf.Enabled != nil {
+		return apiutils.BoolValue(apmConf.Enabled)
+	}
+
+	// SingleStepInstrumentation requires APM Enabled
+	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
+		return true
+	}
+
+	return false
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := dda.Spec.Features.APM
-	if apm != nil && apiutils.BoolValue(apm.Enabled) {
+	if shouldEnableAPM(apm) {
 		f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
@@ -96,6 +124,21 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 					apicommonv1.TraceAgentContainerName,
 				},
 			},
+		}
+		if apm.SingleStepInstrumentation != nil &&
+			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
+			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
+			f.singleStepInstrumentation = &instrumentationConfig{}
+			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
+			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
+			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+			reqComp.ClusterAgent = feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.ClusterAgentContainerName,
+				},
+			}
 		}
 	}
 
@@ -228,6 +271,48 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	if f.singleStepInstrumentation != nil {
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			// This configuration is not supported
+			return fmt.Errorf("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMInstrumentationEnabled,
+			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
+		})
+
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.disabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.enabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if f.singleStepInstrumentation.libVersions != nil {
+			libs, err := json.Marshal(f.singleStepInstrumentation.libVersions)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationLibVersions,
+				Value: string(libs),
+			})
+		}
+
+	}
 	return nil
 }
 

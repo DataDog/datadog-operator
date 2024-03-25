@@ -64,7 +64,7 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 				if existingProfile, found := profileAppliedPerNode[node.Name]; found {
 					// Conflict. This profile should not be applied.
 					conflicts = true
-					logger.Info("profile %s conflicts with existing profile %s, skipping", profile.Namespace+"/"+profile.Name, existingProfile.String())
+					logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
 					break
 				} else {
 					nodesThatMatchProfile[node.Name] = true

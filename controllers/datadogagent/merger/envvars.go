@@ -44,10 +44,12 @@ func (impl *envVarManagerImpl) AddEnvVar(newEnvVar *corev1.EnvVar) {
 }
 
 func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
-	for id := range impl.podTmpl.Spec.Containers {
-		_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
-		if err != nil {
-			return err
+	for id, cont := range impl.podTmpl.Spec.Containers {
+		if _, ok := AllAgentContainers[commonv1.AgentContainerName(cont.Name)]; ok {
+			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

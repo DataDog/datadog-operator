@@ -43,6 +43,10 @@ spec:
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
 | features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
+| features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
@@ -153,6 +157,21 @@ spec:
 | global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.endpoint.url | URL defines the endpoint URL. |
+| global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
+| global.fips.customFIPSConfig.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
+| global.fips.customFIPSConfig.configMap.name | Name is the name of the ConfigMap. |
+| global.fips.enabled | Enable FIPS sidecar. |
+| global.fips.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
+| global.fips.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
+| global.fips.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
+| global.fips.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| global.fips.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| global.fips.localAddress | Set the local IP address. Default: `127.0.0.1` |
+| global.fips.port | Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
+| global.fips.portRange | PortRange specifies the number of ports used. Default: 15 |
+| global.fips.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| global.fips.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| global.fips.useHTTPS | UseHTTPS enables HTTPS. Default: false |
 | global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
 | global.kubelet.host.configMapKeyRef.key | The key to select. |
 | global.kubelet.host.configMapKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |

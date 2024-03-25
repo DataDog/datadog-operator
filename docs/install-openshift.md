@@ -91,9 +91,36 @@ Setting the `serviceAccountName` in the `nodeAgent` and `clusterAgent` `override
 
 The Datadog Agent and Cluster Agent should now be running and collecting data. This data can be viewed and alerted on in the Datadog web app.
 
+
+## Known issues
+### Datadog Operator 1.1.0-1.4.1 on OpenShift
+
+When upgrading from versions 1.1.0-1.4.1 of the Datadog Operator bundle provided to OperatorHub in OpenShift, the following error occurs:
+
+```
+message: 'retrying execution due to error: error validating existing CRs against new CRD''s schema for "datadogagents.datadoghq.com": error listing resources in GroupVersionResource schema.GroupVersionResource{Group:"datadoghq.com", Version:"v1alpha1", Resource:"datadogagents"}: conversion webhook for datadoghq.com/v2alpha1, Kind=DatadogAgent failed: Post "https://datadog-operator-webhook-service.openshift-operators.svc:443/convert?timeout=30s": no endpoints available for service "datadog-operator-webhook-service"'
+```
+
+#### Background
+
+Datadog Operator 1.0 made significant changes to the DatadogAgent CRD, and thus included a conversion webhook (enabled by default) to assist users in converting the v1alpha1 CRD version to v2alpha1. The conversion webhook is disabled by default in 1.1.0.
+
+Datadog Operator bundles 1.1.0-1.4.1 provided to OperatorHub in OpenShift include incomplete references to the conversion pathway. As a result, in the presence of a DatadogAgent custom resource (CR), pre-flight validation by Operator Lifecycle Manager attempts to run the conversion on the CR and then fails due to an undefined endpoint, as seen in the error message.
+
+#### Resolution
+
+This issue is resolved in Datadog Operator bundle 1.4.2+. Use the OperatorHub UI to uninstall the Datadog Operator and reinstall 1.4.2+. Do not delete the DatadogAgent resource.
+
+For further help, contact [Datadog Support][7].
+
+
+
 [1]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12#deploy-instructions
 [2]: https://olm.operatorframework.io/
 [3]: https://olm.operatorframework.io/docs/tasks/install-operator-with-olm/
 [4]: https://olm.operatorframework.io/docs/advanced-tasks/adding-admission-and-conversion-webhooks/#conversion-webhook-rules-requirements
 [5]: https://app.datadoghq.com/organization-settings/api-keys
 [6]: https://app.datadoghq.com/organization-settings/application-keys
+[7]: https://www.datadoghq.com/support/
+
+

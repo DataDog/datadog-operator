@@ -91,7 +91,7 @@ $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@v0.0.0-20240320141353-395cfc7486e6)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -232,9 +232,9 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
-.PHONY: bundle-build
-bundle-build: ## Build the bundle image.
-	docker buildx build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+.PHONY: bundle-build-push
+bundle-build-push: ## Build and load the bundle image.
+	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:

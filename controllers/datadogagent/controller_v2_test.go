@@ -17,19 +17,17 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
-	assert "github.com/stretchr/testify/require"
-
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -333,6 +331,38 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					string(apicommonv1.ProcessAgentContainerName),
 					string(apicommonv1.TraceAgentContainerName),
 					string(apicommonv1.SystemProbeContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
+			name: "DatadogAgent with FIPS enabled",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					fipsConfig := v2alpha1.FIPSConfig{
+						Enabled: apiutils.NewBoolPointer(true),
+					}
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithFIPS(fipsConfig).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommonv1.CoreAgentContainerName),
+					string(apicommonv1.ProcessAgentContainerName),
+					string(apicommonv1.TraceAgentContainerName),
+					string(apicommonv1.FIPSProxyContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)

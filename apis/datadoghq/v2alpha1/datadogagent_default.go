@@ -7,7 +7,9 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -34,17 +36,17 @@ const (
 
 	defaultEBPFCheckEnabled bool = false
 
-	defaultAPMEnabled         bool   = true
-	defaultAPMHostPortEnabled bool   = false
-	defaultAPMHostPort        int32  = 8126
-	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-
-	defaultCSPMEnabled                bool = false
-	defaultCWSEnabled                 bool = false
-	defaultCWSSyscallMonitorEnabled   bool = false
-	defaultCWSNetworkEnabled          bool = true
-	defaultCWSSecurityProfilesEnabled bool = true
+	defaultAPMEnabled                 bool   = true
+	defaultAPMHostPortEnabled         bool   = false
+	defaultAPMHostPort                int32  = 8126
+	defaultAPMSocketEnabled           bool   = true
+	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultAPMSingleStepInstrEnabled  bool   = false
+	defaultCSPMEnabled                bool   = false
+	defaultCWSEnabled                 bool   = false
+	defaultCWSSyscallMonitorEnabled   bool   = false
+	defaultCWSNetworkEnabled          bool   = true
+	defaultCWSSecurityProfilesEnabled bool   = true
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -96,6 +98,14 @@ const (
 
 	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
+
+	defaultFIPSEnabled      bool   = false
+	defaultFIPSImageName    string = "fips-proxy"
+	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
+	defaultFIPSLocalAddress string = "127.0.0.1"
+	defaultFIPSPort         int32  = 9803
+	defaultFIPSPortRange    int32  = 15
+	defaultFIPSUseHTTPS     bool   = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -135,6 +145,27 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Global.ContainerStrategy == nil {
 		dcs := defaultContainerStrategy
 		ddaSpec.Global.ContainerStrategy = &dcs
+	}
+
+	if ddaSpec.Global.FIPS == nil {
+		ddaSpec.Global.FIPS = &FIPSConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
+
+	if *ddaSpec.Global.FIPS.Enabled {
+		if ddaSpec.Global.FIPS.Image == nil {
+			ddaSpec.Global.FIPS.Image = &commonv1.AgentImageConfig{}
+		}
+		if ddaSpec.Global.FIPS.Image.Name == "" {
+			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName
+		}
+		if ddaSpec.Global.FIPS.Image.Tag == "" {
+			ddaSpec.Global.FIPS.Image.Tag = defaultFIPSImageTag
+		}
+		apiutils.DefaultStringIfUnset(&ddaSpec.Global.FIPS.LocalAddress, defaultFIPSLocalAddress)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.Port, defaultFIPSPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
 }
 
@@ -200,9 +231,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
 
 	// APM Feature
+	// APM is enabled by default
 	if ddaSpec.Features.APM == nil {
 		ddaSpec.Features.APM = &APMFeatureConfig{}
 	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.Enabled, defaultAPMEnabled)
 
 	if *ddaSpec.Features.APM.Enabled {
@@ -221,6 +254,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketHostPath)
+
+		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
+			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 	}
 
 	// CSPM (Cloud Security Posture Management) Feature

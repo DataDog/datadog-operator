@@ -149,6 +149,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetNotificationPresetName(datadogV1.MonitorOptionsNotificationPresets(string(options.NotificationPresetName)))
 	}
 
+	if options.OnMissingData != "" {
+		o.SetOnMissingData(datadogV1.OnMissingDataOption(string(options.OnMissingData)))
+	}
+
 	m := datadogV1.NewMonitor(query, monitorType)
 	{
 		m.SetName(name)

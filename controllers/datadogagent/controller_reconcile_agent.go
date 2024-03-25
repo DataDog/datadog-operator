@@ -119,11 +119,12 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			}
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
+
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
 	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled)
@@ -190,6 +191,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
+
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
@@ -450,42 +452,43 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
 func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	for nodeName, profileNamespacedName := range profilesByNode {
-		// Get the agent pods running on the node
-		podList := &corev1.PodList{}
-		err := r.client.List(
-			ctx,
-			podList,
-			client.MatchingLabels(map[string]string{
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
-			}),
-			client.InNamespace(ddaNamespace),
-			client.MatchingFields{"spec.nodeName": nodeName})
-		if err != nil {
-			return err
+	agentPods := &corev1.PodList{}
+	err := r.client.List(
+		ctx,
+		agentPods,
+		client.MatchingLabels(map[string]string{
+			apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		}),
+		client.InNamespace(ddaNamespace),
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, agentPod := range agentPods.Items {
+		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
+		if !found {
+			continue
 		}
 
-		// Delete the agent pods that should be in the node according to the
-		// profiles that need to be applied
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-		for _, pod := range podList.Items {
-			profileLabelValue, profileLabelExists := pod.Labels[agentprofile.ProfileLabelKey]
-			expectedProfileLabelValue := fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+		expectedProfileLabelValue := fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
 
-			deletePod := (isDefaultProfile && profileLabelExists) ||
-				(!isDefaultProfile && !profileLabelExists) ||
-				(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
 
-			if deletePod {
-				toDelete := corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-					},
-				}
-				if err = r.client.Delete(ctx, &toDelete); err != nil {
-					return err
-				}
+		deletePod := (isDefaultProfile && profileLabelExists) ||
+			(!isDefaultProfile && !profileLabelExists) ||
+			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+
+		if deletePod {
+			toDelete := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: agentPod.Namespace,
+					Name:      agentPod.Name,
+				},
+			}
+			if err = r.client.Delete(ctx, &toDelete); err != nil {
+				return err
 			}
 		}
 	}

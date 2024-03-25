@@ -93,7 +93,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 	sbomWithHostWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-		wantEnvVars := []*corev1.EnvVar{
+		wantAllAgentsEnvVars := []*corev1.EnvVar{
 			{
 				Name:  apicommon.DDSBOMEnabled,
 				Value: "true",
@@ -106,14 +106,19 @@ func Test_sbomFeature_Configure(t *testing.T) {
 				Name:  apicommon.DDSBOMHostEnabled,
 				Value: "true",
 			},
+		}
+
+		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
 				Name:  apicommon.DDHostRootEnvVar,
 				Value: "/host",
 			},
 		}
 
-		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
+		nodeAllAgentsEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantCoreAgentHostEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantCoreAgentHostEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(nodeAllAgentsEnvVars, wantAllAgentsEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAllAgentsEnvVars, wantAllAgentsEnvVars))
 
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
