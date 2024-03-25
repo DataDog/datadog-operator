@@ -91,6 +91,8 @@ type DatadogMonitorOptions struct {
 	EvaluationDelay *int64 `json:"evaluationDelay,omitempty"`
 	// A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
 	IncludeTags *bool `json:"includeTags,omitempty"`
+	// A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
+	GroupbySimpleMonitor *bool `json:"groupbySimpleMonitor,omitempty"`
 	// Whether or not the monitor is locked (only editable by creator and admins).
 	Locked *bool `json:"locked,omitempty"`
 	// Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
@@ -104,6 +106,12 @@ type DatadogMonitorOptions struct {
 	NotificationPresetName DatadogMonitorOptionsNotificationPreset `json:"notificationPresetName,omitempty"`
 	// A Boolean indicating whether tagged users are notified on changes to this monitor.
 	NotifyAudit *bool `json:"notifyAudit,omitempty"`
+	// A string indicating the granularity a monitor alerts on. Only available for monitors with groupings.
+	// For instance, a monitor grouped by cluster, namespace, and pod can be configured to only notify on each new
+	// cluster violating the alert conditions by setting notify_by to ["cluster"]. Tags mentioned in notify_by must
+	// be a subset of the grouping tags in the query. For example, a query grouped by cluster and namespace cannot
+	// notify on region. Setting notify_by to [*] configures the monitor to notify as a simple-alert.
+	NotifyBy []string `json:"notifyBy,omitempty"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
 	NotifyNoData *bool `json:"notifyNoData,omitempty"`
 	// An enum that controls how groups or monitors are treated if an evaluation does not return data points.
@@ -115,6 +123,8 @@ type DatadogMonitorOptions struct {
 	// The number of minutes after the last notification before a monitor re-notifies on the current status.
 	// It only re-notifies if it’s not resolved.
 	RenotifyInterval *int64 `json:"renotifyInterval,omitempty"`
+	// The number of times re-notification messages should be sent on the current status at the provided re-notification interval.
+	RenotifyOccurrences *int64 `json:"renotifyOccurrences,omitempty"`
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
 	RequireFullWindow *bool `json:"requireFullWindow,omitempty"`

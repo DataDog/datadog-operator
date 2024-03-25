@@ -105,6 +105,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetEvaluationDelay(*options.EvaluationDelay)
 	}
 
+	if options.GroupbySimpleMonitor != nil {
+		o.SetGroupbySimpleMonitor(*options.GroupbySimpleMonitor)
+	}
+
 	if options.IncludeTags != nil {
 		o.SetIncludeTags(*options.IncludeTags)
 	}
@@ -129,6 +133,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetNotifyAudit(*options.NotifyAudit)
 	}
 
+	if options.NotifyBy != nil {
+		o.SetNotifyBy(options.NotifyBy)
+	}
+
 	if options.NotifyNoData != nil {
 		o.SetNotifyNoData(*options.NotifyNoData)
 	}
@@ -139,6 +147,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 
 	if options.RenotifyInterval != nil {
 		o.SetRenotifyInterval(*options.RenotifyInterval)
+	}
+
+	if options.RenotifyOccurrences != nil {
+		o.SetRenotifyOccurrences(*options.RenotifyOccurrences)
 	}
 
 	if options.TimeoutH != nil {
