@@ -23,7 +23,8 @@ done
 $YQ -i 'del(.spec.validation.openAPIV3Schema.properties.status.properties.defaultOverride)' "$ROOT/$v1beta1/datadoghq.com_datadogagents.yaml"
 $YQ -i 'del(.spec.versions[].schema.openAPIV3Schema.properties.status.properties.defaultOverride)' "$ROOT/$v1/datadoghq.com_datadogagents.yaml"
 
-
+# Patch DatadogPodAutoscaler policy field as `controller-gen` v0.6.2 does not support `+kubebuilder:default={}` on objects
+$YQ -i '.spec.versions[].schema.openAPIV3Schema.properties.spec.properties.policy.default = {}' "$ROOT/$v1/datadoghq.com_datadogpodautoscalers.yaml"
 
 # Pretty print CRD files so they they all have same formatting
 for crd in "$ROOT/$v1beta1"/*.yaml
