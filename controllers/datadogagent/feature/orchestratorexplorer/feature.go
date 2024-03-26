@@ -66,6 +66,8 @@ type orchestratorExplorerFeature struct {
 	processAgentRequired bool
 }
 
+const NoProcessAgentMinVersion = "7.51.0"
+
 // ID returns the ID of the Feature
 func (f *orchestratorExplorerFeature) ID() feature.IDType {
 	return feature.OrchestratorExplorerIDType
@@ -82,8 +84,8 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		// Process Agent is not required as of agent version 7.51.0
 		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if f.processAgentRequired = nodeAgent.Image != nil &&
-				!utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0"); f.processAgentRequired {
+			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+				f.processAgentRequired = true
 				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
 			}
 		}
