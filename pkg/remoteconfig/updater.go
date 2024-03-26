@@ -29,8 +29,6 @@ const (
 	pollInterval = 10 * time.Second
 )
 
-var updateMockConfig = ""
-
 type RemoteConfigUpdater struct {
 	client kubeclient.Client
 	logger logr.Logger
@@ -110,16 +108,26 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 	// TODO change product
 	rcClient.Subscribe(string(state.ProductCWSDD), func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+		// TODO it is not retrying for some reason... or is it receiving pushes?
+		r.logger.Info("Subscribe is called")
 
-		if updateMockConfig != "" {
-			if err := json.Unmarshal([]byte(updateMockConfig), &update); err != nil {
-				r.logger.Error(err, "invalid mocked config")
-			}
-		}
+		mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
 
-		if len(update) == 0 {
-			return
+		mockMetadata := state.Metadata{
+			Product:   "testProduct",
+			ID:        "testID",
+			Name:      "testName",
+			Version:   9,
+			RawLength: 20,
 		}
+		mockRawConfig := state.RawConfig{
+			Config:   []byte(mockFeatureConfig),
+			Metadata: mockMetadata,
+		}
+		var mockUpdate = make(map[string]state.RawConfig)
+		mockUpdate["testConfigPath"] = mockRawConfig
+
+		// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
 
 		// TODO
 		// For now, only single default config path is present (key of update[key])
@@ -132,11 +140,17 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 
+		update = mockUpdate
+
+		if len(update) == 0 {
+			return
+		}
+
 		var cfg DatadogAgentRemoteConfig
 		for _, update := range update {
-			r.logger.Info("Content: %s", string(update.Config))
+			r.logger.Info("Content", "update.Config", string(update.Config))
 			if err := json.Unmarshal(update.Config, &cfg); err != nil {
-				r.logger.Error(err, "failed to apply config %s", update.Metadata.ID)
+				r.logger.Error(err, "failed to marshal config", "updateMetadata.ID", update.Metadata.ID)
 				return
 			}
 		}
@@ -151,6 +165,8 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 			applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 			return
 		}
+
+		r.logger.Info("Successfully applied config!")
 
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 	})
