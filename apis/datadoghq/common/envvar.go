@@ -105,6 +105,7 @@ const (
 	DDProcessConfigScrubArgs                          = "DD_PROCESS_CONFIG_SCRUB_ARGS"
 	DDProcessConfigStripArgs                          = "DD_PROCESS_CONFIG_STRIP_PROC_ARGUMENTS"
 	DDProcessDiscoveryEnabled                         = "DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED"
+	DDProcessConfigRunInCoreAgent                     = "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED"
 	DDPrometheusScrapeChecks                          = "DD_PROMETHEUS_SCRAPE_CHECKS"
 	DDPrometheusScrapeEnabled                         = "DD_PROMETHEUS_SCRAPE_ENABLED"
 	DDPrometheusScrapeServiceEndpoints                = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
