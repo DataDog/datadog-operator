@@ -90,8 +90,8 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	}
 
 	rcClient, err := client.NewClient(rcService,
+		// TODO update version
 		client.WithAgent("datadog-operator", "9.9.9"),
-		// TODO change product
 		client.WithProducts(state.ProductAgentConfig),
 		client.WithDirectorRootOverride(cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(5*time.Second),
@@ -106,10 +106,11 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	rcService.Start()
 	// defer rcService.Stop()
 
-	// TODO change product
 	rcClient.Subscribe(string(state.ProductAgentConfig), func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
 		r.logger.Info("Subscribe is called")
 
+		// ---------- Section to use when mocking config ----------
+		// Comment out this section when testing remote config updates
 		mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
 
 		mockMetadata := state.Metadata{
@@ -128,6 +129,9 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 		// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
 
+		update = mockUpdate
+		// ---------- End section to use when mocking config ----------
+
 		// TODO
 		// For now, only single default config path is present (key of update[key])
 		tempstring := ""
@@ -138,8 +142,6 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 		r.logger.Info(tempstring)
 
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
-
-		update = mockUpdate
 
 		if len(update) == 0 {
 			return
