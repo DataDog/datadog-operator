@@ -29,8 +29,6 @@ const (
 	pollInterval = 10 * time.Second
 )
 
-var updateMockConfig = ""
-
 type RemoteConfigUpdater struct {
 	client kubeclient.Client
 	logger logr.Logger
@@ -92,9 +90,9 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	}
 
 	rcClient, err := client.NewClient(rcService,
+		// TODO update version
 		client.WithAgent("datadog-operator", "9.9.9"),
-		// TODO change product
-		client.WithProducts(state.ProductCWSDD),
+		client.WithProducts(state.ProductAgentConfig),
 		client.WithDirectorRootOverride(cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(5*time.Second),
 	)
@@ -108,18 +106,31 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	rcService.Start()
 	// defer rcService.Stop()
 
-	// TODO change product
-	rcClient.Subscribe(string(state.ProductCWSDD), func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+	rcClient.Subscribe(string(state.ProductAgentConfig), func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+		r.logger.Info("Subscribe is called")
 
-		if updateMockConfig != "" {
-			if err := json.Unmarshal([]byte(updateMockConfig), &update); err != nil {
-				r.logger.Error(err, "invalid mocked config")
-			}
-		}
+		// ---------- Section to use when mocking config ----------
+		// Comment out this section when testing remote config updates
+		mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
 
-		if len(update) == 0 {
-			return
+		mockMetadata := state.Metadata{
+			Product:   "testProduct",
+			ID:        "testID",
+			Name:      "testName",
+			Version:   9,
+			RawLength: 20,
 		}
+		mockRawConfig := state.RawConfig{
+			Config:   []byte(mockFeatureConfig),
+			Metadata: mockMetadata,
+		}
+		var mockUpdate = make(map[string]state.RawConfig)
+		mockUpdate["testConfigPath"] = mockRawConfig
+
+		// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
+
+		update = mockUpdate
+		// ---------- End section to use when mocking config ----------
 
 		// TODO
 		// For now, only single default config path is present (key of update[key])
@@ -132,11 +143,15 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 
+		if len(update) == 0 {
+			return
+		}
+
 		var cfg DatadogAgentRemoteConfig
 		for _, update := range update {
-			r.logger.Info("Content: %s", string(update.Config))
+			r.logger.Info("Content", "update.Config", string(update.Config))
 			if err := json.Unmarshal(update.Config, &cfg); err != nil {
-				r.logger.Error(err, "failed to apply config %s", update.Metadata.ID)
+				r.logger.Error(err, "failed to marshal config", "updateMetadata.ID", update.Metadata.ID)
 				return
 			}
 		}
@@ -151,6 +166,8 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 			applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 			return
 		}
+
+		r.logger.Info("Successfully applied config!")
 
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 	})
