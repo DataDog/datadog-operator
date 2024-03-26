@@ -6,7 +6,9 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -26,36 +28,256 @@ import (
 const defaultProvider = kubernetes.DefaultProvider
 const gkeCosProvider = kubernetes.GKECloudProvider + "-" + kubernetes.GKECosType
 
-func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
+func Test_getValidDaemonSetNames(t *testing.T) {
+	testCases := []struct {
+		name                 string
+		dsName               string
+		introspectionEnabled bool
+		profilesEnabled      bool
+		edsEnabled           bool
+		existingProviders    map[string]struct{}
+		existingProfiles     []v1alpha1.DatadogAgentProfile
+		wantDS               map[string]struct{}
+		wantEDS              map[string]struct{}
+	}{
+		{
+			name:                 "introspection disabled, profiles disabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{"foo": {}},
+			wantEDS:          map[string]struct{}{},
+		},
+		{
+			name:                 "introspection disabled, profiles disabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{},
+			wantEDS:          map[string]struct{}{"foo": {}},
+		},
+		{
+			name:                 "introspection enabled, profiles disabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{"foo-gke-cos": {}},
+			wantEDS:          map[string]struct{}{},
+		},
+		{
+			name:                 "introspection enabled, profiles disabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{},
+			wantDS:           map[string]struct{}{},
+			wantEDS:          map[string]struct{}{"foo-gke-cos": {}},
+		},
+		{
+			name:                 "introspection enabled, profiles enabled, eds disabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: map[string]struct{}{
+				"foo-default": {},
+				"foo-gke-cos": {},
+				"datadog-agent-with-profile-ns-1-profile-1-default": {},
+				"datadog-agent-with-profile-ns-1-profile-1-gke-cos": {},
+			},
+			wantEDS: map[string]struct{}{},
+		},
+		{
+			name:                 "introspection enabled, profiles enabled, eds enabled",
+			dsName:               "foo",
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			existingProviders: map[string]struct{}{
+				gkeCosProvider:  {},
+				defaultProvider: {},
+			},
+			existingProfiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: map[string]struct{}{
+				"datadog-agent-with-profile-ns-1-profile-1-default": {},
+				"datadog-agent-with-profile-ns-1-profile-1-gke-cos": {},
+			},
+			wantEDS: map[string]struct{}{
+				"foo-default": {},
+				"foo-gke-cos": {},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &Reconciler{
+				options: ReconcilerOptions{
+					IntrospectionEnabled:       tt.introspectionEnabled,
+					DatadogAgentProfileEnabled: tt.profilesEnabled,
+					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
+						Enabled: tt.edsEnabled,
+					},
+				},
+			}
+
+			validDSNames, validEDSNames := r.getValidDaemonSetNames(tt.dsName, tt.existingProviders, tt.existingProfiles)
+			assert.Equal(t, tt.wantDS, validDSNames)
+			assert.Equal(t, tt.wantEDS, validEDSNames)
+		})
+	}
+}
+
+func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
+	testCases := []struct {
+		name       string
+		dda        *datadoghqv2alpha1.DatadogAgent
+		wantDSName string
+	}{
+		{
+			name: "no node override",
+			dda: &datadoghqv2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+			},
+			wantDSName: "foo-agent",
+		},
+		{
+			name: "node override with no name override",
+			dda: &datadoghqv2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Spec: datadoghqv2alpha1.DatadogAgentSpec{
+					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+						datadoghqv2alpha1.NodeAgentComponentName: {
+							Replicas: apiutils.NewInt32Pointer(10),
+						},
+					},
+				},
+			},
+			wantDSName: "foo-agent",
+		},
+		{
+			name: "node override with name override",
+			dda: &datadoghqv2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Spec: datadoghqv2alpha1.DatadogAgentSpec{
+					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+						datadoghqv2alpha1.NodeAgentComponentName: {
+							Name:     apiutils.NewStringPointer("bar"),
+							Replicas: apiutils.NewInt32Pointer(10),
+						},
+					},
+				},
+			},
+			wantDSName: "bar",
+		},
+		{
+			name: "dca override with name override",
+			dda: &datadoghqv2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Spec: datadoghqv2alpha1.DatadogAgentSpec{
+					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
+						datadoghqv2alpha1.ClusterAgentComponentName: {
+							Name:     apiutils.NewStringPointer("bar"),
+							Replicas: apiutils.NewInt32Pointer(10),
+						},
+					},
+				},
+			},
+			wantDSName: "foo-agent",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			dsName := getDaemonSetNameFromDatadogAgent(tt.dda)
+			assert.Equal(t, tt.wantDSName, dsName)
+		})
+	}
+}
+
+func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = edsdatadoghqv1alpha1.AddToScheme(sch)
 	ctx := context.Background()
 
 	testCases := []struct {
-		name              string
-		agents            []client.Object
-		edsEnabled        bool
-		existingProviders map[string]struct{}
-		wantDS            *appsv1.DaemonSetList
-		wantEDS           *edsdatadoghqv1alpha1.ExtendedDaemonSetList
+		name                 string
+		description          string
+		existingAgents       []client.Object
+		introspectionEnabled bool
+		profilesEnabled      bool
+		edsEnabled           bool
+		providerList         map[string]struct{}
+		profiles             []v1alpha1.DatadogAgentProfile
+		wantDS               *appsv1.DaemonSetList
+		wantEDS              *edsdatadoghqv1alpha1.ExtendedDaemonSetList
 	}{
 		{
-			name: "no unused ds",
-			agents: []client.Object{
+			name:        "no unused ds, introspection disabled, profiles disabled",
+			description: "DS `dda-foo-agent` should not be deleted",
+			existingAgents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
+						Name: "dda-foo-agent",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
 				},
 			},
-			edsEnabled: false,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			providerList:         map[string]struct{}{},
+			profiles:             []v1alpha1.DatadogAgentProfile{},
 			wantDS: &appsv1.DaemonSetList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "DaemonSetList",
@@ -64,31 +286,47 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gke-cos-node",
-							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-							},
+							Name:            "dda-foo-agent",
 							ResourceVersion: "999",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
 						},
 					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
 				},
 			},
 		},
 		{
-			name: "no unused eds",
-			agents: []client.Object{
+			name:        "no unused eds, introspection disabled, profiles disabled",
+			description: "EDS `dda-foo-agent` should not be deleted",
+			existingAgents: []client.Object{
 				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
+						Name: "dda-foo-agent",
 						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
 				},
 			},
-			edsEnabled: true,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
+			introspectionEnabled: false,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			providerList:         map[string]struct{}{},
+			profiles:             []v1alpha1.DatadogAgentProfile{},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -98,9 +336,124 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gke-cos-node",
+							Name:            "dda-foo-agent",
+							ResourceVersion: "999",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "no unused ds, introspection enabled, profiles enabled",
+			description: "DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should not be deleted",
+			existingAgents: []client.Object{
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:        "no unused eds, introspection enabled, profiles enabled",
+			description: "EDS `dda-foo-agent-gke-cos` should not be deleted. The EDS name comes from the default profile",
+			existingAgents: []client.Object{
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
 							},
 							ResourceVersion: "999",
 						},
@@ -109,20 +462,351 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 			},
 		},
 		{
-			name: "unused ds",
-			agents: []client.Object{
+			name:        "multiple unused ds, introspection enabled, profiles enabled",
+			description: "All DS except `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			existingAgents: []client.Object{
 				&appsv1.DaemonSet{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
+						Name:      "datadog-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						}},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
 						Labels: map[string]string{
 							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
 						},
 					},
 				},
 			},
-			edsEnabled: false,
-			existingProviders: map[string]struct{}{
-				defaultProvider: {},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:        "multiple unused eds, introspection enabled, profiles enabled",
+			description: "All but EDS `dda-foo-agent-gke-cos` and DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			existingAgents: []client.Object{
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "multiple unused ds, introspection enabled, profiles disabled",
+			description: "All DS except `dda-foo-agent-gke-cos` should be deleted",
+			existingAgents: []client.Object{
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						}},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						}},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:        "multiple unused eds, introspection enabled, profiles disabled",
+			description: "All but EDS `dda-foo-agent-gke-cos` should be deleted",
+			existingAgents: []client.Object{
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      false,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
 			},
 			wantDS: &appsv1.DaemonSetList{
 				TypeMeta: metav1.TypeMeta{
@@ -131,107 +815,6 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				},
 				Items: []appsv1.DaemonSet{},
 			},
-		},
-		{
-			name: "unused eds",
-			agents: []client.Object{
-				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
-						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-						},
-					},
-				},
-			},
-			edsEnabled: true,
-			existingProviders: map[string]struct{}{
-				defaultProvider: {},
-			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
-			},
-		},
-		{
-			name:       "no ds to delete",
-			agents:     []client.Object{},
-			edsEnabled: false,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-				Items: nil,
-			},
-		},
-		{
-			name:       "no eds to delete",
-			agents:     []client.Object{},
-			edsEnabled: true,
-			existingProviders: map[string]struct{}{
-				gkeCosProvider: {},
-			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-				Items: nil,
-			},
-		},
-		{
-			name: "no providers for ds",
-			agents: []client.Object{
-				&appsv1.DaemonSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
-						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-						},
-					},
-				},
-			},
-			edsEnabled:        false,
-			existingProviders: map[string]struct{}{},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-				Items: []appsv1.DaemonSet{
-					{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: "gke-cos-node",
-							Labels: map[string]string{
-								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-							},
-							ResourceVersion: "999",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "no providers for eds",
-			agents: []client.Object{
-				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
-						Labels: map[string]string{
-							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
-						},
-					},
-				},
-			},
-			edsEnabled:        true,
-			existingProviders: map[string]struct{}{},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ExtendedDaemonSetList",
@@ -240,9 +823,12 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "gke-cos-node",
+							Name:      "dda-foo-agent-gke-cos",
+							Namespace: "ns-1",
 							Labels: map[string]string{
 								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
 							},
 							ResourceVersion: "999",
 						},
@@ -250,57 +836,585 @@ func Test_cleanupDaemonSetsForProvidersThatNoLongerApply(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "multiple unused ds, introspection disabled, profiles enabled",
+			description: "DS `datadog-agent-with-profile-ns-1-profile-1-gke-cos` should be deleted",
+			existingAgents: []client.Object{
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						}},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: false,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				kubernetes.LegacyProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "",
+						Name:      "default",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:        "multiple unused eds, introspection disabled, profiles enabled",
+			description: "All but EDS `dda-foo-agent` and DS `datadog-agent-with-profile-ns-1-profile-1` should be deleted",
+			existingAgents: []client.Object{
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: false,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "default",
+						Namespace: "",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:        "DSs are not created by the operator (do not have the expected labels) and should not be removed",
+			description: "No DSs should be deleted",
+			existingAgents: []client.Object{
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent",
+						Namespace: "ns-1",
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				kubernetes.LegacyProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "",
+						Name:      "default",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								"foo": "bar",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "dda-foo-agent",
+							Namespace:       "ns-1",
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:        "EDSs are not created by the operator (do not have the expected labels) and should not be removed",
+			description: "Nothing should be deleted",
+			existingAgents: []client.Object{
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent",
+						Namespace: "ns-1",
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "dda-foo-agent-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+						},
+					},
+				},
+				&appsv1.DaemonSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "datadog-agent-with-profile-ns-1-profile-1",
+						Namespace: "ns-1",
+						Labels: map[string]string{
+							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+						},
+					},
+				},
+			},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "default",
+						Namespace: "",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+				Items: []appsv1.DaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								"foo": "bar",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-agent-with-profile-ns-1-profile-1-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							},
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "dda-foo-agent",
+							Namespace:       "ns-1",
+							ResourceVersion: "999",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "dda-foo-agent-gke-cos",
+							Namespace: "ns-1",
+							Labels: map[string]string{
+								apicommon.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
+								apicommon.AgentDeploymentComponentLabelKey:   apicommon.DefaultAgentResourceSuffix,
+							},
+							ResourceVersion: "999",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:                 "no existing ds, introspection enabled, profiles enabled",
+			description:          "DS list should be empty (nothing to delete)",
+			existingAgents:       []client.Object{},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           false,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
+		{
+			name:                 "no existing eds, introspection enabled, profiles enabled",
+			description:          "DS and EDS list should be empty (nothing to delete)",
+			existingAgents:       []client.Object{},
+			introspectionEnabled: true,
+			profilesEnabled:      true,
+			edsEnabled:           true,
+			providerList: map[string]struct{}{
+				gkeCosProvider: {},
+			},
+			profiles: []v1alpha1.DatadogAgentProfile{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "profile-1",
+						Namespace: "ns-1",
+					},
+				},
+			},
+			wantDS: &appsv1.DaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DaemonSetList",
+					APIVersion: "apps/v1",
+				},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ExtendedDaemonSetList",
+					APIVersion: "datadoghq.com/v1alpha1",
+				},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.agents...).Build()
-			logger := logf.Log.WithName("test_cleanupDaemonSetsForProvidersThatNoLongerApply")
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingAgents...).Build()
+			logger := logf.Log.WithName("test_cleanupExtraneousDaemonSets")
 			eventBroadcaster := record.NewBroadcaster()
-			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewExtendedDaemonSet"})
+			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "test_cleanupExtraneousDaemonSets"})
 
 			r := &Reconciler{
 				client:   fakeClient,
 				log:      logger,
 				recorder: recorder,
 				options: ReconcilerOptions{
+					IntrospectionEnabled:       tt.introspectionEnabled,
+					DatadogAgentProfileEnabled: tt.profilesEnabled,
 					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
 						Enabled: tt.edsEnabled,
 					},
 				},
 			}
 
-			dda := datadoghqv2alpha1.DatadogAgent{}
+			dda := datadoghqv2alpha1.DatadogAgent{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DatadogAgent",
+					APIVersion: "datadoghq.com/v2alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "dda-foo",
+					Namespace: "ns-1",
+				},
+			}
 			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
 
-			err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, &dda, &ddaStatus, tt.existingProviders)
+			err := r.cleanupExtraneousDaemonSets(ctx, logger, &dda, &ddaStatus, tt.providerList, tt.profiles)
 			assert.NoError(t, err)
 
-			kind := "daemonsets"
-			if tt.edsEnabled {
-				kind = "extendeddaemonsets"
-			}
-			objList := getObjectListFromKind(kind)
-			err = fakeClient.List(ctx, objList)
+			dsList := &appsv1.DaemonSetList{}
+			edsList := &edsdatadoghqv1alpha1.ExtendedDaemonSetList{}
+
+			err = fakeClient.List(ctx, dsList)
+			assert.NoError(t, err)
+			err = fakeClient.List(ctx, edsList)
 			assert.NoError(t, err)
 
-			if tt.edsEnabled {
-				assert.Equal(t, tt.wantEDS, objList)
-			} else {
-				assert.Equal(t, tt.wantDS, objList)
-			}
+			assert.Equal(t, tt.wantDS, dsList)
+			assert.Equal(t, tt.wantEDS, edsList)
 		})
 	}
-}
-
-func getObjectListFromKind(kind string) client.ObjectList {
-	switch kind {
-	case "daemonsets":
-		return &appsv1.DaemonSetList{}
-	case "extendeddaemonsets":
-		return &edsdatadoghqv1alpha1.ExtendedDaemonSetList{}
-	}
-	return nil
 }
 
 func Test_removeStaleStatus(t *testing.T) {
