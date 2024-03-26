@@ -75,16 +75,17 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
-	nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
-	// Process Agent is not required on versions as of 7.51.0
-	f.processAgentRequired = ok && nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0")
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
 
-		if f.processAgentRequired {
-			reqContainers = []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName}
+		// Process Agent is not required as of agent version 7.51.0
+		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+			if f.processAgentRequired = nodeAgent.Image != nil &&
+				!utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), "7.51.0"); f.processAgentRequired {
+				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
+			}
 		}
 
 		reqComp.Agent = feature.RequiredComponent{
