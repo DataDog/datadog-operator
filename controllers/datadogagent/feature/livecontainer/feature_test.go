@@ -107,7 +107,7 @@ func TestLiveContainerFeature(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled in core agent via option without min version",
+			Name: "v2alpha1 live container collection enabled in core agent via option without min version",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(

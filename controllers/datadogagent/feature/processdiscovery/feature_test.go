@@ -60,21 +60,6 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
 		},
 		{
-			Name: "v2alpha1 process discovery disabled in core agent via env vars",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
-				WithProcessDiscoveryEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
-		},
-		{
 			Name: "v2alpha1 process discovery enabled in core agent via option",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).

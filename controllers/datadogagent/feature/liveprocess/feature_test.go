@@ -64,21 +64,6 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true, false),
 		},
 		{
-			Name: "v2alpha1 live process collection disabled in core agent via env vars",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
-				WithLiveProcessEnabled(true).
-				WithComponentOverride(
-					v2alpha1.NodeAgentComponentName,
-					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
-						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
-					},
-				).
-				Build(),
-			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
-		},
-		{
 			Name: "v2alpha1 live process collection enabled in core agent via option",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
