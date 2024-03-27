@@ -45,7 +45,7 @@ type liveProcessFeature struct {
 	runInCoreAgent bool
 }
 
-const RunInCoreAgentMinVersion = "7.53.0"
+const RunInCoreAgentMinVersion = "7.53.0-rc.1"
 
 // ID returns the ID of the Feature
 func (f *liveProcessFeature) ID() feature.IDType {
@@ -103,7 +103,7 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.Process != nil && *dda.Spec.Agent.Process.ProcessCollectionEnabled {
+	if dda.Spec.Agent.Process != nil && apiutils.BoolValue(dda.Spec.Agent.Process.ProcessCollectionEnabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

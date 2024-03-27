@@ -11,7 +11,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/apis/utils"
 
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -36,7 +38,7 @@ func TestLiveContainerFeature(t *testing.T) {
 			Name:          "v1alpha1 live container collection enabled",
 			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 
 		//////////////////////////
@@ -63,7 +65,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithLiveContainerCollectionEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "v2alpha1 live container collection enabled with single container",
@@ -72,7 +74,68 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName),
+			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName, false),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled on core agent via env var",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
+					},
+				).
+				Build(),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
+		{
+			Name: "v2alpha1 live container collection enabled on core agent via option",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+					},
+				).
+				Build(),
+			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			WantConfigure:  true,
+			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+		},
+		{
+			Name: "v2alpha1 live process collection enabled in core agent via option without min version",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.52.0"},
+					},
+				).
+				Build(),
+			WantConfigure:  true,
+			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+		},
+		{
+			Name: "v2alpha1 live container collection disabled on core agent via env var override",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLiveContainerCollectionEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
+					},
+				).
+				Build(),
+			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			WantConfigure:  true,
+			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 	}
 
@@ -91,13 +154,17 @@ func newV1Agent(enableLiveContainer bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func testExpectedAgent(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommonv1.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Value: utils.BoolToString(&runInCoreAgent),
+				},
 				{
 					Name:  apicommon.DDContainerCollectionEnabled,
 					Value: "true",
