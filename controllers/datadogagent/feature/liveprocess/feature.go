@@ -30,7 +30,11 @@ func init() {
 }
 
 func buildLiveProcessFeature(options *feature.Options) feature.Feature {
-	liveProcessFeat := &liveProcessFeature{runInCoreAgent: options.RunProcessChecksOnCoreAgent}
+	liveProcessFeat := &liveProcessFeature{}
+
+	if options != nil {
+		liveProcessFeat.runInCoreAgent = options.RunProcessChecksOnCoreAgent
+	}
 
 	return liveProcessFeat
 }
@@ -53,11 +57,11 @@ func (f *liveProcessFeature) overrideRunInCoreAgent(dda *v2alpha1.DatadogAgent) 
 		// Agent version must >= 7.53.0 to run feature in core agent
 		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion) {
 			f.runInCoreAgent = false
-		} else if nodeAgent.Env != nil {
+		} else {
 			for _, env := range nodeAgent.Env {
 				if env.Name == apicommon.DDProcessConfigRunInCoreAgent {
 					val, err := strconv.ParseBool(env.Value)
-					if err != nil {
+					if err == nil {
 						f.runInCoreAgent = val
 					}
 				}
@@ -130,6 +134,11 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&f.runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
