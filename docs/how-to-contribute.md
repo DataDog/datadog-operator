@@ -75,3 +75,60 @@ kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/v2alpha1/min.yaml
 
 
 The Operator should start deploying the `agent` and `cluster-agent`.
+
+
+## Tests
+
+### Unit and Integration Tests
+
+```shell
+# Run unit tests and integration tests
+$ make test
+
+# Run v1 integration tests
+$ make integration-tests
+
+# Run v2 integration tests
+$ make integration-tests-v2
+```
+
+### End-to-End Tests
+
+The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed test infrastructures, defined as "stacks". The test infrastructures are deployed using the [`test-infra-definitions`][test-infra-repo] and [`datadog-agent`][agent-e2e-source] E2E frameworks.
+
+**Prerequisites**
+
+Internal Datadog users may run E2E locally after completing the following prerequisites:
+
+* Access to the AWS `agent-sandbox` account
+* AWS keypair with your public ssh key created in the `agent-sandbox` account
+* Set environment variable `PULUMI_CONFIG_PASSPHRASE`
+* Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
+* Add `go.work` file to root directory:
+
+```shell
+go work init
+go work use . ./test/e2e
+```
+
+#### Run E2E Tests
+
+```shell
+# Run E2E tests and destroy environment stacks after tests complete.
+$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+
+# Run E2E tests and keep environment stacks running.
+$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks
+
+# Run E2E tests with K8S_VERSION and TARGET_IMAGE environment variables.
+$ K8S_VERSION=1.25 TARGET_IMAGE=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+
+# Run E2E tests with K8S_VERSION, TARGET_IMAGE, and IMAGE_PULL_PASSWORD environment variables (for pulling operator image from a private registry).
+$ K8S_VERSION=1.25 TARGET_IMAGE=669783387624.dkr.ecr.us-east-1.amazonaws.com/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+```
+
+
+[pulumi]:https://www.pulumi.com/
+[test-infra-repo]:https://github.com/DataDog/test-infra-definitions
+[agent-e2e-source]:https://github.com/DataDog/datadog-agent/tree/main/test/new-e2e
+[test-infra-quickstart]:https://github.com/DataDog/test-infra-definitions#quick-start-guide
