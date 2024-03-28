@@ -1442,6 +1442,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.GroupbySimpleMonitor != nil {
+		in, out := &in.GroupbySimpleMonitor, &out.GroupbySimpleMonitor
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Locked != nil {
 		in, out := &in.Locked, &out.Locked
 		*out = new(bool)
@@ -1462,6 +1467,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.NotifyBy != nil {
+		in, out := &in.NotifyBy, &out.NotifyBy
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.NotifyNoData != nil {
 		in, out := &in.NotifyNoData, &out.NotifyNoData
 		*out = new(bool)
@@ -1469,6 +1479,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 	}
 	if in.RenotifyInterval != nil {
 		in, out := &in.RenotifyInterval, &out.RenotifyInterval
+		*out = new(int64)
+		**out = **in
+	}
+	if in.RenotifyOccurrences != nil {
+		in, out := &in.RenotifyOccurrences, &out.RenotifyOccurrences
 		*out = new(int64)
 		**out = **in
 	}
