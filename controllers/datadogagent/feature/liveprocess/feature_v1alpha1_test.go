@@ -46,6 +46,16 @@ func Test_liveProcessFeature_ConfigureV1(t *testing.T) {
 				MountPath: apicommon.PasswdMountPath,
 				ReadOnly:  true,
 			},
+			{
+				Name:      apicommon.CgroupsVolumeName,
+				MountPath: apicommon.CgroupsMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.ProcdirVolumeName,
+				MountPath: apicommon.ProcdirMountPath,
+				ReadOnly:  true,
+			},
 		}
 
 		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
@@ -61,6 +71,22 @@ func Test_liveProcessFeature_ConfigureV1(t *testing.T) {
 					},
 				},
 			},
+			{
+				Name: apicommon.CgroupsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.CgroupsHostPath,
+					},
+				},
+			},
+			{
+				Name: apicommon.ProcdirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.ProcdirHostPath,
+					},
+				},
+			},
 		}
 
 		volumes := mgr.VolumeMgr.Volumes
@@ -68,6 +94,10 @@ func Test_liveProcessFeature_ConfigureV1(t *testing.T) {
 
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDProcessConfigRunInCoreAgent,
+				Value: "false",
+			},
 			{
 				Name:  apicommon.DDProcessCollectionEnabled,
 				Value: "true",

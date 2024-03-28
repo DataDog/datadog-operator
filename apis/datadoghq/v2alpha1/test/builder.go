@@ -164,6 +164,19 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool)
 	return builder
 }
 
+// Process Discovery
+func (builder *DatadogAgentBuilder) initProcessDiscovery() {
+	if builder.datadogAgent.Spec.Features.ProcessDiscovery == nil {
+		builder.datadogAgent.Spec.Features.ProcessDiscovery = &v2alpha1.ProcessDiscoveryFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initProcessDiscovery()
+	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {

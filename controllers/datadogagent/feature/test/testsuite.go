@@ -32,9 +32,10 @@ type FeatureTestSuite []FeatureTest
 type FeatureTest struct {
 	Name string
 	// Inputs
-	DDAv2   *v2alpha1.DatadogAgent
-	DDAv1   *v1alpha1.DatadogAgent
-	Options *Options
+	DDAv2          *v2alpha1.DatadogAgent
+	DDAv1          *v1alpha1.DatadogAgent
+	Options        *Options
+	FeatureOptions *feature.Options
 	// Dependencies Store
 	StoreOption        *dependencies.StoreOptions
 	StoreInitFunc      func(store dependencies.StoreClient)
@@ -98,16 +99,17 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	var gotConfigure feature.RequiredComponents
 	var dda metav1.Object
 	var isV2 bool
+	featureOptions := &feature.Options{}
+	if tt.FeatureOptions != nil {
+		featureOptions = tt.FeatureOptions
+	}
+	featureOptions.Logger = logger
 	if tt.DDAv2 != nil {
-		features, gotConfigure = feature.BuildFeatures(tt.DDAv2, &feature.Options{
-			Logger: logger,
-		})
+		features, gotConfigure = feature.BuildFeatures(tt.DDAv2, featureOptions)
 		dda = tt.DDAv2
 		isV2 = true
 	} else if tt.DDAv1 != nil {
-		features, gotConfigure = feature.BuildFeaturesV1(tt.DDAv1, &feature.Options{
-			Logger: logger,
-		})
+		features, gotConfigure = feature.BuildFeaturesV1(tt.DDAv1, featureOptions)
 		dda = tt.DDAv1
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")

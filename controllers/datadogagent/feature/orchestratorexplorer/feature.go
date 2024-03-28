@@ -66,7 +66,7 @@ type orchestratorExplorerFeature struct {
 	processAgentRequired bool
 }
 
-const NoProcessAgentMinVersion = "7.51.0"
+const NoProcessAgentMinVersion = "7.51.0-0"
 
 // ID returns the ID of the Feature
 func (f *orchestratorExplorerFeature) ID() feature.IDType {
