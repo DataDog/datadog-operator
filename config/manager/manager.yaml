@@ -29,7 +29,6 @@ spec:
         args:
         - --enable-leader-election
         - --pprof
-        - --webhookEnabled
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
@@ -58,7 +57,5 @@ spec:
             path: /healthz/
             port: 8081
           periodSeconds: 10
-      imagePullSecrets:
-        - name: registry-credentials
       terminationGracePeriodSeconds: 10
       serviceAccountName: controller-manager
