@@ -9,11 +9,9 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
@@ -30,7 +28,6 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	k8smetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type kindEnv struct {
@@ -149,14 +146,6 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 	})
 }
 
-func (suite *kindSuite) SetupSuite() {
-	suite.BaseSuite.SetupSuite()
-}
-
-func (suite *kindSuite) TearDownSuite() {
-	suite.BaseSuite.TearDownSuite()
-}
-
 func (s *kindSuite) TestKindRun() {
 	// Get E2E kubernetes context and set up terratest kubectlOptions
 	cleanUpContext, err := contextConfig(s.Env().Kind.ClusterOutput.KubeConfig)
@@ -166,56 +155,16 @@ func (s *kindSuite) TestKindRun() {
 	kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, namespaceName)
 
 	s.T().Run("Operator deploys to kind cluster", func(t *testing.T) {
-		s.Assert().NotNil(s.Env().Kind.Client())
-		k8sClient := s.Env().Kind.Client()
-
-		// Operator pod is created
-		verifyNumPodsForSelector(t, kubectlOptions, 1, operatorLabelSelector)
-
-		pods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: operatorLabelSelector})
-		s.Assert().NoError(err)
-		s.Assert().NotEmpty(pods)
-
-		// Operator pod is available
-		for _, pod := range pods.Items {
-			k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
-		}
+		verifyOperator(t, kubectlOptions)
 	})
 
 	s.T().Run("Minimal DDA deploys agent resources", func(t *testing.T) {
-		s.Assert().NotNil(s.Env().Kind.Client())
-		k8sClient := s.Env().Kind.Client()
-
 		// Install DDA
 		ddaConfigPath, err := getAbsPath(ddaMinimalPath)
 		s.Assert().NoError(err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
 		defer k8s.KubectlDelete(t, kubectlOptions, ddaConfigPath)
 
-		// Get nodesList
-		k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
-		nodes, err := k8sClient.CoreV1().Nodes().List(context.Background(), k8smetav1.ListOptions{})
-		s.Assert().NoError(err)
-		s.Assert().NotEmpty(nodes)
-
-		// Agent pods are created
-		verifyNumPodsForSelector(t, kubectlOptions, len(nodes.Items), agentLabelSelector)
-		verifyNumPodsForSelector(t, kubectlOptions, 1, dcaLabelSelector)
-
-		// Agent pods are available
-		agentPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: agentLabelSelector})
-		s.Assert().NoError(err)
-		s.Assert().NotEmpty(agentPods)
-		for _, pod := range agentPods.Items {
-			k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
-		}
-
-		// DCA pod is Available
-		dcaPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: dcaLabelSelector})
-		s.Assert().NoError(err)
-		s.Assert().NotEmpty(dcaPods)
-		for _, pod := range dcaPods.Items {
-			k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
-		}
+		verifyAgent(t, kubectlOptions)
 	})
 }

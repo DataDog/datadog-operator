@@ -17,25 +17,22 @@ import (
 )
 
 const (
-	manifestsPath         = "./manifests"
-	mgrKustomizeDirPath   = "../../config/default"
-	imagePullSecretName   = "registry-credentials"
-	operatorLabelSelector = "app.kubernetes.io/name=datadog-operator"
-	agentLabelSelector    = "agent.datadoghq.com/component=agent"
-	dcaLabelSelector      = "agent.datadoghq.com/component=cluster-agent"
+	manifestsPath       = "./manifests"
+	mgrKustomizeDirPath = "../../config/default"
+	imagePullSecretName = "registry-credentials"
 )
 
 var (
+	namespaceName   = "system"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
 	imageTag        = getEnv("TARGET_IMAGE", "gcr.io/datadoghq/operator:latest")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
-	tmpDir          string
-	kubeConfigPath  string
-	kubectlOptions  *k8s.KubectlOptions
 
+	kubeConfigPath string
+	kubectlOptions *k8s.KubectlOptions
+
+	tmpDir         string
 	ddaMinimalPath = filepath.Join(manifestsPath, "datadog-agent-minimum.yaml")
-
-	namespaceName = "system"
 )
 
 // getAbsPath Return absolute path for given path
@@ -87,11 +84,31 @@ func contextConfig(kubeConfig string) (cleanupFunc func(), err error) {
 	}, nil
 }
 
+func verifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
+	verifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
+}
+
+func verifyAgent(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
+	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
+	nodes := k8s.GetNodes(t, kubectlOptions)
+
+	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), "agent.datadoghq.com/component=agent")
+	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-agent")
+	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-checks-runner")
+}
+
 func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
 	}, numPods, 9, 15*time.Second)
+
+	pods := k8s.ListPods(t, kubectlOptions, v1.ListOptions{
+		LabelSelector: selector,
+	})
+	for _, pod := range pods {
+		k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+	}
 }
 
 func getEnv(key, fallback string) string {
