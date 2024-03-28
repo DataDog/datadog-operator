@@ -45,7 +45,7 @@ type liveProcessFeature struct {
 	runInCoreAgent bool
 }
 
-const RunInCoreAgentMinVersion = "7.53.0-rc.1"
+const RunInCoreAgentMinVersion = "7.53.0-0"
 
 // ID returns the ID of the Feature
 func (f *liveProcessFeature) ID() feature.IDType {
