@@ -164,7 +164,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
-	flag.BoolVar(&opts.runProcessChecksOnCoreAgent, "runProcessChecksOnCoreAgent", false, "Run process checks on the core agent")
+	flag.BoolVar(&opts.runProcessChecksOnCoreAgent, "runProcessChecksOnCoreAgent", false, "Enable running process checks on the core agent (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
