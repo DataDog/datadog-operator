@@ -115,10 +115,16 @@ go work use . ./test/e2e
 
 ```shell
 # Run E2E tests and destroy environment stacks after tests complete.
-$ make e2e-tests
+$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 
-# Run E2E tests and keep environment stacks running
-$ make e2e-tests-keep-stacks
+# Run E2E tests and keep environment stacks running.
+$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks
+
+# Run E2E tests with K8S_VERSION and TARGET_IMAGE environment variables.
+$ K8S_VERSION=1.25 TARGET_IMAGE=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+
+# Run E2E tests with K8S_VERSION, TARGET_IMAGE, and IMAGE_PULL_PASSWORD environment variables (for pulling operator image from a private registry).
+$ K8S_VERSION=1.25 TARGET_IMAGE=669783387624.dkr.ecr.us-east-1.amazonaws.com/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 ```
 
 

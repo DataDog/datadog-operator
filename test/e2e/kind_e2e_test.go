@@ -23,14 +23,14 @@ import (
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/gruntwork-io/terratest/modules/k8s"
-	pulumik8s "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
-	pulumicorev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
-	pulumimetav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
+	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8smetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type kindEnv struct {
@@ -43,6 +43,7 @@ type kindSuite struct {
 
 func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
+		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion)),
 		e2e.WithDevMode(),
 	}
@@ -75,7 +76,7 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 			return err
 		}
 
-		kindCluster, err := localKubernetes.NewKindCluster(*awsEnv.CommonEnvironment, vm, awsEnv.CommonNamer.ResourceName("kind"), kindClusterName, k8sVersion)
+		kindCluster, err := localKubernetes.NewKindCluster(*awsEnv.CommonEnvironment, vm, awsEnv.CommonNamer.ResourceName("kind"), kindClusterName, k8sVersion, pulumi.DeleteBeforeReplace(true))
 		if err != nil {
 			return err
 		}
@@ -84,7 +85,7 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		}
 
 		// Build Kubernetes provider
-		kindKubeProvider, err := pulumik8s.NewProvider(ctx, awsEnv.Namer.ResourceName("k8s-provider"), &pulumik8s.ProviderArgs{
+		kindKubeProvider, err := kubernetes.NewProvider(ctx, awsEnv.Namer.ResourceName("k8s-provider"), &kubernetes.ProviderArgs{
 			EnableServerSideApply: pulumi.BoolPtr(true),
 			Kubeconfig:            kindCluster.KubeConfig,
 		})
@@ -119,8 +120,8 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		}
 
 		// Create datadog agent secret
-		_, err = pulumicorev1.NewSecret(ctx, "datadog-secret", &pulumicorev1.SecretArgs{
-			Metadata: pulumimetav1.ObjectMetaArgs{
+		_, err = corev1.NewSecret(ctx, "datadog-secret", &corev1.SecretArgs{
+			Metadata: metav1.ObjectMetaArgs{
 				Namespace: pulumi.String(namespaceName),
 				Name:      pulumi.String("datadog-secret"),
 			},
@@ -167,13 +168,11 @@ func (s *kindSuite) TestKindRun() {
 	s.T().Run("Operator deploys to kind cluster", func(t *testing.T) {
 		s.Assert().NotNil(s.Env().Kind.Client())
 		k8sClient := s.Env().Kind.Client()
-		s.Assert().NotNil(k8sClient.CoreV1().Pods(namespaceName))
-		s.Assert().NotNil(k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=datadog-operator"}))
 
 		// Operator pod is created
-		verifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
+		verifyNumPodsForSelector(t, kubectlOptions, 1, operatorLabelSelector)
 
-		pods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/name=datadog-operator"})
+		pods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: operatorLabelSelector})
 		s.Assert().NoError(err)
 		s.Assert().NotEmpty(pods)
 
@@ -184,28 +183,27 @@ func (s *kindSuite) TestKindRun() {
 	})
 
 	s.T().Run("Minimal DDA deploys agent resources", func(t *testing.T) {
-		ddaConfigPath, err := getAbsPath(ddaMinimalPath)
-		s.Assert().NoError(err)
-
-		// Install DDA
-		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-		defer k8s.KubectlDelete(t, kubectlOptions, ddaConfigPath)
-
 		s.Assert().NotNil(s.Env().Kind.Client())
 		k8sClient := s.Env().Kind.Client()
 
+		// Install DDA
+		ddaConfigPath, err := getAbsPath(ddaMinimalPath)
+		s.Assert().NoError(err)
+		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
+		defer k8s.KubectlDelete(t, kubectlOptions, ddaConfigPath)
+
 		// Get nodesList
 		k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
-		nodes, err := k8sClient.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+		nodes, err := k8sClient.CoreV1().Nodes().List(context.Background(), k8smetav1.ListOptions{})
 		s.Assert().NoError(err)
 		s.Assert().NotEmpty(nodes)
 
 		// Agent pods are created
-		verifyNumPodsForSelector(t, kubectlOptions, len(nodes.Items), "agent.datadoghq.com/component=agent")
-		verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-agent")
+		verifyNumPodsForSelector(t, kubectlOptions, len(nodes.Items), agentLabelSelector)
+		verifyNumPodsForSelector(t, kubectlOptions, 1, dcaLabelSelector)
 
 		// Agent pods are available
-		agentPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), metav1.ListOptions{LabelSelector: "agent.datadoghq.com/component=agent"})
+		agentPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: agentLabelSelector})
 		s.Assert().NoError(err)
 		s.Assert().NotEmpty(agentPods)
 		for _, pod := range agentPods.Items {
@@ -213,7 +211,7 @@ func (s *kindSuite) TestKindRun() {
 		}
 
 		// DCA pod is Available
-		dcaPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), metav1.ListOptions{LabelSelector: "agent.datadoghq.com/component=cluster-agent"})
+		dcaPods, err := k8sClient.CoreV1().Pods(namespaceName).List(context.Background(), k8smetav1.ListOptions{LabelSelector: dcaLabelSelector})
 		s.Assert().NoError(err)
 		s.Assert().NotEmpty(dcaPods)
 		for _, pod := range dcaPods.Items {

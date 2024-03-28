@@ -17,9 +17,12 @@ import (
 )
 
 const (
-	manifestsPath       = "./manifests"
-	mgrKustomizeDirPath = "../../config/default"
-	imagePullSecretName = "registry-credentials"
+	manifestsPath         = "./manifests"
+	mgrKustomizeDirPath   = "../../config/default"
+	imagePullSecretName   = "registry-credentials"
+	operatorLabelSelector = "app.kubernetes.io/name=datadog-operator"
+	agentLabelSelector    = "agent.datadoghq.com/component=agent"
+	dcaLabelSelector      = "agent.datadoghq.com/component=cluster-agent"
 )
 
 var (
