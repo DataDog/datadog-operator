@@ -84,7 +84,7 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
-	}, numPods, 9, 15*time.Second)
+	}, numPods, 10, 30*time.Second)
 
 	pods := k8s.ListPods(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
@@ -99,4 +99,10 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
+	if !*keepStacks {
+		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
+	}
 }

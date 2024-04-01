@@ -22,6 +22,7 @@ import (
 var keepStacks = flag.Bool("keep-stacks", false, "Do not destroy the Pulumi stacks at the end of the tests")
 
 func TestMain(m *testing.M) {
+	flag.Parse()
 	code := m.Run()
 	if runner.GetProfile().AllowDevMode() && *keepStacks {
 		fmt.Fprintln(os.Stderr, "Keeping stacks")

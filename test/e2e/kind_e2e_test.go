@@ -159,7 +159,7 @@ func (s *kindSuite) TestKindRun() {
 		ddaConfigPath, err := getAbsPath(ddaMinimalPath)
 		s.Assert().NoError(err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-		defer k8s.KubectlDelete(t, kubectlOptions, ddaConfigPath)
+		defer deleteDda(t, kubectlOptions, ddaConfigPath)
 
 		verifyAgent(t, kubectlOptions)
 	})
