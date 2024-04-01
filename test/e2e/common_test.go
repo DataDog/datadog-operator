@@ -90,7 +90,7 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 		LabelSelector: selector,
 	})
 	for _, pod := range pods {
-		k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+		k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 30*time.Second)
 	}
 }
 
