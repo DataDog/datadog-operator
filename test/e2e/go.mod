@@ -5,11 +5,9 @@ go 1.21.6
 require (
 	github.com/DataDog/datadog-agent/test/new-e2e v0.52.0
 	github.com/DataDog/test-infra-definitions v0.0.0-20240322160927-3eac4b5bb0c4
-	github.com/google/go-cmp v0.6.0
 	github.com/gruntwork-io/terratest v0.46.13
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.9.0
 	github.com/pulumi/pulumi/sdk/v3 v3.108.1
-	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
 )
 
@@ -84,6 +82,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
@@ -177,6 +176,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/api v0.28.4 // indirect
 	k8s.io/client-go v0.28.4 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
