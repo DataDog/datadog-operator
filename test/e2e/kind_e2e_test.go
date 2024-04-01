@@ -25,7 +25,6 @@ import (
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
@@ -99,9 +98,6 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		_, err = kustomize.NewDirectory(ctx, "e2e-manager",
 			kustomize.DirectoryArgs{
 				Directory: pulumi.String(kustomizeDirPath),
-				Transformations: []yaml.Transformation{
-					operatorTransformationFunc(),
-				},
 			},
 			pulumi.Provider(kindKubeProvider))
 		if err != nil {

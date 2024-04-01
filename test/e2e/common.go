@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
-	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,7 +24,7 @@ const (
 var (
 	namespaceName   = "system"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
-	imageTag        = getEnv("TARGET_IMAGE", "gcr.io/datadoghq/operator:latest")
+	imageTag        = getEnv("IMG", "gcr.io/datadoghq/operator:latest")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
 	kubeConfigPath string
@@ -50,22 +49,6 @@ func getAbsPath(path string) (string, error) {
 	}
 
 	return absPath, nil
-}
-
-func operatorTransformationFunc() func(state map[string]interface{}, opts ...pulumi.ResourceOption) {
-	return func(state map[string]interface{}, opts ...pulumi.ResourceOption) {
-		name := state["metadata"].(map[string]interface{})["name"]
-
-		if imageTag != "" && state["kind"] == "Deployment" && name == "datadog-operator-manager" {
-			template := state["spec"].(map[string]interface{})["template"]
-			templateSpec := template.(map[string]interface{})["spec"]
-			templateSpec.(map[string]interface{})["imagePullSecrets"] = []map[string]interface{}{{"name": imagePullSecretName}}
-			containers := templateSpec.(map[string]interface{})["containers"]
-			container := containers.([]interface{})[0]
-			container.(map[string]interface{})["image"] = imageTag
-
-		}
-	}
 }
 
 func contextConfig(kubeConfig string) (cleanupFunc func(), err error) {
