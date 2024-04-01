@@ -1,6 +1,6 @@
 # Introspection (beta)
 
-This feature was released in operator v1.4.0 and is currently in beta.
+This feature was introduced in operator v1.4.0 and is currently in beta.
 
 ## Overview
 
@@ -28,8 +28,16 @@ datadog-agent-gke-cos   2         2         2       2            2           <no
 
 Introspection is disabled by default. To enable introspection using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set `introspection.enabled=true` in your `values.yaml` file or as a flag in the command line arguments `--set introspection.enabled=true`.
 
-> [!CAUTION]
-> Enabling introspection in an existing operator installation will create new DaemonSets or ExtendedDaemonSets without deleting the existing DaemonSet or ExtendedDaemonSet. The existing DaemonSet or ExtendedDaemonSet needs to be removed manually. This behavior will change in a future version of the operator to make the migration process smoother.
+## Migration from Operator Version < 1.4.0
+
+### Operator v1.4.0 <= x < v1.6.0
+
+1. Upgrade to operator v1.4.0+ **without** enabling introspection. The operator should label the existing node agent DaemonSet or ExtendedDaemonSet with the label `agent.datadoghq.com/provider=""`.
+2. Enable introspection in the operator following the instructions above. The operator should delete the unused node agent DaemonSet or ExtendedDaemonSet.
+
+### Operator v1.6.0+
+
+1. Upgrading the operator image and enabling introspection can be done at the same time in one step.
 
 ## Supported Providers
 
