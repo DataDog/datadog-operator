@@ -34,8 +34,6 @@ const (
 	pollInterval = 10 * time.Second
 )
 
-var updateMockConfig = ""
-
 type RemoteConfigUpdater struct {
 	kubeClient  kubeclient.Client
 	rcClient    *client.Client
@@ -129,15 +127,34 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.
 
 	ctx := context.Background()
 
-	if updateMockConfig != "" {
-		if err := json.Unmarshal([]byte(updateMockConfig), &update); err != nil {
-			r.logger.Error(err, "invalid mocked config")
-		}
-	}
+	rcService.Start()
+	// defer rcService.Stop()
 
-	if len(update) == 0 {
-		return
-	}
+	rcClient.Subscribe(string(state.ProductAgentConfig), func(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+		r.logger.Info("Subscribe is called")
+
+		// ---------- Section to use when mocking config ----------
+		// Comment out this section when testing remote config updates
+		mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
+
+		mockMetadata := state.Metadata{
+			Product:   "testProduct",
+			ID:        "testID",
+			Name:      "testName",
+			Version:   9,
+			RawLength: 20,
+		}
+		mockRawConfig := state.RawConfig{
+			Config:   []byte(mockFeatureConfig),
+			Metadata: mockMetadata,
+		}
+		var mockUpdate = make(map[string]state.RawConfig)
+		mockUpdate["testConfigPath"] = mockRawConfig
+
+		// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
+
+		update = mockUpdate
+		// ---------- End section to use when mocking config ----------
 
 	// TODO
 	// For now, only single default config path is present (key of update[key])
@@ -148,16 +165,20 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.
 
 	r.logger.Info(tempstring)
 
-	applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
+		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 
-	var cfg DatadogAgentRemoteConfig
-	for _, update := range update {
-		r.logger.Info("Content: %s", string(update.Config))
-		if err := json.Unmarshal(update.Config, &cfg); err != nil {
-			r.logger.Error(err, "failed to apply config %s", update.Metadata.ID)
+		if len(update) == 0 {
 			return
 		}
-	}
+
+		var cfg DatadogAgentRemoteConfig
+		for _, update := range update {
+			r.logger.Info("Content", "update.Config", string(update.Config))
+			if err := json.Unmarshal(update.Config, &cfg); err != nil {
+				r.logger.Error(err, "failed to marshal config", "updateMetadata.ID", update.Metadata.ID)
+				return
+			}
+		}
 
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
@@ -169,6 +190,8 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.
 		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
 	}
+
+		r.logger.Info("Successfully applied config!")
 
 	applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 }
