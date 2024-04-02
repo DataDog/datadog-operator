@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.19
+go 1.21
 
 replace (
 	k8s.io/api => k8s.io/api v0.24.2
