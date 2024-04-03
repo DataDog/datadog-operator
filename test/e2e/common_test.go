@@ -91,8 +91,10 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 	})
 	for _, pod := range pods {
 		k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 40, 15*time.Second)
-		podLogs := k8s.GetPodLogs(t, kubectlOptions, &pod, "agent")
-		t.Logf("Pod logs: %s", podLogs)
+		if selector == "agent.datadoghq.com/component=agent" {
+			podLogs := k8s.GetPodLogs(t, kubectlOptions, &pod, "agent")
+			t.Logf("Pod logs: %s", podLogs)
+		}
 	}
 }
 
