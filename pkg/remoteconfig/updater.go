@@ -26,7 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/version"
+	// "github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -115,9 +115,13 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	r.rcClient = rcClient
 
 	rcService.Start()
-	defer rcService.Stop()
+	r.logger.Info("rcService started")
+
+	// defer rcService.Stop()
 
 	rcClient.Start()
+	r.logger.Info("rcClient started")
+
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
 
 	return nil
@@ -128,28 +132,30 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.
 	ctx := context.Background()
 
 	r.logger.Info("agentConfigUpdateCallback is called")
+	r.logger.Info("Received", "update", update)
 
 	// ---------- Section to use when mocking config ----------
 	// Comment out this section when testing remote config updates
-	mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
 
-	mockMetadata := state.Metadata{
-		Product:   "testProduct",
-		ID:        "testID",
-		Name:      "testName",
-		Version:   9,
-		RawLength: 20,
-	}
-	mockRawConfig := state.RawConfig{
-		Config:   []byte(mockFeatureConfig),
-		Metadata: mockMetadata,
-	}
-	var mockUpdate = make(map[string]state.RawConfig)
-	mockUpdate["testConfigPath"] = mockRawConfig
+	// mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
+
+	// mockMetadata := state.Metadata{
+	// 	Product:   "testProduct",
+	// 	ID:        "testID",
+	// 	Name:      "testName",
+	// 	Version:   9,
+	// 	RawLength: 20,
+	// }
+	// mockRawConfig := state.RawConfig{
+	// 	Config:   []byte(mockFeatureConfig),
+	// 	Metadata: mockMetadata,
+	// }
+	// var mockUpdate = make(map[string]state.RawConfig)
+	// mockUpdate["testConfigPath"] = mockRawConfig
 
 	// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
 
-	update = mockUpdate
+	// update = mockUpdate
 	// ---------- End section to use when mocking config ----------
 
 	// TODO
@@ -273,16 +279,18 @@ func (r *RemoteConfigUpdater) configureService(creds config.Creds) error {
 	if err := os.MkdirAll(baseDir, 0777); err != nil {
 		return err
 	}
+
 	// TODO decide what to put for version, since NewService is expecting agentVersion (even "1.50.0" for operator doesn't work)
 	serviceConf := RcServiceConfiguration{
 		cfg:               cfg,
 		apiKey:            creds.APIKey,
 		baseRawURL:        baseRawURL,
 		hostname:          hostname,
-		tags:              nil,
+		tags:              []string{"uniqueEnough:test-rc-operator-49"},
 		telemetryReporter: dummyRcTelemetryReporter{},
-		agentVersion:      version.Version,
-		rcDatabaseDir:     baseDir,
+		agentVersion:      "7.50.0",
+		// agentVersion:  version.Version,
+		rcDatabaseDir: baseDir,
 	}
 	r.serviceConf = serviceConf
 	return nil
