@@ -6,18 +6,14 @@
 package livecontainer
 
 import (
-	"strconv"
-
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -49,24 +45,6 @@ func (f *liveContainerFeature) ID() feature.IDType {
 	return feature.LiveContainerIDType
 }
 
-func (f *liveContainerFeature) overrideRunInCoreAgent(dda *v2alpha1.DatadogAgent) {
-	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		// Agent version must >= 7.53.0 to run feature in core agent
-		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), liveprocess.RunInCoreAgentMinVersion) {
-			f.runInCoreAgent = false
-		} else {
-			for _, env := range nodeAgent.Env {
-				if env.Name == apicommon.DDProcessConfigRunInCoreAgent {
-					val, err := strconv.ParseBool(env.Value)
-					if err == nil {
-						f.runInCoreAgent = val
-					}
-				}
-			}
-		}
-	}
-}
-
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
@@ -74,7 +52,7 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			apicommonv1.CoreAgentContainerName,
 		}
 
-		f.overrideRunInCoreAgent(dda)
+		f.runInCoreAgent = liveprocess.OverrideRunInCoreAgent(dda, f.runInCoreAgent)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)

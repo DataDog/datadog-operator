@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -52,22 +53,35 @@ func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
 }
 
-func (f *liveProcessFeature) overrideRunInCoreAgent(dda *v2alpha1.DatadogAgent) {
+func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
+	// Agent version must >= 7.53.0 to run feature in core agent
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-		// Agent version must >= 7.53.0 to run feature in core agent
-		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion) {
-			f.runInCoreAgent = false
-		} else {
-			for _, env := range nodeAgent.Env {
-				if env.Name == apicommon.DDProcessConfigRunInCoreAgent {
-					val, err := strconv.ParseBool(env.Value)
-					if err == nil {
-						f.runInCoreAgent = val
-					}
+		if nodeAgent.Image != nil {
+			return utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion)
+		}
+	}
+	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, RunInCoreAgentMinVersion)
+}
+
+// OverrideRunInCoreAgent determines whether to respect the currentVal based on
+// environment variables and agent version. 
+func OverrideRunInCoreAgent(dda *v2alpha1.DatadogAgent, currentVal bool) bool {
+	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		for _, env := range nodeAgent.Env {
+			if env.Name == apicommon.DDProcessConfigRunInCoreAgent {
+				val, err := strconv.ParseBool(env.Value)
+				if err == nil {
+					return val
 				}
 			}
 		}
+	} 
+	
+	if !agentSupportsRunInCoreAgent(dda) {
+		return false
 	}
+
+	return currentVal
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -84,7 +98,7 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 			apicommonv1.CoreAgentContainerName,
 		}
 
-		f.overrideRunInCoreAgent(dda)
+		f.runInCoreAgent = OverrideRunInCoreAgent(dda, f.runInCoreAgent)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
