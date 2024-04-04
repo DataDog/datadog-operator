@@ -24,7 +24,6 @@ const (
 var (
 	namespaceName   = "system"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
-	imageTag        = getEnv("IMG", "gcr.io/datadoghq/operator:latest")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
 	kubeConfigPath string
@@ -84,23 +83,7 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
-	}, numPods, 20, 15*time.Second)
-
-	pods := k8s.ListPods(t, kubectlOptions, v1.ListOptions{
-		LabelSelector: selector,
-	})
-	for _, pod := range pods {
-		err := k8s.WaitUntilPodAvailableE(t, kubectlOptions, pod.Name, 40, 15*time.Second)
-		if err != nil {
-			output, e := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "describe", "pod", pod.Name)
-			if e == nil {
-				t.Logf("Pod describe: %s", output)
-			}
-			podLogs := k8s.GetPodLogs(t, kubectlOptions, &pod, "agent")
-			t.Logf("Agent pod logs: %s", podLogs)
-		}
-
-	}
+	}, numPods, 9, 15*time.Second)
 }
 
 func getEnv(key, fallback string) string {
