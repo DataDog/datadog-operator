@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
@@ -56,7 +55,7 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	Name     string          `json:"id"`
+	ID       string          `json:"id"`
 	Features *FeaturesConfig `json:"core_agent"`
 }
 
@@ -147,25 +146,20 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	r.logger.Info("agentConfigUpdateCallback is called")
 	r.logger.Info("Received", "updates", updates)
+
+	// Tell rc that we have received the configurations
+	var configIDs []string
+	for id, _ := range updates {
+		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
+		configIDs = append(configIDs, id)
+	}
+
 	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
 	if err != nil {
 		r.logger.Error(err, "failed to merge updates")
 		return
 	}
 	r.logger.Info("Merged", "update", mergedUpdate)
-
-	tempstring := ""
-	for k := range updates {
-		tempstring += k
-	}
-
-	r.logger.Info(tempstring)
-
-	applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
-
-	if len(updates) == 0 {
-		return
-	}
 
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
@@ -174,14 +168,16 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	if err := r.applyConfig(ctx, dda, mergedUpdate); err != nil {
 		r.logger.Error(err, "failed to apply config")
-		applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
 	}
 
+	// Tell rc that we have received the configurations
+	for _, id := range configIDs {
+		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
+	}
+
 	r.logger.Info("Successfully applied config!")
-
-	applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
-
 }
 
 func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
@@ -214,33 +210,75 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 
 	configMap := make(map[string]DatadogAgentRemoteConfig)
 	for _, config := range configs {
-		configMap[config.Name] = config
+		configMap[config.ID] = config
 	}
 
 	for _, name := range order.Order {
 		if config, found := configMap[name]; found {
-			mergeStructs(finalConfig, config)
+			mergeConfigs(&finalConfig, &config)
 		}
 	}
 	return finalConfig, nil
 }
 
-func mergeStructs(dst, src interface{}) {
-	dstVal := reflect.ValueOf(dst).Elem()
-	srcVal := reflect.ValueOf(src).Elem()
+func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
+	if src.ID != "" && dst.ID != "" {
+		dst.ID = dst.ID + "|" + src.ID
+	} else if src.ID != "" {
+		dst.ID = src.ID
+	}
 
-	for i := 0; i < srcVal.NumField(); i++ {
-		srcField := srcVal.Field(i)
-		dstField := dstVal.Field(i)
+	if src.Features != nil {
+		if dst.Features == nil {
+			dst.Features = &FeaturesConfig{}
+		}
 
-		// Check if the source field is non-zero and if the destination field can be set
-		if srcField.IsValid() && dstField.CanSet() {
-			if !reflect.DeepEqual(srcField.Interface(), reflect.Zero(srcField.Type()).Interface()) {
-				dstField.Set(srcField)
+		// Merging FeaturesConfig
+		if src.Features.CWS != nil {
+			if dst.Features.CWS == nil {
+				dst.Features.CWS = &FeatureEnabledConfig{}
+			}
+			if src.Features.CWS.Enabled != nil {
+				dst.Features.CWS.Enabled = src.Features.CWS.Enabled
+			}
+		}
+		if src.Features.CSPM != nil {
+			if dst.Features.CSPM == nil {
+				dst.Features.CSPM = &FeatureEnabledConfig{}
+			}
+			if src.Features.CSPM.Enabled != nil {
+				dst.Features.CSPM.Enabled = src.Features.CSPM.Enabled
+			}
+		}
+		if src.Features.SBOM != nil {
+			if dst.Features.SBOM == nil {
+				dst.Features.SBOM = &SbomConfig{}
+			}
+			if src.Features.SBOM.Enabled != nil {
+				dst.Features.SBOM.Enabled = src.Features.SBOM.Enabled
+			}
+			// Merging SbomConfig's Host
+			if src.Features.SBOM.Host != nil {
+				if dst.Features.SBOM.Host == nil {
+					dst.Features.SBOM.Host = &FeatureEnabledConfig{}
+				}
+				if src.Features.SBOM.Host.Enabled != nil {
+					dst.Features.SBOM.Host.Enabled = src.Features.SBOM.Host.Enabled
+				}
+			}
+			// Merging SbomConfig's ContainerImage
+			if src.Features.SBOM.ContainerImage != nil {
+				if dst.Features.SBOM.ContainerImage == nil {
+					dst.Features.SBOM.ContainerImage = &FeatureEnabledConfig{}
+				}
+				if src.Features.SBOM.ContainerImage.Enabled != nil {
+					dst.Features.SBOM.ContainerImage.Enabled = src.Features.SBOM.ContainerImage.Enabled
+				}
 			}
 		}
 	}
 }
+
 func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
 	ddaList := &v2alpha1.DatadogAgentList{}
 	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
