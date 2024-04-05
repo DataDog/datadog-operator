@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -55,15 +56,28 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	Features *FeaturesConfig `json:"features"`
+	Name     string          `json:"id"`
+	Features *FeaturesConfig `json:"core_agent"`
 }
 
 type FeaturesConfig struct {
-	CWS *FeatureEnabledConfig `json:"CWS"`
+	CWS  *FeatureEnabledConfig `json:"runtime_security_config"`
+	CSPM *FeatureEnabledConfig `json:"compliance_config"`
+	SBOM *SbomConfig           `json:"sbom"`
 }
 
+type SbomConfig struct {
+	Enabled        *bool                 `json:"enabled"`
+	Host           *FeatureEnabledConfig `json:"host"`
+	ContainerImage *FeatureEnabledConfig `json:"container_image"`
+}
 type FeatureEnabledConfig struct {
 	Enabled *bool `json:"enabled"`
+}
+
+type agentConfigOrder struct {
+	Order         []string `json:"order"`
+	InternalOrder []string `json:"internal_order"`
 }
 
 // TODO replace
@@ -127,59 +141,30 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	return nil
 }
 
-func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 
 	ctx := context.Background()
 
 	r.logger.Info("agentConfigUpdateCallback is called")
-	r.logger.Info("Received", "update", update)
+	r.logger.Info("Received", "updates", updates)
+	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
+	if err != nil {
+		r.logger.Error(err, "failed to merge updates")
+		return
+	}
+	r.logger.Info("Merged", "update", mergedUpdate)
 
-	// ---------- Section to use when mocking config ----------
-	// Comment out this section when testing remote config updates
-
-	// mockFeatureConfig := `{"features":{"cws":{"enabled":true}}}` //`{"some":"json"}`
-
-	// mockMetadata := state.Metadata{
-	// 	Product:   "testProduct",
-	// 	ID:        "testID",
-	// 	Name:      "testName",
-	// 	Version:   9,
-	// 	RawLength: 20,
-	// }
-	// mockRawConfig := state.RawConfig{
-	// 	Config:   []byte(mockFeatureConfig),
-	// 	Metadata: mockMetadata,
-	// }
-	// var mockUpdate = make(map[string]state.RawConfig)
-	// mockUpdate["testConfigPath"] = mockRawConfig
-
-	// r.logger.Info(string(mockUpdate["testConfigPath"].Config))
-
-	// update = mockUpdate
-	// ---------- End section to use when mocking config ----------
-
-	// TODO
-	// For now, only single default config path is present (key of update[key])
 	tempstring := ""
-	for k := range update {
+	for k := range updates {
 		tempstring += k
 	}
 
 	r.logger.Info(tempstring)
 
-	applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
+	applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 
-	if len(update) == 0 {
+	if len(updates) == 0 {
 		return
-	}
-
-	var cfg DatadogAgentRemoteConfig
-	for _, update := range update {
-		r.logger.Info("Content", "update.Config", string(update.Config))
-		if err := json.Unmarshal(update.Config, &cfg); err != nil {
-			r.logger.Error(err, "failed to marshal config", "updateMetadata.ID", update.Metadata.ID)
-			return
-		}
 	}
 
 	dda, err := r.getDatadogAgentInstance(ctx)
@@ -187,18 +172,75 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(update map[string]state.
 		r.logger.Error(err, "failed to get updatable agents")
 	}
 
-	if err := r.applyConfig(ctx, dda, cfg); err != nil {
+	if err := r.applyConfig(ctx, dda, mergedUpdate); err != nil {
 		r.logger.Error(err, "failed to apply config")
-		applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+		applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
 	}
 
 	r.logger.Info("Successfully applied config!")
 
-	applyStateCallback(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
+	applyStatus(tempstring, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 
 }
 
+func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
+
+	// Unmarshall configs and config order
+	var order agentConfigOrder
+	var configs []DatadogAgentRemoteConfig
+	for configPath, c := range updates {
+		if c.Metadata.ID == "configuration_order" {
+			if err := json.Unmarshal(c.Config, &order); err != nil {
+				r.logger.Info("Error unmarshalling configuration_order:", "err", err)
+				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshall configuration order")
+			}
+		} else {
+			var configData DatadogAgentRemoteConfig
+			if err := json.Unmarshal(c.Config, &configData); err != nil {
+				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
+				r.logger.Info("Error unmarshalling JSON:", "err", err)
+				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshall configuration %s", c.Metadata.ID)
+
+			} else {
+				configs = append(configs, configData)
+			}
+		}
+	}
+
+	// Merge configs
+	var finalConfig DatadogAgentRemoteConfig
+
+	configMap := make(map[string]DatadogAgentRemoteConfig)
+	for _, config := range configs {
+		configMap[config.Name] = config
+	}
+
+	for _, name := range order.Order {
+		if config, found := configMap[name]; found {
+			mergeStructs(finalConfig, config)
+		}
+	}
+	return finalConfig, nil
+}
+
+func mergeStructs(dst, src interface{}) {
+	dstVal := reflect.ValueOf(dst).Elem()
+	srcVal := reflect.ValueOf(src).Elem()
+
+	for i := 0; i < srcVal.NumField(); i++ {
+		srcField := srcVal.Field(i)
+		dstField := dstVal.Field(i)
+
+		// Check if the source field is non-zero and if the destination field can be set
+		if srcField.IsValid() && dstField.CanSet() {
+			if !reflect.DeepEqual(srcField.Interface(), reflect.Zero(srcField.Type()).Interface()) {
+				dstField.Set(srcField)
+			}
+		}
+	}
+}
 func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
 	ddaList := &v2alpha1.DatadogAgentList{}
 	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
@@ -227,29 +269,66 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 		return nil
 	}
 
-	if cfg.Features.CWS == nil {
-		return nil
-	}
-
-	if cfg.Features.CWS.Enabled == nil {
-		return nil
-	}
-
 	newdda := dda.DeepCopy()
-
 	if newdda.Spec.Features == nil {
 		newdda.Spec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
-	if newdda.Spec.Features.CWS == nil {
-		newdda.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
+	// CWS
+	if cfg.Features.CWS != nil {
+		if newdda.Spec.Features.CWS == nil {
+			newdda.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
+		}
+		if newdda.Spec.Features.CWS.Enabled == nil {
+			newdda.Spec.Features.CWS.Enabled = new(bool)
+		}
+		newdda.Spec.Features.CWS.Enabled = cfg.Features.CWS.Enabled
 	}
 
-	if newdda.Spec.Features.CWS.Enabled == nil {
-		newdda.Spec.Features.CWS.Enabled = new(bool)
+	// CSPM
+	if cfg.Features.CSPM != nil {
+		if newdda.Spec.Features.CSPM == nil {
+			newdda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
+		}
+		if newdda.Spec.Features.CSPM.Enabled == nil {
+			newdda.Spec.Features.CSPM.Enabled = new(bool)
+		}
+		newdda.Spec.Features.CSPM.Enabled = cfg.Features.CSPM.Enabled
 	}
 
-	newdda.Spec.Features.CWS.Enabled = cfg.Features.CWS.Enabled
+	// SBOM
+	if cfg.Features.SBOM != nil {
+		if newdda.Spec.Features.SBOM == nil {
+			newdda.Spec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
+		}
+		if newdda.Spec.Features.SBOM.Enabled == nil {
+			newdda.Spec.Features.SBOM.Enabled = new(bool)
+		}
+		newdda.Spec.Features.SBOM.Enabled = cfg.Features.SBOM.Enabled
+
+		// SBOM HOST
+		if cfg.Features.SBOM.Host != nil {
+			if newdda.Spec.Features.SBOM.Host == nil {
+				newdda.Spec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
+			}
+			if newdda.Spec.Features.SBOM.Host.Enabled == nil {
+				newdda.Spec.Features.SBOM.Host.Enabled = new(bool)
+			}
+			newdda.Spec.Features.SBOM.Host.Enabled = cfg.Features.SBOM.Host.Enabled
+		}
+
+		// SBOM CONTAINER IMAGE
+		if cfg.Features.SBOM.ContainerImage != nil {
+			if newdda.Spec.Features.SBOM.ContainerImage == nil {
+				newdda.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+			}
+			if newdda.Spec.Features.SBOM.ContainerImage.Enabled == nil {
+				newdda.Spec.Features.SBOM.ContainerImage.Enabled = new(bool)
+			}
+			newdda.Spec.Features.SBOM.ContainerImage.Enabled = cfg.Features.SBOM.ContainerImage.Enabled
+		}
+
+	}
 
 	if !apiutils.IsEqualStruct(dda.Spec, newdda.Spec) {
 		return r.kubeClient.Update(context.TODO(), newdda)
@@ -260,6 +339,8 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 
 // configureService fills the configuration needed to start the rc service
 func (r *RemoteConfigUpdater) configureService(creds config.Creds) error {
+	ctx := context.TODO()
+
 	// Create config required for RC service
 	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	cfg.Set("api_key", creds.APIKey, model.SourceDefault)
@@ -279,6 +360,18 @@ func (r *RemoteConfigUpdater) configureService(creds config.Creds) error {
 	if err := os.MkdirAll(baseDir, 0777); err != nil {
 		return err
 	}
+
+	dda, err := r.getDatadogAgentInstance(ctx)
+	if err != nil {
+		r.logger.Error(err, "failed to get dda")
+	}
+
+	var clusterName string
+
+	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+		clusterName = *dda.Spec.Global.ClusterName
+	}
+	r.logger.Info("My", "clusterName", clusterName)
 
 	// TODO decide what to put for version, since NewService is expecting agentVersion (even "1.50.0" for operator doesn't work)
 	serviceConf := RcServiceConfiguration{
