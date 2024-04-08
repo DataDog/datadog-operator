@@ -27,7 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	// "github.com/DataDog/datadog-operator/pkg/version"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 const (
@@ -58,8 +58,8 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID       string          `json:"id"`
-	Features *FeaturesConfig `json:"core_agent"`
+	ID       string          `json:"name"`
+	Features *FeaturesConfig `json:"config"`
 }
 
 type FeaturesConfig struct {
@@ -157,7 +157,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		r.serviceConf.apiKey,
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		[]string{r.serviceConf.clusterName},
+		[]string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)},
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithDatabaseFileName(filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))))
@@ -169,7 +169,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 	rcClient, err := client.NewClient(
 		rcService,
-		client.WithAgent("datadog-operator", "9.9.9"),
+		client.WithAgent("datadog-operator", version.Version),
 		client.WithProducts(state.ProductAgentConfig),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(10*time.Second))
