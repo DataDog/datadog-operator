@@ -46,7 +46,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -298,14 +297,6 @@ func run(opts *options) error {
 	}
 
 	// +kubebuilder:scaffold:builder
-
-	// Start RemoteConfig service and client
-	if os.Getenv("DD_OPERATOR_REMOTE_CONFIGURATION_ENABLED") == "true" {
-		setupLog.Info("starting remote config")
-		if err := remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(options.Creds); err != nil {
-			return err
-		}
-	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
