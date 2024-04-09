@@ -65,7 +65,11 @@ spec:
                                       type: object
                                   type: object
                               type: object
+                            description: 'Configure the basic configurations for an Agent container Valid Agent container names are: `agent`'
                             type: object
+                          priorityClassName:
+                            description: If specified, indicates the pod's priority
+                            type: string
                         type: object
                       type: object
                   type: object

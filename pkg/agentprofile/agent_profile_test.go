@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 const testNamespace = "default"
@@ -596,6 +597,85 @@ func TestDaemonSetName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName))
+		})
+	}
+}
+
+func TestPriorityClassNameOverride(t *testing.T) {
+	tests := []struct {
+		name                  string
+		profile               v1alpha1.DatadogAgentProfile
+		expectedpriorityClass *string
+	}{
+		{
+			name:                  "empty profile",
+			profile:               v1alpha1.DatadogAgentProfile{},
+			expectedpriorityClass: nil,
+		},
+		{
+			name: "profile with no priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers: map[common.AgentContainerName]*v1alpha1.Container{},
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: nil,
+		},
+		{
+			name: "profile with empty priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
+								PriorityClassName: apiutils.NewStringPointer(""),
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: apiutils.NewStringPointer(""),
+		},
+		{
+			name: "profile with priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
+								PriorityClassName: apiutils.NewStringPointer("bar"),
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: apiutils.NewStringPointer("bar"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedpriorityClass, priorityClassNameOverride(&test.profile))
 		})
 	}
 }

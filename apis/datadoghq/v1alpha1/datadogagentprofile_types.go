@@ -34,7 +34,12 @@ type Config struct {
 }
 
 type Override struct {
+	// Configure the basic configurations for an Agent container
+	// Valid Agent container names are: `agent`
 	Containers map[commonv1.AgentContainerName]*Container `json:"containers,omitempty"`
+
+	// If specified, indicates the pod's priority
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 type Container struct {
