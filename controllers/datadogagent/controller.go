@@ -30,6 +30,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
@@ -84,6 +85,7 @@ type Reconciler struct {
 	log          logr.Logger
 	recorder     record.EventRecorder
 	forwarders   datadog.MetricForwardersManager
+	rcUpdater    *remoteconfig.RemoteConfigUpdater
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

@@ -46,7 +46,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.52.0-rc.6
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.52.0-rc.6
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.52.0-rc.6
-	github.com/DataDog/datadog-agent/pkg/util/log v0.52.0-rc.6
 )
 
 require (
@@ -63,6 +62,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/cache v0.52.0-rc.6 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/grpc v0.52.0-rc.6 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/http v0.52.0-rc.6 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/log v0.52.0-rc.6 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.52.0-rc.6 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/uuid v0.52.0-rc.6 // indirect
 	github.com/DataDog/datadog-go/v5 v5.3.1-0.20231115110321-54ec306d83b2 // indirect
