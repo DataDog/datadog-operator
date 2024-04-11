@@ -199,7 +199,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	// Tell rc that we have received the configurations
 	var configIDs []string
-	for id, _ := range updates {
+	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 		configIDs = append(configIDs, id)
 	}
