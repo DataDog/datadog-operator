@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -28,10 +29,16 @@ func init() {
 func buildLiveContainerFeature(options *feature.Options) feature.Feature {
 	liveContainerFeat := &liveContainerFeature{}
 
+	if options != nil {
+		liveContainerFeat.runInCoreAgent = options.ProcessChecksInCoreAgentEnabled
+	}
+
 	return liveContainerFeat
 }
 
-type liveContainerFeature struct{}
+type liveContainerFeature struct {
+	runInCoreAgent bool
+}
 
 // ID returns the ID of the Feature
 func (f *liveContainerFeature) ID() feature.IDType {
@@ -41,13 +48,20 @@ func (f *liveContainerFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
+		reqContainers := []apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+		}
+
+		f.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.runInCoreAgent)
+
+		if !f.runInCoreAgent {
+			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
+		}
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-				},
+				Containers: reqContainers,
 			},
 		}
 	}
@@ -88,6 +102,11 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&f.runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
 	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
@@ -95,7 +114,19 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers, provider)
+	// Always add this envvar to Core and Process containers
+	runInCoreAgentEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Value: apiutils.BoolToString(&f.runInCoreAgent),
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+
+	containerName := apicommonv1.CoreAgentContainerName
+	if !f.runInCoreAgent {
+		containerName = apicommonv1.ProcessAgentContainerName
+	}
+	f.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
 
