@@ -66,13 +66,13 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions    componentagent.ExtendedDaemonsetOptions
-	SupportCilium               bool
-	OperatorMetricsEnabled      bool
-	V2Enabled                   bool
-	IntrospectionEnabled        bool
-	DatadogAgentProfileEnabled  bool
-	RunProcessChecksOnCoreAgent bool
+	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	V2Enabled                       bool
+	IntrospectionEnabled            bool
+	DatadogAgentProfileEnabled      bool
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -165,9 +165,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset:    opts.ExtendedDaemonsetOptions.Enabled,
-		Logger:                      logger,
-		RunProcessChecksOnCoreAgent: opts.RunProcessChecksOnCoreAgent,
+		SupportExtendedDaemonset:        opts.ExtendedDaemonsetOptions.Enabled,
+		Logger:                          logger,
+		ProcessChecksInCoreAgentEnabled: opts.ProcessChecksInCoreAgentEnabled,
 	}
 }
 

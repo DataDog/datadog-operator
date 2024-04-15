@@ -75,7 +75,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure:  true,
-			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
 			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true, false),
 		},
 		{
@@ -90,7 +90,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure:  true,
-			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
 		},
 		{
@@ -106,7 +106,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				).
 				Build(),
 			WantConfigure:  true,
-			FeatureOptions: &feature.Options{RunProcessChecksOnCoreAgent: true},
+			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
 		},
 		{

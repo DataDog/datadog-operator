@@ -156,7 +156,7 @@ type Options struct {
 
 	Logger logr.Logger
 
-	RunProcessChecksOnCoreAgent bool
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

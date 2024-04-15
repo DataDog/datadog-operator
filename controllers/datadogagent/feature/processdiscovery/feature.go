@@ -9,7 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -24,7 +24,7 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 	pdFeat := &processDiscoveryFeature{}
 
 	if options != nil {
-		pdFeat.runInCoreAgent = options.RunProcessChecksOnCoreAgent
+		pdFeat.runInCoreAgent = options.ProcessChecksInCoreAgentEnabled
 	}
 
 	return pdFeat
@@ -45,7 +45,7 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 			apicommonv1.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = liveprocess.OverrideRunInCoreAgent(dda, p.runInCoreAgent)
+		p.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, p.runInCoreAgent)
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
@@ -74,16 +74,18 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 }
 
 func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	containerName := apicommonv1.CoreAgentContainerName
-	if !p.runInCoreAgent {
-		containerName = apicommonv1.ProcessAgentContainerName
-	}
+	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+
+	containerName := apicommonv1.CoreAgentContainerName
+	if !p.runInCoreAgent {
+		containerName = apicommonv1.ProcessAgentContainerName
+	}
 	p.manageNodeAgent(containerName, managers, provider)
 	return nil
 }

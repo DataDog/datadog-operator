@@ -129,7 +129,7 @@ type options struct {
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
-	runProcessChecksOnCoreAgent            bool
+	processChecksInCoreAgentEnabled        bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -164,7 +164,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
-	flag.BoolVar(&opts.runProcessChecksOnCoreAgent, "runProcessChecksOnCoreAgent", false, "Enable running process checks on the core agent (beta)")
+	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -277,16 +277,16 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:               opts.supportCilium,
-		Creds:                       creds,
-		DatadogAgentEnabled:         opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:       opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:           opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:      opts.operatorMetricsEnabled,
-		V2APIEnabled:                opts.v2APIEnabled,
-		IntrospectionEnabled:        opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:  opts.datadogAgentProfileEnabled,
-		RunProcessChecksOnCoreAgent: opts.runProcessChecksOnCoreAgent,
+		SupportCilium:                   opts.supportCilium,
+		Creds:                           creds,
+		DatadogAgentEnabled:             opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:           opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:               opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:          opts.operatorMetricsEnabled,
+		V2APIEnabled:                    opts.v2APIEnabled,
+		IntrospectionEnabled:            opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
+		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

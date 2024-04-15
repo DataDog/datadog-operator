@@ -15,7 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -30,7 +30,7 @@ func buildLiveContainerFeature(options *feature.Options) feature.Feature {
 	liveContainerFeat := &liveContainerFeature{}
 
 	if options != nil {
-		liveContainerFeat.runInCoreAgent = options.RunProcessChecksOnCoreAgent
+		liveContainerFeat.runInCoreAgent = options.ProcessChecksInCoreAgentEnabled
 	}
 
 	return liveContainerFeat
@@ -52,7 +52,7 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			apicommonv1.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = liveprocess.OverrideRunInCoreAgent(dda, f.runInCoreAgent)
+		f.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.runInCoreAgent)
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
@@ -114,16 +114,18 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	containerName := apicommonv1.CoreAgentContainerName
-	if !f.runInCoreAgent {
-		containerName = apicommonv1.ProcessAgentContainerName
-	}
+	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+
+	containerName := apicommonv1.CoreAgentContainerName
+	if !f.runInCoreAgent {
+		containerName = apicommonv1.ProcessAgentContainerName
+	}
 	f.manageNodeAgent(containerName, managers, provider)
 	return nil
 }
