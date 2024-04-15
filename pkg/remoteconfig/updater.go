@@ -58,21 +58,24 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID          string                     `json:"name"`
-	CoreAgent   *CoreAgentFeaturesConfig   `json:"config"`
-	SystemProbe *SystemProbeFeaturesConfig `json:"system_probe"`
+	ID            string                       `json:"name"`
+	CoreAgent     *CoreAgentFeaturesConfig     `json:"config"`
+	SystemProbe   *SystemProbeFeaturesConfig   `json:"system-probe"`
+	SecurityAgent *SecurityAgentFeaturesConfig `json:"security-agent"`
 }
 
 type CoreAgentFeaturesConfig struct {
-	CWS  *FeatureEnabledConfig `json:"runtime_security_config"`
-	CSPM *FeatureEnabledConfig `json:"compliance_config"`
-	SBOM *SbomConfig           `json:"sbom"`
+	SBOM *SbomConfig `json:"sbom"`
 }
 
 type SystemProbeFeaturesConfig struct {
+	CWS *FeatureEnabledConfig `json:"runtime_security_config"`
 	USM *FeatureEnabledConfig `json:"service_monitoring_config"`
 }
 
+type SecurityAgentFeaturesConfig struct {
+	CSPM *FeatureEnabledConfig `json:"compliance_config"`
+}
 type SbomConfig struct {
 	Enabled        *bool                 `json:"enabled"`
 	Host           *FeatureEnabledConfig `json:"host"`
@@ -337,24 +340,6 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 		if dst.CoreAgent == nil {
 			dst.CoreAgent = &CoreAgentFeaturesConfig{}
 		}
-
-		// Merging CoreAgentFeaturesConfig
-		if src.CoreAgent.CWS != nil {
-			if dst.CoreAgent.CWS == nil {
-				dst.CoreAgent.CWS = &FeatureEnabledConfig{}
-			}
-			if src.CoreAgent.CWS.Enabled != nil {
-				dst.CoreAgent.CWS.Enabled = src.CoreAgent.CWS.Enabled
-			}
-		}
-		if src.CoreAgent.CSPM != nil {
-			if dst.CoreAgent.CSPM == nil {
-				dst.CoreAgent.CSPM = &FeatureEnabledConfig{}
-			}
-			if src.CoreAgent.CSPM.Enabled != nil {
-				dst.CoreAgent.CSPM.Enabled = src.CoreAgent.CSPM.Enabled
-			}
-		}
 		if src.CoreAgent.SBOM != nil {
 			if dst.CoreAgent.SBOM == nil {
 				dst.CoreAgent.SBOM = &SbomConfig{}
@@ -388,7 +373,7 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 		if dst.SystemProbe == nil {
 			dst.SystemProbe = &SystemProbeFeaturesConfig{}
 		}
-		// Merging SystemProbeFeaturesConfig
+		// Merging USM
 		if src.SystemProbe.USM != nil {
 			if dst.SystemProbe.USM == nil {
 				dst.SystemProbe.USM = &FeatureEnabledConfig{}
@@ -397,7 +382,33 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 				dst.SystemProbe.USM.Enabled = src.SystemProbe.USM.Enabled
 			}
 		}
+		// Merging CWS
+		if src.SystemProbe.CWS != nil {
+			if dst.SystemProbe.CWS == nil {
+				dst.SystemProbe.CWS = &FeatureEnabledConfig{}
+			}
+			if src.SystemProbe.CWS.Enabled != nil {
+				dst.SystemProbe.CWS.Enabled = src.SystemProbe.CWS.Enabled
+			}
+		}
+
 	}
+
+	// SecurityAgent
+	if src.SecurityAgent != nil {
+		if dst.SecurityAgent == nil {
+			dst.SecurityAgent = &SecurityAgentFeaturesConfig{}
+		}
+		if src.SecurityAgent.CSPM != nil {
+			if dst.SecurityAgent.CSPM == nil {
+				dst.SecurityAgent.CSPM = &FeatureEnabledConfig{}
+			}
+			if src.SecurityAgent.CSPM.Enabled != nil {
+				dst.SecurityAgent.CSPM.Enabled = src.SecurityAgent.CSPM.Enabled
+			}
+		}
+	}
+
 }
 
 func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
@@ -424,7 +435,7 @@ func (r *RemoteConfigUpdater) applyConfig(ctx context.Context, dda v2alpha1.Data
 
 func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
 
-	if cfg.CoreAgent == nil && cfg.SystemProbe == nil {
+	if cfg.CoreAgent == nil && cfg.SystemProbe == nil && cfg.SecurityAgent == nil {
 		return nil
 	}
 
@@ -434,25 +445,25 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	}
 
 	// CWS
-	if cfg.CoreAgent.CWS != nil {
+	if cfg.SystemProbe.CWS != nil {
 		if newdda.Spec.Features.CWS == nil {
 			newdda.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 		}
 		if newdda.Spec.Features.CWS.Enabled == nil {
 			newdda.Spec.Features.CWS.Enabled = new(bool)
 		}
-		newdda.Spec.Features.CWS.Enabled = cfg.CoreAgent.CWS.Enabled
+		newdda.Spec.Features.CWS.Enabled = cfg.SystemProbe.CWS.Enabled
 	}
 
 	// CSPM
-	if cfg.CoreAgent.CSPM != nil {
+	if cfg.SecurityAgent.CSPM != nil {
 		if newdda.Spec.Features.CSPM == nil {
 			newdda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 		}
 		if newdda.Spec.Features.CSPM.Enabled == nil {
 			newdda.Spec.Features.CSPM.Enabled = new(bool)
 		}
-		newdda.Spec.Features.CSPM.Enabled = cfg.CoreAgent.CSPM.Enabled
+		newdda.Spec.Features.CSPM.Enabled = cfg.SecurityAgent.CSPM.Enabled
 	}
 
 	// SBOM
@@ -487,17 +498,17 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 			newdda.Spec.Features.SBOM.ContainerImage.Enabled = cfg.CoreAgent.SBOM.ContainerImage.Enabled
 		}
 
-		// USM
-		if cfg.SystemProbe.USM != nil {
-			if newdda.Spec.Features.USM == nil {
-				newdda.Spec.Features.USM = &v2alpha1.USMFeatureConfig{}
-			}
-			if newdda.Spec.Features.USM.Enabled == nil {
-				newdda.Spec.Features.USM.Enabled = new(bool)
-			}
-			newdda.Spec.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
-		}
+	}
 
+	// USM
+	if cfg.SystemProbe.USM != nil {
+		if newdda.Spec.Features.USM == nil {
+			newdda.Spec.Features.USM = &v2alpha1.USMFeatureConfig{}
+		}
+		if newdda.Spec.Features.USM.Enabled == nil {
+			newdda.Spec.Features.USM.Enabled = new(bool)
+		}
+		newdda.Spec.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
 	}
 
 	if !apiutils.IsEqualStruct(dda.Spec, newdda.Spec) {
