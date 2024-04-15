@@ -18,7 +18,6 @@ import (
 const (
 	manifestsPath       = "./manifests"
 	mgrKustomizeDirPath = "../../config/default"
-	imagePullSecretName = "registry-credentials"
 )
 
 var (
