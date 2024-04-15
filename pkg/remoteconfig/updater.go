@@ -58,14 +58,19 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID       string          `json:"name"`
-	Features *FeaturesConfig `json:"config"`
+	ID          string                     `json:"name"`
+	CoreAgent   *CoreAgentFeaturesConfig   `json:"config"`
+	SystemProbe *SystemProbeFeaturesConfig `json:"system_probe"`
 }
 
-type FeaturesConfig struct {
+type CoreAgentFeaturesConfig struct {
 	CWS  *FeatureEnabledConfig `json:"runtime_security_config"`
 	CSPM *FeatureEnabledConfig `json:"compliance_config"`
 	SBOM *SbomConfig           `json:"sbom"`
+}
+
+type SystemProbeFeaturesConfig struct {
+	USM *FeatureEnabledConfig `json:"service_monitoring_config"`
 }
 
 type SbomConfig struct {
@@ -327,52 +332,69 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 		dst.ID = src.ID
 	}
 
-	if src.Features != nil {
-		if dst.Features == nil {
-			dst.Features = &FeaturesConfig{}
+	// CoreAgent
+	if src.CoreAgent != nil {
+		if dst.CoreAgent == nil {
+			dst.CoreAgent = &CoreAgentFeaturesConfig{}
 		}
 
-		// Merging FeaturesConfig
-		if src.Features.CWS != nil {
-			if dst.Features.CWS == nil {
-				dst.Features.CWS = &FeatureEnabledConfig{}
+		// Merging CoreAgentFeaturesConfig
+		if src.CoreAgent.CWS != nil {
+			if dst.CoreAgent.CWS == nil {
+				dst.CoreAgent.CWS = &FeatureEnabledConfig{}
 			}
-			if src.Features.CWS.Enabled != nil {
-				dst.Features.CWS.Enabled = src.Features.CWS.Enabled
-			}
-		}
-		if src.Features.CSPM != nil {
-			if dst.Features.CSPM == nil {
-				dst.Features.CSPM = &FeatureEnabledConfig{}
-			}
-			if src.Features.CSPM.Enabled != nil {
-				dst.Features.CSPM.Enabled = src.Features.CSPM.Enabled
+			if src.CoreAgent.CWS.Enabled != nil {
+				dst.CoreAgent.CWS.Enabled = src.CoreAgent.CWS.Enabled
 			}
 		}
-		if src.Features.SBOM != nil {
-			if dst.Features.SBOM == nil {
-				dst.Features.SBOM = &SbomConfig{}
+		if src.CoreAgent.CSPM != nil {
+			if dst.CoreAgent.CSPM == nil {
+				dst.CoreAgent.CSPM = &FeatureEnabledConfig{}
 			}
-			if src.Features.SBOM.Enabled != nil {
-				dst.Features.SBOM.Enabled = src.Features.SBOM.Enabled
+			if src.CoreAgent.CSPM.Enabled != nil {
+				dst.CoreAgent.CSPM.Enabled = src.CoreAgent.CSPM.Enabled
+			}
+		}
+		if src.CoreAgent.SBOM != nil {
+			if dst.CoreAgent.SBOM == nil {
+				dst.CoreAgent.SBOM = &SbomConfig{}
+			}
+			if src.CoreAgent.SBOM.Enabled != nil {
+				dst.CoreAgent.SBOM.Enabled = src.CoreAgent.SBOM.Enabled
 			}
 			// Merging SbomConfig's Host
-			if src.Features.SBOM.Host != nil {
-				if dst.Features.SBOM.Host == nil {
-					dst.Features.SBOM.Host = &FeatureEnabledConfig{}
+			if src.CoreAgent.SBOM.Host != nil {
+				if dst.CoreAgent.SBOM.Host == nil {
+					dst.CoreAgent.SBOM.Host = &FeatureEnabledConfig{}
 				}
-				if src.Features.SBOM.Host.Enabled != nil {
-					dst.Features.SBOM.Host.Enabled = src.Features.SBOM.Host.Enabled
+				if src.CoreAgent.SBOM.Host.Enabled != nil {
+					dst.CoreAgent.SBOM.Host.Enabled = src.CoreAgent.SBOM.Host.Enabled
 				}
 			}
 			// Merging SbomConfig's ContainerImage
-			if src.Features.SBOM.ContainerImage != nil {
-				if dst.Features.SBOM.ContainerImage == nil {
-					dst.Features.SBOM.ContainerImage = &FeatureEnabledConfig{}
+			if src.CoreAgent.SBOM.ContainerImage != nil {
+				if dst.CoreAgent.SBOM.ContainerImage == nil {
+					dst.CoreAgent.SBOM.ContainerImage = &FeatureEnabledConfig{}
 				}
-				if src.Features.SBOM.ContainerImage.Enabled != nil {
-					dst.Features.SBOM.ContainerImage.Enabled = src.Features.SBOM.ContainerImage.Enabled
+				if src.CoreAgent.SBOM.ContainerImage.Enabled != nil {
+					dst.CoreAgent.SBOM.ContainerImage.Enabled = src.CoreAgent.SBOM.ContainerImage.Enabled
 				}
+			}
+		}
+	}
+
+	// SystemProbe
+	if src.SystemProbe != nil {
+		if dst.SystemProbe == nil {
+			dst.SystemProbe = &SystemProbeFeaturesConfig{}
+		}
+		// Merging SystemProbeFeaturesConfig
+		if src.SystemProbe.USM != nil {
+			if dst.SystemProbe.USM == nil {
+				dst.SystemProbe.USM = &FeatureEnabledConfig{}
+			}
+			if src.SystemProbe.USM.Enabled != nil {
+				dst.SystemProbe.USM.Enabled = src.SystemProbe.USM.Enabled
 			}
 		}
 	}
@@ -402,7 +424,7 @@ func (r *RemoteConfigUpdater) applyConfig(ctx context.Context, dda v2alpha1.Data
 
 func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
 
-	if cfg.Features == nil {
+	if cfg.CoreAgent == nil && cfg.SystemProbe == nil {
 		return nil
 	}
 
@@ -412,57 +434,68 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	}
 
 	// CWS
-	if cfg.Features.CWS != nil {
+	if cfg.CoreAgent.CWS != nil {
 		if newdda.Spec.Features.CWS == nil {
 			newdda.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 		}
 		if newdda.Spec.Features.CWS.Enabled == nil {
 			newdda.Spec.Features.CWS.Enabled = new(bool)
 		}
-		newdda.Spec.Features.CWS.Enabled = cfg.Features.CWS.Enabled
+		newdda.Spec.Features.CWS.Enabled = cfg.CoreAgent.CWS.Enabled
 	}
 
 	// CSPM
-	if cfg.Features.CSPM != nil {
+	if cfg.CoreAgent.CSPM != nil {
 		if newdda.Spec.Features.CSPM == nil {
 			newdda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 		}
 		if newdda.Spec.Features.CSPM.Enabled == nil {
 			newdda.Spec.Features.CSPM.Enabled = new(bool)
 		}
-		newdda.Spec.Features.CSPM.Enabled = cfg.Features.CSPM.Enabled
+		newdda.Spec.Features.CSPM.Enabled = cfg.CoreAgent.CSPM.Enabled
 	}
 
 	// SBOM
-	if cfg.Features.SBOM != nil {
+	if cfg.CoreAgent.SBOM != nil {
 		if newdda.Spec.Features.SBOM == nil {
 			newdda.Spec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 		}
 		if newdda.Spec.Features.SBOM.Enabled == nil {
 			newdda.Spec.Features.SBOM.Enabled = new(bool)
 		}
-		newdda.Spec.Features.SBOM.Enabled = cfg.Features.SBOM.Enabled
+		newdda.Spec.Features.SBOM.Enabled = cfg.CoreAgent.SBOM.Enabled
 
 		// SBOM HOST
-		if cfg.Features.SBOM.Host != nil {
+		if cfg.CoreAgent.SBOM.Host != nil {
 			if newdda.Spec.Features.SBOM.Host == nil {
 				newdda.Spec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
 			}
 			if newdda.Spec.Features.SBOM.Host.Enabled == nil {
 				newdda.Spec.Features.SBOM.Host.Enabled = new(bool)
 			}
-			newdda.Spec.Features.SBOM.Host.Enabled = cfg.Features.SBOM.Host.Enabled
+			newdda.Spec.Features.SBOM.Host.Enabled = cfg.CoreAgent.SBOM.Host.Enabled
 		}
 
 		// SBOM CONTAINER IMAGE
-		if cfg.Features.SBOM.ContainerImage != nil {
+		if cfg.CoreAgent.SBOM.ContainerImage != nil {
 			if newdda.Spec.Features.SBOM.ContainerImage == nil {
 				newdda.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
 			}
 			if newdda.Spec.Features.SBOM.ContainerImage.Enabled == nil {
 				newdda.Spec.Features.SBOM.ContainerImage.Enabled = new(bool)
 			}
-			newdda.Spec.Features.SBOM.ContainerImage.Enabled = cfg.Features.SBOM.ContainerImage.Enabled
+			newdda.Spec.Features.SBOM.ContainerImage.Enabled = cfg.CoreAgent.SBOM.ContainerImage.Enabled
+		}
+
+		// USM
+		if cfg.SystemProbe.USM != nil {
+			if newdda.Spec.Features.USM == nil {
+				newdda.Spec.Features.USM = &v2alpha1.USMFeatureConfig{}
+			}
+			if newdda.Spec.Features.USM.Enabled == nil {
+				newdda.Spec.Features.USM.Enabled = new(bool)
+			}
+			newdda.Spec.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
 		}
 
 	}
