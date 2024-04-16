@@ -7,6 +7,8 @@ resources:
 - bases/v1/datadoghq.com_datadogmonitors.yaml
 - bases/v1/datadoghq.com_datadogslos.yaml
 - bases/v1/datadoghq.com_datadogagentprofiles.yaml
+# Currently not shipping DPA
+# - bases/v1/datadoghq.com_datadogpodautoscalers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
@@ -16,6 +18,7 @@ patchesStrategicMerge:
 #- patches/webhook_in_datadogmetrics.yaml
 #- patches/webhook_in_datadogmonitors.yaml
 #- patches/webhook_in_datadogagentprofiles.yaml
+#- patches/webhook_in_datadogpodautoscalers.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
@@ -24,6 +27,7 @@ patchesStrategicMerge:
 #- patches/cainjection_in_datadogmetrics.yaml
 #- patches/cainjection_in_datadogmonitors.yaml
 #- patches/cainjection_in_datadogagentprofiles.yaml
+#- patches/cainjection_in_datadogpodautoscalers.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.
