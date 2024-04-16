@@ -1,0 +1,16 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSLO
+metadata:
+  name: datadogslo-sample
+spec:
+  name: datadogslo-sample
+  description: "This is an example metric SLO from datadog-operator"
+  query:
+    denominator: "sum:requests.total{service:example,env:prod}.as_count()"
+    numerator: "sum:requests.success{service:example,env:prod}.as_count()"
+  tags:
+    - "service:example"
+    - "env:prod"
+  targetThreshold: "99.9"
+  timeframe: "7d"
+  type: "metric"
