@@ -101,7 +101,7 @@ The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed tes
 Internal Datadog users may run E2E locally after completing the following prerequisites:
 
 * Access to the AWS `agent-sandbox` account
-* AWS keypair with your public ssh key created in the `agent-sandbox` account
+* AWS keypair with your public SSH key created in the `agent-sandbox` account
 * Set environment variable `PULUMI_CONFIG_PASSPHRASE`
 * Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
 * Add `go.work` file to root directory:
