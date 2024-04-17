@@ -17,16 +17,16 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-agent/pkg/config/model"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -47,7 +47,6 @@ type RemoteConfigUpdater struct {
 type RcServiceConfiguration struct {
 	cfg               model.Config
 	apiKey            string
-	site              string
 	baseRawURL        string
 	hostname          string
 	clusterName       string
@@ -83,70 +82,41 @@ type agentConfigOrder struct {
 }
 
 // TODO replace
-type dummyRcTelemetryReporter struct{}
+type dummyTelemetryReporter struct{}
 
-func (d dummyRcTelemetryReporter) IncRateLimit() {}
-func (d dummyRcTelemetryReporter) IncTimeout()   {}
+func (d dummyTelemetryReporter) IncRateLimit() {}
+func (d dummyTelemetryReporter) IncTimeout()   {}
 
-func (r *RemoteConfigUpdater) Setup(dda *v2alpha1.DatadogAgent) error {
-	// Get API Key from DatadogAgent
-	apiKey, err := r.getAPIKeyFromDatadogAgent(dda)
-	if err != nil {
-		return err
+func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
+	apiKey := creds.APIKey
+	if apiKey == "" {
+		return errors.New("error obtaining API key")
 	}
 
-	// Extract needed configs from the DatadogAgent
-	var site string
-	if dda.Spec.Global.Site != nil && *dda.Spec.Global.Site != "" {
-		site = *dda.Spec.Global.Site
-	}
-
-	var clusterName string
-	if dda.Spec.Global.ClusterName != nil && *dda.Spec.Global.ClusterName != "" {
-		clusterName = *dda.Spec.Global.ClusterName
-	}
-
-	var rcDirectorRoot string
-	if dda.Spec.Features.RemoteConfiguration.DirectorRoot != nil && *dda.Spec.Features.RemoteConfiguration.DirectorRoot != "" {
-		rcDirectorRoot = *dda.Spec.Features.RemoteConfiguration.DirectorRoot
-	}
-	var rcConfigRoot string
-	if dda.Spec.Features.RemoteConfiguration.ConfigRoot != nil && *dda.Spec.Features.RemoteConfiguration.ConfigRoot != "" {
-		rcConfigRoot = *dda.Spec.Features.RemoteConfiguration.ConfigRoot
-	}
-
-	var rcEndpoint string
-	if dda.Spec.Features.RemoteConfiguration.Endpoint != nil && *dda.Spec.Features.RemoteConfiguration.Endpoint != "" {
-		rcEndpoint = *dda.Spec.Features.RemoteConfiguration.Endpoint
-	}
+	site := os.Getenv(common.DDSite) // TODO support DD_URL as well
+	clusterName := os.Getenv(common.DDClusterName)
+	directorRoot := os.Getenv("DD_REMOTE_CONFIGURATION_DIRECTOR_ROOT")
+	configRoot := os.Getenv("DD_REMOTE_CONFIGURATION_CONFIG_ROOT")
+	endpoint := os.Getenv("DD_REMOTE_CONFIGURATION_RC_DD_URL")
 
 	if r.rcClient == nil && r.rcService == nil {
 		// If rcClient && rcService not setup yet
-		err = r.Start(apiKey, site, clusterName, rcDirectorRoot, rcConfigRoot, rcEndpoint)
-		if err != nil {
-			return err
-		}
-	} else if apiKey != r.serviceConf.apiKey || site != r.serviceConf.site || clusterName != r.serviceConf.clusterName || rcEndpoint != r.serviceConf.baseRawURL {
-		// If one of configs has been updated
-		err := r.Stop()
-		if err != nil {
-			return err
-		}
-		err = r.Start(apiKey, site, clusterName, rcDirectorRoot, rcConfigRoot, rcEndpoint)
+		err := r.Start(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 
 }
 
-func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, rcDirectorRoot string, rcConfigRoot string, rcEndpoint string) error {
+func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
 
-	r.logger.Info("starting Remote Configuration client and service")
+	r.logger.Info("Starting Remote Configuration client and service")
 
 	// Fill in rc service configuration
-	err := r.configureService(apiKey, site, clusterName, rcDirectorRoot, rcConfigRoot, rcEndpoint)
+	err := r.configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint)
 	if err != nil {
 		r.logger.Error(err, "Failed to configure Remote Configuration service")
 		return err
@@ -190,10 +160,53 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	return nil
 }
 
+// configureService fills the configuration needed to start the rc service
+func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, directorRoot, configRoot, endpoint string) error {
+	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+
+	cfg.SetWithoutSource("api_key", apiKey)
+	cfg.SetWithoutSource("remote_configuration.config_root", configRoot)
+	cfg.SetWithoutSource("remote_configuration.director_root", directorRoot)
+	hostname, _ := os.Hostname()
+
+	if endpoint == "" {
+		endpoint = getEndpoint(remoteConfigUrlPrefix, site)
+	}
+
+	// TODO change to a different dir
+	baseDir := filepath.Join(os.TempDir(), "datadog-operator")
+	if err := os.MkdirAll(baseDir, 0777); err != nil {
+		return err
+	}
+
+	// TODO decide what to put for version, since NewService is expecting agentVersion (even "1.50.0" for operator doesn't work)
+	serviceConf := RcServiceConfiguration{
+		cfg:               cfg,
+		apiKey:            apiKey,
+		baseRawURL:        endpoint,
+		hostname:          hostname,
+		clusterName:       clusterName,
+		telemetryReporter: dummyTelemetryReporter{},
+		agentVersion:      "7.50.0",
+		rcDatabaseDir:     baseDir,
+	}
+	r.serviceConf = serviceConf
+	return nil
+}
+
+// getEndpoint returns the Remote Config endpoint, based on `site` and the prefix
+func getEndpoint(prefix, site string) string {
+	if site != "" {
+		return prefix + strings.TrimSpace(site)
+	}
+	return prefix + defaultSite
+}
+
 func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 
 	ctx := context.Background()
 
+	// TODO rm
 	r.logger.Info("agentConfigUpdateCallback is called")
 	r.logger.Info("Received", "updates", updates)
 
@@ -206,18 +219,19 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 
 	mergedUpdate, err := r.parseReceivedUpdates(updates, applyStatus)
 	if err != nil {
-		r.logger.Error(err, "failed to merge updates")
+		r.logger.Error(err, "Failed to merge updates")
 		return
 	}
 	r.logger.Info("Merged", "update", mergedUpdate)
 
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
-		r.logger.Error(err, "failed to get updatable agents")
+		r.logger.Error(err, "Failed to get updatable agents")
+		return
 	}
 
 	if err := r.applyConfig(ctx, dda, mergedUpdate); err != nil {
-		r.logger.Error(err, "failed to apply config")
+		r.logger.Error(err, "Failed to apply config")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
 	}
@@ -227,56 +241,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 	}
 
-	r.logger.Info("successfully applied config!")
-}
-
-func (r *RemoteConfigUpdater) getAPIKeyFromDatadogAgent(dda *v2alpha1.DatadogAgent) (string, error) {
-	var err error
-	apiKey := ""
-
-	// If APIKey is set directly
-	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
-		return *dda.Spec.Global.Credentials.APIKey, nil
-	}
-
-	// If a secret is used
-	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil {
-		isSet, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, v2alpha1.GetDefaultCredentialsSecretName(dda))
-		if isSet {
-			apiKey, err = r.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
-			if err != nil {
-				return "", err
-			}
-			return apiKey, nil
-		}
-	}
-	return "", fmt.Errorf("no APIKey set")
-
-}
-
-func (r *RemoteConfigUpdater) getKeyFromSecret(namespace, secretName, dataKey string) (string, error) {
-	secret := &corev1.Secret{}
-	err := r.kubeClient.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretName}, secret)
-	if err != nil {
-		return "", err
-	}
-
-	return string(secret.Data[dataKey]), nil
-}
-
-func (r *RemoteConfigUpdater) Stop() error {
-	if r.rcService != nil {
-		err := r.rcService.Stop()
-		if err != nil {
-			return err
-		}
-	}
-	if r.rcClient != nil {
-		r.rcClient.Close()
-	}
-	r.rcService = nil
-	r.rcClient = nil
-	return nil
+	r.logger.Info("Successfully applied config")
 }
 
 func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
@@ -474,53 +439,24 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	return nil
 }
 
-// configureService fills the configuration needed to start the rc service
-func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, rcDirectorRoot, rcConfigRoot, rcEndpoint string) error {
-	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-
-	cfg.SetWithoutSource("api_key", apiKey)
-	cfg.SetWithoutSource("remote_configuration.config_root", rcConfigRoot)
-	cfg.SetWithoutSource("remote_configuration.director_root", rcDirectorRoot)
-	hostname, _ := os.Hostname()
-
-	baseRawURL := getRemoteConfigEndpoint(rcEndpoint, remoteConfigUrlPrefix, site)
-
-	// TODO change to a different dir
-	baseDir := filepath.Join(os.TempDir(), "datadog-operator")
-	if err := os.MkdirAll(baseDir, 0777); err != nil {
-		return err
+func (r *RemoteConfigUpdater) Stop() error {
+	if r.rcService != nil {
+		err := r.rcService.Stop()
+		if err != nil {
+			return err
+		}
 	}
-
-	// TODO decide what to put for version, since NewService is expecting agentVersion (even "1.50.0" for operator doesn't work)
-	serviceConf := RcServiceConfiguration{
-		cfg:               cfg,
-		apiKey:            apiKey,
-		baseRawURL:        baseRawURL,
-		hostname:          hostname,
-		clusterName:       clusterName,
-		telemetryReporter: dummyRcTelemetryReporter{},
-		agentVersion:      "7.50.0",
-		// agentVersion:  version.Version,
-		rcDatabaseDir: baseDir,
+	if r.rcClient != nil {
+		r.rcClient.Close()
 	}
-	r.serviceConf = serviceConf
+	r.rcService = nil
+	r.rcClient = nil
 	return nil
-}
-
-// getRemoteConfigEndpoint returns the main DD URL defined in the config, based on `site` and the prefix
-func getRemoteConfigEndpoint(rcEndpoint, prefix, site string) string {
-	if rcEndpoint != "" {
-		return rcEndpoint
-	}
-	if site != "" {
-		return prefix + strings.TrimSpace(site)
-	}
-	return prefix + defaultSite
 }
 
 func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *RemoteConfigUpdater {
 	return &RemoteConfigUpdater{
 		kubeClient: client,
-		logger:     logger.WithName("remote-config"),
+		logger:     logger,
 	}
 }
