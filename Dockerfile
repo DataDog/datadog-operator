@@ -34,9 +34,15 @@ LABEL description="Datadog provides a modern monitoring and analytics platform. 
 WORKDIR /
 COPY --from=builder /workspace/manager .
 
-COPY --from=builder /workspace/helpers .
-COPY scripts/readsecret.sh .
-RUN chmod 550 readsecret.sh && chmod 550 helpers
+RUN microdnf --nodocs -y install shadow-utils \
+  && adduser --no-create-home --uid 1001 dd-operator \
+  && addgroup --gid 1002 --users dd-operator secret-manager \
+  && microdnf -y remove shadow-utils \
+  && microdnf clean all
+
+
+COPY --chown=1001:1002 --chmod=550 --from=builder /workspace/helpers .
+COPY --chown=1001:1002 --chmod=550 scripts/readsecret.sh .
 
 RUN mkdir -p /licences
 COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
