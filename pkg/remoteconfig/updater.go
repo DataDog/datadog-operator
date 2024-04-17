@@ -60,8 +60,8 @@ type RcServiceConfiguration struct {
 type DatadogAgentRemoteConfig struct {
 	ID            string                       `json:"name"`
 	CoreAgent     *CoreAgentFeaturesConfig     `json:"config"`
-	SystemProbe   *SystemProbeFeaturesConfig   `json:"system-probe"`
-	SecurityAgent *SecurityAgentFeaturesConfig `json:"security-agent"`
+	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe"`
+	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent"`
 }
 
 type CoreAgentFeaturesConfig struct {
@@ -203,7 +203,6 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 	ctx := context.Background()
 
 	r.logger.Info("agentConfigUpdateCallback is called")
-	r.logger.Info("Received", "updates", updates)
 
 	// Tell rc that we have received the configurations
 	var configIDs []string
@@ -435,17 +434,13 @@ func (r *RemoteConfigUpdater) applyConfig(ctx context.Context, dda v2alpha1.Data
 
 func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
 
-	if cfg.CoreAgent == nil && cfg.SystemProbe == nil && cfg.SecurityAgent == nil {
-		return nil
-	}
-
 	newdda := dda.DeepCopy()
 	if newdda.Spec.Features == nil {
 		newdda.Spec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
 	// CWS
-	if cfg.SystemProbe.CWS != nil {
+	if cfg.SystemProbe != nil && cfg.SystemProbe.CWS != nil {
 		if newdda.Spec.Features.CWS == nil {
 			newdda.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 		}
@@ -456,7 +451,7 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	}
 
 	// CSPM
-	if cfg.SecurityAgent.CSPM != nil {
+	if cfg.SecurityAgent != nil && cfg.SecurityAgent.CSPM != nil {
 		if newdda.Spec.Features.CSPM == nil {
 			newdda.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 		}
@@ -467,7 +462,7 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	}
 
 	// SBOM
-	if cfg.CoreAgent.SBOM != nil {
+	if cfg.CoreAgent != nil && cfg.CoreAgent.SBOM != nil {
 		if newdda.Spec.Features.SBOM == nil {
 			newdda.Spec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 		}
@@ -501,7 +496,7 @@ func (r *RemoteConfigUpdater) updateInstance(dda v2alpha1.DatadogAgent, cfg Data
 	}
 
 	// USM
-	if cfg.SystemProbe.USM != nil {
+	if cfg.SystemProbe != nil && cfg.SystemProbe.USM != nil {
 		if newdda.Spec.Features.USM == nil {
 			newdda.Spec.Features.USM = &v2alpha1.USMFeatureConfig{}
 		}
