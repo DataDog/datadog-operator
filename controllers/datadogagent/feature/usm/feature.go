@@ -153,6 +153,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
 
 	sysProbeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,

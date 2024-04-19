@@ -225,10 +225,10 @@ func (r *Reconciler) setupRemoteConfigService(logger logr.Logger, instance *data
 	if remoteConfigEnabled != nil && *remoteConfigEnabled {
 		if r.rcUpdater == nil {
 			r.rcUpdater = remoteconfig.NewRemoteConfigUpdater(r.client, logger)
-			err := r.rcUpdater.Setup(instance)
-			if err != nil {
-				logger.Error(err, "failed remote config service setup")
-			}
+		}
+		err := r.rcUpdater.Setup(instance)
+		if err != nil {
+			logger.Error(err, "failed remote config service setup")
 		}
 
 	}
