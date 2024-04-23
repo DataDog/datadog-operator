@@ -462,7 +462,7 @@ func TestProfilesToApply(t *testing.T) {
 	}
 }
 
-func TestComponentOverrideFromProfile(t *testing.T) {
+func TestOverrideFromProfile(t *testing.T) {
 	overrideNameForLinuxProfile := "datadog-agent-with-profile-default-linux"
 	overrideNameForExampleProfile := "datadog-agent-with-profile-default-example"
 
@@ -565,7 +565,7 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedOverride, ComponentOverrideFromProfile(&test.profile))
+			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile))
 		})
 	}
 }

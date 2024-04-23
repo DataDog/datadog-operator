@@ -100,9 +100,9 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v
 	return profilesToApply, profileAppliedPerNode, nil
 }
 
-// ComponentOverrideFromProfile returns the component override that should be
+// OverrideFromProfile returns the component override that should be
 // applied according to the given profile.
-func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
 	if profile.Name == "" && profile.Namespace == "" {
 		return v2alpha1.DatadogAgentComponentOverride{}
 	}
