@@ -95,7 +95,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
-
 	newStatus := instance.Status.DeepCopy()
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))

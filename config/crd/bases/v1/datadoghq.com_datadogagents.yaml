@@ -8394,17 +8394,9 @@ spec:
                     remoteConfiguration:
                       description: Remote Configuration configuration.
                       properties:
-                        configRoot:
-                          description: Override Remote Config config root.
-                          type: string
-                        directorRoot:
-                          description: Override Remote Config director root.
-                          type: string
                         enabled:
                           description: 'Enable this option to activate Remote Configuration. Default: true'
                           type: boolean
-                        rc_dd_url:
-                          type: string
                       type: object
                     sbom:
                       description: SBOM collection configuration.

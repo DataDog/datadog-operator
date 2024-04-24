@@ -349,17 +349,6 @@ type RemoteConfigurationFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-
-	// Override Remote Config director root.
-	// +optional
-	DirectorRoot *string `json:"directorRoot,omitempty"`
-
-	// Override Remote Config config root.
-	// +optional
-	ConfigRoot *string `json:"configRoot,omitempty"`
-
-	// +optional
-	Endpoint *string `json:"rc_dd_url,omitempty"`
 }
 
 // SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
