@@ -2124,6 +2124,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"groupbySimpleMonitor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"locked": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether or not the monitor is locked (only editable by creator and admins).",
@@ -2159,6 +2166,21 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"notifyBy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A string indicating the granularity a monitor alerts on. Only available for monitors with groupings. For instance, a monitor grouped by cluster, namespace, and pod can be configured to only notify on each new cluster violating the alert conditions by setting notify_by to [\"cluster\"]. Tags mentioned in notify_by must be a subset of the grouping tags in the query. For example, a query grouped by cluster and namespace cannot notify on region. Setting notify_by to [*] configures the monitor to notify as a simple-alert.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"notifyNoData": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A Boolean indicating whether this monitor notifies when data stops reporting.",
@@ -2176,6 +2198,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					"renotifyInterval": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The number of minutes after the last notification before a monitor re-notifies on the current status. It only re-notifies if it’s not resolved.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"renotifyOccurrences": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of times re-notification messages should be sent on the current status at the provided re-notification interval.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},

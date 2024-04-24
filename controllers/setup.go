@@ -34,16 +34,17 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset   ExtendedDaemonsetOptions
-	SupportCilium              bool
-	Creds                      config.Creds
-	DatadogAgentEnabled        bool
-	DatadogMonitorEnabled      bool
-	DatadogSLOEnabled          bool
-	OperatorMetricsEnabled     bool
-	V2APIEnabled               bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
+	SupportExtendedDaemonset        ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	Creds                           config.Creds
+	DatadogAgentEnabled             bool
+	DatadogMonitorEnabled           bool
+	DatadogSLOEnabled               bool
+	OperatorMetricsEnabled          bool
+	V2APIEnabled                    bool
+	IntrospectionEnabled            bool
+	DatadogAgentProfileEnabled      bool
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -138,11 +139,12 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:              options.SupportCilium,
-			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
-			V2Enabled:                  options.V2APIEnabled,
-			IntrospectionEnabled:       options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			SupportCilium:                   options.SupportCilium,
+			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
+			V2Enabled:                       options.V2APIEnabled,
+			IntrospectionEnabled:            options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled:      options.DatadogAgentProfileEnabled,
+			ProcessChecksInCoreAgentEnabled: options.ProcessChecksInCoreAgentEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

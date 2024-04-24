@@ -16,11 +16,13 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -60,7 +62,11 @@ type orchestratorExplorerFeature struct {
 	logger                      logr.Logger
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+
+	processAgentRequired bool
 }
+
+const NoProcessAgentMinVersion = "7.51.0-0"
 
 // ID returns the ID of the Feature
 func (f *orchestratorExplorerFeature) ID() feature.IDType {
@@ -74,9 +80,19 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
+
+		// Process Agent is not required as of agent version 7.51.0
+		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+				f.processAgentRequired = true
+				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
+			}
+		}
+
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName},
+			Containers: reqContainers,
 		}
 
 		if orchestratorExplorer.Conf != nil {
@@ -116,6 +132,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
+	f.processAgentRequired = true
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
@@ -231,7 +248,9 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+		if f.processAgentRequired {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)
 	}
 

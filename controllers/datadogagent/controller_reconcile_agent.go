@@ -78,7 +78,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		if r.options.DatadogAgentProfileEnabled {
 			// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-			overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+			overrideFromProfile := agentprofile.OverrideFromProfile(profile)
 			componentOverrides = append(componentOverrides, &overrideFromProfile)
 		}
 
@@ -150,7 +150,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	if r.options.DatadogAgentProfileEnabled {
 		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-		overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+		overrideFromProfile := agentprofile.OverrideFromProfile(profile)
 		componentOverrides = append(componentOverrides, &overrideFromProfile)
 	}
 

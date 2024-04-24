@@ -33,6 +33,7 @@ func Test_buildMonitor(t *testing.T) {
 	newGroupDelay := int64(400)
 	noDataTimeframe := int64(15)
 	renotifyInterval := int64(1440)
+	renotifyOccurrences := int64(1)
 	timeoutH := int64(2)
 	critThreshold := "0.05"
 	warnThreshold := "0.02"
@@ -56,14 +57,21 @@ func Test_buildMonitor(t *testing.T) {
 				EvaluationDelay:        &evalDelay,
 				EscalationMessage:      &escalationMsg,
 				IncludeTags:            &valTrue,
+				GroupbySimpleMonitor:   &valTrue,
 				Locked:                 &valTrue,
 				NewGroupDelay:          &newGroupDelay,
 				NoDataTimeframe:        &noDataTimeframe,
 				NotificationPresetName: "show_all",
-				NotifyNoData:           &valTrue,
-				OnMissingData:          "default",
-				RenotifyInterval:       &renotifyInterval,
-				TimeoutH:               &timeoutH,
+				NotifyBy: []string{
+					"env",
+					"kube_namespace",
+					"kube_cluster",
+				},
+				NotifyNoData:        &valTrue,
+				OnMissingData:       "default",
+				RenotifyOccurrences: &renotifyOccurrences,
+				RenotifyInterval:    &renotifyInterval,
+				TimeoutH:            &timeoutH,
 				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
 					Critical: &critThreshold,
 					Warning:  &warnThreshold,
@@ -101,6 +109,9 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitor.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
 	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitorUR.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
 
+	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitor.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
+	assert.Equal(t, *dm.Spec.Options.GroupbySimpleMonitor, monitorUR.Options.GetGroupbySimpleMonitor(), "discrepancy found in parameter: GroupbySimpleMonitor")
+
 	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitor.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
 	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitorUR.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
 
@@ -116,6 +127,9 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, string(dm.Spec.Options.NotificationPresetName), string(monitor.Options.GetNotificationPresetName()), "discrepancy found in parameter: NotificationPresetName")
 	assert.Equal(t, string(dm.Spec.Options.NotificationPresetName), string(monitorUR.Options.GetNotificationPresetName()), "discrepancy found in parameter: NotificationPresetName")
 
+	assert.Equal(t, dm.Spec.Options.NotifyBy, monitor.Options.GetNotifyBy(), "discrepancy found in parameter: NotifyBy")
+	assert.Equal(t, dm.Spec.Options.NotifyBy, monitorUR.Options.GetNotifyBy(), "discrepancy found in parameter: NotifyBy")
+
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
 
@@ -124,6 +138,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitor.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
 	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitorUR.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
+
+	assert.Equal(t, *dm.Spec.Options.RenotifyOccurrences, monitor.Options.GetRenotifyOccurrences(), "discrepancy found in parameter: RenotifyOccurrences")
+	assert.Equal(t, *dm.Spec.Options.RenotifyOccurrences, monitorUR.Options.GetRenotifyOccurrences(), "discrepancy found in parameter: RenotifyOccurrences")
 
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitor.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitorUR.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")

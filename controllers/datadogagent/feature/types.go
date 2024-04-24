@@ -155,6 +155,8 @@ type Options struct {
 	SupportExtendedDaemonset bool
 
 	Logger logr.Logger
+
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.
