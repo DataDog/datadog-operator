@@ -20,7 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -96,9 +95,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
-
-	// Setup or update RC service
-	r.setupRemoteConfigService(logger, instance)
 
 	newStatus := instance.Status.DeepCopy()
 
@@ -217,21 +213,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
-}
-
-func (r *Reconciler) setupRemoteConfigService(logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) {
-	logger.Info("instance", "instance", instance)
-	remoteConfigEnabled := instance.Spec.Features.RemoteConfiguration.Enabled
-	if remoteConfigEnabled != nil && *remoteConfigEnabled {
-		if r.rcUpdater == nil {
-			r.rcUpdater = remoteconfig.NewRemoteConfigUpdater(r.client, logger)
-		}
-		err := r.rcUpdater.Setup(instance)
-		if err != nil {
-			logger.Error(err, "failed remote config service setup")
-		}
-
-	}
 }
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
