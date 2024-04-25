@@ -286,11 +286,24 @@ type CSPMFeatureConfig struct {
 	// HostBenchmarks contains configuration for host benchmarks.
 	// +optional
 	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+
+	// DatabaseBenchmarks contains configuration for database benchmarks.
+	// +optional
+	DatabaseBenchmarks *CSPMDatabaseBenchmarksConfig `json:"databaseBenchmarks,omitempty"`
 }
 
 // CSPMHostBenchmarksConfig contains configuration for host benchmarks.
 // +k8s:openapi-gen=true
 type CSPMHostBenchmarksConfig struct {
+	// Enabled enables host benchmarks.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSPMDatabaseBenchmarksConfig contains configuration for database benchmarks.
+// +k8s:openapi-gen=true
+type CSPMDatabaseBenchmarksConfig struct {
 	// Enabled enables host benchmarks.
 	// Default: false
 	// +optional
