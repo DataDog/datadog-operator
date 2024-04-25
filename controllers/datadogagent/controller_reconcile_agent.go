@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
@@ -22,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -117,7 +119,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					true,
 				)
 			}
-			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
+			if err := r.deleteV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus); err != nil {
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{}, nil
 		}
 
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
@@ -189,7 +194,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				true,
 			)
 		}
-		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
+		if err := r.deleteV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus); err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
 	}
 
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
@@ -207,117 +215,28 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
-func (r *Reconciler) cleanupV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	nsName := types.NamespacedName{
-		Name:      ds.GetName(),
-		Namespace: ds.GetNamespace(),
+func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	err := r.client.Delete(context.TODO(), ds)
+	if err != nil {
+		return err
 	}
+	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
+	event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
+	removeStaleStatus(newStatus, ds.Name)
 
-	// DS attached to this instance
-	instance := &appsv1.DaemonSet{}
-	if err := r.client.Get(context.TODO(), nsName, instance); err != nil {
-		if !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-	} else {
-		err := r.client.Delete(context.TODO(), ds)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-		event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
-		r.recordEvent(dda, event)
-	}
-	newStatus.Agent = nil
-
-	return reconcile.Result{}, nil
+	return nil
 }
 
-func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	nsName := types.NamespacedName{
-		Name:      eds.GetName(),
-		Namespace: eds.GetNamespace(),
+func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	err := r.client.Delete(context.TODO(), eds)
+	if err != nil {
+		return err
 	}
-
-	// EDS attached to this instance
-	instance := &edsv1alpha1.ExtendedDaemonSet{}
-	if err := r.client.Get(context.TODO(), nsName, instance); err != nil {
-		if !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
-		}
-	} else {
-		err := r.client.Delete(context.TODO(), eds)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-		event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
-		r.recordEvent(dda, event)
-	}
-	newStatus.Agent = nil
-
-	return reconcile.Result{}, nil
-}
-
-func (r *Reconciler) handleProviders(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, ddaStatus *datadoghqv2alpha1.DatadogAgentStatus,
-	nodeList []corev1.Node, logger logr.Logger) (map[string]struct{}, error) {
-	providerList := kubernetes.GetProviderListFromNodeList(nodeList, logger)
-
-	if err := r.cleanupDaemonSetsForProvidersThatNoLongerApply(ctx, dda, ddaStatus, providerList); err != nil {
-		return nil, err
-	}
-
-	return providerList, nil
-}
-
-// cleanupDaemonSetsForProvidersThatNoLongerApply deletes ds/eds from providers
-// that are not present in the provider store. If there are no providers in the
-// provider store, do not delete any ds/eds since that would delete all node
-// agents.
-func (r *Reconciler) cleanupDaemonSetsForProvidersThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent,
-	ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, providerList map[string]struct{}) error {
-	if len(providerList) > 0 {
-		if r.options.ExtendedDaemonsetOptions.Enabled {
-			edsList := edsv1alpha1.ExtendedDaemonSetList{}
-			if err := r.client.List(ctx, &edsList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
-				return err
-			}
-
-			for _, eds := range edsList.Items {
-				provider := eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-				if _, ok := providerList[provider]; !ok {
-					if err := r.client.Delete(ctx, &eds); err != nil {
-						return err
-					}
-					r.log.Info("Deleted ExtendedDaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-					event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
-					r.recordEvent(dda, event)
-
-					removeStaleStatus(ddaStatus, eds.Name)
-				}
-			}
-
-			return nil
-		}
-
-		daemonSetList := appsv1.DaemonSetList{}
-		if err := r.client.List(ctx, &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
-			return err
-		}
-		for _, ds := range daemonSetList.Items {
-			provider := ds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey]
-			if _, ok := providerList[provider]; !ok {
-				if err := r.client.Delete(ctx, &ds); err != nil {
-					return err
-				}
-				r.log.Info("Deleted DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-				event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
-				r.recordEvent(dda, event)
-
-				removeStaleStatus(ddaStatus, ds.Name)
-			}
-		}
-	}
+	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
+	event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
+	removeStaleStatus(newStatus, eds.Name)
 
 	return nil
 }
@@ -336,54 +255,13 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 	}
 }
 
-func (r *Reconciler) handleProfiles(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, profilesByNode map[string]types.NamespacedName,
-	ddaNamespace string, providerList map[string]struct{}) error {
-	if err := r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, profiles, providerList); err != nil {
-		return err
-	}
-
+func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
 	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
 		return err
 	}
 
 	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, profiles []v1alpha1.DatadogAgentProfile, providerList map[string]struct{}) error {
-	daemonSets, err := r.agentProfileDaemonSetsCreatedByOperator(ctx)
-	if err != nil {
-		return err
-	}
-
-	daemonSetNamesBelongingToProfiles := map[string]struct{}{}
-	for _, profile := range profiles {
-		name := types.NamespacedName{
-			Namespace: profile.Namespace,
-			Name:      profile.Name,
-		}
-		dsProfileName := agentprofile.DaemonSetName(name)
-
-		if r.options.IntrospectionEnabled {
-			for provider := range providerList {
-				daemonSetNamesBelongingToProfiles[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
-			}
-		} else {
-			daemonSetNamesBelongingToProfiles[dsProfileName] = struct{}{}
-		}
-	}
-
-	for _, daemonSet := range daemonSets {
-		if _, belongsToProfile := daemonSetNamesBelongingToProfiles[daemonSet.Name]; belongsToProfile {
-			continue
-		}
-
-		if err = r.client.Delete(ctx, &daemonSet); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -496,12 +374,131 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 	return nil
 }
 
-func (r *Reconciler) agentProfileDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
-	daemonSetList := appsv1.DaemonSetList{}
-
-	if err := r.client.List(ctx, &daemonSetList, client.HasLabels{agentprofile.ProfileLabelKey}); err != nil {
-		return nil, err
+// cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.
+// Use cases include deleting old DSs/EDSs when:
+// - a DaemonSet's name is changed using node overrides
+// - introspection is disabled or enabled
+// - a profile is deleted
+func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
+	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 
-	return daemonSetList.Items, nil
+	dsName := getDaemonSetNameFromDatadogAgent(dda)
+	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
+
+	// Only the default profile uses an EDS when profiles are enabled
+	// Multiple EDSs can be created with introspection
+	if r.options.ExtendedDaemonsetOptions.Enabled {
+		edsList := edsv1alpha1.ExtendedDaemonSetList{}
+		if err := r.client.List(ctx, &edsList, matchLabels); err != nil {
+			return err
+		}
+
+		for _, eds := range edsList.Items {
+			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
+				if err := r.deleteV2ExtendedDaemonSet(logger, dda, &eds, newStatus); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	daemonSetList := appsv1.DaemonSetList{}
+	if err := r.client.List(ctx, &daemonSetList, matchLabels); err != nil {
+		return err
+	}
+
+	for _, daemonSet := range daemonSetList.Items {
+		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
+			if err := r.deleteV2DaemonSet(logger, dda, &daemonSet, newStatus); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getValidDaemonSetNames generates a list of valid DS and EDS names
+func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) (map[string]struct{}, map[string]struct{}) {
+	validDaemonSetNames := map[string]struct{}{}
+	validExtendedDaemonSetNames := map[string]struct{}{}
+
+	// Introspection includes names with a provider suffix
+	if r.options.IntrospectionEnabled {
+		for provider := range providerList {
+			if r.options.ExtendedDaemonsetOptions.Enabled {
+				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+			} else {
+				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+			}
+		}
+	}
+	// Profiles include names with the profile prefix and the DS/EDS name for the default profile
+	if r.options.DatadogAgentProfileEnabled {
+		for _, profile := range profiles {
+			name := types.NamespacedName{
+				Namespace: profile.Namespace,
+				Name:      profile.Name,
+			}
+			dsProfileName := agentprofile.DaemonSetName(name)
+
+			// The default profile can be a DS or an EDS and uses the DS/EDS name
+			if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+				if r.options.IntrospectionEnabled {
+					for provider := range providerList {
+						if r.options.ExtendedDaemonsetOptions.Enabled {
+							validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+						} else {
+							validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
+						}
+					}
+				} else {
+					if r.options.ExtendedDaemonsetOptions.Enabled {
+						validExtendedDaemonSetNames[dsName] = struct{}{}
+					} else {
+						validDaemonSetNames[dsName] = struct{}{}
+					}
+				}
+			}
+			// Non-default profiles can only be DaemonSets
+			if r.options.IntrospectionEnabled {
+				for provider := range providerList {
+					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
+				}
+			} else {
+				validDaemonSetNames[dsProfileName] = struct{}{}
+			}
+		}
+	}
+
+	// If neither introspection nor profiles are enabled, only the current DS/EDS name is valid
+	if !r.options.IntrospectionEnabled && !r.options.DatadogAgentProfileEnabled {
+		if r.options.ExtendedDaemonsetOptions.Enabled {
+			validExtendedDaemonSetNames = map[string]struct{}{
+				dsName: {},
+			}
+		} else {
+			validDaemonSetNames = map[string]struct{}{
+				dsName: {},
+			}
+		}
+	}
+
+	return validDaemonSetNames, validExtendedDaemonSetNames
+}
+
+// getDaemonSetNameFromDatadogAgent returns the expected DS/EDS name based on
+// the DDA name and nodeAgent name override
+func getDaemonSetNameFromDatadogAgent(dda *datadoghqv2alpha1.DatadogAgent) string {
+	dsName := component.GetAgentName(dda)
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			dsName = *componentOverride.Name
+		}
+	}
+	return dsName
 }

@@ -157,10 +157,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 
 		if r.options.IntrospectionEnabled {
-			providerList, err = r.handleProviders(ctx, instance, newStatus, nodeList, logger)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
@@ -170,7 +167,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			}
 			profiles = profileList
 
-			if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace, providerList); err != nil {
+			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -183,6 +180,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 			}
 		}
+	}
+
+	if err = r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
+		logger.Error(err, "Error cleaning up old DaemonSets")
 	}
 
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
