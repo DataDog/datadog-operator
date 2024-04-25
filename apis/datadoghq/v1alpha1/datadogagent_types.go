@@ -54,7 +54,7 @@ type DatadogAgentSpec struct {
 	// +optional
 	ClusterChecksRunner DatadogAgentSpecClusterChecksRunnerSpec `json:"clusterChecksRunner,omitempty"`
 
-	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
+	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars.
 	// +optional
 	// +kubebuilder:validation:Pattern=^([a-z]([a-z0-9\\-]*[a-z0-9])?\\.)*([a-z]([a-z0-9\\-]*[a-z0-9])?)$
 	// +kubebuilder:validation:MaxLength=80	
