@@ -57,7 +57,7 @@ type DatadogAgentSpec struct {
 	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars.
 	// +optional
 	// +kubebuilder:validation:Pattern=^([a-z]([a-z0-9\\-]*[a-z0-9])?\\.)*([a-z]([a-z0-9\\-]*[a-z0-9])?)$
-	// +kubebuilder:validation:MaxLength=80	
+	// +kubebuilder:validation:MaxLength=80
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// The site of the Datadog intake to send Agent data to.
