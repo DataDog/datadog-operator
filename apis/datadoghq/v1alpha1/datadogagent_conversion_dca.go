@@ -183,13 +183,4 @@ func convertClusterAgentAdmissionController(src *AdmissionControllerConfig, dst 
 	features.AdmissionController.MutateUnlabelled = src.MutateUnlabelled
 	features.AdmissionController.ServiceName = src.ServiceName
 	features.AdmissionController.AgentCommunicationMode = src.AgentCommunicationMode
-
-	if src.CWSInstrumentation != nil {
-		if features.AdmissionController.CWSInstrumentation == nil {
-			features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationFeatureConfig{}
-		}
-
-		features.AdmissionController.CWSInstrumentation.Enabled = src.CWSInstrumentation.Enabled
-		features.AdmissionController.CWSInstrumentation.Mode = src.CWSInstrumentation.Mode
-	}
 }

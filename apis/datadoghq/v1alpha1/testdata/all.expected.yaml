@@ -8,9 +8,6 @@ spec:
       enabled: true
       mutateUnlabelled: true
       serviceName: test-svc-name
-      cwsInstrumentation:
-        enabled: true
-        mode: "test-mode"
     apm:
       enabled: true
       hostPortConfig:

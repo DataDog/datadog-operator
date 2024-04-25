@@ -24,7 +24,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.AdmissionControllerConfig":               schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref),
 		"./apis/datadoghq/v1alpha1.AgentCredentials":                        schema__apis_datadoghq_v1alpha1_AgentCredentials(ref),
 		"./apis/datadoghq/v1alpha1.CRISocketConfig":                         schema__apis_datadoghq_v1alpha1_CRISocketConfig(ref),
-		"./apis/datadoghq/v1alpha1.CWSInstrumentationConfig":                schema__apis_datadoghq_v1alpha1_CWSInstrumentationConfig(ref),
 		"./apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
 		"./apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":               schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
 		"./apis/datadoghq/v1alpha1.ComplianceSpec":                          schema__apis_datadoghq_v1alpha1_ComplianceSpec(ref),
@@ -277,17 +276,9 @@ func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.Refere
 							Format:      "",
 						},
 					},
-					"cwsInstrumentation": {
-						SchemaProps: spec.SchemaProps{
-							Description: "CWSInstrumentation holds the CWS Instrumentation endpoint configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CWSInstrumentationConfig"),
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.CWSInstrumentationConfig"},
 	}
 }
 
@@ -377,33 +368,6 @@ func schema__apis_datadoghq_v1alpha1_CRISocketConfig(ref common.ReferenceCallbac
 					"criSocketPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Path to the container runtime socket (if different from Docker). This is supported starting from agent 6.6.0.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_CWSInstrumentationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enable the CWS Instrumentation admission controller endpoint",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"mode": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Mode defines how the CWS Instrumentation endpoint should behave. It can be \"init_container\" or \"remote_copy\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},

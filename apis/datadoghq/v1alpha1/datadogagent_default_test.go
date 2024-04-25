@@ -301,9 +301,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					AdmissionController: &AdmissionControllerConfig{
 						MutateUnlabelled: apiutils.NewBoolPointer(false),
 						ServiceName:      apiutils.NewStringPointer("datadog-admission-controller"),
-						CWSInstrumentation: &CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCWSInstrumentationEnabled),
-						},
 					},
 					ClusterChecksEnabled: apiutils.NewBoolPointer(false),
 					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
@@ -330,9 +327,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(true),
 						MutateUnlabelled: apiutils.NewBoolPointer(false),
 						ServiceName:      apiutils.NewStringPointer("datadog-admission-controller"),
-						CWSInstrumentation: &CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(defaultCWSInstrumentationEnabled),
-						},
 					},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
@@ -364,9 +358,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(true),
 						MutateUnlabelled: apiutils.NewBoolPointer(false),
 						ServiceName:      apiutils.NewStringPointer("foo"),
-						CWSInstrumentation: &CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-						},
 					},
 					ClusterChecksEnabled: apiutils.NewBoolPointer(true),
 					CollectEvents:        apiutils.NewBoolPointer(false),
@@ -383,11 +374,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
 						Port: apiutils.NewInt32Pointer(8443),
-					},
-					AdmissionController: &AdmissionControllerConfig{
-						CWSInstrumentation: &CWSInstrumentationConfig{
-							Mode: apiutils.NewStringPointer(defaultCWSInstrumentationMode),
-						},
 					},
 				},
 				NetworkPolicy: &NetworkPolicySpec{Flavor: NetworkPolicyFlavorKubernetes},
@@ -411,10 +397,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(true),
 						MutateUnlabelled: apiutils.NewBoolPointer(false),
 						ServiceName:      apiutils.NewStringPointer("foo"),
-						CWSInstrumentation: &CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(true),
-							Mode:    apiutils.NewStringPointer(defaultCWSInstrumentationMode),
-						},
 					},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 					ClusterChecksEnabled: apiutils.NewBoolPointer(true),

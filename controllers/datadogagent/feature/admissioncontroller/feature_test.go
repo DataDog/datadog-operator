@@ -47,12 +47,6 @@ func TestAdmissionControllerFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 admission controller enabled, cwsInstrumentation enabled",
-			DDAv1:         newV1Agent(true, true),
-			WantConfigure: true,
-			ClusterAgent:  testDCAResources("hostip", "", true),
-		},
-		{
 			Name:          "v1alpha1 admission controller enabled, cwsInstrumentation not enabled",
 			DDAv1:         newV1Agent(true, false),
 			WantConfigure: true,
@@ -117,10 +111,6 @@ func newV1Agent(enabled bool, cwsInstrumentationEnabled bool) *v1alpha1.DatadogA
 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
 						ServiceName:            apiutils.NewStringPointer("testServiceName"),
 						AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
-						CWSInstrumentation: &v1alpha1.CWSInstrumentationConfig{
-							Enabled: apiutils.NewBoolPointer(cwsInstrumentationEnabled),
-							Mode:    apiutils.NewStringPointer("test-mode"),
-						},
 					},
 				},
 			},

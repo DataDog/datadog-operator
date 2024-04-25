@@ -1176,17 +1176,6 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				rbac.GetVerb,
 			},
 		})
-
-		if isCWSInstrumentationModeRemoteCopy(dda.Spec.ClusterAgent) {
-			// PodsExec
-			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{rbac.CoreAPIGroup},
-				Resources: []string{rbac.PodsExecResource},
-				Verbs: []string{
-					rbac.CreateVerb,
-				},
-			})
-		}
 	}
 
 	if isComplianceEnabled(&dda.Spec) {
