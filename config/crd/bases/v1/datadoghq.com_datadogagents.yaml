@@ -796,6 +796,31 @@ spec:
                             - mountPath
                           x-kubernetes-list-type: map
                       type: object
+                    asm:
+                      description: ASM (Application Security Management) cluster-wide activation and configuration. ASM features all requires DataDog client library to be installed or APM Single Step Instrumentation to be enabled.
+                      properties:
+                        threats:
+                          description: App & API Protection configuration.
+                          properties:
+                            enabled:
+                              description: Enable this to activate App & API Protection feature of ASM
+                              type: boolean
+                          type: object
+                        sca:
+                          description: SCA (Software Composition Analysis) configuration
+                          properties:
+                            enabled:
+                              description: Enable this to activate SCA feature of ASM
+                              type: boolean
+                          type: object
+                        iast:
+                          description: IAST (Interactive Application Security Testing) configuration
+                          properties:
+                            enabled:
+                              description: Enable this to activate IAST feature of ASM
+                              type: boolean
+                          type: object
+                      type: object
                     config:
                       description: Agent configuration.
                       properties:
