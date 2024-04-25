@@ -40,70 +40,72 @@ var (
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation
 type NewDatadogAgentOptions struct {
-	Labels                           map[string]string
-	Annotations                      map[string]string
-	Status                           *datadoghqv1alpha1.DatadogAgentStatus
-	UseEDS                           bool
-	ClusterAgentEnabled              bool
-	ClusterAgentConfd                *datadoghqv1alpha1.ClusterAgentConfig
-	MetricsServerEnabled             bool
-	MetricsServerPort                int32
-	MetricsServerEndpoint            string
-	MetricsServerUseDatadogMetric    bool
-	MetricsServerWPAController       bool
-	MetricsServerCredentials         *datadoghqv1alpha1.DatadogCredentials
-	ClusterChecksEnabled             bool
-	KubeStateMetricsCore             *datadoghqv1alpha1.KubeStateMetricsCore
-	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
-	APMEnabled                       bool
-	ProcessEnabled                   bool
-	ProcessCollectionEnabled         bool
-	OrchestratorExplorerDisabled     bool
-	SystemProbeEnabled               bool
-	SystemProbeSeccompProfileName    string
-	SystemProbeAppArmorProfileName   string
-	SystemProbeTCPQueueLengthEnabled bool
-	SystemProbeOOMKillEnabled        bool
-	Creds                            *datadoghqv1alpha1.AgentCredentials
-	ClusterName                      *string
-	Confd                            *datadoghqv1alpha1.ConfigDirSpec
-	Checksd                          *datadoghqv1alpha1.ConfigDirSpec
-	Volumes                          []corev1.Volume
-	VolumeMounts                     []corev1.VolumeMount
-	ClusterAgentVolumes              []corev1.Volume
-	ClusterAgentVolumeMounts         []corev1.VolumeMount
-	ClusterAgentEnvVars              []corev1.EnvVar
-	CustomConfig                     string
-	SystemProbeCustomConfigMapName   string
-	AgentDaemonsetName               string
-	ClusterAgentDeploymentName       string
-	ClusterChecksRunnerEnabled       bool
-	ClusterChecksRunnerVolumes       []corev1.Volume
-	ClusterChecksRunnerVolumeMounts  []corev1.VolumeMount
-	ClusterChecksRunnerEnvVars       []corev1.EnvVar
-	APIKeyExistingSecret             string
-	APISecret                        *commonv1.SecretConfig
-	Site                             string
-	HostPort                         int32
-	HostNetwork                      bool
-	AdmissionControllerEnabled       bool
-	AdmissionMutateUnlabelled        bool
-	AdmissionServiceName             string
-	AdmissionCommunicationMode       string
-	ComplianceEnabled                bool
-	ComplianceCheckInterval          metav1.Duration
-	ComplianceConfigDir              *datadoghqv1alpha1.ConfigDirSpec
-	RuntimeSecurityEnabled           bool
-	RuntimeSyscallMonitorEnabled     bool
-	RuntimePoliciesDir               *datadoghqv1alpha1.ConfigDirSpec
-	SecurityContext                  *corev1.PodSecurityContext
-	CreateNetworkPolicy              bool
-	NetworkPolicyFlavor              datadoghqv1alpha1.NetworkPolicyFlavor
-	AgentSpecAdditionalLabels        map[string]string
-	AgentSpecAdditionalAnnotations   map[string]string
-	Features                         *datadoghqv1alpha1.DatadogFeatures
-	ClusterAgentReplicas             *int32
-	ClusterChecksRunnerReplicas      *int32
+	Labels                             map[string]string
+	Annotations                        map[string]string
+	Status                             *datadoghqv1alpha1.DatadogAgentStatus
+	UseEDS                             bool
+	ClusterAgentEnabled                bool
+	ClusterAgentConfd                  *datadoghqv1alpha1.ClusterAgentConfig
+	MetricsServerEnabled               bool
+	MetricsServerPort                  int32
+	MetricsServerEndpoint              string
+	MetricsServerUseDatadogMetric      bool
+	MetricsServerWPAController         bool
+	MetricsServerCredentials           *datadoghqv1alpha1.DatadogCredentials
+	ClusterChecksEnabled               bool
+	KubeStateMetricsCore               *datadoghqv1alpha1.KubeStateMetricsCore
+	NodeAgentConfig                    *datadoghqv1alpha1.NodeAgentConfig
+	APMEnabled                         bool
+	ProcessEnabled                     bool
+	ProcessCollectionEnabled           bool
+	OrchestratorExplorerDisabled       bool
+	SystemProbeEnabled                 bool
+	SystemProbeSeccompProfileName      string
+	SystemProbeAppArmorProfileName     string
+	SystemProbeTCPQueueLengthEnabled   bool
+	SystemProbeOOMKillEnabled          bool
+	Creds                              *datadoghqv1alpha1.AgentCredentials
+	ClusterName                        *string
+	Confd                              *datadoghqv1alpha1.ConfigDirSpec
+	Checksd                            *datadoghqv1alpha1.ConfigDirSpec
+	Volumes                            []corev1.Volume
+	VolumeMounts                       []corev1.VolumeMount
+	ClusterAgentVolumes                []corev1.Volume
+	ClusterAgentVolumeMounts           []corev1.VolumeMount
+	ClusterAgentEnvVars                []corev1.EnvVar
+	CustomConfig                       string
+	SystemProbeCustomConfigMapName     string
+	AgentDaemonsetName                 string
+	ClusterAgentDeploymentName         string
+	ClusterChecksRunnerEnabled         bool
+	ClusterChecksRunnerVolumes         []corev1.Volume
+	ClusterChecksRunnerVolumeMounts    []corev1.VolumeMount
+	ClusterChecksRunnerEnvVars         []corev1.EnvVar
+	APIKeyExistingSecret               string
+	APISecret                          *commonv1.SecretConfig
+	Site                               string
+	HostPort                           int32
+	HostNetwork                        bool
+	AdmissionControllerEnabled         bool
+	AdmissionMutateUnlabelled          bool
+	AdmissionServiceName               string
+	AdmissionCommunicationMode         string
+	AdmissionCWSInstrumentationEnabled bool
+	AdmissionCWSInstrumentationMode    string
+	ComplianceEnabled                  bool
+	ComplianceCheckInterval            metav1.Duration
+	ComplianceConfigDir                *datadoghqv1alpha1.ConfigDirSpec
+	RuntimeSecurityEnabled             bool
+	RuntimeSyscallMonitorEnabled       bool
+	RuntimePoliciesDir                 *datadoghqv1alpha1.ConfigDirSpec
+	SecurityContext                    *corev1.PodSecurityContext
+	CreateNetworkPolicy                bool
+	NetworkPolicyFlavor                datadoghqv1alpha1.NetworkPolicyFlavor
+	AgentSpecAdditionalLabels          map[string]string
+	AgentSpecAdditionalAnnotations     map[string]string
+	Features                           *datadoghqv1alpha1.DatadogFeatures
+	ClusterAgentReplicas               *int32
+	ClusterChecksRunnerReplicas        *int32
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -253,6 +255,12 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				}
 				if options.AdmissionCommunicationMode != "" {
 					ad.Spec.ClusterAgent.Config.AdmissionController.AgentCommunicationMode = &options.AdmissionCommunicationMode
+				}
+				if options.AdmissionCWSInstrumentationEnabled {
+					ad.Spec.ClusterAgent.Config.AdmissionController.CWSInstrumentation = &datadoghqv1alpha1.CWSInstrumentationConfig{
+						Enabled: apiutils.NewBoolPointer(options.AdmissionCWSInstrumentationEnabled),
+						Mode:    apiutils.NewStringPointer(options.AdmissionCWSInstrumentationMode),
+					}
 				}
 			}
 

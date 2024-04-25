@@ -129,6 +129,14 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
+			Name: apicommon.DDClusterAgentServiceAccountName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.serviceAccountName",
+				},
+			},
+		},
+		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
 			Value: GetClusterAgentServiceName(dda),
 		},

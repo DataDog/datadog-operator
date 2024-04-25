@@ -588,6 +588,22 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+	// +optional
+	CWSInstrumentation *CWSInstrumentationFeatureConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+// CWSInstrumentationFeatureConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+type CWSInstrumentationFeatureConfig struct {
+	// Enable the CWS Instrumentation admission controller endpoint
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode defines how the CWS Instrumentation endpoint should behave.
+	// It can be "init_container" or "remote_copy".
+	// +optional
+	Mode *string `json:"mode,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

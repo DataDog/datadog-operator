@@ -191,6 +191,9 @@ spec:
         mutateUnlabelled: true
         serviceName: "test-svc-name"
         agentCommunicationMode: "hostip"
+        cwsInstrumentation:
+          enabled: true
+          mode: "test-mode"
       confd:
         configMapName: cluster-agent-confd
         items:

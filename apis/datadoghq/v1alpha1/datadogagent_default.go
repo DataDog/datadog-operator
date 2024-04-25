@@ -76,6 +76,8 @@ const (
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
 	defaultAdmissionControllerEnabled                           = false
+	defaultCWSInstrumentationEnabled                            = false
+	defaultCWSInstrumentationMode                               = "remote_copy"
 	defaultOTLPGRPCEnabled                               bool   = false
 	defaultOTLPGRPCEndpoint                              string = "0.0.0.0:4317"
 	defaultOTLPHTTPEnabled                               bool   = false
@@ -1099,7 +1101,36 @@ func DefaultAdmissionController(conf *ClusterAgentConfig) *AdmissionControllerCo
 		conf.AdmissionController.ServiceName = apiutils.NewStringPointer(DefaultAdmissionServiceName)
 		admCtrlOverride.ServiceName = conf.AdmissionController.ServiceName
 	}
+
+	if cwsInstrumentationOverride := DefaultCWSInstrumentation(conf.AdmissionController); !apiutils.IsEqualStruct(cwsInstrumentationOverride, CWSInstrumentationConfig{}) {
+		admCtrlOverride.CWSInstrumentation = cwsInstrumentationOverride
+	}
+
 	return admCtrlOverride
+}
+
+// DefaultCWSInstrumentation defaults the CWS Instrumentation's config in the AdmissionController's config
+func DefaultCWSInstrumentation(conf *AdmissionControllerConfig) *CWSInstrumentationConfig {
+	if conf.CWSInstrumentation == nil {
+		conf.CWSInstrumentation = &CWSInstrumentationConfig{Enabled: apiutils.NewBoolPointer(defaultCWSInstrumentationEnabled)}
+
+		if !apiutils.BoolValue(conf.CWSInstrumentation.Enabled) {
+			return conf.CWSInstrumentation
+		}
+	}
+	cwsInstrumentationOverride := &CWSInstrumentationConfig{}
+
+	if conf.CWSInstrumentation.Enabled == nil {
+		conf.CWSInstrumentation.Enabled = apiutils.NewBoolPointer(defaultCWSInstrumentationEnabled)
+		cwsInstrumentationOverride.Enabled = conf.CWSInstrumentation.Enabled
+	}
+
+	if conf.CWSInstrumentation.Mode == nil {
+		conf.CWSInstrumentation.Mode = apiutils.NewStringPointer(defaultCWSInstrumentationMode)
+		cwsInstrumentationOverride.Mode = conf.CWSInstrumentation.Mode
+	}
+
+	return cwsInstrumentationOverride
 }
 
 // DefaultDatadogClusterAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.

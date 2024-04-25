@@ -35,6 +35,8 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
+| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint |
+| features.admissionController.cwsInstrumentation.mode | Mode defines how the CWS Instrumentation endpoint should behave. It can be "init_container" or "remote_copy". |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |

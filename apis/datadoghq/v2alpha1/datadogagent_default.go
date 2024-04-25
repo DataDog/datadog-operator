@@ -72,6 +72,8 @@ const (
 	defaultAdmissionControllerEnabled          bool   = true
 	defaultAdmissionControllerMutateUnlabelled bool   = false
 	defaultAdmissionServiceName                string = "datadog-admission-controller"
+	defaultCWSInstrumentationEnabled           bool   = false
+	defaultCWSInstrumentationMode              string = "remote_copy"
 
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
@@ -385,6 +387,16 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
+	}
+
+	// CWS Instrumentation in AdmissionController Feature
+	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
+		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, defaultCWSInstrumentationEnabled)
+
+	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, defaultCWSInstrumentationMode)
 	}
 
 	// ExternalMetricsServer Feature

@@ -1169,6 +1169,23 @@ type AdmissionControllerConfig struct {
 	// It can be "hostip", "service", or "socket".
 	// +optional
 	AgentCommunicationMode *string `json:"agentCommunicationMode,omitempty"`
+
+	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+	// +optional
+	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+// CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+// +k8s:openapi-gen=true
+type CWSInstrumentationConfig struct {
+	// Enable the CWS Instrumentation admission controller endpoint
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode defines how the CWS Instrumentation endpoint should behave.
+	// It can be "init_container" or "remote_copy".
+	// +optional
+	Mode *string `json:"mode,omitempty"`
 }
 
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.

@@ -4016,6 +4016,16 @@ spec:
                             agentCommunicationMode:
                               description: agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                               type: string
+                            cwsInstrumentation:
+                              description: CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+                              properties:
+                                enabled:
+                                  description: Enable the CWS Instrumentation admission controller endpoint
+                                  type: boolean
+                                mode:
+                                  description: Mode defines how the CWS Instrumentation endpoint should behave. It can be "init_container" or "remote_copy".
+                                  type: string
+                              type: object
                             enabled:
                               description: Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods.
                               type: boolean
@@ -11733,6 +11743,16 @@ spec:
                                 agentCommunicationMode:
                                   description: agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                                   type: string
+                                cwsInstrumentation:
+                                  description: CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+                                  properties:
+                                    enabled:
+                                      description: Enable the CWS Instrumentation admission controller endpoint
+                                      type: boolean
+                                    mode:
+                                      description: Mode defines how the CWS Instrumentation endpoint should behave. It can be "init_container" or "remote_copy".
+                                      type: string
+                                  type: object
                                 enabled:
                                   description: Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods.
                                   type: boolean
@@ -15360,6 +15380,16 @@ spec:
                         agentCommunicationMode:
                           description: AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                           type: string
+                        cwsInstrumentation:
+                          description: CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+                          properties:
+                            enabled:
+                              description: Enable the CWS Instrumentation admission controller endpoint
+                              type: boolean
+                            mode:
+                              description: Mode defines how the CWS Instrumentation endpoint should behave. It can be "init_container" or "remote_copy".
+                              type: string
+                          type: object
                         enabled:
                           description: 'Enabled enables the Admission Controller. Default: true'
                           type: boolean

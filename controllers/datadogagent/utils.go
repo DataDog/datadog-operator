@@ -2030,6 +2030,20 @@ func isAdmissionControllerEnabled(spec datadoghqv1alpha1.DatadogAgentSpecCluster
 	return apiutils.BoolValue(spec.Config.AdmissionController.Enabled)
 }
 
+func isCWSInstrumentationEnabled(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
+	if spec.Config == nil || spec.Config.AdmissionController == nil || spec.Config.AdmissionController.CWSInstrumentation == nil {
+		return false
+	}
+	return apiutils.BoolValue(spec.Config.AdmissionController.CWSInstrumentation.Enabled)
+}
+
+func isCWSInstrumentationModeRemoteCopy(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
+	if !isCWSInstrumentationEnabled(spec) {
+		return false
+	}
+	return apiutils.StringValue(spec.Config.AdmissionController.CWSInstrumentation.Mode) == "remote_copy"
+}
+
 func isCreateRBACEnabled(config *datadoghqv1alpha1.RbacConfig) bool {
 	if config == nil {
 		return false
