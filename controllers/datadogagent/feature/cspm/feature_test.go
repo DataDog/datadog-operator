@@ -91,6 +91,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		}
 		ddav2CSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
 		ddav2CSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
+		ddav2CSPMEnabled.Spec.Features.CSPM.DatabaseBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	tests := test.FeatureTestSuite{
@@ -211,6 +212,10 @@ func cspmAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 			if useDDAV2 {
 				want = append(want, &corev1.EnvVar{
 					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+					Value: "true",
+				})
+				want = append(want, &corev1.EnvVar{
+					Name:  apicommon.DDComplianceDatabaseBenchmarksEnabled,
 					Value: "true",
 				})
 			}
