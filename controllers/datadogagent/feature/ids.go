@@ -49,6 +49,8 @@ const (
 	ClusterChecksIDType = "cluster_checks"
 	// APMIDType APM feature
 	APMIDType = "apm"
+	// ASMIDType ASM feature
+	ASMIDType = "asm"
 	// AdmissionControllerIDType Admission controller feature
 	AdmissionControllerIDType = "admission_controller"
 	// OTLPIDType OTLP ingest feature
