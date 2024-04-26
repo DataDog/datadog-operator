@@ -147,11 +147,11 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallId,
-			Value: component.AgentInstallId,
+			Value: string(dda.GetUID()),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallTime,
-			Value: component.AgentInstallTime,
+			Value: strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,

@@ -7,6 +7,7 @@ package test
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -310,11 +311,11 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.Apm.Env = []corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallId,
-					Value: component.AgentInstallId,
+					Value: string(ad.GetUID()),
 				},
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallTime,
-					Value: component.AgentInstallTime,
+					Value: strconv.FormatInt(ad.GetCreationTimestamp().Unix(), 10),
 				},
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallType,
