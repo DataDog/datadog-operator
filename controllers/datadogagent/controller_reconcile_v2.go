@@ -153,7 +153,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		// Get a node list for profiles and introspection
 		nodeList, e := r.getNodeList(ctx)
 		if e != nil {
-			return reconcile.Result{}, e
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e)
 		}
 
 		if r.options.IntrospectionEnabled {
@@ -162,13 +162,13 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 		if r.options.DatadogAgentProfileEnabled {
 			profileList, profilesByNode, e := r.profilesToApply(ctx, logger, nodeList)
-			if err != nil {
-				return reconcile.Result{}, e
+			if e != nil {
+				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e)
 			}
 			profiles = profileList
 
 			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
-				return reconcile.Result{}, err
+				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 			}
 		}
 	}
@@ -197,7 +197,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
-		return result, errors.NewAggregate(errs)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
 	}
 
 	// -----------------------------
@@ -205,7 +205,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------------
 	// Run it after the deployments reconcile
 	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
-		return result, errors.NewAggregate(errs)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
 	}
 
 	// Always requeue
