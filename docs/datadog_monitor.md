@@ -41,6 +41,7 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
     kind: DatadogMonitor
     metadata:
       name: datadog-monitor-test
+      namespace: datadog
     spec:
       query: "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5"
       type: "metric alert"
@@ -51,6 +52,18 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
     ```
 
     For additional examples, see [examples/datadog-monitor](../examples/datadogmonitor). Note that only metric alerts, query alerts, and service checks are supported.
+   - Note: By default the Operator only watches its own `namespace`, so it will manage any `DatadogAgent` and `DatadogMonitor` objects within its own `namespace`. So you should deploy your Datadog objects in the same `namespace` as the Operator.
+   - If you'd like to deploy your DatadogMonitors in a different `namespace`, than you will need to configure the Operator [`watchNamespaces`][8] section with these additional `namespaces`:
+
+   ```
+   (...)
+   watchNamespaces:
+     - datadog
+     - <NAMESPACE_1>
+     - <NAMESPACE_2>
+     - <NAMESPACE_3>
+   (...)
+   ```
 
 1. Deploy the `DatadogMonitor` with the above configuration file:
 
@@ -130,3 +143,4 @@ kubectl logs <my-datadog-operator-pod-name>
 [5]: https://app.datadoghq.com/account/settings#api
 [6]: https://github.com/DataDog/helm-charts/blob/master/charts/datadog-operator/values.yaml
 [7]: https://app.datadoghq.com/monitors/manage?q=tag%3A"generated%3Akubernetes"
+[8]: https://github.com/DataDog/helm-charts/blob/main/charts/datadog-operator/values.yaml#L147-L156
