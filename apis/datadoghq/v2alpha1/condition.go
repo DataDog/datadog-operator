@@ -71,6 +71,14 @@ func SetDatadogAgentStatusCondition(status *DatadogAgentStatus, condition *metav
 	}
 }
 
+// DeleteDatadogAgentStatusCondition use to delete a condition
+func DeleteDatadogAgentStatusCondition(status *DatadogAgentStatus, conditionType string) {
+	idConditionComplete := getIndexForConditionType(status, conditionType)
+	if idConditionComplete >= 0 {
+		status.Conditions = append(status.Conditions[:idConditionComplete], status.Conditions[idConditionComplete+1:]...)
+	}
+}
+
 // NewDatadogAgentStatusCondition returns new metav1.Condition instance
 func NewDatadogAgentStatusCondition(conditionType string, conditionStatus metav1.ConditionStatus, now metav1.Time, reason, message string) metav1.Condition {
 	return metav1.Condition{

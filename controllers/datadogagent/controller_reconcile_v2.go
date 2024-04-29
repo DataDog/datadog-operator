@@ -96,6 +96,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
+	now := metav1.NewTime(time.Now())
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
@@ -123,9 +124,15 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			errs = append(errs, featErr)
 		}
 	}
+	if len(errs) > 0 {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
+	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
 	errs = append(errs, override.Dependencies(logger, resourceManagers, instance)...)
+	if len(errs) > 0 {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
+	}
 
 	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
 	if !userSpecifiedClusterAgentToken {
@@ -141,6 +148,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+	} else {
+		// Update the status to make it the ClusterAgentReconcileConditionType successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// Start with an "empty" profile and provider
@@ -177,18 +187,29 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		for provider := range providerList {
 			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
 			if utils.ShouldReturn(result, err) {
-				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+				// If the agent reconcile failed, we should not continue with the other profiles
+				errs = append(errs, err)
 			}
 		}
 	}
 
 	if err = r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
+		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DaemonSets")
+	}
+	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
+	} else {
+		// Update the status to make it the AgentReconcileConditionType successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+	} else {
+		// Update the status to make it the ClusterChecksRunnerReconcileConditionType successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// ------------------------------
