@@ -28,7 +28,6 @@ import (
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
 func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
-
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
@@ -147,11 +146,11 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallId,
-			Value: string(dda.GetUID()),
+			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallTime,
-			Value: strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10),
+			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,

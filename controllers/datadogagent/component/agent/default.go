@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -311,11 +312,11 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallId,
-			Value: string(dda.GetUID()),
+			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallTime,
-			Value: strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10),
+			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,

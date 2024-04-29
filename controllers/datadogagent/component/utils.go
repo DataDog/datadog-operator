@@ -31,13 +31,6 @@ const (
 	DefaultAgentInstallType = "k8s_manual"
 )
 
-var (
-// AgentInstallTime records the Agent install time
-//AgentInstallTime = strconv.FormatInt(time.Now().Unix(), 10)
-
-// AgentInstallId = uuid.NewString()
-)
-
 // GetVolumeForConfig return the volume that contains the agent config
 func GetVolumeForConfig() corev1.Volume {
 	return corev1.Volume{
