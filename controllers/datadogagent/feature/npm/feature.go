@@ -131,12 +131,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)
-	managers.VolumeMount().AddVolumeMountToContainers(
-		&socketVolMount,
-		[]apicommonv1.AgentContainerName{
-			apicommonv1.SystemProbeContainerName,
-		},
-	)
+	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
 
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(

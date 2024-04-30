@@ -273,7 +273,13 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
 
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.SecurityAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainers(
+		&socketVolMountReadOnly,
+		[]apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+			apicommonv1.SecurityAgentContainerName,
+		},
+	)
 	volMgr.AddVolume(&socketVol)
 
 	// procdir volume mount
