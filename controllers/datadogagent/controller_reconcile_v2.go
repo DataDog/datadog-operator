@@ -200,7 +200,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs))
 	} else {
-		// Update the status to make it the AgentReconcileConditionType successful
+		// Update the status to set AgentReconcileConditionType to successful
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
@@ -208,7 +208,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	} else {
-		// Update the status to make it the ClusterChecksRunnerReconcileConditionType successful
+		// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
