@@ -444,7 +444,7 @@ spec:
 | clusterChecksRunner.rbac.serviceAccountName | Used to set up the service account name to use. Ignored if the field Create is true. |
 | clusterChecksRunner.replicas | Number of the Cluster Checks Runner replicas. |
 | clusterChecksRunner.tolerations | If specified, the Cluster-Checks pod's tolerations. |
-| clusterName | Set a unique cluster name to facilitate scoping hosts and Cluster Checks Runner. Must be a string of dot-separated tokens. A token can contain lowercase letters, numbers, or hyphens. A token must start with a lowercase letter, cannot end with a hyphen, cannot contain a dot adjacent to a hyphen, and must be fewer than 80 chars. |
+| clusterName | Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars. |
 | credentials.apiKey | APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | credentials.apiKeyExistingSecret | APIKeyExistingSecret is DEPRECATED. In order to pass the API key through an existing secret, please consider "apiSecret" instead. If set, this parameter takes precedence over "apiKey". |
 | credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
