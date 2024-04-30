@@ -178,7 +178,7 @@ func isReconcileError(conditions []metav1.Condition) error {
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func() (bool, error) {
-		var agentDone, dcaDone, clcDone, reconcileError bool
+		var agentDone, dcaDone, ccrDone, reconcileError bool
 		v2Available, err := common.IsV2Available(o.Clientset)
 		if err != nil {
 			return false, fmt.Errorf("unable to detect if CRD v2 is available, err:%w", err)
@@ -212,11 +212,11 @@ func (o *Options) Run() error {
 			dcaDone = o.isDeploymentDone(status.GetClusterAgentStatus(), o.dcaMinUpToDate, "Cluster Agent")
 		}
 
-		if !clcDone {
-			clcDone = o.isDeploymentDone(status.GetClusterChecksRunnerStatus(), o.clcMinUpToDate, "Cluster Check Runner")
+		if !ccrDone {
+			ccrDone = o.isDeploymentDone(status.GetClusterChecksRunnerStatus(), o.clcMinUpToDate, "Cluster Check Runner")
 		}
 
-		if agentDone && dcaDone && clcDone && !reconcileError {
+		if agentDone && dcaDone && ccrDone && !reconcileError {
 			return true, nil
 		}
 
