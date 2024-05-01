@@ -197,6 +197,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if err := r.deleteV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus); err != nil {
 			return reconcile.Result{}, err
 		}
+		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
 	}
 
@@ -239,6 +240,11 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 	removeStaleStatus(newStatus, eds.Name)
 
 	return nil
+}
+
+func deleteStatusWithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+	newStatus.Agent = nil
+	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
 }
 
 // removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
