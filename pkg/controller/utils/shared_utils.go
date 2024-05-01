@@ -7,6 +7,7 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -31,4 +32,14 @@ func GetDatadogAgentResourceNamespace(dda metav1.Object) string {
 // GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
 func GetDatadogTokenResourceName(dda metav1.Object) string {
 	return fmt.Sprintf("%stoken", dda.GetName())
+}
+
+// GetDatadogAgentResourceNamespace returns the UID of the Datadog Agent Resource
+func GetDatadogAgentResourceUID(dda metav1.Object) string {
+	return string(dda.GetUID())
+}
+
+// GetDatadogAgentResourceCreationTime returns the creation timestamp of the Datadog Agent Resource
+func GetDatadogAgentResourceCreationTime(dda metav1.Object) string {
+	return strconv.FormatInt(dda.GetCreationTimestamp().Unix(), 10)
 }
