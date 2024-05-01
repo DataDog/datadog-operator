@@ -7414,7 +7414,9 @@ spec:
                       x-kubernetes-list-type: atomic
                   type: object
                 clusterName:
-                  description: Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
+                  description: Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars.
+                  maxLength: 80
+                  pattern: ^([a-z]([a-z0-9\\-]*[a-z0-9])?\\.)*([a-z]([a-z0-9\\-]*[a-z0-9])?)$
                   type: string
                 credentials:
                   description: Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.
@@ -8465,7 +8467,9 @@ spec:
                         - secretName
                       type: object
                     clusterName:
-                      description: ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
+                      description: ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars.
+                      maxLength: 80
+                      pattern: ^([a-z]([a-z0-9\\-]*[a-z0-9])?\\.)*([a-z]([a-z0-9\\-]*[a-z0-9])?)$
                       type: string
                     containerStrategy:
                       description: 'ContainerStrategy determines whether agents run in a single or multiple containers. Default: ''optimized'''

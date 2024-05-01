@@ -756,8 +756,10 @@ type GlobalConfig struct {
 	// ClusterAgentTokenSecret is the secret containing the Cluster Agent token.
 	ClusterAgentTokenSecret *commonv1.SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
 
-	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
+	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars.
 	// +optional
+	// +kubebuilder:validation:Pattern=^([a-z]([a-z0-9\\-]*[a-z0-9])?\\.)*([a-z]([a-z0-9\\-]*[a-z0-9])?)$
+	// +kubebuilder:validation:MaxLength=80
 	ClusterName *string `json:"clusterName,omitempty"`
 
 	// Site is the Datadog intake site Agent data are sent to.

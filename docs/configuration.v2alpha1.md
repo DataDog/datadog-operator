@@ -139,7 +139,7 @@ spec:
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
 | global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
 | global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
-| global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
+| global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. It must be dot-separated tokens where tokens start with a lowercase letter followed by lowercase letters, numbers, or hyphens, cannot end with a hyphen nor have a dot adjacent to a hyphen, and be below 80 chars. |
 | global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
