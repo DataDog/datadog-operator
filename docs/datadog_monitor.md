@@ -41,7 +41,6 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
     kind: DatadogMonitor
     metadata:
       name: datadog-monitor-test
-      namespace: datadog
     spec:
       query: "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5"
       type: "metric alert"
@@ -55,15 +54,14 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
    - Note: By default, the Operator only watches its own `namespace`, so it will manage any `DatadogAgent` and `DatadogMonitor` objects within its own `namespace`. Therefore, you should deploy your Datadog objects in the same `namespace` as the Operator.
    - If you'd like to deploy your DatadogMonitors in a different `namespace`, then you will need to configure the Operator [`watchNamespaces`][8] section with these additional `namespaces`:
 
-   ```
-   (...)
+```yaml
+   #(...)
    watchNamespaces:
      - datadog
      - <NAMESPACE_1>
      - <NAMESPACE_2>
      - <NAMESPACE_3>
-   (...)
-   ```
+```
 
 1. Deploy the `DatadogMonitor` with the above configuration file:
 
