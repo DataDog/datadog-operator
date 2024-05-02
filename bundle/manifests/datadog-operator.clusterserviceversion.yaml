@@ -201,8 +201,8 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.23.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.6.0-rc.2
-    createdAt: "2024-04-25 17:43:17"
+    containerImage: gcr.io/datadoghq/operator:1.6.0-rc.3
+    createdAt: "2024-05-02 15:15:48"
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -211,8 +211,8 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: <1.6.0-rc.2
-  name: datadog-operator.v1.6.0-rc.2
+    olm.skipRange: <1.6.0-rc.3
+  name: datadog-operator.v1.6.0-rc.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -1016,7 +1016,7 @@ spec:
                         valueFrom:
                           fieldRef:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
-                    image: gcr.io/datadoghq/operator:1.6.0-rc.2
+                    image: gcr.io/datadoghq/operator:1.6.0-rc.3
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1126,7 +1126,7 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.6.0-rc.2
+  version: 1.6.0-rc.3
   webhookdefinitions:
     - admissionReviewVersions:
         - v1
