@@ -52,6 +52,9 @@ spec:
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.asm.iast.enabled | Enabled enables IAST (Interactive Application Security Testing). Default: false |
+| features.asm.sca.enabled | Enabled enables SCA (Software Composition Analysis). Default: false |
+| features.asm.threats.enabled | Enabled enables Threats detection. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |

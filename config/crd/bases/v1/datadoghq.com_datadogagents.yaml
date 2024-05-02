@@ -796,31 +796,6 @@ spec:
                             - mountPath
                           x-kubernetes-list-type: map
                       type: object
-                    asm:
-                      description: ASM (Application Security Management) cluster-wide activation and configuration. ASM features all requires DataDog client library to be installed or APM Single Step Instrumentation to be enabled.
-                      properties:
-                        threats:
-                          description: App & API Protection configuration.
-                          properties:
-                            enabled:
-                              description: Enable this to activate App & API Protection feature of ASM
-                              type: boolean
-                          type: object
-                        sca:
-                          description: SCA (Software Composition Analysis) configuration
-                          properties:
-                            enabled:
-                              description: Enable this to activate SCA feature of ASM
-                              type: boolean
-                          type: object
-                        iast:
-                          description: IAST (Interactive Application Security Testing) configuration
-                          properties:
-                            enabled:
-                              description: Enable this to activate IAST feature of ASM
-                              type: boolean
-                          type: object
-                      type: object
                     config:
                       description: Agent configuration.
                       properties:
@@ -7912,6 +7887,31 @@ spec:
                             path:
                               description: Path defines the socket path used when enabled.
                               type: string
+                          type: object
+                      type: object
+                    asm:
+                      description: ASM (Application Security Management) configuration.
+                      properties:
+                        iast:
+                          description: 'IAST (Interactive Application Security Testing) enables Interactive Application Security Testing at cluster scale. Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables IAST (Interactive Application Security Testing). Default: false'
+                              type: boolean
+                          type: object
+                        sca:
+                          description: 'SCA (Software Composition Analysis) enables Software Composition Analysis at cluster scale. Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables SCA (Software Composition Analysis). Default: false'
+                              type: boolean
+                          type: object
+                        threats:
+                          description: 'Threats enables Application Security Management at cluster scale (requires Datadog client libraries installed or Single Step Instrumentation enabled). Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables Threats detection. Default: false'
+                              type: boolean
                           type: object
                       type: object
                     clusterChecks:
