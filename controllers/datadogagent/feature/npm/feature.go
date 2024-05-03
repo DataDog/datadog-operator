@@ -143,35 +143,43 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	)
 
 	// env vars
+
+	// env vars for Core Agent, Process Agent and System Probe
+	containersForEnvVars := []apicommonv1.AgentContainerName{
+		apicommonv1.CoreAgentContainerName,
+		apicommonv1.ProcessAgentContainerName,
+		apicommonv1.SystemProbeContainerName,
+	}
+
 	enableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeNPMEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enableEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeEnableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeEnableEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeEnableEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
 		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, socketEnvVar)
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, &corev1.EnvVar{
+	collectDNSStatsEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
 		Value: apiutils.BoolToString(&f.collectDNSStats),
-	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, &corev1.EnvVar{
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName}, collectDNSStatsEnvVar)
+
+	connTrackEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeConntrackEnabled,
 		Value: apiutils.BoolToString(&f.enableConntrack),
-	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName}, connTrackEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{

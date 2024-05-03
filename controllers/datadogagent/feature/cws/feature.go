@@ -190,28 +190,32 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// envvars
+
+	// env vars for Core Agent, Security Agent and System Probe
+	containersForEnvVars := []apicommonv1.AgentContainerName{
+		apicommonv1.CoreAgentContainerName,
+		apicommonv1.SecurityAgentContainerName,
+		apicommonv1.SystemProbeContainerName,
+	}
+
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigSocket,
 		Value: filepath.Join(apicommon.SystemProbeSocketVolumePath, "runtime-security.sock"),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, runtimeSocketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, runtimeSocketEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
 	if f.syscallMonitorEnabled {
 		monitorEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
 			Value: "true",
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, monitorEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, monitorEnvVar)
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, monitorEnvVar)
 	}
 
 	if f.networkEnabled {
