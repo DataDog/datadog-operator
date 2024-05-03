@@ -44,6 +44,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 				rbac.PodsResource,
 				rbac.ServicesResource,
 				rbac.NodesResource,
+				rbac.PersistentVolumesResource,
+				rbac.PersistentVolumeClaimsResource,
+				rbac.ServiceAccountResource,
+				rbac.LimitRangesResource,
 			},
 		},
 		{
@@ -60,20 +64,6 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			Resources: []string{
 				rbac.JobsResource,
 				rbac.CronjobsResource,
-			},
-		},
-
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.PersistentVolumesResource,
-				rbac.PersistentVolumeClaimsResource,
-			},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ServiceAccountResource,
 			},
 		},
 		{
@@ -100,6 +90,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 		{
 			APIGroups: []string{rbac.AutoscalingAPIGroup},
 			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+		},
+		{
+			APIGroups: []string{rbac.StorageAPIGroup},
+			Resources: []string{rbac.StorageClassesResource},
 		},
 	}
 
