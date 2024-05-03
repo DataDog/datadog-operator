@@ -67,9 +67,9 @@ spec:
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
+| features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to a multiline string of the YAML formatted configuration for the mapper profiles. |
 | features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
+| features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap storing the JSON formatted configuration for the mapper profiles. |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
