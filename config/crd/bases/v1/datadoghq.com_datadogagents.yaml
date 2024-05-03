@@ -7893,24 +7893,24 @@ spec:
                       description: ASM (Application Security Management) configuration.
                       properties:
                         iast:
-                          description: 'IAST (Interactive Application Security Testing) enables Interactive Application Security Testing at cluster scale. Enabled Default: false'
+                          description: 'Interactive Application Security Testing (IAST) enables this ASM feature via the DD_IAST_ENABLED environment variable at cluster scale. Enabled Default: false'
                           properties:
                             enabled:
-                              description: 'Enabled enables IAST (Interactive Application Security Testing). Default: false'
+                              description: 'Enabled enables Interactive Application Security Testing (IAST) ASM feature via the DD_IAST_ENABLED environment variable at cluster scale. Default: false'
                               type: boolean
                           type: object
                         sca:
-                          description: 'SCA (Software Composition Analysis) enables Software Composition Analysis at cluster scale. Enabled Default: false'
+                          description: 'Software Composition Analysis (SCA) enables this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale. Enabled Default: false'
                           properties:
                             enabled:
-                              description: 'Enabled enables SCA (Software Composition Analysis). Default: false'
+                              description: 'Enabled enables Software Composition Analysis (SCA) this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale. Enabled Default: false Default: false'
                               type: boolean
                           type: object
                         threats:
-                          description: 'Threats enables Application Security Management at cluster scale (requires Datadog client libraries installed or Single Step Instrumentation enabled). Enabled Default: false'
+                          description: 'Threats enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. Enabled Default: false'
                           properties:
                             enabled:
-                              description: 'Enabled enables Threats detection. Default: false'
+                              description: 'Enabled enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. Default: false'
                               type: boolean
                           type: object
                       type: object

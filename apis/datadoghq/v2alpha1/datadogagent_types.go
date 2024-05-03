@@ -155,40 +155,41 @@ type SingleStepInstrumentation struct {
 	LibVersions map[string]string `json:"libVersions,omitempty"`
 }
 
-// ASMFeatureConfig contains ASM (Application Security Management) configuration.
-// All ASM features can be enabled at cluster scale by setting `Enabled: true`.
-// Note that this will only affect pods where the Datadog client libraries are installed or Single Step Instrumentation is enabled.
+// ASMFeatureConfig contains (Application Security Management (ASM) configuration.
+// All ASM features can be enabled at cluster scale by setting the field `enabled: true`.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 type ASMFeatureConfig struct {
-	// Threats enables Application Security Management at cluster scale (requires Datadog client libraries installed or Single Step Instrumentation enabled).
+	// Threats enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. 
 	// Enabled Default: false
 	// +optional
 	Threats *ASMThreatsConfig `json:"threats,omitempty"`
-	// SCA (Software Composition Analysis) enables Software Composition Analysis at cluster scale.
+	// Software Composition Analysis (SCA) enables this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale.
 	// Enabled Default: false
 	// +optional
 	SCA *ASMSCAConfig `json:"sca,omitempty"`
-	// IAST (Interactive Application Security Testing) enables Interactive Application Security Testing at cluster scale.
+	// Interactive Application Security Testing (IAST) enables this ASM feature via the DD_IAST_ENABLED environment variable at cluster scale.
 	// Enabled Default: false
 	// +optional
 	IAST *ASMIASTConfig `json:"iast,omitempty"`
 }
 
 type ASMThreatsConfig struct {
-	// Enabled enables Threats detection.
+	// Enabled enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. 
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type ASMSCAConfig struct {
-	// Enabled enables SCA (Software Composition Analysis).
+	// Enabled enables Software Composition Analysis (SCA) this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale.
+	// Enabled Default: false
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type ASMIASTConfig struct {
-	// Enabled enables IAST (Interactive Application Security Testing).
+	// Enabled enables Interactive Application Security Testing (IAST) ASM feature via the DD_IAST_ENABLED environment variable at cluster scale.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
