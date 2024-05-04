@@ -52,7 +52,7 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
 
     For additional examples, see [examples/datadog-monitor](../examples/datadogmonitor). Note that only metric alerts, query alerts, and service checks are supported.
    - Note: By default, the Operator only watches its own `namespace`, so it will manage any `DatadogAgent` and `DatadogMonitor` objects within its own `namespace`. Therefore, you should deploy your Datadog objects in the same `namespace` as the Operator.
-   - If you'd like to deploy your DatadogMonitors in a different `namespace`, then you will need to configure the Operator [`watchNamespaces`][8] section with these additional `namespaces`:
+   - If you'd like to deploy your DatadogMonitors in different namespaces, then you will need to configure the Operator [`watchNamespaces`][8] section with those additional namespaces:
 
    ```yaml
       #(...)
