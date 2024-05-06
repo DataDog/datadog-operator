@@ -130,6 +130,15 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	)
 	managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
 
+	sysProbeEnableEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeEnabled,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainers(
+		[]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		sysProbeEnableEnvVar,
+	)
+
 	socketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
 		Value: apicommon.DefaultSystemProbeSocketPath,
