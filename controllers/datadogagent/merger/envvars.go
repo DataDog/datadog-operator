@@ -21,6 +21,8 @@ type EnvVarManager interface {
 	AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error
 	// AddEnvVarToContainer use to add an environment variable to a specific container present in the Pod.
 	AddEnvVarToContainer(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar)
+	// AddEnvVarToContainers use to add an environment variable to specified containers present in the Pod.
+	AddEnvVarToContainers(containerNames []commonv1.AgentContainerName, newEnvVar *corev1.EnvVar)
 	// AddEnvVarToInitContainer use to add an environment variable to a specific init container present in the Pod.
 	AddEnvVarToInitContainer(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar)
 	// AddEnvVarWithMergeFunc use to add an environment variable to a specific container present in the Pod.
@@ -57,6 +59,12 @@ func (impl *envVarManagerImpl) AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, 
 
 func (impl *envVarManagerImpl) AddEnvVarToContainer(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar) {
 	_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, DefaultEnvVarMergeFunction)
+}
+
+func (impl *envVarManagerImpl) AddEnvVarToContainers(containerNames []commonv1.AgentContainerName, newEnvVar *corev1.EnvVar) {
+	for _, containerName := range containerNames {
+		_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, DefaultEnvVarMergeFunction)
+	}
 }
 
 func (impl *envVarManagerImpl) AddEnvVarToInitContainer(initContainerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar) {
