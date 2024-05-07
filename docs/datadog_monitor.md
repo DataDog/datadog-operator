@@ -62,6 +62,8 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
         - <NAMESPACE_2>
         - <NAMESPACE_3>
    ```
+   - *Note*: Adding namespaces increases number of resources the Operator watches. 
+      - You may need to adjust the memory limits for these addition of namespaces.
 
 1. Deploy the `DatadogMonitor` with the above configuration file:
 
