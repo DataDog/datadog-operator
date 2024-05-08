@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -185,11 +186,11 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		updateDaemonset.Annotations = mergeAnnotationsLabels(logger, currentDaemonset.GetAnnotations(), daemonset.GetAnnotations(), keepAnnotationsFilter)
 		updateDaemonset.Labels = mergeAnnotationsLabels(logger, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
 
-		// Spec.Selector is an immutable field and can't be change changing it leads to an error.
-		// Template.Labels must match Spec.Selector, otherwise they become orphaned. Hence we keep both fields from the current DS.
+		// Spec.Selector is an immutable field and changing it leads to an error.
+		// Template.Labels must include Spec.Selector.
 		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
 		updateDaemonset.Spec.Selector = currentDaemonset.Spec.Selector
-		updateDaemonset.Spec.Template.Labels = currentDaemonset.Spec.Template.Labels
+		updateDaemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, updateDaemonset.Spec.Selector, updateDaemonset.Spec.Template.Labels)
 
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
@@ -282,6 +283,12 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 		updateEDS.Annotations = mergeAnnotationsLabels(logger, currentEDS.GetAnnotations(), eds.GetAnnotations(), keepAnnotationsFilter)
 		updateEDS.Labels = mergeAnnotationsLabels(logger, currentEDS.GetLabels(), eds.GetLabels(), keepLabelsFilter)
 
+		// Spec.Selector is an immutable field and changing it leads to an error.
+		// Template.Labels must include Spec.Selector.
+		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
+		updateEDS.Spec.Selector = currentEDS.Spec.Selector
+		updateEDS.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, updateEDS.Spec.Selector, updateEDS.Spec.Template.Labels)
+
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateEDS, currentEDS.ObjectMeta)
 		if err != nil {
@@ -307,4 +314,31 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
+}
+
+// ensureSelectorInPodTemplateLabels checks that a label selector's MatchLabels
+// are present in the pod template labels. If the label is missing, it adds it
+// to the pod template labels. If the value doesn't match, it changes the label
+// value to match the selector.
+// If the selector labels aren't present in the pod template labels, there will
+// be a `selector does not match template labels` error when updating the agent
+func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
+	if selector != nil {
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		for k, v := range selector.MatchLabels {
+			value, ok := labels[k]
+			if !ok {
+				logger.Info("Selector not in template labels, adding to template labels", "selector label", fmt.Sprintf("%s: %s", k, v))
+				labels[k] = v
+			}
+			if value != v {
+				logger.Info("Selector value does not match template labels, modifying template labels", "selector label", fmt.Sprintf("%s: %s", k, v), "template label", fmt.Sprintf("%s: %s", k, value))
+				labels[k] = v
+			}
+		}
+	}
+
+	return labels
 }
