@@ -14,15 +14,12 @@ import (
 	"strings"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	klog "k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -246,7 +243,7 @@ func run(opts *options) error {
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
-		NewCache:                   cache.BuilderWithOptions(cacheOptions()),
+		Cache:                      cacheOptions(),
 	}))
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
@@ -332,47 +329,42 @@ func run(opts *options) error {
 // fields we'll need to modify this function.
 func cacheOptions() cache.Options {
 	return cache.Options{
-		SelectorsByObject: cache.SelectorsByObject{
-			// Store pods only if they are node agent pods.
+		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {
-				Label: labels.SelectorFromSet(map[string]string{
-					apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
-				}),
-			},
-		},
-		TransformByObject: map[client.Object]toolscache.TransformFunc{
-			// Store only the node name and the labels of the pod.
-			&corev1.Pod{}: func(obj interface{}) (interface{}, error) {
-				pod := obj.(*corev1.Pod)
+				Transform: func(obj interface{}) (interface{}, error) {
+					pod := obj.(*corev1.Pod)
 
-				newPod := &corev1.Pod{
-					TypeMeta: pod.TypeMeta,
-					ObjectMeta: v1.ObjectMeta{
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-						Labels:    pod.Labels,
-					},
-					Spec: corev1.PodSpec{
-						NodeName: pod.Spec.NodeName,
-					},
-				}
+					newPod := &corev1.Pod{
+						TypeMeta: pod.TypeMeta,
+						ObjectMeta: v1.ObjectMeta{
+							Namespace: pod.Namespace,
+							Name:      pod.Name,
+							Labels:    pod.Labels,
+						},
+						Spec: corev1.PodSpec{
+							NodeName: pod.Spec.NodeName,
+						},
+					}
 
-				return newPod, nil
+					return newPod, nil
+				},
 			},
 
 			// Store only the node name and its labels.
-			&corev1.Node{}: func(obj interface{}) (interface{}, error) {
-				node := obj.(*corev1.Node)
+			&corev1.Node{}: {
+				Transform: func(obj interface{}) (interface{}, error) {
+					node := obj.(*corev1.Node)
 
-				newNode := &corev1.Node{
-					TypeMeta: node.TypeMeta,
-					ObjectMeta: v1.ObjectMeta{
-						Name:   node.Name,
-						Labels: node.Labels,
-					},
-				}
+					newNode := &corev1.Node{
+						TypeMeta: node.TypeMeta,
+						ObjectMeta: v1.ObjectMeta{
+							Name:   node.Name,
+							Labels: node.Labels,
+						},
+					}
 
-				return newNode, nil
+					return newNode, nil
+				},
 			},
 		},
 	}

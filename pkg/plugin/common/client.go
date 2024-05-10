@@ -7,6 +7,7 @@ package common
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -23,9 +24,8 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get rest client config: %w", err)
 	}
-
 	// Create the mapper provider
-	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig)
+	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig, &http.Client{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
 	}
