@@ -119,6 +119,25 @@ func TestReconciler_Reconcile(t *testing.T) {
 			}),
 			expectedResult: ctrl.Result{RequeueAfter: defaultRequeuePeriod},
 		},
+		{
+			name: "Creating SLO when StatusSync is in status creating should requeue",
+			request: ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Namespace: resourceNamespace,
+					Name:      resourceName,
+				},
+			},
+			mockOn: func(t *testing.T, m *mockedFields) {
+				slo := defaultSLO()
+				slo.Status.SyncStatus = v1alpha1.DatadogSLOSyncCreating
+				_ = m.k8sClient.Create(context.TODO(), slo)
+			},
+			datadogClientHandler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(defaultDatadogSLOResponse())
+			}),
+			expectedResult: ctrl.Result{RequeueAfter: defaultRequeuePeriod},
+		},
 	}
 
 	// Iterate through test cases
