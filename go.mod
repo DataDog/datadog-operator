@@ -6,7 +6,7 @@ toolchain go1.21.10
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.19.0
-	github.com/DataDog/extendeddaemonset v0.10.0-rc.3-depUpgrades
+	// github.com/DataDog/extendeddaemonset v0.10.0-rc.3-depUpgrades
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.2.4
 	github.com/gobwas/glob v0.2.3
@@ -38,7 +38,9 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-// replace github.com/DataDog/extendeddaemonset => ./vnd/extendeddaemonset
+replace github.com/DataDog/extendeddaemonset => ./vnd/extendeddaemonset
+
+require github.com/DataDog/extendeddaemonset v0.0.0-00010101000000-000000000000
 
 require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.52.0
