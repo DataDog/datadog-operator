@@ -108,6 +108,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
+	// Check if the SLO is creating
+	if status.SyncStatus == v1alpha1.DatadogSLOSyncCreating {
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+	}
+
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 	if err != nil {
 		logger.Error(err, "error generating hash")
@@ -140,6 +145,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	}
 
 	if shouldCreate {
+		// Set status to creating, ensure that only one SLO is created
+		status.SyncStatus = v1alpha1.DatadogSLOSyncCreating
+		if ctrlResult, err := r.updateStatusIfNeeded(logger, instance, status, result); err != nil {
+			return ctrlResult, err
+		}
 		// Check that required tags are present
 		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 			return r.updateStatusIfNeeded(logger, instance, status, result)

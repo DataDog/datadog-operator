@@ -128,6 +128,8 @@ type DatadogSLOSyncStatus string
 const (
 	// DatadogSLOSyncStatusOK means syncing is OK.
 	DatadogSLOSyncStatusOK DatadogSLOSyncStatus = "OK"
+	// DatadogSLOSyncCreating means we started a reconcialiation loop to create the SLO.
+	DatadogSLOSyncCreating DatadogSLOSyncStatus = "creating SLO"
 	// DatadogSLOSyncStatusValidateError means there is a SLO validation error.
 	DatadogSLOSyncStatusValidateError DatadogSLOSyncStatus = "error validating SLO"
 	// DatadogSLOSyncStatusUpdateError means there is a SLO update error.
