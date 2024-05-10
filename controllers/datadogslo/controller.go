@@ -147,8 +147,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if shouldCreate {
 		// Set status to creating, ensure that only one SLO is created
 		status.SyncStatus = v1alpha1.DatadogSLOSyncCreating
-		if ctrlResult, err := r.updateStatusIfNeeded(logger, instance, status, result); err != nil {
-			return ctrlResult, err
+		if result, err = r.updateStatusIfNeeded(logger, instance, status, result); err != nil {
+			return result, err
 		}
 		// Check that required tags are present
 		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
