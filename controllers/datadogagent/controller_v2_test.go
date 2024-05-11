@@ -75,7 +75,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent default, create Daemonset with core, trace and process agents",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -102,7 +102,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent singleProcessContainer, create Daemonset with core, trace and process agents",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -130,7 +130,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent default, create Daemonset with a single container",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -156,7 +156,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM enabled, create Daemonset with core, trace and process agents",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -185,7 +185,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM enabled, create Daemonset with a single container",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -212,7 +212,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -244,7 +244,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -277,7 +277,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -308,7 +308,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -339,7 +339,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with FIPS enabled",
 			fields: fields{
-				client:   fake.NewFakeClient(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
@@ -497,7 +497,7 @@ func Test_Introspection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithObjects(tt.nodes...).Build(),
+				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
 				scheme:       tt.fields.scheme,
 				platformInfo: tt.fields.platformInfo,
 				recorder:     recorder,
