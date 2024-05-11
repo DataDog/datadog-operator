@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "app-example.fullname" . }}-test"
+  labels:
+    {{- include "app-example.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  serviceAccountName: {{ include "app-example.serviceAccountName" . }}-test
+  containers:
+    - name: {{ .Release.Name }}-check-eds
+      image: "{{ .Values.test.image.repository }}:{{ .Values.test.image.tag | default .Chart.AppVersion }}"
+      imagePullPolicy: {{ .Values.test.image.pullPolicy }}
+      args:
+        - upgrade
+        - -n={{ .Release.Namespace }}
+        - {{ include "app-example.fullname" . }}
+  restartPolicy: Never
+

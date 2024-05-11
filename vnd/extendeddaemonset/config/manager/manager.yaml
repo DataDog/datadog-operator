@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/name: extendeddaemonset
+  name: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    app.kubernetes.io/name: extendeddaemonset
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: extendeddaemonset
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: extendeddaemonset
+    spec:
+      containers:
+      - command:
+        - /manager
+        args:
+        - --enable-leader-election
+        - --pprof
+        image: controller:latest
+        imagePullPolicy: Always
+        name: eds-manager
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+          - name: metrics
+            containerPort: 8080
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz/
+            port: 8081
+          periodSeconds: 10
+      terminationGracePeriodSeconds: 10

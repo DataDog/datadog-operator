@@ -1,0 +1,24 @@
+# permissions for end users to edit extendeddaemonsetreplicasets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: extendeddaemonsetreplicaset-editor-role
+rules:
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - extendeddaemonsetreplicasets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - extendeddaemonsetreplicasets/status
+  verbs:
+  - get

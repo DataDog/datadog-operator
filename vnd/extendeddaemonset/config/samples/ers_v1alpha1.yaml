@@ -1,0 +1,5 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: ExtendedDaemonSetReplicaSet
+metadata:
+  name: automatically-generated-by-extended-daemon-set
+

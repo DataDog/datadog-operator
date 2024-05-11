@@ -1,0 +1,10 @@
+# See https://help.github.com/articles/about-codeowners/ for syntax
+# Rules are matched bottom-to-top, so one team can own subdirectories
+# and another the rest of the directory.
+
+# All your base
+*                   @DataDog/container-integrations @Datadog/container-ecosystems
+
+# Documentation
+README.md             @DataDog/documentation @DataDog/container-integrations @Datadog/container-ecosystems
+/docs/                @DataDog/documentation @DataDog/container-integrations @Datadog/container-ecosystems

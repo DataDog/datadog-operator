@@ -1,0 +1,34 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "{{ include "app-example.fullname" . }}-test"
+  labels:
+    {{- include "app-example.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+rules:
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - 'extendeddaemonsets'
+  - 'extendeddaemonsets/status'
+  verbs:
+  - 'get'
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "{{ include "app-example.fullname" . }}-test"
+  labels:
+    {{- include "app-example.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+subjects:
+- kind: ServiceAccount
+  name: "{{ include "app-example.serviceAccountName" . }}-test"
+roleRef:
+  kind: Role
+  name: "{{ include "app-example.fullname" . }}-test"
+  apiGroup: rbac.authorization.k8s.io
+{{- end -}}

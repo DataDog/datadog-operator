@@ -1,0 +1,66 @@
+metadata:
+  annotations:
+    capabilities: Full Lifecycle
+    categories: Application Runtime
+    certified: "true"
+    containerImage: datadog/extendeddaemonset:0.2.0
+    description: |-
+      ExtendedDaemonSet aims to provide a new implementation of the Kubernetes DaemonSet resource with key features:
+
+        * Canary Deployment: Deploy a new DaemonSet version with only a few nodes.
+        * Custom Rolling Update: Improve the default rolling update logic available in Kubernetes batch/v1 Daemonset.
+    repository: https://github.com/DataDog/extendeddaemonset
+    support: Datadog Inc.
+    alm-examples: |-
+      [{
+        "apiVersion": "datadoghq.com/v1alpha1",
+        "kind": "ExtendedDaemonSet",
+        "metadata": {
+          "name": "foo"
+        },
+        "spec": {
+          "strategy": {
+            "canary": {
+              "replicas": 1,
+              "duration": "5m"
+            },
+            "rollingUpdate": {
+              "maxParallelPodCreation": 1,
+              "slowStartIntervalDuration": "1m"
+            }
+          },
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "name": "daemon",
+                  "image": "registry.k8s.io/pause:3.0"
+                }
+              ],
+              "tolerations": [
+                {
+                  "operator": "Exists"
+                }
+              ]
+            }
+          }
+        }
+      }]
+spec:
+  description: ExtendedDaemonSet aims to provide a new implementation of
+    the Kubernetes DaemonSet resource with key features such as canary deployment
+    and custom rolling update strategy.
+  icon:
+  keywords:
+    - Daemonset
+    - Canary
+    - ExtendedDaemonset
+    - Deployment
+  links:
+    - name: Documentation
+      url: https://github.com/DataDog/extendeddaemonset
+  maintainers:
+    - email: cedric@datadoghq.com
+      name: Cedric Lamoriniere
+  provider:
+    name: Datadog
