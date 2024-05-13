@@ -4,7 +4,7 @@ This feature was introduced in Datadog Operator v1.5.0 and is currently in beta.
 
 ## Overview
 
-DatadogAgentProfiles (DAPs), also known as profiles, can be created to override certain Operator settings that were set in a DatadogAgent (DDA) on a subset of nodes. Currently, it is possible to override the node agent container resource settings using a DAP. While multiple DAPs can be applied to a cluster, each DAP must target a different subset of nodes so the DAPs do not conflict with each other. 
+DatadogAgentProfiles (DAPs), also known as profiles, can be created to override certain Operator settings that were set in a DatadogAgent (DDA) on a subset of nodes. The [Supported Settings](#supported-settings) table lists which settings can be overridden and the minimum Operator versions for each. While multiple DAPs can be applied to a cluster, each DAP must target a different subset of nodes so the DAPs do not conflict with each other. 
 
 Example:
 
@@ -43,8 +43,8 @@ datadog-agent                                                   1         1     
 datadog-agent-with-profile-default-datadogagentprofile-sample   1         1         1       1            1           <none>          44s
 ```
 
-* `datadog-agent` is the DaemonSet created by the profile `datadogagentprofile-sample`
-* `datadog-agent-with-profile-default-datadogagentprofile-sample` is the DaemonSet created by the default profile
+* `datadog-agent` is the DaemonSet created by the default profile
+* `datadog-agent-with-profile-default-datadogagentprofile-sample` is the DaemonSet created by the profile `datadogagentprofile-sample`
 
 ## Prerequisites
 
@@ -57,3 +57,10 @@ DAP is disabled by default. To enable DAP using the [datadog-operator helm chart
 
 > [!CAUTION]
 > Enabling DAP will increase the resource usage of the Operator. Please ensure the operator pod has enough resources allocated to it prior to enabling DAP.
+
+## Supported Settings
+
+| Setting | Operator Version |
+| -------- | :--------------: |
+| override.[nodeAgent].containers.[\*].resources.\* | v1.5.0 |
+| override.[nodeAgent].priorityClassName | v1.6.0 |
