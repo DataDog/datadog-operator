@@ -797,6 +797,10 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
+	// OriginDetectionUnified enables Unified mechanism for Origin Detection
+	// +optional
+	OriginDetectionUnified *bool `json:"originDetectionUnified,omitempty"`
+
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 	// +optional

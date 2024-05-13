@@ -137,6 +137,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	if config.OriginDetectionUnified != nil {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDOriginDetectionUnified,
+			Value: apiutils.BoolToString(config.OriginDetectionUnified),
+		})
+	}
+
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	if config.PodLabelsAsTags != nil {
 		podLabelsAsTags, err := json.Marshal(config.PodLabelsAsTags)

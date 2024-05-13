@@ -131,6 +131,10 @@ func getExpectedEnvVars() []*corev1.EnvVar {
 			Value: "info",
 		},
 		{
+			Name:  apicommon.DDOriginDetectionUnified,
+			Value: "false",
+		},
+		{
 			Name:  apicommon.DDKubeletTLSVerify,
 			Value: "true",
 		},

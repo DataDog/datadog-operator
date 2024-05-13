@@ -1105,6 +1105,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.OriginDetectionUnified != nil {
+		in, out := &in.OriginDetectionUnified, &out.OriginDetectionUnified
+		*out = new(bool)
+		**out = **in
+	}
 	if in.PodLabelsAsTags != nil {
 		in, out := &in.PodLabelsAsTags, &out.PodLabelsAsTags
 		*out = make(map[string]string, len(*in))
