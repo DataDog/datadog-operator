@@ -137,10 +137,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
-	if config.OriginDetectionUnified != nil {
+	if config.OriginDetectionUnified != nil && config.OriginDetectionUnified.Enabled != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDOriginDetectionUnified,
-			Value: apiutils.BoolToString(config.OriginDetectionUnified),
+			Value: apiutils.BoolToString(config.OriginDetectionUnified.Enabled),
 		})
 	}
 

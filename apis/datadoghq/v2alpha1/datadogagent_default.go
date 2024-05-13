@@ -54,8 +54,6 @@ const (
 
 	defaultUSMEnabled bool = false
 
-	defaultOriginDetectionUnified bool = false
-
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
@@ -142,10 +140,6 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if ddaSpec.Global.LogLevel == nil {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
-	}
-
-	if ddaSpec.Global.OriginDetectionUnified == nil {
-		ddaSpec.Global.OriginDetectionUnified = apiutils.NewBoolPointer(defaultOriginDetectionUnified)
 	}
 
 	if ddaSpec.Global.ContainerStrategy == nil {
