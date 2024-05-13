@@ -38,6 +38,7 @@ spec:
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| features.admissionController.registry | Registry defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |

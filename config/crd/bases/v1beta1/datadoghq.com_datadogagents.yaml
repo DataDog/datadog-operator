@@ -15369,6 +15369,9 @@ spec:
                         mutateUnlabelled:
                           description: 'MutateUnlabelled enables config injection without the need of pod label ''admission.datadoghq.com/enabled="true"''. Default: false'
                           type: boolean
+                        registry:
+                          description: Registry defines an image registry for the admission controller.
+                          type: string
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
