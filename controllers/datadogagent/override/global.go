@@ -83,6 +83,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		for idx := range manager.PodTemplateSpec().Spec.Containers {
 			manager.PodTemplateSpec().Spec.Containers[idx].Image = fullImage
 		}
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerContainerRegistry,
+			Value: *config.Registry,
+		})
 	}
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
