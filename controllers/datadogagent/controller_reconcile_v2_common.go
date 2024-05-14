@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -132,13 +133,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
-	var hash string
-	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
-	if err != nil {
-		return result, err
-	}
-
 	// Get the current daemonset and compare
 	nsName := types.NamespacedName{
 		Name:      daemonset.GetName(),
@@ -159,8 +153,38 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
+		// We need to recalculate the agentspechash because when overriding
+		// node labels, the hash could be updated without updating the pod
+		// template spec in <1.7.0. Pod template labels were copied over
+		// directly from the existing daemonset.
+		// With operator <1.7.0, it would look like:
+		// 1. Set override node label `abc: def`
+		//    a. Daemonset annotation: `agentspechash: 12345`
+		// 2. Change label to `abc: xyz`
+		//    a. Daemonset annotation: `agentspechash: 67890`
+		//    b. Pod template spec still has `abc: def` (set in step 1)
+		var recalculatedDSHash string
+		recalculatedDSHash, err = comparison.GenerateMD5ForSpec(currentDaemonset.Spec)
+		if err != nil {
+			return result, err
+		}
+
+		// TODO: remove in 1.8.0 when v1alpha1 is removed
+		// Spec.Selector is an immutable field and changing it leads to an error.
+		// Template.Labels must include Spec.Selector.
+		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
+		daemonset.Spec.Selector = currentDaemonset.Spec.Selector
+		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
+
+		// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
+		var hash string
+		hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
+		if err != nil {
+			return result, err
+		}
+
 		// check if same hash
-		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDaemonset.GetAnnotations())
+		needUpdate := recalculatedDSHash != hash
 		if !needUpdate {
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
@@ -185,12 +209,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		updateDaemonset.Annotations = mergeAnnotationsLabels(logger, currentDaemonset.GetAnnotations(), daemonset.GetAnnotations(), keepAnnotationsFilter)
 		updateDaemonset.Labels = mergeAnnotationsLabels(logger, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
 
-		// Spec.Selector is an immutable field and can't be change changing it leads to an error.
-		// Template.Labels must match Spec.Selector, otherwise they become orphaned. Hence we keep both fields from the current DS.
-		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
-		updateDaemonset.Spec.Selector = currentDaemonset.Spec.Selector
-		updateDaemonset.Spec.Template.Labels = currentDaemonset.Spec.Template.Labels
-
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
@@ -201,6 +219,12 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		r.recordEvent(dda, event)
 		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
 	} else {
+		// From here the PodTemplateSpec should be ready, we can generate the hash that will be added to this daemonset.
+		_, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
+		if err != nil {
+			return result, err
+		}
+
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
@@ -307,4 +331,32 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	logger.Info("Creating ExtendedDaemonSet")
 
 	return result, err
+}
+
+// TODO: remove in 1.8.0 when v1alpha1 is removed
+// ensureSelectorInPodTemplateLabels checks that a label selector's MatchLabels
+// are present in the pod template labels. If the label is missing, it adds it
+// to the pod template labels. If the value doesn't match, it changes the label
+// value to match the selector.
+// If the selector labels aren't present in the pod template labels, there will
+// be a `selector does not match template labels` error when updating the agent
+func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.LabelSelector, labels map[string]string) map[string]string {
+	if selector != nil {
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		for k, v := range selector.MatchLabels {
+			value, ok := labels[k]
+			if !ok {
+				logger.Info("Selector not in template labels, adding to template labels", "selector label", fmt.Sprintf("%s: %s", k, v))
+				labels[k] = v
+			}
+			if value != v {
+				logger.Info("Selector value does not match template labels, modifying template labels", "selector label", fmt.Sprintf("%s: %s", k, v), "template label", fmt.Sprintf("%s: %s", k, value))
+				labels[k] = v
+			}
+		}
+	}
+
+	return labels
 }
