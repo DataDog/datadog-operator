@@ -36,7 +36,6 @@
 [linters]
   enable-all = true
   disable = [
-  "gomoddirectives",
     "exhaustruct",
     "nosnakecase",
     "logrlint",

@@ -90,6 +90,8 @@ github.com/DataDog/datadog-api-client-go/v2 v2.19.0 h1:Wvz/63/q39EpVwSH1T8jVyRvP
 github.com/DataDog/datadog-api-client-go/v2 v2.19.0/go.mod h1:oD5Lx8Li3oPRa/BSBenkn4i48z+91gwYORF/+6ph71g=
 github.com/DataDog/datadog-go/v5 v5.1.1 h1:JLZ6s2K1pG2h9GkvEvMdEGqMDyVLEAccdX5TltWcLMU=
 github.com/DataDog/datadog-go/v5 v5.1.1/go.mod h1:KhiYb2Badlv9/rofz+OznKoEF5XKTonWyhx5K83AP8E=
+github.com/DataDog/extendeddaemonset v0.10.0-rc.3 h1:QiaB1lWzZFS2zCmrY4GVp79ML1k9VdtlcRW2+EDzOdM=
+github.com/DataDog/extendeddaemonset v0.10.0-rc.3/go.mod h1:BEA0yHgkCyrk62UgHDAZa+SCh0NYwZIN9dWG0azcOB8=
 github.com/DataDog/go-libddwaf v1.0.0 h1:C0cHE++wMFWf5/BDO8r/3dTDCj21U/UmPIT0PiFMvsA=
 github.com/DataDog/go-libddwaf v1.0.0/go.mod h1:DI5y8obPajk+Tvy2o+nZc2g/5Ria/Rfq5/624k7pHpE=
 github.com/DataDog/go-tuf v1.1.0-0.5.2 h1:4CagiIekonLSfL8GMHRHcHudo1fQnxELS9g4tiAupQ4=

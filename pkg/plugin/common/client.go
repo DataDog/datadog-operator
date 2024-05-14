@@ -7,12 +7,12 @@ package common
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -24,8 +24,14 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get rest client config: %w", err)
 	}
+
+	httpClient, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create http client from rest config: %w", err)
+	}
+
 	// Create the mapper provider
-	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig, &http.Client{})
+	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
 	}

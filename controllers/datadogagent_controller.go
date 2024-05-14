@@ -196,8 +196,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
-	r.Log.Info("Running with new watches")
-
 	if r.Options.DatadogAgentProfileEnabled {
 		builder.Watches(
 			&datadoghqv1alpha1.DatadogAgentProfile{},
