@@ -584,6 +584,28 @@ type AdmissionControllerFeatureConfig struct {
 	// Default: "datadog-webhook"
 	// +optional
 	WebhookName *string `json:"webhookName,omitempty"`
+
+	AgentSidecarInjection *AgentSidecarInjectionFeatureConfig `json:"agentSidecarInjection,omitempty"`
+}
+
+type AgentSidecarInjectionFeatureConfig struct {
+	Enabled *bool `json:"enabled"`
+
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+
+	Provider *string `json:"provider,omitempty"`
+
+	Registry *string `json:"registry,omitempty"`
+
+	ImageName *string `json:"imageName,omitempty"`
+
+	ImageTag *string `json:"imageTag,omitempty"`
+	//Selectors
+	//profiles
+	// DDAdmissionControllerAgentSidecarSelectors           = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_SELECTORS"
+	// DDAdmissionControllerAgentSidecarProfiles            = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_PROFILES"
+
+	//need changes.
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
