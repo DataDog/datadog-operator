@@ -69,9 +69,10 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	defaultAdmissionControllerEnabled          bool   = true
-	defaultAdmissionControllerMutateUnlabelled bool   = false
-	defaultAdmissionServiceName                string = "datadog-admission-controller"
+	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
+	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerMutateUnlabelled                bool   = false
+	defaultAdmissionServiceName                               string = "datadog-admission-controller"
 
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
@@ -385,6 +386,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
+
+	}
+	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
+	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
+		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
 	}
 
 	// ExternalMetricsServer Feature

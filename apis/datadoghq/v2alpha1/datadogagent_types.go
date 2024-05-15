@@ -153,6 +153,44 @@ type SingleStepInstrumentation struct {
 	LibVersions map[string]string `json:"libVersions,omitempty"`
 }
 
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+type ASMFeatureConfig struct {
+	// Threats configures ASM App & API Protection.
+	// Enabled Default: false
+	// +optional
+	Threats *ASMThreatsConfig `json:"threats,omitempty"`
+	// SCA configures Software Composition Analysis.
+	// Enabled Default: false
+	// +optional
+	SCA *ASMSCAConfig `json:"sca,omitempty"`
+	// IAST configures Interactive Application Security Testing.
+	// Enabled Default: false
+	// +optional
+	IAST *ASMIASTConfig `json:"iast,omitempty"`
+}
+
+type ASMThreatsConfig struct {
+	// Enabled enables ASM App & API Protection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMSCAConfig struct {
+	// Enabled enables Software Composition Analysis (SCA).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMIASTConfig struct {
+	// Enabled enables Interactive Application Security Testing (IAST).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // LogCollectionFeatureConfig contains Logs configuration.
 // Logs collection is run in the Agent.
 type LogCollectionFeatureConfig struct {
@@ -584,6 +622,30 @@ type AdmissionControllerFeatureConfig struct {
 	// Default: "datadog-webhook"
 	// +optional
 	WebhookName *string `json:"webhookName,omitempty"`
+	// AgentSidecarInjection contains Agent sidecar injection configurations.
+	// +optional
+	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
+
+	// Registry defines an image registry for the admission controller.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+
+	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+	// +optional
+	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+// CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+type CWSInstrumentationConfig struct {
+	// Enable the CWS Instrumentation admission controller endpoint.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy".
+	// Default: "remote_copy"
+	// +optional
+	Mode *string `json:"mode,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
@@ -1197,6 +1259,29 @@ type FIPSConfig struct {
 	// proxy sidecar container config is used.
 	// +optional
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
+}
+
+type AgentSidecarInjectionConfig struct {
+	// Enabled enables Sidecar injections.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled"`
+	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
+	// Default : true
+	// +optional
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
+	// Currently only "fargate" is supported.
+	// To use the feature in other environments (including local testing) omit the config.
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
+	// +optional
+	Provider *string `json:"provider,omitempty"`
+	// Registry overrides the default registry for the sidecar Agent.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.
