@@ -40,12 +40,12 @@ type admissionControllerFeature struct {
 }
 
 type agentSidecarInjectionConfig struct {
-	enabled bool
-	//	clusterAgentCommunicationEnabled bool
-	provider string
-	// registry                         string
-	// imageName                        string
-	// imageTag                         string
+	enabled                          bool
+	clusterAgentCommunicationEnabled bool
+	provider                         string
+	registry                         string
+	imageName                        string
+	imageTag                         string
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -56,7 +56,6 @@ func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
 func (f *admissionControllerFeature) ID() feature.IDType {
 	return feature.AdmissionControllerIDType
 }
-
 func shouldEnableSidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInjectionFeatureConfig) bool {
 	if sidecarInjectionConf == nil {
 		return false
@@ -108,22 +107,31 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
-		//add code for agent sidecar injection
-
-		// if ac.AgentSidecarInjection != nil && apiutils.BoolValue(ac.AgentSidecarInjection.Enabled) {
-		// 	f.agentSidecaraInjection.enabled = *ac.AgentSidecarInjection.Enabled
-		// 	if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider == "" {
-		// 		f.agentSidecaraInjection.provider = *ac.AgentSidecarInjection.Provider
-		// 	}
-		// }
-		if shouldEnableSidecarInjection(si) && ac.AgentSidecarInjection.Enabled != nil {
+		if shouldEnableSidecarInjection(si) {
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *ac.AgentSidecarInjection.Enabled
-			if si.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
+			if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
 				f.agentSidecarInjection.provider = *ac.AgentSidecarInjection.Provider
+			}
+
+			if ac.AgentSidecarInjection.ClusterAgentCommunicationEnabled != nil {
+				f.agentSidecarInjection.clusterAgentCommunicationEnabled = *ac.AgentSidecarInjection.ClusterAgentCommunicationEnabled
 			} else {
-				// Handle cases where Provider is nil or empty, e.g., set to a default
-				f.agentSidecarInjection.provider = "defaultProvider" // Example: default value
+				f.agentSidecarInjection.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
+			}
+
+			if ac.AgentSidecarInjection.Registry != nil && *ac.AgentSidecarInjection.Registry != "" {
+				f.agentSidecarInjection.registry = *ac.AgentSidecarInjection.Registry
+			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
+				f.agentSidecarInjection.registry = *dda.Spec.Global.Registry
+			}
+
+			if ac.AgentSidecarInjection.ImageTag != nil && *ac.AgentSidecarInjection.ImageTag != "" {
+				f.agentSidecarInjection.imageTag = *ac.AgentSidecarInjection.ImageTag
+			}
+
+			if ac.AgentSidecarInjection.ImageName != nil && *ac.AgentSidecarInjection.ImageName != "" {
+				f.agentSidecarInjection.imageName = *ac.AgentSidecarInjection.ImageName
 			}
 		}
 
@@ -195,10 +203,37 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
 			Value: apiutils.BoolToString(&f.agentSidecarInjection.enabled),
 		})
+
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
-			Value: f.agentSidecarInjection.provider,
+			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Value: apiutils.BoolToString(&f.agentSidecarInjection.clusterAgentCommunicationEnabled),
 		})
+		if f.agentSidecarInjection.provider != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+				Value: f.agentSidecarInjection.provider,
+			})
+		}
+		if f.agentSidecarInjection.registry != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+				Value: f.agentSidecarInjection.registry,
+			})
+		}
+
+		if f.agentSidecarInjection.imageName != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+				Value: f.agentSidecarInjection.imageName,
+			})
+		}
+		if f.agentSidecarInjection.imageTag != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+				Value: f.agentSidecarInjection.imageTag,
+			})
+		}
+
 	}
 
 	if f.serviceName != "" {
