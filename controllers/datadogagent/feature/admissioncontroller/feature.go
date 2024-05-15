@@ -111,11 +111,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
-		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
-			f.cwsInstrumentationEnabled = true
-			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
-		}
-
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
@@ -157,6 +152,10 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 		}
 
+		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
+			f.cwsInstrumentationEnabled = true
+			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
+		}
 	}
 	return reqComp
 }
