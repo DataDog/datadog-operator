@@ -206,6 +206,11 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
+	if opts.webhookEnabled {
+		setupLog.Error(nil, "DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
+			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
+	}
+
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
