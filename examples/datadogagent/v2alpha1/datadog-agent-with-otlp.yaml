@@ -14,6 +14,7 @@ spec:
           http:
             enabled: true
   global:
+    clusterName: my-example-cluster
     credentials:
       apiKey: <DATADOG_API_KEY>
       appKey: <DATADOG_APP_KEY>
