@@ -46,6 +46,8 @@ type agentSidecarInjectionConfig struct {
 	registry                         string
 	imageName                        string
 	imageTag                         string
+	selectors                        *v2alpha1.Selector
+	profiles                         *v2alpha1.Profile
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -73,7 +75,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 	ac := dda.Spec.Features.AdmissionController
-	si := dda.Spec.Features.AdmissionController.AgentSidecarInjection
+	sidecarInjection := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
@@ -107,7 +109,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
-		if shouldEnableSidecarInjection(si) {
+		if shouldEnableSidecarInjection(sidecarInjection) {
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *ac.AgentSidecarInjection.Enabled
 			if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
@@ -133,6 +135,16 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			if ac.AgentSidecarInjection.ImageName != nil && *ac.AgentSidecarInjection.ImageName != "" {
 				f.agentSidecarInjection.imageName = *ac.AgentSidecarInjection.ImageName
 			}
+
+			//code for selector and profiles.
+			if ac.AgentSidecarInjection.Selectors != nil {
+				f.agentSidecarInjection.selectors = &v2alpha1.Selector{
+					ObjectSelector:    ac.AgentSidecarInjection.Selectors.ObjectSelector,
+					NamespaceSelector: ac.AgentSidecarInjection.Selectors.NamespaceSelector,
+				}
+
+			}
+
 		}
 
 	}

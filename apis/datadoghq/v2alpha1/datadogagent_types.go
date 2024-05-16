@@ -601,11 +601,21 @@ type AgentSidecarInjectionFeatureConfig struct {
 
 	ImageTag *string `json:"imageTag,omitempty"`
 	//Selectors
+	Selectors *Selector `json:"selectors,omitempty"`
 	//profiles
-	// DDAdmissionControllerAgentSidecarSelectors           = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_SELECTORS"
-	// DDAdmissionControllerAgentSidecarProfiles            = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_PROFILES"
+	Profiles *Profile `json:"profiles,omitempty"`
+}
 
-	//need changes.
+type Selector struct {
+	// OverrideName      string               `string:"overrideName"`
+	ObjectSelector    metav1.LabelSelector `yaml:"objectSelector,omitempty"`
+	NamespaceSelector metav1.LabelSelector `yaml:"nbjectSelector,omitempty"`
+}
+
+type Profile struct {
+	// Name              string                      `string:"name"`
+	EnvVars              []corev1.EnvVar             `yaml:"env,omitempty"`
+	ResourceRequirements corev1.ResourceRequirements `yaml:"resources,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
