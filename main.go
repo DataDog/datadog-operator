@@ -125,7 +125,6 @@ type options struct {
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
 	webhookEnabled                         bool
-	v2APIEnabled                           bool
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
@@ -159,7 +158,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
-	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
@@ -208,11 +206,8 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
-	if !opts.v2APIEnabled {
-		setupLog.Error(nil, "The 'v2APIEnabled' flag is deprecated since v1.2.0+ and will be removed in v1.7.0. "+
-			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
-			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
-			"DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
+	if opts.webhookEnabled {
+		setupLog.Error(nil, "DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
 			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
@@ -283,7 +278,7 @@ func run(opts *options) error {
 		DatadogMonitorEnabled:           opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:               opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:          opts.operatorMetricsEnabled,
-		V2APIEnabled:                    opts.v2APIEnabled,
+		V2APIEnabled:                    true,
 		IntrospectionEnabled:            opts.introspectionEnabled,
 		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
 		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
