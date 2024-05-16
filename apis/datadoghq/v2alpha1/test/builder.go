@@ -558,6 +558,15 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 	return builder
 }
 
+// Global OriginDetectionUnified
+
+func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.OriginDetectionUnified = &v2alpha1.OriginDetectionUnified{
+		Enabled: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
 // Override
 
 func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1.ComponentName, override v2alpha1.DatadogAgentComponentOverride) *DatadogAgentBuilder {

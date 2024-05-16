@@ -97,6 +97,7 @@ const (
 	DDOrchestratorExplorerDDUrl                       = "DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL"
 	DDOrchestratorExplorerAdditionalEndpoints         = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled   = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
+	DDOriginDetectionUnified                          = "DD_ORIGIN_DETECTION_UNIFIED"
 	DDPodAnnotationsAsTags                            = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDPodLabelsAsTags                                 = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPodName                                         = "DD_POD_NAME"
