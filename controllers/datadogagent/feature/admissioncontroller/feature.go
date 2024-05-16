@@ -13,7 +13,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,7 +73,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 	ac := dda.Spec.Features.AdmissionController
-
+	//componentOverride := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
@@ -108,6 +107,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		}
 
 		if shouldEnableSidecarInjection(ac.AgentSidecarInjection) {
+			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *ac.AgentSidecarInjection.Enabled
 			if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
@@ -124,19 +124,27 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			if ac.AgentSidecarInjection.Registry != nil && *ac.AgentSidecarInjection.Registry != "" {
 				f.agentSidecarInjection.registry = *ac.AgentSidecarInjection.Registry
 			}
-			// set agent image from admissionController config or else, It will follow agent image name.
+			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
 			if ac.AgentSidecarInjection.ImageName != nil && *ac.AgentSidecarInjection.ImageName != "" {
 				f.agentSidecarInjection.imageName = *ac.AgentSidecarInjection.ImageName
 			} else {
-				f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
+				if ok && componentOverride.Image.Name != "" {
+					f.agentSidecarInjection.imageName = componentOverride.Image.Name
+				} else {
+					f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
+				}
 			}
-			// set agent image tag from admissionController config or else, It will follow default image tag.
+			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
 			// defaults will depend on operation version.
 			if ac.AgentSidecarInjection.ImageTag != nil && *ac.AgentSidecarInjection.ImageTag != "" {
 				f.agentSidecarInjection.imageTag = *ac.AgentSidecarInjection.ImageTag
 			} else {
-				f.agentSidecarInjection.imageTag = defaulting.AgentLatestVersion
+				if ok && componentOverride.Image.Tag != "" {
+					f.agentSidecarInjection.imageName = componentOverride.Image.Tag
+				} else {
+					f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
+				}
 			}
 
 		}

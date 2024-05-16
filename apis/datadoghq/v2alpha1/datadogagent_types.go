@@ -595,23 +595,23 @@ type AgentSidecarInjectionFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled"`
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
-	// default : true
+	// Default : true
 	// +optional
 	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
-	// Provider defines the
-	// Currently only "fargate" is supported
-	// If not specified, It will automatically set to "fargate"
+	// Provider defines the provider for the Datadog Agent sidecar injection.
+	// Currently only "fargate" is supported.
+	// If not specified, It is automatically be set to "fargate".
 	// To use the feature in other environments (including local testing) omit the config.
-	// ref: https://docs.datadoghq.com/integrations/eks_fargate
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
 	// +optional
 	Provider *string `json:"provider,omitempty"`
 	// Registry overrides the default registry for the sidecar Agent.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
-	// ImageName overrides the default agent image name for the Agent sidecar.
+	// ImageName overrides the default Agent image name for the Agent sidecar.
 	// +optional
 	ImageName *string `json:"imageName,omitempty"`
-	// ImageTag overrides the default agent image tag for the Agent sidecar.
+	// ImageTag overrides the default Agent image tag for the Agent sidecar.
 	// +optional
 	ImageTag *string `json:"imageTag,omitempty"`
 }

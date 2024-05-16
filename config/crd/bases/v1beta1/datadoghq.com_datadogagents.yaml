@@ -15364,19 +15364,19 @@ spec:
                           description: AgentSidecarInjection contains Agent sidecar injection configurations.
                           properties:
                             clusterAgentCommunicationEnabled:
-                              description: 'ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. default : true'
+                              description: 'ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true'
                               type: boolean
                             enabled:
                               description: 'Enabled enables Sidecar injections. Default: true'
                               type: boolean
                             imageName:
-                              description: ImageName overrides the default agent image name for the Agent sidecar.
+                              description: ImageName overrides the default Agent image name for the Agent sidecar.
                               type: string
                             imageTag:
-                              description: ImageTag overrides the default agent image tag for the Agent sidecar.
+                              description: ImageTag overrides the default Agent image tag for the Agent sidecar.
                               type: string
                             provider:
-                              description: 'Provider defines the Currently only "fargate" is supported If not specified, It will automatically set to "fargate" To use the feature in other environments (including local testing) omit the config. ref: https://docs.datadoghq.com/integrations/eks_fargate'
+                              description: 'Provider defines the provider for the Datadog Agent sidecar injection. Currently only "fargate" is supported. If not specified, It is automatically be set to "fargate". To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate'
                               type: string
                             registry:
                               description: Registry overrides the default registry for the sidecar Agent.
