@@ -7808,6 +7808,28 @@ spec:
                         agentCommunicationMode:
                           description: AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                           type: string
+                        agentSidecarInjection:
+                          description: AgentSidecarInjection contains Agent sidecar injection configurations.
+                          properties:
+                            clusterAgentCommunicationEnabled:
+                              description: 'ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. default : true'
+                              type: boolean
+                            enabled:
+                              description: 'Enabled enables Sidecar injections. Default: true'
+                              type: boolean
+                            imageName:
+                              description: ImageName overrides the default agent image name for the Agent sidecar.
+                              type: string
+                            imageTag:
+                              description: ImageTag overrides the default agent image tag for the Agent sidecar.
+                              type: string
+                            provider:
+                              description: 'Provider defines the Currently only "fargate" is supported If not specified, It will automatically set to "fargate" To use the feature in other environments (including local testing) omit the config. ref: https://docs.datadoghq.com/integrations/eks_fargate'
+                              type: string
+                            registry:
+                              description: Registry overrides the default registry for the sidecar Agent.
+                              type: string
+                          type: object
                         enabled:
                           description: 'Enabled enables the Admission Controller. Default: true'
                           type: boolean

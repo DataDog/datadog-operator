@@ -13,6 +13,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,8 +47,6 @@ type agentSidecarInjectionConfig struct {
 	registry                         string
 	imageName                        string
 	imageTag                         string
-	selectors                        *v2alpha1.Selector
-	profiles                         *v2alpha1.Profile
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -122,27 +121,23 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarInjection.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
 			}
 
+			// set image registry from admissionController config or global config if defined
 			if ac.AgentSidecarInjection.Registry != nil && *ac.AgentSidecarInjection.Registry != "" {
 				f.agentSidecarInjection.registry = *ac.AgentSidecarInjection.Registry
-			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
-				f.agentSidecarInjection.registry = *dda.Spec.Global.Registry
 			}
-
-			if ac.AgentSidecarInjection.ImageTag != nil && *ac.AgentSidecarInjection.ImageTag != "" {
-				f.agentSidecarInjection.imageTag = *ac.AgentSidecarInjection.ImageTag
-			}
-
+			// set agent image from admissionController config or else, It will follow agent image name.
+			// default is "agent"
 			if ac.AgentSidecarInjection.ImageName != nil && *ac.AgentSidecarInjection.ImageName != "" {
 				f.agentSidecarInjection.imageName = *ac.AgentSidecarInjection.ImageName
+			} else {
+				f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
 			}
-
-			//code for selector and profiles.
-			if ac.AgentSidecarInjection.Selectors != nil {
-				f.agentSidecarInjection.selectors = &v2alpha1.Selector{
-					ObjectSelector:    ac.AgentSidecarInjection.Selectors.ObjectSelector,
-					NamespaceSelector: ac.AgentSidecarInjection.Selectors.NamespaceSelector,
-				}
-
+			// set agent image tag from admissionController config or else, It will follow default image tag.
+			// defaults will depend on operation version.
+			if ac.AgentSidecarInjection.ImageTag != nil && *ac.AgentSidecarInjection.ImageTag != "" {
+				f.agentSidecarInjection.imageTag = *ac.AgentSidecarInjection.ImageTag
+			} else {
+				f.agentSidecarInjection.imageTag = defaulting.AgentLatestVersion
 			}
 
 		}
