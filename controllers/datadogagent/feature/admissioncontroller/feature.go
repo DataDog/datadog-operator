@@ -74,7 +74,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 	ac := dda.Spec.Features.AdmissionController
-	sidecarInjection := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
@@ -108,7 +107,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
-		if shouldEnableSidecarInjection(sidecarInjection) {
+		if shouldEnableSidecarInjection(ac.AgentSidecarInjection) {
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *ac.AgentSidecarInjection.Enabled
 			if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
