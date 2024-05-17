@@ -49,7 +49,7 @@ type agentSidecarInjectionConfig struct {
 	registry                         string
 	imageName                        string
 	imageTag                         string
-	selectors                        []map[string]metav1.LabelSelector
+	selectors                        []*v2alpha1.Selector
 	profiles                         []*v2alpha1.Profile
 }
 
@@ -71,11 +71,6 @@ func shouldEnableSidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 	}
 
 	return false
-}
-
-// isEmptyLabelSelector checks if a LabelSelector is empty
-func isEmptyLabelSelector(selector metav1.LabelSelector) bool {
-	return len(selector.MatchLabels) == 0 && len(selector.MatchExpressions) == 0
 }
 
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
@@ -160,19 +155,22 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 
 			if len(sidecarInjection.Selectors) > 0 {
-				f.agentSidecarInjection.selectors = make([]map[string]metav1.LabelSelector, 0, len(sidecarInjection.Selectors))
+				f.agentSidecarInjection.selectors = make([]*v2alpha1.Selector, 0, len(sidecarInjection.Selectors))
 				for _, selector := range sidecarInjection.Selectors {
-					selectorMap := make(map[string]metav1.LabelSelector)
-					// Check if ObjectSelector is non-empty
-					if !isEmptyLabelSelector(selector.ObjectSelector) {
-						selectorMap["objectSelector"] = selector.ObjectSelector
+					newSelector := &v2alpha1.Selector{}
+
+					// Check if NamespaceSelector is non-empty and copy it directly
+					if len(selector.NamespaceSelector.MatchLabels) > 0 || len(selector.NamespaceSelector.MatchExpressions) > 0 {
+						newSelector.NamespaceSelector = selector.NamespaceSelector
 					}
-					// Check if NamespaceSelector is non-empty
-					if !isEmptyLabelSelector(selector.NamespaceSelector) {
-						selectorMap["namespaceSelector"] = selector.NamespaceSelector
+					// Check if ObjectSelector is non-empty and copy it directly
+					if len(selector.ObjectSelector.MatchLabels) > 0 || len(selector.ObjectSelector.MatchExpressions) > 0 {
+						newSelector.ObjectSelector = selector.ObjectSelector
 					}
-					if len(selectorMap) > 0 {
-						f.agentSidecarInjection.selectors = append(f.agentSidecarInjection.selectors, selectorMap)
+
+					// Append the newSelector if it has any non-empty selectors
+					if len(newSelector.ObjectSelector.MatchLabels) > 0 || len(newSelector.NamespaceSelector.MatchLabels) > 0 {
+						f.agentSidecarInjection.selectors = append(f.agentSidecarInjection.selectors, newSelector)
 					}
 				}
 			}

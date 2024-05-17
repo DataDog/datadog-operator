@@ -620,13 +620,12 @@ type AgentSidecarInjectionFeatureConfig struct {
 }
 
 type Selector struct {
-	// ObjectSelector specifies the label selector for objects.
-	// +optional
-	ObjectSelector metav1.LabelSelector `json:"objectSelector,omitempty"`
-
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +option
 	NamespaceSelector metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// ObjectSelector specifies the label selector for objects.
+	// +optional
+	ObjectSelector metav1.LabelSelector `json:"objectSelector,omitempty"`
 }
 
 type Profile struct {
