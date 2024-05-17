@@ -601,21 +601,29 @@ type AgentSidecarInjectionFeatureConfig struct {
 
 	ImageTag *string `json:"imageTag,omitempty"`
 	//Selectors
-	Selectors *Selector `json:"selectors,omitempty"`
+	Selectors []*Selector `json:"selectors,omitempty"`
 	//profiles
-	Profiles *Profile `json:"profiles,omitempty"`
+	Profiles []*Profile `json:"profiles,omitempty"`
 }
 
 type Selector struct {
-	// OverrideName      string               `string:"overrideName"`
-	ObjectSelector    metav1.LabelSelector `yaml:"objectSelector,omitempty"`
-	NamespaceSelector metav1.LabelSelector `yaml:"nbjectSelector,omitempty"`
+	// ObjectSelector specifies the label selector for objects.
+	// +optional
+	ObjectSelector metav1.LabelSelector `json:"objectSelector,omitempty"`
+
+	// NamespaceSelector specifies the label selector for namespaces.
+	// +optional
+	NamespaceSelector metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 }
 
 type Profile struct {
-	// Name              string                      `string:"name"`
-	EnvVars              []corev1.EnvVar             `yaml:"env,omitempty"`
-	ResourceRequirements corev1.ResourceRequirements `yaml:"resources,omitempty"`
+	// EnvVars specifies the environment variables for the profile.
+	// +optional
+	EnvVars []corev1.EnvVar `json:"env,omitempty"`
+
+	// ResourceRequirements specifies the resource requirements for the profile.
+	// +optional
+	ResourceRequirements corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

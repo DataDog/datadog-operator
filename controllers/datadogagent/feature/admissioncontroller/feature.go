@@ -6,6 +6,8 @@
 package admissioncontroller
 
 import (
+	"encoding/json"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -13,6 +15,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/stormcat24/protodep/pkg/logger"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,8 +49,8 @@ type agentSidecarInjectionConfig struct {
 	registry                         string
 	imageName                        string
 	imageTag                         string
-	selectors                        *v2alpha1.Selector
-	profiles                         *v2alpha1.Profile
+	selectors                        []map[string]metav1.LabelSelector
+	profiles                         []*v2alpha1.Profile
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -68,6 +71,11 @@ func shouldEnableSidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 	}
 
 	return false
+}
+
+// isEmptyLabelSelector checks if a LabelSelector is empty
+func isEmptyLabelSelector(selector metav1.LabelSelector) bool {
+	return len(selector.MatchLabels) == 0 && len(selector.MatchExpressions) == 0
 }
 
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
@@ -111,38 +119,67 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 		if shouldEnableSidecarInjection(sidecarInjection) {
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
-			f.agentSidecarInjection.enabled = *ac.AgentSidecarInjection.Enabled
-			if ac.AgentSidecarInjection.Provider != nil && *ac.AgentSidecarInjection.Provider != "" {
-				f.agentSidecarInjection.provider = *ac.AgentSidecarInjection.Provider
+			f.agentSidecarInjection.enabled = *sidecarInjection.Enabled
+			if ac.AgentSidecarInjection.Provider != nil && *sidecarInjection.Provider != "" {
+				f.agentSidecarInjection.provider = *sidecarInjection.Provider
 			}
 
-			if ac.AgentSidecarInjection.ClusterAgentCommunicationEnabled != nil {
-				f.agentSidecarInjection.clusterAgentCommunicationEnabled = *ac.AgentSidecarInjection.ClusterAgentCommunicationEnabled
+			if sidecarInjection.ClusterAgentCommunicationEnabled != nil {
+				f.agentSidecarInjection.clusterAgentCommunicationEnabled = *sidecarInjection.ClusterAgentCommunicationEnabled
 			} else {
 				f.agentSidecarInjection.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
 			}
 
-			if ac.AgentSidecarInjection.Registry != nil && *ac.AgentSidecarInjection.Registry != "" {
-				f.agentSidecarInjection.registry = *ac.AgentSidecarInjection.Registry
+			if sidecarInjection.Registry != nil && *sidecarInjection.Registry != "" {
+				f.agentSidecarInjection.registry = *sidecarInjection.Registry
 			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
 				f.agentSidecarInjection.registry = *dda.Spec.Global.Registry
 			}
 
-			if ac.AgentSidecarInjection.ImageTag != nil && *ac.AgentSidecarInjection.ImageTag != "" {
-				f.agentSidecarInjection.imageTag = *ac.AgentSidecarInjection.ImageTag
+			if sidecarInjection.ImageTag != nil && *sidecarInjection.ImageTag != "" {
+				f.agentSidecarInjection.imageTag = *sidecarInjection.ImageTag
 			}
 
-			if ac.AgentSidecarInjection.ImageName != nil && *ac.AgentSidecarInjection.ImageName != "" {
-				f.agentSidecarInjection.imageName = *ac.AgentSidecarInjection.ImageName
+			if sidecarInjection.ImageName != nil && *sidecarInjection.ImageName != "" {
+				f.agentSidecarInjection.imageName = *sidecarInjection.ImageName
 			}
 
-			//code for selector and profiles.
-			if ac.AgentSidecarInjection.Selectors != nil {
-				f.agentSidecarInjection.selectors = &v2alpha1.Selector{
-					ObjectSelector:    ac.AgentSidecarInjection.Selectors.ObjectSelector,
-					NamespaceSelector: ac.AgentSidecarInjection.Selectors.NamespaceSelector,
+			// if len(sidecarInjection.Selectors) > 0 {
+			// 	f.agentSidecarInjection.selectors = make([]*v2alpha1.Selector, len(sidecarInjection.Selectors))
+			// 	for i, selector := range sidecarInjection.Selectors {
+			// 		f.agentSidecarInjection.selectors[i] = &v2alpha1.Selector{
+			// 			ObjectSelector:    selector.ObjectSelector,
+			// 			NamespaceSelector: selector.NamespaceSelector,
+			// 		}
+			// 	}
+			// }
+
+			if len(sidecarInjection.Selectors) > 0 {
+				f.agentSidecarInjection.selectors = make([]map[string]metav1.LabelSelector, 0, len(sidecarInjection.Selectors))
+				for _, selector := range sidecarInjection.Selectors {
+					selectorMap := make(map[string]metav1.LabelSelector)
+					// Check if ObjectSelector is non-empty
+					if !isEmptyLabelSelector(selector.ObjectSelector) {
+						selectorMap["objectSelector"] = selector.ObjectSelector
+					}
+					// Check if NamespaceSelector is non-empty
+					if !isEmptyLabelSelector(selector.NamespaceSelector) {
+						selectorMap["namespaceSelector"] = selector.NamespaceSelector
+					}
+					if len(selectorMap) > 0 {
+						f.agentSidecarInjection.selectors = append(f.agentSidecarInjection.selectors, selectorMap)
+					}
 				}
+			}
 
+			if len(sidecarInjection.Profiles) > 0 {
+				f.agentSidecarInjection.profiles = make([]*v2alpha1.Profile, len(sidecarInjection.Profiles))
+				for i, profile := range sidecarInjection.Profiles {
+					f.agentSidecarInjection.profiles[i] = &v2alpha1.Profile{
+						EnvVars:              profile.EnvVars,
+						ResourceRequirements: profile.ResourceRequirements,
+					}
+				}
 			}
 
 		}
@@ -244,6 +281,29 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
 				Value: f.agentSidecarInjection.imageTag,
 			})
+		}
+
+		if f.agentSidecarInjection.selectors != nil {
+			selectorsJSON, err := json.Marshal(f.agentSidecarInjection.selectors)
+			if err != nil {
+				logger.Error("failed to marshal json input")
+			} else {
+				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+					Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+					Value: string(selectorsJSON),
+				})
+			}
+		}
+		if f.agentSidecarInjection.profiles != nil {
+			profilesJSON, err := json.Marshal(f.agentSidecarInjection.profiles)
+			if err != nil {
+				logger.Error("failed to marshal json input")
+			} else {
+				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+					Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+					Value: string(profilesJSON),
+				})
+			}
 		}
 
 	}
