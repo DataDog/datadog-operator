@@ -13,7 +13,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/stormcat24/protodep/pkg/logger"
 
 	"encoding/json"
 
@@ -289,7 +288,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		if f.agentSidecarInjection.selectors != nil {
 			selectorsJSON, err := json.Marshal(f.agentSidecarInjection.selectors)
 			if err != nil {
-				logger.Error("failed to marshal json input")
+				return err
 			} else {
 				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 					Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
@@ -300,7 +299,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		if f.agentSidecarInjection.profiles != nil {
 			profilesJSON, err := json.Marshal(f.agentSidecarInjection.profiles)
 			if err != nil {
-				logger.Error("failed to marshal json input")
+				return err
 			} else {
 				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 					Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
