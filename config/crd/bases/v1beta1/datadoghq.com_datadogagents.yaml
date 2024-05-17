@@ -16362,7 +16362,7 @@ spec:
                       description: 'Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY>'
                       type: object
                     originDetectionUnified:
-                      description: OriginDetectionUnified define the origin detection unified mechanism behavior.
+                      description: OriginDetectionUnified defines the origin detection unified mechanism behavior.
                       properties:
                         enabled:
                           description: 'Enabled enables unified mechanism for origin detection. Default: false'
