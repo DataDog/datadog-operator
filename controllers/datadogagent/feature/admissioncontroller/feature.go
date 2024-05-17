@@ -83,7 +83,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 	ac := dda.Spec.Features.AdmissionController
-	sidecarInjection := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
@@ -117,10 +116,13 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
+		sidecarInjection := dda.Spec.Features.AdmissionController.AgentSidecarInjection
+
 		if shouldEnableSidecarInjection(sidecarInjection) {
+			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *sidecarInjection.Enabled
-			if ac.AgentSidecarInjection.Provider != nil && *sidecarInjection.Provider != "" {
+			if sidecarInjection.Provider != nil && *sidecarInjection.Provider != "" {
 				f.agentSidecarInjection.provider = *sidecarInjection.Provider
 			}
 
@@ -130,29 +132,32 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarInjection.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
 			}
 
+			// set image registry from admissionController config or global config if defined
 			if sidecarInjection.Registry != nil && *sidecarInjection.Registry != "" {
 				f.agentSidecarInjection.registry = *sidecarInjection.Registry
-			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
-				f.agentSidecarInjection.registry = *dda.Spec.Global.Registry
 			}
-
-			if sidecarInjection.ImageTag != nil && *sidecarInjection.ImageTag != "" {
-				f.agentSidecarInjection.imageTag = *sidecarInjection.ImageTag
-			}
-
+			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
+			// default is "agent"
 			if sidecarInjection.ImageName != nil && *sidecarInjection.ImageName != "" {
 				f.agentSidecarInjection.imageName = *sidecarInjection.ImageName
+			} else {
+				if ok && componentOverride.Image.Name != "" {
+					f.agentSidecarInjection.imageName = componentOverride.Image.Name
+				} else {
+					f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
+				}
 			}
-
-			// if len(sidecarInjection.Selectors) > 0 {
-			// 	f.agentSidecarInjection.selectors = make([]*v2alpha1.Selector, len(sidecarInjection.Selectors))
-			// 	for i, selector := range sidecarInjection.Selectors {
-			// 		f.agentSidecarInjection.selectors[i] = &v2alpha1.Selector{
-			// 			ObjectSelector:    selector.ObjectSelector,
-			// 			NamespaceSelector: selector.NamespaceSelector,
-			// 		}
-			// 	}
-			// }
+			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
+			// defaults will depend on operation version.
+			if sidecarInjection.ImageTag != nil && *sidecarInjection.ImageTag != "" {
+				f.agentSidecarInjection.imageTag = *sidecarInjection.ImageTag
+			} else {
+				if ok && componentOverride.Image.Tag != "" {
+					f.agentSidecarInjection.imageName = componentOverride.Image.Tag
+				} else {
+					f.agentSidecarInjection.imageName = apicommon.DefaultAgentImageName
+				}
+			}
 
 			if len(sidecarInjection.Selectors) > 0 {
 				f.agentSidecarInjection.selectors = make([]map[string]metav1.LabelSelector, 0, len(sidecarInjection.Selectors))

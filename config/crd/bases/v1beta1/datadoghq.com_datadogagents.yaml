@@ -15363,12 +15363,16 @@ spec:
                         agentSidecarInjection:
                           properties:
                             clusterAgentCommunicationEnabled:
+                              description: 'ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true'
                               type: boolean
                             enabled:
+                              description: 'Enabled enables Sidecar injections. Default: true'
                               type: boolean
                             imageName:
+                              description: ImageName overrides the default Agent image name for the Agent sidecar.
                               type: string
                             imageTag:
+                              description: ImageTag overrides the default Agent image tag for the Agent sidecar.
                               type: string
                             profiles:
                               description: profiles
@@ -15479,8 +15483,10 @@ spec:
                                 type: object
                               type: array
                             provider:
+                              description: 'Provider defines the provider for the Datadog Agent sidecar injection. Currently only "fargate" is supported. If not specified, It is automatically be set to "fargate". To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate'
                               type: string
                             registry:
+                              description: Registry overrides the default registry for the sidecar Agent.
                               type: string
                             selectors:
                               description: Selectors
@@ -15548,8 +15554,6 @@ spec:
                                     type: object
                                 type: object
                               type: array
-                          required:
-                            - enabled
                           type: object
                         enabled:
                           description: 'Enabled enables the Admission Controller. Default: true'

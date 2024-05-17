@@ -35,13 +35,13 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
-| features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled |  |
-| features.admissionController.agentSidecarInjection.enabled |  |
-| features.admissionController.agentSidecarInjection.imageName |  |
-| features.admissionController.agentSidecarInjection.imageTag |  |
+| features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
+| features.admissionController.agentSidecarInjection.enabled | Enabled enables Sidecar injections. Default: true |
+| features.admissionController.agentSidecarInjection.imageName | ImageName overrides the default Agent image name for the Agent sidecar. |
+| features.admissionController.agentSidecarInjection.imageTag | ImageTag overrides the default Agent image tag for the Agent sidecar. |
 | features.admissionController.agentSidecarInjection.profiles | profiles |
-| features.admissionController.agentSidecarInjection.provider |  |
-| features.admissionController.agentSidecarInjection.registry |  |
+| features.admissionController.agentSidecarInjection.provider | Provider defines the provider for the Datadog Agent sidecar injection. Currently only "fargate" is supported. If not specified, It is automatically be set to "fargate". To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
+| features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
 | features.admissionController.agentSidecarInjection.selectors | Selectors |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
