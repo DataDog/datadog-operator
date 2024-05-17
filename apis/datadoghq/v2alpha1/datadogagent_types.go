@@ -616,12 +616,6 @@ type AgentSidecarInjectionFeatureConfig struct {
 	ImageTag *string `json:"imageTag,omitempty"`
 }
 
-type Profile struct {
-	// Name              string                      `string:"name"`
-	EnvVars              []corev1.EnvVar             `yaml:"env,omitempty"`
-	ResourceRequirements corev1.ResourceRequirements `yaml:"resources,omitempty"`
-}
-
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
 // The External Metrics Server runs in the Cluster Agent.
 type ExternalMetricsServerFeatureConfig struct {
