@@ -155,4 +155,8 @@ const (
 
 	EnvVarTrueValue  = "true"
 	EnvVarFalseValue = "false"
+
+	// InstallInfoToolVersion is used by the Operator to override the tool
+	// version value in the Agent's install info
+	InstallInfoToolVersion = "DD_TOOL_VERSION"
 )
