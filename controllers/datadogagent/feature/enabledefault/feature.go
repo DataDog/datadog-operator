@@ -7,6 +7,7 @@ package enabledefault
 
 import (
 	"fmt"
+	"os"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -444,16 +445,25 @@ func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
 			Namespace: dda.GetNamespace(),
 		},
 		Data: map[string]string{
-			"install_info": fmt.Sprintf(installInfoDataTmpl, version.Version),
+			"install_info": getInstallInfoValue(),
 		},
 	}
 
 	return configMap
 }
 
+func getInstallInfoValue() string {
+	toolVersion := "datadog-operator"
+	if envVar := os.Getenv(apicommon.InstallInfoToolVersion); envVar != "" {
+		toolVersion = envVar
+	}
+
+	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
+}
+
 const installInfoDataTmpl = `---
 install_method:
   tool: datadog-operator
-  tool_version: datadog-operator
+  tool_version: %s
   installer_version: %s
 `
