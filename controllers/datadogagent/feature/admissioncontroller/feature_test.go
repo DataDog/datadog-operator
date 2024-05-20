@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -56,50 +55,70 @@ func TestAdmissionControllerFeature(t *testing.T) {
 		//////////////////////////
 		{
 			Name:          "v2alpha1 admission controller not enabled",
-			DDAv2:         newV2Agent(false, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
+			DDAv2:         newV2Agent(false, "", nil, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled",
-			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
+			DDAv2:         newV2Agent(true, "", nil, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources(""),
+			ClusterAgent:  testDCAResources("", nil),
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled, apm uses uds",
-			DDAv2:         newV2Agent(true, "", apmUDS, &v2alpha1.DogstatsdFeatureConfig{}),
+			DDAv2:         newV2Agent(true, "", nil, apmUDS, &v2alpha1.DogstatsdFeatureConfig{}),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("socket"),
+			ClusterAgent:  testDCAResources("socket", nil),
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled, dsd uses uds",
-			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, dsdUDS),
+			DDAv2:         newV2Agent(true, "", nil, &v2alpha1.APMFeatureConfig{}, dsdUDS),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("socket"),
+			ClusterAgent:  testDCAResources("socket", nil),
+		},
+		{
+			Name: "v2alpha1 admission controller enabled with sidecar injection",
+			DDAv2: newV2Agent(true, "", &v2alpha1.AgentSidecarInjectionFeatureConfig{
+				Enabled:                          apiutils.NewBoolPointer(true),
+				ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
+				Provider:                         apiutils.NewStringPointer("testProvider"),
+				Registry:                         apiutils.NewStringPointer("testRegistry"),
+				ImageName:                        apiutils.NewStringPointer("testImageName"),
+				ImageTag:                         apiutils.NewStringPointer("testImageTag"),
+			}, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
+			WantConfigure: true,
+			ClusterAgent: testDCAResources("", &v2alpha1.AgentSidecarInjectionFeatureConfig{
+				Enabled:                          apiutils.NewBoolPointer(true),
+				ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
+				Provider:                         apiutils.NewStringPointer("testProvider"),
+				Registry:                         apiutils.NewStringPointer("testRegistry"),
+				ImageName:                        apiutils.NewStringPointer("testImageName"),
+				ImageTag:                         apiutils.NewStringPointer("testImageTag"),
+			}),
 		},
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)
 }
 
-func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
-	return &v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Config: &v1alpha1.ClusterAgentConfig{
-					AdmissionController: &v1alpha1.AdmissionControllerConfig{
-						Enabled:                apiutils.NewBoolPointer(enabled),
-						MutateUnlabelled:       apiutils.NewBoolPointer(true),
-						ServiceName:            apiutils.NewStringPointer("testServiceName"),
-						AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
-					},
-				},
-			},
-		},
-	}
-}
+// func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
+// 	return &v1alpha1.DatadogAgent{
+// 		Spec: v1alpha1.DatadogAgentSpec{
+// 			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
+// 				Config: &v1alpha1.ClusterAgentConfig{
+// 					AdmissionController: &v1alpha1.AdmissionControllerConfig{
+// 						Enabled:                apiutils.NewBoolPointer(enabled),
+// 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
+// 						ServiceName:            apiutils.NewStringPointer("testServiceName"),
+// 						AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
+// 					},
+// 				},
+// 			},
+// 		},
+// 	}
+// }
 
-func newV2Agent(enabled bool, acm string, apm *v2alpha1.APMFeatureConfig, dsd *v2alpha1.DogstatsdFeatureConfig) *v2alpha1.DatadogAgent {
+func newV2Agent(enabled bool, acm string, sidecar *v2alpha1.AgentSidecarInjectionFeatureConfig, apm *v2alpha1.APMFeatureConfig, dsd *v2alpha1.DogstatsdFeatureConfig) *v2alpha1.DatadogAgent {
 	dda := &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -107,14 +126,6 @@ func newV2Agent(enabled bool, acm string, apm *v2alpha1.APMFeatureConfig, dsd *v
 					Enabled:          apiutils.NewBoolPointer(enabled),
 					MutateUnlabelled: apiutils.NewBoolPointer(true),
 					ServiceName:      apiutils.NewStringPointer("testServiceName"),
-					AgentSidecarInjection: &v2alpha1.AgentSidecarInjectionFeatureConfig{
-						Enabled:                          apiutils.NewBoolPointer(true),
-						ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
-						Provider:                         apiutils.NewStringPointer("fargate"),
-						Registry:                         apiutils.NewStringPointer("testRegistryName"),
-						ImageName:                        apiutils.NewStringPointer("testImageName"),
-						ImageTag:                         apiutils.NewStringPointer("testImageTag"),
-					},
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{},
@@ -129,10 +140,14 @@ func newV2Agent(enabled bool, acm string, apm *v2alpha1.APMFeatureConfig, dsd *v
 	if dsd != nil {
 		dda.Spec.Features.Dogstatsd = dsd
 	}
+	if sidecar != nil {
+		dda.Spec.Features.AdmissionController.AgentSidecarInjection = sidecar
+	}
+
 	return dda
 }
 
-func testDCAResources(acm string) *test.ComponentTest {
+func testDCAResources(acm string, sidecar *v2alpha1.AgentSidecarInjectionFeatureConfig) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -159,30 +174,6 @@ func testDCAResources(acm string) *test.ComponentTest {
 					Name:  apicommon.DDAdmissionControllerWebhookName,
 					Value: "datadog-webhook",
 				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
-					Value: "true",
-				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
-					Value: "fargate",
-				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
-					Value: "true",
-				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
-					Value: "testRegistryName",
-				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
-					Value: "testImageName",
-				},
-				{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
-					Value: "testImageTag",
-				},
 			}
 			if acm != "" {
 				acmEnv := corev1.EnvVar{
@@ -190,6 +181,44 @@ func testDCAResources(acm string) *test.ComponentTest {
 					Value: acm,
 				}
 				expectedAgentEnvs = append(expectedAgentEnvs, &acmEnv)
+			}
+			if sidecar != nil {
+				if sidecar.Enabled != nil && *sidecar.Enabled {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+						Value: "true",
+					})
+				}
+				if sidecar.ClusterAgentCommunicationEnabled != nil && *sidecar.ClusterAgentCommunicationEnabled {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+						Value: "true",
+					})
+				}
+				if sidecar.Provider != nil {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+						Value: *sidecar.Provider,
+					})
+				}
+				if sidecar.Registry != nil {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+						Value: *sidecar.Registry,
+					})
+				}
+				if sidecar.ImageName != nil {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+						Value: *sidecar.ImageName,
+					})
+				}
+				if sidecar.ImageTag != nil {
+					expectedAgentEnvs = append(expectedAgentEnvs, &corev1.EnvVar{
+						Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+						Value: *sidecar.ImageTag,
+					})
+				}
 			}
 
 			assert.ElementsMatch(t,
