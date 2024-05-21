@@ -15369,12 +15369,32 @@ spec:
                             enabled:
                               description: 'Enabled enables Sidecar injections. Default: true'
                               type: boolean
-                            imageName:
-                              description: ImageName overrides the default Agent image name for the Agent sidecar.
-                              type: string
-                            imageTag:
-                              description: ImageTag overrides the default Agent image tag for the Agent sidecar.
-                              type: string
+                            image:
+                              description: Image overrides the default Agent image name and tag for the Agent sidecar.
+                              properties:
+                                jmxEnabled:
+                                  description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
+                                  type: boolean
+                                name:
+                                  description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                                  type: string
+                                pullPolicy:
+                                  description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
+                                  type: string
+                                pullSecrets:
+                                  description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+                                  items:
+                                    description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                                    properties:
+                                      name:
+                                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                                        type: string
+                                    type: object
+                                  type: array
+                                tag:
+                                  description: Define the image tag to use. To be used if the Name field does not correspond to a full image string.
+                                  type: string
+                              type: object
                             provider:
                               description: 'Provider defines the provider for the Datadog Agent sidecar injection. Currently only "fargate" is supported. If not specified, It is automatically be set to "fargate". To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate'
                               type: string

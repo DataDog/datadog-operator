@@ -1221,12 +1221,9 @@ type AgentSidecarInjectionConfig struct {
 	// Registry overrides the default registry for the sidecar Agent.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
-	// ImageName overrides the default Agent image name for the Agent sidecar.
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
 	// +optional
-	ImageName *string `json:"imageName,omitempty"`
-	// ImageTag overrides the default Agent image tag for the Agent sidecar.
-	// +optional
-	ImageTag *string `json:"imageTag,omitempty"`
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

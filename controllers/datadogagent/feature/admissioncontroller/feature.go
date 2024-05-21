@@ -124,8 +124,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
-			if sidecarConfig.ImageName != nil && *sidecarConfig.ImageName != "" {
-				f.agentsidecarConfig.imageName = *sidecarConfig.ImageName
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
+				f.agentsidecarConfig.imageName = sidecarConfig.Image.Name
 			} else if ok && componentOverride.Image.Name != "" {
 				f.agentsidecarConfig.imageName = componentOverride.Image.Name
 			} else {
@@ -134,8 +134,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
 			// defaults will depend on operation version.
-			if sidecarConfig.ImageTag != nil && *sidecarConfig.ImageTag != "" {
-				f.agentsidecarConfig.imageTag = *sidecarConfig.ImageTag
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
+				f.agentsidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image.Tag != "" {
 				f.agentsidecarConfig.imageName = componentOverride.Image.Tag
 			} else {
