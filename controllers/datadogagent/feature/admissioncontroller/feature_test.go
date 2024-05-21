@@ -59,7 +59,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Admission Controller enabled with enabled with APM uds mode",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
-				WithAgentCommunicationMode("socket").
 				WithAPMEnabled(true).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
@@ -70,7 +69,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Admission Controller enabled with DSD uds mode",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
-				WithAgentCommunicationMode("socket").
 				WithDogstatsdUnixDomainSocketConfigEnabled(true).
 				WithDogstatsdUnixDomainSocketConfigPath(customPath).
 				Build(),

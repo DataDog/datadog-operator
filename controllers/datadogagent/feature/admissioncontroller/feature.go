@@ -104,7 +104,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		}
 
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
-
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentsidecarConfig = &AgentSidecarInjectionConfig{}
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
