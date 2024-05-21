@@ -600,8 +600,7 @@ type CWSInstrumentationFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Mode defines how the CWS Instrumentation endpoint should behave.
-	// It can be "init_container" or "remote_copy".
+	// Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy".
 	// +optional
 	Mode *string `json:"mode,omitempty"`
 }

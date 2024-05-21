@@ -15367,7 +15367,7 @@ spec:
                               description: Enable the CWS Instrumentation admission controller endpoint
                               type: boolean
                             mode:
-                              description: Mode defines how the CWS Instrumentation endpoint should behave. It can be "init_container" or "remote_copy".
+                              description: Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy".
                               type: string
                           type: object
                         enabled:
