@@ -56,10 +56,6 @@ const (
 	DefaultAdmissionControllerTargetPort = 8000
 	// DefaultAdmissionControllerWebhookName default admission controller webhook name
 	DefaultAdmissionControllerWebhookName string = "datadog-webhook"
-	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
-	DefaultAdmissionControllerCWSInstrumentationEnabled bool = false
-	// DefaultAdmissionControllerCWSInstrumentationMode default CWS Instrumentation mode
-	DefaultAdmissionControllerCWSInstrumentationMode string = "remote_copy"
 	// DefaultDogstatsdOriginDetection default Origin Detection
 	DefaultDogstatsdOriginDetection = "false"
 	// DefaultDogstatsdPort default dogstatsd port

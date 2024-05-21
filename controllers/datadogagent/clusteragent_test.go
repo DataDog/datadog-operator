@@ -151,14 +151,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			},
 		},
 		{
-			Name: apicommon.DDClusterAgentServiceAccountName,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "spec.serviceAccountName",
-				},
-			},
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",
 		},

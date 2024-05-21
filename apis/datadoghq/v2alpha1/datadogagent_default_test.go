@@ -249,8 +249,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -402,7 +402,7 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
+						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 					},
@@ -524,8 +524,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -642,8 +642,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -755,8 +755,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -870,8 +870,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -990,8 +990,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1106,8 +1106,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1219,8 +1219,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1239,7 +1239,7 @@ func Test_defaultFeatures(t *testing.T) {
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
+						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -1337,9 +1337,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
 						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
+						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueTrue),
-							Mode:    apiutils.NewStringPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationMode),
+							Mode:    apiutils.NewStringPointer(DefaultAdmissionControllerCWSInstrumentationMode),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1452,8 +1452,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1585,8 +1585,8 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationFeatureConfig{
-							Enabled: apiutils.NewBoolPointer(apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{

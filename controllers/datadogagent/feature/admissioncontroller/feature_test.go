@@ -127,7 +127,7 @@ func newV2Agent(enabled bool, acm, registry string, cwsInstrumentationEnabled bo
 					Enabled:          apiutils.NewBoolPointer(enabled),
 					MutateUnlabelled: apiutils.NewBoolPointer(true),
 					ServiceName:      apiutils.NewStringPointer("testServiceName"),
-					CWSInstrumentation: &v2alpha1.CWSInstrumentationFeatureConfig{
+					CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 						Enabled: apiutils.NewBoolPointer(cwsInstrumentationEnabled),
 						Mode:    apiutils.NewStringPointer("test-mode"),
 					},

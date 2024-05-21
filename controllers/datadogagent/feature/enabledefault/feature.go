@@ -387,6 +387,10 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDClusterAgentServiceAccountName,
+		Value: f.clusterAgent.serviceAccountName,
+	})
 	return nil
 }
 

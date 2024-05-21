@@ -117,8 +117,8 @@ func (f *admissionControllerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (re
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 		}
 		f.webhookName = apicommon.DefaultAdmissionControllerWebhookName
-		f.cwsInstrumentationEnabled = apicommon.DefaultAdmissionControllerCWSInstrumentationEnabled
-		f.cwsInstrumentationMode = apicommon.DefaultAdmissionControllerCWSInstrumentationMode
+		f.cwsInstrumentationEnabled = v2alpha1.DefaultAdmissionControllerCWSInstrumentationEnabled
+		f.cwsInstrumentationMode = v2alpha1.DefaultAdmissionControllerCWSInstrumentationMode
 	}
 	return reqComp
 }

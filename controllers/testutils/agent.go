@@ -56,7 +56,7 @@ func NewDatadogAgentWithCWSInstrumentation(namespace string, name string) v2alph
 			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
 				Enabled:          apiutils.NewBoolPointer(true),
 				MutateUnlabelled: apiutils.NewBoolPointer(true),
-				CWSInstrumentation: &v2alpha1.CWSInstrumentationFeatureConfig{
+				CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},

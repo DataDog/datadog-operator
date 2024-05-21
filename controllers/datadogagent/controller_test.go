@@ -1167,14 +1167,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if dca.OwnerReferences == nil || len(dca.OwnerReferences) != 1 {
 					return fmt.Errorf("dca bad owner references, should be: '[Kind DatadogAgent - Name foo]', current: %v", dca.OwnerReferences)
 				}
-
-				clusterAgentContainer := dca.Spec.Template.Spec.Containers[0]
-				serviceAcount := findEnv(clusterAgentContainer.Env, apicommon.DDClusterAgentServiceAccountName)
-				if serviceAcount == nil {
-					return fmt.Errorf("DD_SERVICE_ACCOUNT_NAME hasn't been set in dca")
-				} else if serviceAcount.ValueFrom == nil || (serviceAcount.ValueFrom != nil && serviceAcount.ValueFrom.FieldRef.FieldPath != "spec.serviceAccountName") {
-					return fmt.Errorf("DD_SERVICE_ACCOUNT_NAME hasn't been set correctly in dca: expected 'spec.serviceAccountName' got '%s'", serviceAcount.ValueFrom.FieldRef.FieldPath)
-				}
 				return nil
 			},
 		},
@@ -3041,15 +3033,6 @@ func containsEnv(slice []corev1.EnvVar, name, value string) bool {
 		}
 	}
 	return false
-}
-
-func findEnv(slice []corev1.EnvVar, name string) *corev1.EnvVar {
-	for i, element := range slice {
-		if element.Name == name {
-			return &slice[i]
-		}
-	}
-	return nil
 }
 
 func containsVolumeMounts(slice []corev1.VolumeMount, name, path string) bool {
