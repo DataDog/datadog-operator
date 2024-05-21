@@ -719,7 +719,7 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
-// OriginDetectionUnified define the origin detection unified mechanism behavior.
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
 type OriginDetectionUnified struct {
 	// Enabled enables unified mechanism for origin detection.
 	// Default: false
@@ -805,7 +805,7 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	// OriginDetectionUnified define the origin detection unified mechanism behavior.
+	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
 	// +optional
 	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
 
