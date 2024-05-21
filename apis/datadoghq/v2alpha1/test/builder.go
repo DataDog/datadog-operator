@@ -108,7 +108,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigEnabled(e
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
-	builder.initAdmissionController()
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	return builder
 }
