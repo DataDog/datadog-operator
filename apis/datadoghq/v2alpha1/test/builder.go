@@ -72,6 +72,7 @@ func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 func (builder *DatadogAgentBuilder) initDogstatsd() {
 	if builder.datadogAgent.Spec.Features.Dogstatsd == nil {
 		builder.datadogAgent.Spec.Features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
+		builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{}
 	}
 }
 
@@ -107,6 +108,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigEnabled(e
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	return builder
 }
@@ -161,6 +163,38 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithMutateUnlabelled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.MutateUnlabelled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAgentCommunicationMode(options string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(options)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithServiceName(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.ServiceName = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithWebhookName(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.WebhookName = apiutils.NewStringPointer(name)
+	return builder
+}
+
+// ref : WithAPMSingleStepInstrumentationEnabled
+func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionFeatureConfig{}
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
