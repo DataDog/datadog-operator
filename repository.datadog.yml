@@ -12,6 +12,5 @@ github_teams_restrictions:
   - Documentation
   - Vector
 github_users_restrictions:
-  - cahillsf
   - clamoriniere
   - hkaj
