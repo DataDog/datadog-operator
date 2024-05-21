@@ -192,7 +192,7 @@ func (builder *DatadogAgentBuilder) WithWebhookName(name string) *DatadogAgentBu
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionFeatureConfig{}
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }

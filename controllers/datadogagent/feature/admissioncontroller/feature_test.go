@@ -1,3 +1,7 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
 package admissioncontroller
 
 import (
@@ -32,27 +36,47 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 Admission Controller enabled with agent communication mode",
+			Name: "v2alpha1 Admission Controller enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
-				WithAgentCommunicationMode("testCommunicationMode").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(true, false, "testCommunicationMode", "", "datadog-webhook"),
+				admissionControllerWantFunc(false, false, "", "", ""),
+			),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with mutateUnlabelled true",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithMutateUnlabelled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(true, false, "", "", ""),
 			),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with custom service and webhook name",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
-				WithAgentCommunicationMode("testCommunicationMode").
 				WithServiceName("testServiceName").
 				WithWebhookName("testWebhookName").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(true, false, "testCommunicationMode", "testServiceName", "testWebhookName"),
+				admissionControllerWantFunc(false, false, "", "testServiceName", "testWebhookName"),
+			),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with config mode",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAgentCommunicationMode("service").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(false, false, "service", "", ""),
 			),
 		},
 		{
@@ -64,7 +88,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(true, false, "socket", "", "datadog-webhook"),
+				admissionControllerWantFunc(false, false, "apm", "", ""),
 			),
 		},
 		{
@@ -76,7 +100,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(true, false, "socket", "", "datadog-webhook"),
+				admissionControllerWantFunc(false, false, "dsd", "", ""),
 			),
 		},
 		{
@@ -84,11 +108,10 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
-				WithAgentCommunicationMode("testCommunicationMode").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc(true, true, "testCommunicationMode", "", "datadog-webhook"),
+				admissionControllerWantFunc(false, true, "", "", ""),
 			),
 		},
 	}
@@ -96,17 +119,29 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 	tests.Run(t, buildAdmissionControllerFeature)
 }
 
-func generateEnvVars(enabled, sidecar bool, configMode, serviceName, webhookName string) []*corev1.EnvVar {
+func generateEnvVars(mutate, sidecar bool, configMode, serviceName, webhookName string) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDAdmissionControllerEnabled,
 			Value: "true",
 		},
-		{
-			Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
-			Value: "false",
-		},
 	}
+	if mutate {
+		envVars = append(envVars, []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+				Value: "true",
+			},
+		}...)
+	} else {
+		envVars = append(envVars, []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+				Value: "false",
+			},
+		}...)
+	}
+
 	if sidecar {
 		envVars = append(envVars, []*corev1.EnvVar{
 			{
@@ -131,11 +166,20 @@ func generateEnvVars(enabled, sidecar bool, configMode, serviceName, webhookName
 		envVars = append(envVars, serviceEnvVars)
 	}
 	if configMode != "" {
-		configModeEnvVars := &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
-			Value: configMode,
+		if configMode == "apm" || configMode == "dsd" {
+			configModeEnvVars := &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+				Value: "socket",
+			}
+			envVars = append(envVars, configModeEnvVars)
+		} else {
+			configModeEnvVars := &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+				Value: configMode,
+			}
+			envVars = append(envVars, configModeEnvVars)
 		}
-		envVars = append(envVars, configModeEnvVars)
+
 	}
 
 	envVars = append(envVars, &corev1.EnvVar{Name: apicommon.DDAdmissionControllerLocalServiceName, Value: "-agent"})
@@ -146,16 +190,22 @@ func generateEnvVars(enabled, sidecar bool, configMode, serviceName, webhookName
 			Value: webhookName,
 		}
 		envVars = append(envVars, webhookEnvVars)
+	} else {
+		webhookEnvVars := &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerWebhookName,
+			Value: "datadog-webhook",
+		}
+		envVars = append(envVars, webhookEnvVars)
 	}
 
 	return envVars
 }
 
-func admissionControllerWantFunc(enabled, sidecar bool, configMode, serviceName, webhookName string) func(testing.TB, feature.PodTemplateManagers) {
+func admissionControllerWantFunc(mutate, sidecar bool, configMode, serviceName, webhookName string) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-		want := generateEnvVars(enabled, sidecar, configMode, serviceName, webhookName)
+		want := generateEnvVars(mutate, sidecar, configMode, serviceName, webhookName)
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(dcaEnvVars, want),
