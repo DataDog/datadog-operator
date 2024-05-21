@@ -13,6 +13,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,9 +138,9 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
 				f.agentsidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image.Tag != "" {
-				f.agentsidecarConfig.imageName = componentOverride.Image.Tag
+				f.agentsidecarConfig.imageTag = componentOverride.Image.Tag
 			} else {
-				f.agentsidecarConfig.imageName = apicommon.DefaultAgentImageName
+				f.agentsidecarConfig.imageTag = defaulting.AgentLatestVersion
 			}
 		}
 
@@ -206,6 +207,37 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Value: apiutils.BoolToString(&f.mutateUnlabelled),
 	})
 
+	if f.serviceName != "" {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerServiceName,
+			Value: f.serviceName,
+		})
+	}
+
+	if f.agentCommunicationMode != "" {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+			Value: f.agentCommunicationMode,
+		})
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDAdmissionControllerLocalServiceName,
+		Value: f.localServiceName,
+	})
+
+	if f.failurePolicy != "" {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerFailurePolicy,
+			Value: f.failurePolicy,
+		})
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDAdmissionControllerWebhookName,
+		Value: f.webhookName,
+	})
+
 	if f.agentsidecarConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
@@ -243,37 +275,6 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		}
 
 	}
-
-	if f.serviceName != "" {
-		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerServiceName,
-			Value: f.serviceName,
-		})
-	}
-
-	if f.agentCommunicationMode != "" {
-		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
-			Value: f.agentCommunicationMode,
-		})
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerLocalServiceName,
-		Value: f.localServiceName,
-	})
-
-	if f.failurePolicy != "" {
-		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerFailurePolicy,
-			Value: f.failurePolicy,
-		})
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerWebhookName,
-		Value: f.webhookName,
-	})
 
 	return nil
 }
