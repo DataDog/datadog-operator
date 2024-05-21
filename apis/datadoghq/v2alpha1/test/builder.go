@@ -159,6 +159,11 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
 }
+func (builder *DatadogAgentBuilder) initSidecarInjection() {
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
+	}
+}
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
@@ -192,8 +197,10 @@ func (builder *DatadogAgentBuilder) WithWebhookName(name string) *DatadogAgentBu
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
-	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
+	builder.initSidecarInjection()
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
+	}
 	return builder
 }
 

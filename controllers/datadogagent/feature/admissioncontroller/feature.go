@@ -106,9 +106,12 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 
 		if shouldEnablesidecarInjection(sidecarConfig) {
-			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			f.agentsidecarConfig = &AgentSidecarInjectionConfig{}
-			f.agentsidecarConfig.enabled = *sidecarConfig.Enabled
+			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
+			if sidecarConfig.Enabled != nil {
+				f.agentsidecarConfig.enabled = *sidecarConfig.Enabled
+
+			}
 			if sidecarConfig.Provider != nil && *sidecarConfig.Provider != "" {
 				f.agentsidecarConfig.provider = *sidecarConfig.Provider
 			}
@@ -125,22 +128,27 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
-			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
+			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
 				f.agentsidecarConfig.imageName = sidecarConfig.Image.Name
-			} else if ok && componentOverride.Image.Name != "" {
-				f.agentsidecarConfig.imageName = componentOverride.Image.Name
 			} else {
-				f.agentsidecarConfig.imageName = apicommon.DefaultAgentImageName
+				if ok && componentOverride.Image != nil {
+					f.agentsidecarConfig.imageName = componentOverride.Image.Name
+				} else {
+					f.agentsidecarConfig.imageName = apicommon.DefaultAgentImageName
+				}
 			}
 
 			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
 			// defaults will depend on operation version.
-			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
+			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
 				f.agentsidecarConfig.imageTag = sidecarConfig.Image.Tag
-			} else if ok && componentOverride.Image.Tag != "" {
-				f.agentsidecarConfig.imageTag = componentOverride.Image.Tag
 			} else {
-				f.agentsidecarConfig.imageTag = defaulting.AgentLatestVersion
+
+				if ok && componentOverride.Image != nil {
+					f.agentsidecarConfig.imageTag = componentOverride.Image.Tag
+				} else {
+					f.agentsidecarConfig.imageTag = defaulting.AgentLatestVersion
+				}
 			}
 		}
 
