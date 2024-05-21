@@ -190,7 +190,6 @@ func (builder *DatadogAgentBuilder) WithWebhookName(name string) *DatadogAgentBu
 	return builder
 }
 
-// ref : WithAPMSingleStepInstrumentationEnabled
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionFeatureConfig{}

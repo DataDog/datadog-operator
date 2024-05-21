@@ -49,8 +49,7 @@ type agentSidecarInjectionConfig struct {
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
-	admissionControllerFeat := &admissionControllerFeature{}
-	return admissionControllerFeat
+	return &admissionControllerFeature{}
 }
 
 // ID returns the ID of the Feature
@@ -72,6 +71,7 @@ func shouldEnableSidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+
 	ac := dda.Spec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
@@ -87,7 +87,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// use `socket` mode if either apm or dsd uses uds
 			apm := dda.Spec.Features.APM
 			dsd := dda.Spec.Features.Dogstatsd
-
 			if apm != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled) ||
 				dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled) {
 				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode
@@ -110,8 +109,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		sidecarInjection := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 
 		if shouldEnableSidecarInjection(sidecarInjection) {
-			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
+			f.agentSidecarInjection = &agentSidecarInjectionConfig{}
 			f.agentSidecarInjection.enabled = *sidecarInjection.Enabled
 			if sidecarInjection.Provider != nil && *sidecarInjection.Provider != "" {
 				f.agentSidecarInjection.provider = *sidecarInjection.Provider
