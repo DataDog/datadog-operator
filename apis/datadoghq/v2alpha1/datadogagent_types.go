@@ -587,6 +587,10 @@ type AdmissionControllerFeatureConfig struct {
 	// AgentSidecarInjection contains Agent sidecar injection configurations.
 	// +optional
 	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
+
+	// Registry defines an image registry for the admission controller.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
@@ -722,6 +726,14 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+type OriginDetectionUnified struct {
+	// Enabled enables unified mechanism for origin detection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
 // system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
@@ -799,6 +811,10 @@ type GlobalConfig struct {
 	// +optional
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
+
+	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+	// +optional
+	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
 
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>

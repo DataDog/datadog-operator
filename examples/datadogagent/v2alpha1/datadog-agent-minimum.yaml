@@ -4,5 +4,6 @@ metadata:
   name: datadog
 spec:
   global:
+    clusterName: my-example-cluster
     credentials:
       apiKey: <DATADOG_API_KEY>

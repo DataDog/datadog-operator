@@ -1,0 +1,16 @@
+---
+schema-version: v1
+kind: mergequeue
+gitlab_check_enable: false
+github_teams_restrictions:
+  - agent-all
+  - container-app
+  - container-ecosystems
+  - container-helm-chart-maintainers
+  - container-integrations
+  - container-t2
+  - Documentation
+  - Vector
+github_users_restrictions:
+  - clamoriniere
+  - hkaj

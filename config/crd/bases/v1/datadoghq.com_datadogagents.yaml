@@ -7859,6 +7859,9 @@ spec:
                         mutateUnlabelled:
                           description: 'MutateUnlabelled enables config injection without the need of pod label ''admission.datadoghq.com/enabled="true"''. Default: false'
                           type: boolean
+                        registry:
+                          description: Registry defines an image registry for the admission controller.
+                          type: string
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
@@ -8850,6 +8853,13 @@ spec:
                       additionalProperties:
                         type: string
                       description: 'Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY>'
+                      type: object
+                    originDetectionUnified:
+                      description: OriginDetectionUnified defines the origin detection unified mechanism behavior.
+                      properties:
+                        enabled:
+                          description: 'Enabled enables unified mechanism for origin detection. Default: false'
+                          type: boolean
                       type: object
                     podAnnotationsAsTags:
                       additionalProperties:

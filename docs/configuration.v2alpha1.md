@@ -47,6 +47,7 @@ spec:
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| features.admissionController.registry | Registry defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
@@ -203,6 +204,7 @@ spec:
 | global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
 | global.networkPolicy.flavor | Flavor defines Which network policy to use. |
 | global.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY> |
+| global.originDetectionUnified.enabled | Enabled enables unified mechanism for origin detection. Default: false |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
