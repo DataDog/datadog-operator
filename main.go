@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -35,8 +36,8 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
 	"github.com/go-logr/logr"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -146,7 +147,7 @@ func (opts *options) Parse() {
 	// Leader Election options flags
 	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", resourcelock.ConfigMapsLeasesResourceLock, "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|leases]")
+	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", resourcelock.LeasesResourceLock, "determines which resource lock to use for leader election. option:[leases]")
 	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
@@ -233,10 +234,12 @@ func run(opts *options) error {
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
 	mgr, err := ctrl.NewManager(restConfig, config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
-		Scheme:                     scheme,
-		MetricsBindAddress:         opts.metricsAddr,
-		HealthProbeBindAddress:     ":8081",
-		Port:                       9443,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress:   opts.metricsAddr,
+			ExtraHandlers: debug.GetExtraMetricHandlers(),
+		}, HealthProbeBindAddress: ":8081",
+		WebhookServer:              webhook.NewServer(webhook.Options{Port: 9443}),
 		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: opts.leaderElectionResourceLock,
@@ -252,7 +255,6 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
-	customSetupEndpoints(opts.pprofActive, mgr)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
@@ -404,18 +406,6 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 	})
 	if err != nil {
 		setupErrorf(setupLog, err, "Unable to add healthchecks")
-	}
-}
-
-func customSetupEndpoints(pprofActive bool, mgr manager.Manager) {
-	if pprofActive {
-		if err := debug.RegisterEndpoint(mgr.AddMetricsExtraHandler, nil); err != nil {
-			setupErrorf(setupLog, err, "Unable to register pprof endpoint")
-		}
-	}
-
-	if err := metrics.RegisterEndpoint(mgr, mgr.AddMetricsExtraHandler); err != nil {
-		setupErrorf(setupLog, err, "Unable to register custom metrics endpoints")
 	}
 }
 
