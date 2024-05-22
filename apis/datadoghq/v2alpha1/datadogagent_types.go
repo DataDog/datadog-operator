@@ -1204,7 +1204,7 @@ type FIPSConfig struct {
 
 type AgentSidecarInjectionConfig struct {
 	// Enabled enables Sidecar injections.
-	// Default: true
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled"`
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.

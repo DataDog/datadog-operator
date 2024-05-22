@@ -7815,7 +7815,7 @@ spec:
                               description: 'ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true'
                               type: boolean
                             enabled:
-                              description: 'Enabled enables Sidecar injections. Default: true'
+                              description: 'Enabled enables Sidecar injections. Default: false'
                               type: boolean
                             image:
                               description: Image overrides the default Agent image name and tag for the Agent sidecar.
