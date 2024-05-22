@@ -123,7 +123,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
-				WithSidecarInjection(v2alpha1.AgentSidecarInjectionConfig{
+				WithSidecarInjectionSetup(v2alpha1.AgentSidecarInjectionConfig{
 					Enabled:                          apiutils.NewBoolPointer(true),
 					ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
 					Provider:                         apiutils.NewStringPointer("testProvider"),

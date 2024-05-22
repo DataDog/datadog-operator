@@ -72,7 +72,6 @@ const (
 	defaultAdmissionControllerEnabled                         bool   = true
 	defaultAdmissionControllerMutateUnlabelled                bool   = false
 	defaultAdmissionServiceName                               string = "datadog-admission-controller"
-	defaultAdmissionControllerAgentSidecarEnabled             bool   = false
 	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
 
 	defaultOrchestratorExplorerEnabled         bool = true
