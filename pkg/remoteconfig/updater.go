@@ -57,7 +57,8 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID            string                       `json:"name"`
+	ID            string                       `json:""`
+	Name          string                       `json:"name"`
 	CoreAgent     *CoreAgentFeaturesConfig     `json:"config"`
 	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe"`
 	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent"`
@@ -269,8 +270,8 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				r.logger.Info("Error unmarshalling JSON:", "err", err)
 				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshall configuration %s", c.Metadata.ID)
-
 			} else {
+				configData.ID = c.Metadata.ID
 				configs = append(configs, configData)
 			}
 		}
