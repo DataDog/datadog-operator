@@ -15,9 +15,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -255,14 +257,14 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
 		},
 		{
-			Name: "v2alpha1 error apm single step instrumentation",
+			Name: "v2alpha1 error apm single step instrumentation without language detection",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
@@ -273,11 +275,17 @@ func TestAPMFeature(t *testing.T) {
 					[]string{"foo", "bar"},
 					map[string]string{
 						"java": "1.2.4",
-					}).
+					}, false).
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationFull(),
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
+				if found {
+					t.Error("Should not have created proper RBAC for language detection because language detection is not enabled.")
+				}
+			},
 		},
 		{
 			Name: "v2alpha1 step instrumentation precedence",
@@ -285,7 +293,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(false).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: false,
@@ -296,7 +304,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
 				WithAdmissionControllerEnabled(false).
 				WithSingleContainerStrategy(false).
 				Build(),
@@ -310,11 +318,49 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}).
+				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationNamespaces(),
+		},
+		{
+			Name: "v2alpha1 single step instrumentation with language detection enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAdmissionControllerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionForClusterAgent(),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(),
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
+				if !found {
+					t.Error("Should have created proper RBAC for language detection")
+				}
+			},
+		},
+		{
+			Name: "v2alpha1 single step instrumentation without language detection enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAdmissionControllerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionForClusterAgent(),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(),
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
+				if !found {
+					t.Error("Should have created proper RBAC for language detection")
+				}
+			},
 		},
 	}
 
@@ -577,6 +623,68 @@ func testAPMInstrumentation() *test.ComponentTest {
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
 				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationWithLanguageDetectionForClusterAgent() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			// Test Cluster Agent Env Vars
+			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			expectedClusterAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDLanguageDetectionEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(clusterAgentEnvs, expectedClusterAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedClusterAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationWithLanguageDetectionForNodeAgent() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			// Assert Env Vars Added to All Containers
+			allContEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			expectedAllContEnvVars := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDLanguageDetectionEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(allContEnvVars, expectedAllContEnvVars),
+				"Process Agent ENVs \ndiff = %s", cmp.Diff(allContEnvVars, expectedAllContEnvVars),
+			)
+
+			// Assert Process Agent Specific Env Vars
+			processAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+			expectedProcessAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDProcessCollectionEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(processAgentEnvs, expectedProcessAgentEnvs),
+				"Process Agent ENVs \ndiff = %s", cmp.Diff(processAgentEnvs, expectedProcessAgentEnvs),
 			)
 		},
 	)

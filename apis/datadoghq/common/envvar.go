@@ -98,6 +98,8 @@ const (
 	DDKubeResourcesNamespace                             = "DD_KUBE_RESOURCES_NAMESPACE"
 	DDKubeStateMetricsCoreConfigMap                      = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDKubeStateMetricsCoreEnabled                        = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
+	DDLanguageDetectionEnabled                           = "DD_LANGUAGE_DETECTION_ENABLED"
+	DDLanguageDetectionReportingEnabled                  = "DD_LANGUAGE_DETECTION_REPORTING_ENABLED"
 	DDLeaderElection                                     = "DD_LEADER_ELECTION"
 	DDLeaderLeaseName                                    = "DD_LEADER_LEASE_NAME"
 	DDLogLevel                                           = "DD_LOG_LEVEL"
