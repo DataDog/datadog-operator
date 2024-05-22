@@ -1211,9 +1211,8 @@ type AgentSidecarInjectionConfig struct {
 	// Default : true
 	// +optional
 	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
-	// Provider defines the provider for the Datadog Agent sidecar injection.
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
 	// Currently only "fargate" is supported.
-	// If not specified, It is automatically be set to "fargate".
 	// To use the feature in other environments (including local testing) omit the config.
 	// See also: https://docs.datadoghq.com/integrations/eks_fargate
 	// +optional

@@ -42,7 +42,7 @@ spec:
 | features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
 | features.admissionController.agentSidecarInjection.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
-| features.admissionController.agentSidecarInjection.provider | Provider defines the provider for the Datadog Agent sidecar injection. Currently only "fargate" is supported. If not specified, It is automatically be set to "fargate". To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
+| features.admissionController.agentSidecarInjection.provider | Provider is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
 | features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
