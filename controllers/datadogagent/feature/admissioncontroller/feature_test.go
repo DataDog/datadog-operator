@@ -1,3 +1,7 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
 package admissioncontroller
 
 import (
@@ -5,7 +9,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
@@ -63,7 +66,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "v2alpha1 Admission Controller enabled with custom service name, webhook name, registry, and failure policy",
+			Name: "v2alpha1 Admission Controller enabled with communication mode, custom service name, webhook name, registry, and failure policy",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithMutateUnlabelled(true).
@@ -125,7 +128,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 					ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
 					Provider:                         apiutils.NewStringPointer("testProvider"),
 					Registry:                         apiutils.NewStringPointer("testRegistryName"),
-					Image: &commonv1.AgentImageConfig{
+					Image: &apicommonv1.AgentImageConfig{
 						Name: "agent",
 						Tag:  "7.53.0",
 					},
@@ -140,7 +143,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 						ClusterAgentCommunicationEnabled: apiutils.NewBoolPointer(true),
 						Provider:                         apiutils.NewStringPointer("testProvider"),
 						Registry:                         apiutils.NewStringPointer("testRegistryName"),
-						Image: &commonv1.AgentImageConfig{
+						Image: &apicommonv1.AgentImageConfig{
 							Name: "agent",
 							Tag:  "7.53.0",
 						},
