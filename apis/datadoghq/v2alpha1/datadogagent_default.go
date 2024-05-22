@@ -69,9 +69,11 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	defaultAdmissionControllerEnabled          bool   = true
-	defaultAdmissionControllerMutateUnlabelled bool   = false
-	defaultAdmissionServiceName                string = "datadog-admission-controller"
+	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerMutateUnlabelled                bool   = false
+	defaultAdmissionServiceName                               string = "datadog-admission-controller"
+	defaultAdmissionControllerAgentSidecarEnabled             bool   = false
+	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
 
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
@@ -385,6 +387,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
+
+	}
+	if ddaSpec.Features.AdmissionController.AgentSidecarInjection != nil &&
+		ddaSpec.Features.AdmissionController.AgentSidecarInjection.Enabled != nil &&
+		*ddaSpec.Features.AdmissionController.AgentSidecarInjection.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
 	}
 
 	// ExternalMetricsServer Feature
@@ -393,7 +401,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.Enabled, defaultExternalMetricsServerEnabled)
 
-	if *ddaSpec.Features.ExternalMetricsServer.Enabled {
+	if ddaSpec.Features.AdmissionController.AgentSidecarInjection == nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.RegisterAPIService, defaultRegisterAPIService)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)

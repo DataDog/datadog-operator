@@ -106,7 +106,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
-			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			if sidecarConfig.Enabled != nil {
 				f.agentSidecarConfig.enabled = *sidecarConfig.Enabled
 
@@ -117,37 +116,33 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			if sidecarConfig.ClusterAgentCommunicationEnabled != nil {
 				f.agentSidecarConfig.clusterAgentCommunicationEnabled = *sidecarConfig.ClusterAgentCommunicationEnabled
-			} else {
-				f.agentSidecarConfig.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
 			}
-
 			// set image registry from admissionController config or global config if defined
 			if sidecarConfig.Registry != nil && *sidecarConfig.Registry != "" {
 				f.agentSidecarConfig.registry = *sidecarConfig.Registry
+			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
+				f.agentSidecarConfig.registry = *dda.Spec.Global.Registry
 			}
+
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
+			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
 				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageName = componentOverride.Image.Name
 			} else {
-				if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageName = componentOverride.Image.Name
-				} else {
-					f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
-				}
+				f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
 			}
 
 			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
 			// defaults will depend on operation version.
 			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
 				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 			} else {
-
-				if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
-				} else {
-					f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
-				}
+				f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 			}
 		}
 

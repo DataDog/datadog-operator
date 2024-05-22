@@ -204,6 +204,15 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *D
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAgentSidecarInjectionClusterAgentEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
+	}
+	return builder
+}
+
 // Process Discovery
 func (builder *DatadogAgentBuilder) initProcessDiscovery() {
 	if builder.datadogAgent.Spec.Features.ProcessDiscovery == nil {

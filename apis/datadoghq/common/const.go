@@ -50,8 +50,6 @@ const (
 	DefaultMetricsServerServicePort = 443
 	// DefaultMetricsServerTargetPort default metrics-server pod port
 	DefaultMetricsServerTargetPort = int(DefaultMetricsProviderPort)
-	// DefaultAdmissionControllerAgentSidecarClusterAgentEnabled default Agent sidecar and cluster agent configuration
-	DefaultAdmissionControllerAgentSidecarClusterAgentEnabled = true
 	// DefaultAdmissionControllerServicePort default admission controller service port
 	DefaultAdmissionControllerServicePort = 443
 	// DefaultAdmissionControllerTargetPort default admission controller pod port
