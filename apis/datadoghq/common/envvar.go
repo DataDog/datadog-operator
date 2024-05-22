@@ -17,6 +17,7 @@ const (
 	DDAdmissionControllerServiceName                  = "DD_ADMISSION_CONTROLLER_SERVICE_NAME"
 	DDAdmissionControllerFailurePolicy                = "DD_ADMISSION_CONTROLLER_FAILURE_POLICY"
 	DDAdmissionControllerWebhookName                  = "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME"
+	DDAdmissionControllerRegistryName                 = "DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY"
 	DDAPIKey                                          = "DD_API_KEY"
 	DDAPMEnabled                                      = "DD_APM_ENABLED"
 	DDAPMInstrumentationInstallTime                   = "DD_INSTRUMENTATION_INSTALL_TIME"
