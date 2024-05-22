@@ -177,6 +177,12 @@ func (builder *DatadogAgentBuilder) WithMutateUnlabelled(enabled bool) *DatadogA
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(registryName string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(registryName)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAgentCommunicationMode(options string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(options)
@@ -195,21 +201,46 @@ func (builder *DatadogAgentBuilder) WithWebhookName(name string) *DatadogAgentBu
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAdmissionControllerFailurePolicy(failurePolicyName string) *DatadogAgentBuilder {
 	builder.initAdmissionController()
-	builder.initSidecarInjection()
-	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection != nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
-	}
+	builder.datadogAgent.Spec.Features.AdmissionController.FailurePolicy = apiutils.NewStringPointer(failurePolicyName)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAgentSidecarInjectionClusterAgentEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithSidecarInjection(sidecarConfig v2alpha1.AgentSidecarInjectionConfig) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
-	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection != nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
+
+	// Initialize the AgentSidecarInjectionConfig if it is nil
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
 	}
+
+	// Set the Enabled field if provided
+	if sidecarConfig.Enabled != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = sidecarConfig.Enabled
+	}
+
+	// Set the ClusterAgentCommunicationEnabled field if provided
+	if sidecarConfig.ClusterAgentCommunicationEnabled != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = sidecarConfig.ClusterAgentCommunicationEnabled
+	}
+
+	// Set the Provider field if provided
+	if sidecarConfig.Provider != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = sidecarConfig.Provider
+	}
+
+	// Set the Registry field if provided
+	if sidecarConfig.Registry != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Registry = sidecarConfig.Registry
+	}
+
+	// Set the Image field if provided
+	if sidecarConfig.Image != nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = sidecarConfig.Image
+	}
+
 	return builder
 }
 
