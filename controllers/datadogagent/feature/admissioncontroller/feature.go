@@ -32,7 +32,7 @@ type admissionControllerFeature struct {
 	serviceName            string
 	webhookName            string
 	agentCommunicationMode string
-	agentsidecarConfig     *AgentSidecarInjectionConfig
+	agentSidecarConfig     *AgentSidecarInjectionConfig
 	localServiceName       string
 	failurePolicy          string
 
@@ -105,48 +105,48 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
-			f.agentsidecarConfig = &AgentSidecarInjectionConfig{}
+			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			if sidecarConfig.Enabled != nil {
-				f.agentsidecarConfig.enabled = *sidecarConfig.Enabled
+				f.agentSidecarConfig.enabled = *sidecarConfig.Enabled
 
 			}
 			if sidecarConfig.Provider != nil && *sidecarConfig.Provider != "" {
-				f.agentsidecarConfig.provider = *sidecarConfig.Provider
+				f.agentSidecarConfig.provider = *sidecarConfig.Provider
 			}
 
 			if sidecarConfig.ClusterAgentCommunicationEnabled != nil {
-				f.agentsidecarConfig.clusterAgentCommunicationEnabled = *sidecarConfig.ClusterAgentCommunicationEnabled
+				f.agentSidecarConfig.clusterAgentCommunicationEnabled = *sidecarConfig.ClusterAgentCommunicationEnabled
 			} else {
-				f.agentsidecarConfig.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
+				f.agentSidecarConfig.clusterAgentCommunicationEnabled = apicommon.DefaultAdmissionControllerAgentSidecarClusterAgentEnabled
 			}
 
 			// set image registry from admissionController config or global config if defined
 			if sidecarConfig.Registry != nil && *sidecarConfig.Registry != "" {
-				f.agentsidecarConfig.registry = *sidecarConfig.Registry
+				f.agentSidecarConfig.registry = *sidecarConfig.Registry
 			}
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
 			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
-				f.agentsidecarConfig.imageName = sidecarConfig.Image.Name
+				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
 			} else {
 				if ok && componentOverride.Image != nil {
-					f.agentsidecarConfig.imageName = componentOverride.Image.Name
+					f.agentSidecarConfig.imageName = componentOverride.Image.Name
 				} else {
-					f.agentsidecarConfig.imageName = apicommon.DefaultAgentImageName
+					f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
 				}
 			}
 
 			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
 			// defaults will depend on operation version.
 			if sidecarConfig != nil && sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
-				f.agentsidecarConfig.imageTag = sidecarConfig.Image.Tag
+				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else {
 
 				if ok && componentOverride.Image != nil {
-					f.agentsidecarConfig.imageTag = componentOverride.Image.Tag
+					f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 				} else {
-					f.agentsidecarConfig.imageTag = defaulting.AgentLatestVersion
+					f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 				}
 			}
 		}
@@ -245,39 +245,39 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Value: f.webhookName,
 	})
 
-	if f.agentsidecarConfig != nil {
+	if f.agentSidecarConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
-			Value: apiutils.BoolToString(&f.agentsidecarConfig.enabled),
+			Value: apiutils.BoolToString(&f.agentSidecarConfig.enabled),
 		})
 
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
-			Value: apiutils.BoolToString(&f.agentsidecarConfig.clusterAgentCommunicationEnabled),
+			Value: apiutils.BoolToString(&f.agentSidecarConfig.clusterAgentCommunicationEnabled),
 		})
-		if f.agentsidecarConfig.provider != "" {
+		if f.agentSidecarConfig.provider != "" {
 			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
-				Value: f.agentsidecarConfig.provider,
+				Value: f.agentSidecarConfig.provider,
 			})
 		}
-		if f.agentsidecarConfig.registry != "" {
+		if f.agentSidecarConfig.registry != "" {
 			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
-				Value: f.agentsidecarConfig.registry,
+				Value: f.agentSidecarConfig.registry,
 			})
 		}
 
-		if f.agentsidecarConfig.imageName != "" {
+		if f.agentSidecarConfig.imageName != "" {
 			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
-				Value: f.agentsidecarConfig.imageName,
+				Value: f.agentSidecarConfig.imageName,
 			})
 		}
-		if f.agentsidecarConfig.imageTag != "" {
+		if f.agentSidecarConfig.imageTag != "" {
 			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
-				Value: f.agentsidecarConfig.imageTag,
+				Value: f.agentSidecarConfig.imageTag,
 			})
 		}
 
