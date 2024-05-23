@@ -153,18 +153,20 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
-		// We need to recalculate the agentspechash because when overriding
-		// node labels, the hash could be updated without updating the pod
-		// template spec in <1.7.0. Pod template labels were copied over
-		// directly from the existing daemonset.
+		// When overriding node labels in <1.7.0, the hash could be updated
+		// without updating the pod template spec in <1.7.0 since pod template
+		// labels were copied over directly from the existing daemonset.
 		// With operator <1.7.0, it would look like:
 		// 1. Set override node label `abc: def`
 		//    a. Daemonset annotation: `agentspechash: 12345`
 		// 2. Change label to `abc: xyz`
 		//    a. Daemonset annotation: `agentspechash: 67890`
 		//    b. Pod template spec still has `abc: def` (set in step 1)
-		var recalculatedDSHash string
-		recalculatedDSHash, err = comparison.GenerateMD5ForSpec(currentDaemonset.Spec)
+		// To ensure the pod template label updates, we compare the existing
+		// daemonset's pod template labels with the new daemonset's pod
+		// template labels.
+		var currentDaemonsetPodTemplateLabelHash string
+		currentDaemonsetPodTemplateLabelHash, err = comparison.GenerateMD5ForSpec(currentDaemonset.Spec.Template.Labels)
 		if err != nil {
 			return result, err
 		}
@@ -177,14 +179,19 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		daemonset.Spec.Template.Labels = ensureSelectorInPodTemplateLabels(logger, daemonset.Spec.Selector, daemonset.Spec.Template.Labels)
 
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
-		var hash string
+		var hash, daemonsetPodTemplateLabelHash string
 		hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
+		if err != nil {
+			return result, err
+		}
+		// create a separate hash to compare pod template labels
+		daemonsetPodTemplateLabelHash, err = comparison.GenerateMD5ForSpec(daemonset.Spec.Template.Labels)
 		if err != nil {
 			return result, err
 		}
 
 		// check if same hash
-		needUpdate := recalculatedDSHash != hash
+		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDaemonset.GetAnnotations()) || currentDaemonsetPodTemplateLabelHash != daemonsetPodTemplateLabelHash
 		if !needUpdate {
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
