@@ -13,7 +13,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -137,8 +136,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageName = componentOverride.Image.Name
-			} else {
-				f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
 			}
 
 			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
@@ -147,8 +144,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
-			} else {
-				f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 			}
 		}
 

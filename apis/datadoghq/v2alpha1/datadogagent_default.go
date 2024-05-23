@@ -14,11 +14,13 @@ import (
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
 const (
-	defaultSite       string = "datadoghq.com"
-	defaultEuropeSite string = "datadoghq.eu"
-	defaultAsiaSite   string = "ap1.datadoghq.com"
-	defaultGovSite    string = "ddog-gov.com"
-	defaultLogLevel   string = "info"
+	defaultSite           string = "datadoghq.com"
+	defaultEuropeSite     string = "datadoghq.eu"
+	defaultAsiaSite       string = "ap1.datadoghq.com"
+	defaultGovSite        string = "ddog-gov.com"
+	defaultLogLevel       string = "info"
+	defaultAgentImageName string = "agent"
+	defaultAgentImageTag  string = defaulting.AgentLatestVersion
 
 	defaultLogCollectionEnabled          bool   = false
 	defaultLogContainerCollectUsingFiles bool   = true
@@ -390,6 +392,17 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
+		if agentSidecarInjection.Image == nil {
+			agentSidecarInjection.Image = &commonv1.AgentImageConfig{}
+		}
+
+		if agentSidecarInjection.Image.Name == "" {
+			agentSidecarInjection.Image.Name = defaultAgentImageName
+		}
+
+		if agentSidecarInjection.Image.Tag == "" {
+			agentSidecarInjection.Image.Tag = defaultAgentImageTag
+		}
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
 	}
 
@@ -399,7 +412,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.Enabled, defaultExternalMetricsServerEnabled)
 
-	if ddaSpec.Features.AdmissionController.AgentSidecarInjection == nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
+	if *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.RegisterAPIService, defaultRegisterAPIService)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)
