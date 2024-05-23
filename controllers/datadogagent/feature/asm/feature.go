@@ -86,7 +86,7 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-// ASM is noy supported by v1
+// ASM is not supported by v1
 func (f *asmFeature) ConfigureV1(_ *v1alpha1.DatadogAgent) feature.RequiredComponents {
 	return feature.RequiredComponents{}
 }

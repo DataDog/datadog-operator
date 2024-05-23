@@ -155,41 +155,39 @@ type SingleStepInstrumentation struct {
 	LibVersions map[string]string `json:"libVersions,omitempty"`
 }
 
-// ASMFeatureConfig contains (Application Security Management (ASM) configuration.
-// All ASM features can be enabled at cluster scale by setting the field `enabled: true`.
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
 // Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 type ASMFeatureConfig struct {
-	// Threats enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. 
+	// Threats configures ASM App & API Protection. 
 	// Enabled Default: false
 	// +optional
 	Threats *ASMThreatsConfig `json:"threats,omitempty"`
-	// Software Composition Analysis (SCA) enables this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale.
+	// SCA configures Software Composition Analysis.
 	// Enabled Default: false
 	// +optional
 	SCA *ASMSCAConfig `json:"sca,omitempty"`
-	// Interactive Application Security Testing (IAST) enables this ASM feature via the DD_IAST_ENABLED environment variable at cluster scale.
+	// IAST configures Interactive Application Security Testing.
 	// Enabled Default: false
 	// +optional
 	IAST *ASMIASTConfig `json:"iast,omitempty"`
 }
 
 type ASMThreatsConfig struct {
-	// Enabled enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. 
+	// Enabled enables ASM App & API Protection. 
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type ASMSCAConfig struct {
-	// Enabled enables Software Composition Analysis (SCA) this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale.
-	// Enabled Default: false
+	// Enabled enables Software Composition Analysis (SCA).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type ASMIASTConfig struct {
-	// Enabled enables Interactive Application Security Testing (IAST) ASM feature via the DD_IAST_ENABLED environment variable at cluster scale.
+	// Enabled enables Interactive Application Security Testing (IAST).
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
