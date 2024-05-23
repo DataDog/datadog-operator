@@ -52,9 +52,9 @@ spec:
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
-| features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST) ASM feature via the DD_IAST_ENABLED environment variable at cluster scale. Default: false |
-| features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA) this ASM feature via the DD_APPSEC_SCA_ENABLED environment variable at cluster scale. Enabled Default: false Default: false |
-| features.asm.threats.enabled | Enabled enables ASM App & API Protection via the DD_APPSEC_ENABLED environment variable at cluster scale. Default: false |
+| features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
+| features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
+| features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |

@@ -13,7 +13,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,8 +31,10 @@ func buildASMFeature(options *feature.Options) feature.Feature {
 }
 
 type asmFeature struct {
-	owner                    metav1.Object
-	clusterAgentEnvAdditions []*corev1.EnvVar
+	owner          metav1.Object
+	threatsEnabled bool
+	iastEnabled    bool
+	scaEnabled     bool
 }
 
 // ID returns the ID of the Feature
@@ -41,7 +42,12 @@ func (f *asmFeature) ID() feature.IDType {
 	return feature.ASMIDType
 }
 
-func (f *asmFeature) shouldEnableASM(asm *v2alpha1.ASMFeatureConfig) bool {
+func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
+	asm := dda.Spec.Features.ASM
+	if !*dda.Spec.Features.AdmissionController.Enabled {
+		return false
+	}
+
 	return apiutils.BoolValue(asm.SCA.Enabled) || apiutils.BoolValue(asm.Threats.Enabled) || apiutils.BoolValue(asm.IAST.Enabled)
 }
 
@@ -49,30 +55,13 @@ func (f *asmFeature) shouldEnableASM(asm *v2alpha1.ASMFeatureConfig) bool {
 func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
 	asm := dda.Spec.Features.ASM
-	if !f.shouldEnableASM(asm) {
+	if !f.shouldEnableASM(dda) {
 		return feature.RequiredComponents{}
 	}
 
-	if apiutils.BoolValue(asm.Threats.Enabled) {
-		f.clusterAgentEnvAdditions = append(f.clusterAgentEnvAdditions, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAppsecEnabled,
-			Value: "true",
-		})
-	}
-
-	if apiutils.BoolValue(asm.IAST.Enabled) {
-		f.clusterAgentEnvAdditions = append(f.clusterAgentEnvAdditions, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerIASTEnabled,
-			Value: "true",
-		})
-	}
-
-	if apiutils.BoolValue(asm.SCA.Enabled) {
-		f.clusterAgentEnvAdditions = append(f.clusterAgentEnvAdditions, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAppsecSCAEnabled,
-			Value: "true",
-		})
-	}
+	f.threatsEnabled = apiutils.BoolValue(asm.Threats.Enabled)
+	f.iastEnabled = apiutils.BoolValue(asm.IAST.Enabled)
+	f.scaEnabled = apiutils.BoolValue(asm.SCA.Enabled)
 
 	// The cluster agent and the admission controller are required for the ASM feature.
 	return feature.RequiredComponents{
@@ -100,11 +89,33 @@ func (f *asmFeature) ManageDependencies(_ feature.ResourceManagers, _ feature.Re
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	for _, env := range f.clusterAgentEnvAdditions {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, env, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+	if f.threatsEnabled {
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAppsecEnabled,
+			Value: "true",
+		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
 			return err
 		}
 	}
+
+	if f.iastEnabled {
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerIASTEnabled,
+			Value: "true",
+		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+			return err
+		}
+	}
+
+	if f.scaEnabled {
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAppsecSCAEnabled,
+			Value: "true",
+		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
