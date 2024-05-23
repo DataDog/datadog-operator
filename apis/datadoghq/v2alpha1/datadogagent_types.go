@@ -1138,29 +1138,6 @@ const (
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
 
-// DatadogAgentStatus defines the observed state of DatadogAgent.
-// +k8s:openapi-gen=true
-type DatadogAgentStatus struct {
-	// Conditions Represents the latest available observations of a DatadogAgent's current state.
-	// +optional
-	// +listType=map
-	// +listMapKey=type
-	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as a daemonset or an extended daemonset.
-	// +optional
-	// +listType=atomic
-	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
-	// The combined actual state of all Agents as daemonsets or extended daemonsets.
-	// +optional
-	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
-	// The actual state of the Cluster Agent as a deployment.
-	// +optional
-	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
-	// The actual state of the Cluster Checks Runner as a deployment.
-	// +optional
-	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
-}
-
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true
 type FIPSConfig struct {
@@ -1195,6 +1172,32 @@ type FIPSConfig struct {
 	// proxy sidecar container config is used.
 	// +optional
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
+}
+
+// DatadogAgentStatus defines the observed state of DatadogAgent.
+// +k8s:openapi-gen=true
+type DatadogAgentStatus struct {
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
+	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// +optional
+	// +listType=atomic
+	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
+	// The combined actual state of all Agents as daemonsets or extended daemonsets.
+	// +optional
+	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
+	// The actual state of the Cluster Agent as a deployment.
+	// +optional
+	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
+	// The actual state of the Cluster Checks Runner as a deployment.
+	// +optional
+	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// RemoteConfigConfiguration stores the Features configuration received from RemoteConfig.
+	// +optional
+	RemoteConfigConfiguration *DatadogFeatures `json:"remoteConfigConfiguration,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.
