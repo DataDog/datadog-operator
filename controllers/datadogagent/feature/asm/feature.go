@@ -44,7 +44,7 @@ func (f *asmFeature) ID() feature.IDType {
 
 func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
 	asm := dda.Spec.Features.ASM
-	if !*dda.Spec.Features.AdmissionController.Enabled {
+	if dda.Spec.Features.AdmissionController == nil || !apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled) {
 		return false
 	}
 

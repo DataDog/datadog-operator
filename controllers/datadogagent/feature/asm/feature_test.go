@@ -54,6 +54,7 @@ func TestASMFeature(t *testing.T) {
 		{
 			Name: "ASM not enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(false, false, false).
 				Build(),
 			WantConfigure: false,
@@ -61,6 +62,7 @@ func TestASMFeature(t *testing.T) {
 		{
 			Name: "ASM Threats enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, false, false).
 				Build(),
 
@@ -68,9 +70,27 @@ func TestASMFeature(t *testing.T) {
 			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
 		},
 		{
+			Name: "ASM Threats enabled, admission controller not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(false).
+				WithASMEnabled(true, false, false).
+				Build(),
+
+			WantConfigure: false,
+		},
+		{
+			Name: "ASM Threats enabled, admission controller not configured",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithASMEnabled(true, false, false).
+				Build(),
+
+			WantConfigure: false,
+		},
+		{
 			Name: "ASM SCA enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithASMEnabled(false, true, false).
+				WithAdmissionControllerEnabled(true).
 				Build(),
 
 			WantConfigure: true,
@@ -80,6 +100,7 @@ func TestASMFeature(t *testing.T) {
 			Name: "ASM IAST enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithASMEnabled(false, false, true).
+				WithAdmissionControllerEnabled(true).
 				Build(),
 
 			WantConfigure: true,
@@ -88,6 +109,7 @@ func TestASMFeature(t *testing.T) {
 		{
 			Name: "ASM all enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, true, true).
 				Build(),
 
