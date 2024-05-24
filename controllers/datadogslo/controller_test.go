@@ -29,6 +29,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-operator/controllers/utils"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
@@ -174,6 +175,7 @@ func defaultSLO() *v1alpha1.DatadogSLO {
 			Type:            v1alpha1.DatadogSLOTypeMetric,
 			TargetThreshold: resource.MustParse("99.0"),
 			Timeframe:       v1alpha1.DatadogSLOTimeFrame30d,
+			Tags:            utils.GetRequiredTags(),
 		},
 	}
 }

@@ -36,6 +36,7 @@ const (
 	EventsResource                      = "events"
 	EndpointsResource                   = "endpoints"
 	PodsResource                        = "pods"
+	PodsExecResource                    = "pods/exec"
 	NodesResource                       = "nodes"
 	ComponentStatusesResource           = "componentstatuses"
 	CertificatesSigningRequestsResource = "certificatesigningrequests"

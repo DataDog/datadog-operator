@@ -249,6 +249,7 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(webhookService, agentServ
 		Name:  "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME",
 		Value: "datadog-webhook",
 	})
+
 	return builder.Build()
 }
 

@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -44,7 +45,8 @@ func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.DatadogSLO{})
+		For(&v1alpha1.DatadogSLO{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{})
 
 	err := builder.Complete(r)
 	if err != nil {

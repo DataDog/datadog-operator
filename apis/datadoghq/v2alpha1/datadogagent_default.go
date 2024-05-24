@@ -73,6 +73,10 @@ const (
 	defaultAdmissionControllerEnabled                         bool   = true
 	defaultAdmissionControllerMutateUnlabelled                bool   = false
 	defaultAdmissionServiceName                               string = "datadog-admission-controller"
+	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
+	DefaultAdmissionControllerCWSInstrumentationEnabled bool = false
+	// DefaultAdmissionControllerCWSInstrumentationMode default CWS Instrumentation mode
+	DefaultAdmissionControllerCWSInstrumentationMode string = "remote_copy"
 
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
@@ -391,6 +395,26 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
+	}
+
+	// CWS Instrumentation in AdmissionController Feature
+	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
+		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
+
+	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
+	}
+
+	// CWS Instrumentation in AdmissionController Feature
+	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
+		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
+
+	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
 	}
 
 	// ExternalMetricsServer Feature

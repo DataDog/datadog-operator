@@ -139,27 +139,29 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 	}
 
-	if shouldCreate {
+	if shouldCreate || shouldUpdate {
 		// Check that required tags are present
-		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		}
-		err = r.create(logger, instance, status, now, instanceSpecHash)
+		tagsUpdated, err := r.checkRequiredTags(logger, instance)
 		if err != nil {
 			result.RequeueAfter = defaultErrRequeuePeriod
-		}
-	} else if shouldUpdate {
-		// Check that required tags are present
-		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+			return r.updateStatusIfNeeded(logger, instance, status, result)
+		} else if tagsUpdated {
+			// A reconcile is triggered by the update
 			return r.updateStatusIfNeeded(logger, instance, status, result)
 		}
-		err = r.update(logger, instance, status, now, instanceSpecHash)
+
+		if shouldCreate {
+			err = r.create(logger, instance, status, now, instanceSpecHash)
+		} else if shouldUpdate {
+			err = r.update(logger, instance, status, now, instanceSpecHash)
+		}
+
 		if err != nil {
 			result.RequeueAfter = defaultErrRequeuePeriod
 		}
 	}
 
-	// If reconcile was successful, requeue with period defaultRequeuePeriod
+	// If reconcile was successful and uneventful, requeue with period defaultRequeuePeriod
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
@@ -167,9 +169,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
 
-func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogSLO) (ctrl.Result, error) {
+func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogSLO) (bool, error) {
 	if instance.Spec.ControllerOptions != nil && apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
-		return ctrl.Result{}, nil
+		return false, nil
 	}
 
 	tags := instance.Spec.Tags
@@ -182,15 +184,13 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.Da
 		if err != nil {
 			logger.Error(err, "failed to update DatadogSLO with required tags")
 
-			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
+			return false, err
 		}
 		logger.Info("Added required tags", "SLO ID", instance.Status.ID)
-
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+		return true, nil
 	}
 
-	// Proceed in reconcile loop without modifying result.
-	return ctrl.Result{}, nil
+	return false, nil
 }
 
 // TODO implement when /search endpoint has been updated
@@ -255,9 +255,10 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	status.ID = createdSLO.GetId()
 	status.Creator = creator.GetEmail()
 	status.Created = &createdTime
+	status.LastForceSyncTime = &createdTime
 	status.CurrentHash = hash
 
-	logger.Info("Created a new DatadogSLO", "SLO ID", instance.Status.ID)
+	logger.Info("Created a new DatadogSLO", "SLO ID", status.ID)
 	r.recordEvent(instance, buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent))
 
 	return nil
@@ -279,6 +280,7 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingSLO", "DatadogSLO Updated")
 	status.SyncStatus = v1alpha1.DatadogSLOSyncStatusOK
 	status.CurrentHash = hash
+	status.LastForceSyncTime = &now
 
 	logger.Info("Updated DatadogSLO", "SLO ID", instance.Status.ID)
 	return nil

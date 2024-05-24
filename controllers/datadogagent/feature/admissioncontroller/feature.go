@@ -38,6 +38,9 @@ type admissionControllerFeature struct {
 	registry               string
 	serviceAccountName     string
 	owner                  metav1.Object
+
+	cwsInstrumentationEnabled bool
+	cwsInstrumentationMode    string
 }
 
 type AgentSidecarInjectionConfig struct {
@@ -109,6 +112,11 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
+		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
+			f.cwsInstrumentationEnabled = true
+			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
+		}
+
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
@@ -172,6 +180,8 @@ func (f *admissionControllerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (re
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 		}
 		f.webhookName = apicommon.DefaultAdmissionControllerWebhookName
+		f.cwsInstrumentationEnabled = v2alpha1.DefaultAdmissionControllerCWSInstrumentationEnabled
+		f.cwsInstrumentationMode = v2alpha1.DefaultAdmissionControllerCWSInstrumentationMode
 	}
 	return reqComp
 }
@@ -198,7 +208,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	}
 
 	// rbac
-	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName, f.cwsInstrumentationEnabled, f.cwsInstrumentationMode)); err != nil {
 		return err
 	}
 	return managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountName, getRBACPolicyRules())
@@ -252,44 +262,6 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  apicommon.DDAdmissionControllerWebhookName,
 		Value: f.webhookName,
 	})
-
-	if f.agentSidecarConfig != nil {
-		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
-			Value: apiutils.BoolToString(&f.agentSidecarConfig.enabled),
-		})
-
-		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
-			Value: apiutils.BoolToString(&f.agentSidecarConfig.clusterAgentCommunicationEnabled),
-		})
-		if f.agentSidecarConfig.provider != "" {
-			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
-				Value: f.agentSidecarConfig.provider,
-			})
-		}
-		if f.agentSidecarConfig.registry != "" {
-			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
-				Value: f.agentSidecarConfig.registry,
-			})
-		}
-
-		if f.agentSidecarConfig.imageName != "" {
-			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
-				Value: f.agentSidecarConfig.imageName,
-			})
-		}
-		if f.agentSidecarConfig.imageTag != "" {
-			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
-				Value: f.agentSidecarConfig.imageTag,
-			})
-		}
-
-	}
 
 	return nil
 }

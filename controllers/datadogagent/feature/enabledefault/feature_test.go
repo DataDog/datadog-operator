@@ -6,12 +6,20 @@
 package enabledefault
 
 import (
+	"encoding/json"
+	"github.com/google/go-cmp/cmp"
 	"testing"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 )
 
 type InstallInfoData struct {
@@ -57,4 +65,50 @@ func Test_getInstallInfoValue(t *testing.T) {
 			assert.Equal(t, "0.0.0", installInfo.InstallMethod.InstallerVersion)
 		})
 	}
+}
+
+func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
+	tests := test.FeatureTestSuite{
+		{
+			Name: "Manage Cluster Agent service account name env variable",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithEventCollectionKubernetesEvents(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(defaultFeatureManageClusterAgentWantFunc),
+		},
+	}
+
+	tests.Run(t, buildDefaultFeature)
+}
+
+func defaultFeatureManageClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+
+	want := &corev1.EnvVar{
+		Name:  apicommon.DDClusterAgentServiceAccountName,
+		Value: "datadog-cluster-agent",
+	}
+	wantJSON, err := json.Marshal(want)
+	if err != nil {
+		t.Fatalf("couldn't marshal the DCA service account name env variable: %v", err)
+		return
+	}
+
+	// look for the service account name environment variable
+	for _, in := range dcaEnvVars {
+		if in.Name == want.Name {
+			inJSON, err := json.Marshal(in)
+			if err != nil {
+				t.Fatalf("couldn't marshal env variable: %v", err)
+				return
+			}
+
+			assert.Equal(t, string(wantJSON), string(inJSON), "wrong DCA service account name env \ndiff = %s", cmp.Diff(string(wantJSON), string(inJSON)))
+			return
+		}
+	}
+	t.Fatalf("Service account name missing in DCA envvars")
 }
