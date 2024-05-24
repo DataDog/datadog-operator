@@ -156,6 +156,9 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
+	}
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {

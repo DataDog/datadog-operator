@@ -7808,6 +7808,16 @@ spec:
                         agentCommunicationMode:
                           description: AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                           type: string
+                        cwsInstrumentation:
+                          description: CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+                          properties:
+                            enabled:
+                              description: 'Enable the CWS Instrumentation admission controller endpoint Default: false'
+                              type: boolean
+                            mode:
+                              description: 'Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy"'
+                              type: string
+                          type: object
                         enabled:
                           description: 'Enabled enables the Admission Controller. Default: true'
                           type: boolean
