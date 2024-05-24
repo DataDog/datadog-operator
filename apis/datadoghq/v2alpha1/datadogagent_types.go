@@ -163,7 +163,7 @@ type SingleStepInstrumentation struct {
 // LanguageDetection contains the config for the language detection feature.
 type LanguageDetection struct {
 	// Enabled enables language detection to automatically detect languages of user workloads (beta).
-	// Requires SingleStepInstrumentation.Enabled to be true
+	// Requires SingleStepInstrumentation.Enabled to be true.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
