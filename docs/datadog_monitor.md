@@ -52,7 +52,7 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
 
     For additional examples, see [examples/datadog-monitor](../examples/datadogmonitor). Note that only metric alerts, query alerts, and service checks are supported.
 
-   By default, the Operator only watches its own namespace, so it will manage any `DatadogMonitor` objects within its own namespace. Therefore, you should deploy your Datadog objects in the same namespace as the Operator. If you'd like to deploy your DatadogMonitors in different namespaces, then you will need to configure the Operator [`watchNamespaces`][8] section with those additional namespaces:
+   By default, the Operator only watches its own namespace, so it will manage any `DatadogMonitor` objects within its own namespace. Therefore, you should deploy your Datadog objects in the same namespace as the Operator. If you'd like to deploy your DatadogMonitors in different namespaces, then you will need to configure the Operator [`watchNamespaces`][6] section with those additional namespaces:
 
    ```yaml
       #(...)
@@ -142,4 +142,3 @@ kubectl logs <my-datadog-operator-pod-name>
 [5]: https://app.datadoghq.com/account/settings#api
 [6]: https://github.com/DataDog/helm-charts/blob/master/charts/datadog-operator/values.yaml
 [7]: https://app.datadoghq.com/monitors/manage?q=tag%3A"generated%3Akubernetes"
-[8]: https://github.com/DataDog/helm-charts/blob/main/charts/datadog-operator/values.yaml#L147-L156
