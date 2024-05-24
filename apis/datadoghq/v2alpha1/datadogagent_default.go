@@ -14,13 +14,11 @@ import (
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
 const (
-	defaultSite           string = "datadoghq.com"
-	defaultEuropeSite     string = "datadoghq.eu"
-	defaultAsiaSite       string = "ap1.datadoghq.com"
-	defaultGovSite        string = "ddog-gov.com"
-	defaultLogLevel       string = "info"
-	defaultAgentImageName string = "agent"
-	defaultAgentImageTag  string = defaulting.AgentLatestVersion
+	defaultSite       string = "datadoghq.com"
+	defaultEuropeSite string = "datadoghq.eu"
+	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultGovSite    string = "ddog-gov.com"
+	defaultLogLevel   string = "info"
 
 	defaultLogCollectionEnabled          bool   = false
 	defaultLogContainerCollectUsingFiles bool   = true
@@ -392,17 +390,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
-		if agentSidecarInjection.Image == nil {
-			agentSidecarInjection.Image = &commonv1.AgentImageConfig{}
-		}
-
-		if agentSidecarInjection.Image.Name == "" {
-			agentSidecarInjection.Image.Name = defaultAgentImageName
-		}
-
-		if agentSidecarInjection.Image.Tag == "" {
-			agentSidecarInjection.Image.Tag = defaultAgentImageTag
-		}
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
 	}
 
