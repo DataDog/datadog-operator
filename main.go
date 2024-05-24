@@ -364,7 +364,7 @@ func cacheOptions() cache.Options {
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	encoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	var encoder zapcore.Encoder
 	switch logEncoder {
