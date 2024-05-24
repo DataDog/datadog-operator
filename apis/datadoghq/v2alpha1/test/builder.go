@@ -221,7 +221,7 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 //sidecar Injection
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initAdmissionController()
+	//builder.initAdmissionController()
 	builder.initSidecarInjection()
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
 	if enabled {

@@ -239,6 +239,18 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		})
 	}
 
+	if f.cwsInstrumentationEnabled {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+			Value: apiutils.BoolToString(&f.cwsInstrumentationEnabled),
+		})
+
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+			Value: f.cwsInstrumentationMode,
+		})
+	}
+
 	if f.agentCommunicationMode != "" {
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
@@ -262,6 +274,44 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  apicommon.DDAdmissionControllerWebhookName,
 		Value: f.webhookName,
 	})
+
+	if f.agentSidecarConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+			Value: apiutils.BoolToString(&f.agentSidecarConfig.enabled),
+		})
+
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Value: apiutils.BoolToString(&f.agentSidecarConfig.clusterAgentCommunicationEnabled),
+		})
+		if f.agentSidecarConfig.provider != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+				Value: f.agentSidecarConfig.provider,
+			})
+		}
+		if f.agentSidecarConfig.registry != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+				Value: f.agentSidecarConfig.registry,
+			})
+		}
+
+		if f.agentSidecarConfig.imageName != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+				Value: f.agentSidecarConfig.imageName,
+			})
+		}
+		if f.agentSidecarConfig.imageTag != "" {
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+				Value: f.agentSidecarConfig.imageTag,
+			})
+		}
+
+	}
 
 	return nil
 }
