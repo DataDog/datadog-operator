@@ -597,10 +597,12 @@ type AdmissionControllerFeatureConfig struct {
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
 type CWSInstrumentationConfig struct {
 	// Enable the CWS Instrumentation admission controller endpoint
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy".
+	// Default: "remote_copy"
 	// +optional
 	Mode *string `json:"mode,omitempty"`
 }

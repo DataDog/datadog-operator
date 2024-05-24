@@ -43,12 +43,12 @@ func TestAdmissionControllerFeature(t *testing.T) {
 		//////////////////////////
 		{
 			Name:          "v1alpha1 admission controller not enabled",
-			DDAv1:         newV1Agent(false, false),
+			DDAv1:         newV1Agent(false),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v1alpha1 admission controller enabled, cwsInstrumentation not enabled",
-			DDAv1:         newV1Agent(true, false),
+			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources("hostip", "", false),
 		},
@@ -80,7 +80,7 @@ func TestAdmissionControllerFeature(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled, add custom registry in global config",
-			DDAv2:         newV2Agent(true, "", "", false, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, globalConfig),
+			DDAv2:         newV2Agent(true, "", "globalRegistryName", false, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, globalConfig),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources("", "globalRegistryName", false),
 		},
@@ -92,7 +92,7 @@ func TestAdmissionControllerFeature(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
-			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, globalConfig),
+			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, nil),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources("", "", true),
 		},
@@ -101,7 +101,7 @@ func TestAdmissionControllerFeature(t *testing.T) {
 	tests.Run(t, buildAdmissionControllerFeature)
 }
 
-func newV1Agent(enabled bool, cwsInstrumentationEnabled bool) *v1alpha1.DatadogAgent {
+func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
 	return &v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
 			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
