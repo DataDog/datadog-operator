@@ -7,14 +7,14 @@ package utils
 
 const requiredTag = "generated:kubernetes"
 
-func getRequiredTags() []string {
+func GetRequiredTags() []string {
 	return []string{requiredTag}
 }
 
 func GetTagsToAdd(tags []string) []string {
 	tagsToAdd := []string{}
 	var found bool
-	for _, rT := range getRequiredTags() {
+	for _, rT := range GetRequiredTags() {
 		found = false
 		for _, t := range tags {
 			if t == rT {
