@@ -132,26 +132,24 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
-			if sidecarConfig != nil && sidecarConfig.Image != nil {
-				if sidecarConfig.Image.Name != "" {
-					f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
-				} else if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageName = componentOverride.Image.Name
-				} else {
-					f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
-				}
-
-				// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
-				// defaults will depend on operation version.
-				if sidecarConfig.Image.Tag != "" {
-					f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
-				} else if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
-				} else {
-					f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
-				}
-
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
+				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageName = componentOverride.Image.Name
+			} else {
+				f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
 			}
+
+			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
+			// defaults will depend on operator version.
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
+				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
+			} else {
+				f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
+			}
+
 		}
 
 	}
