@@ -16,15 +16,10 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-)
-
-const (
-	apmSocketHostPath  = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	apmSocketLocalPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
-	customPath         = "/custom/host/filepath.sock"
 )
 
 func Test_admissionControllerFeature_Configure(t *testing.T) {
@@ -84,7 +79,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithAPMEnabled(true).
-				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithAPMUDSEnabled(true, "testHostPath").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -95,7 +90,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithDogstatsdUnixDomainSocketConfigEnabled(true).
-				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -109,7 +103,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", "7.53.0")),
+				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding global registry",
@@ -120,7 +114,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", "7.53.0")),
+				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", defaulting.AgentLatestVersion)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding both sidecar and global registry",
@@ -132,7 +126,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", "7.53.0")),
+				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", defaulting.AgentLatestVersion)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding test sidecar image and tag",
