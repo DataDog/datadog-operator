@@ -83,6 +83,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithAPMEnabled(true).
 				WithAPMUDSEnabled(true, "testHostPath").
+				WithAPMUDSEnabled(true, "testHostPath").
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
