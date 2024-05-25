@@ -11,6 +11,9 @@ import (
 	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DatadogAgentBuilder struct {
@@ -164,18 +167,6 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	}
 }
 
-func (builder *DatadogAgentBuilder) initSidecarInjection() {
-	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection == nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
-	}
-	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
-	}
-	if builder.datadogAgent.Spec.Override == nil {
-		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
-	}
-}
-
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = apiutils.NewBoolPointer(enabled)
@@ -219,6 +210,18 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 }
 
 //sidecar Injection
+
+func (builder *DatadogAgentBuilder) initSidecarInjection() {
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
+	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
+	}
+	if builder.datadogAgent.Spec.Override == nil {
+		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
+	}
+}
 
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
 	//builder.initAdmissionController()
@@ -273,6 +276,54 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionImageTag(tag string) *Da
 	} else if builder.datadogAgent.Spec.Override["nodeAgent"] != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image.Tag != "" {
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = builder.datadogAgent.Spec.Override["nodeAgent"].Image.Tag
 	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionSelectors(selectorKey, selectorValue string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+
+	selectors := []*v2alpha1.Selector{
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					selectorKey: selectorValue,
+				},
+			},
+			ObjectSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					selectorKey: selectorValue,
+				},
+			},
+		},
+	}
+
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Selectors = selectors
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+
+	profiles := []*v2alpha1.Profile{
+		{
+			EnvVars: []corev1.EnvVar{
+				{
+					Name:  envKey,
+					Value: envValue,
+				},
+			},
+			ResourceRequirements: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse(resourceCPU),
+					corev1.ResourceMemory: resource.MustParse(resourceMem),
+				},
+			},
+		},
+	}
+
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Profiles = profiles
 	return builder
 }
 
