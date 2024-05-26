@@ -57,6 +57,12 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				admissionControllerWantFunc("", "")),
 		},
 		{
+			Name:          "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
+			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, nil),
+			WantConfigure: true,
+			ClusterAgent:  testDCAResources("", "", true),
+		},
+		{
 			Name: "v2alpha1 Admission Controller enabled with overriding registry",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
@@ -82,7 +88,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithAPMEnabled(true).
-				WithAPMUDSEnabled(true, "testHostPath").
 				WithAPMUDSEnabled(true, "testHostPath").
 				Build(),
 			WantConfigure: true,
@@ -179,12 +184,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag")),
-		},
-		{
-			Name:          "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
-			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, nil),
-			WantConfigure: true,
-			ClusterAgent:  testDCAResources("", "", true),
 		},
 	}
 
