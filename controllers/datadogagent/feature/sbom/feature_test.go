@@ -38,12 +38,12 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 	sbomEnabledContainerImageEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	sbomNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

@@ -148,6 +148,8 @@ spec:
 | features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
 | features.sbom.containerImage.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.containerImage.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.sbom.containerImage.overlayFSDirectScan | Enable this option to enable experimental overlayfs direct scan. Default: false |
+| features.sbom.containerImage.uncompressedLayersSupport | Enable this option to enable support for uncompressed layers. Default: false |
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.host.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |

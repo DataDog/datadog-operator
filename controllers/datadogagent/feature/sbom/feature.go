@@ -44,11 +44,13 @@ type sbomFeature struct {
 	owner  metav1.Object
 	logger logr.Logger
 
-	enabled                 bool
-	containerImageEnabled   bool
-	containerImageAnalyzers []string
-	hostEnabled             bool
-	hostAnalyzers           []string
+	enabled                                 bool
+	containerImageEnabled                   bool
+	containerImageAnalyzers                 []string
+	containerImageUncompressedLayersSupport bool
+	containerImageOverlayFSDirectScan       bool
+	hostEnabled                             bool
+	hostAnalyzers                           []string
 }
 
 // ID returns the ID of the Feature
@@ -70,6 +72,8 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		if sbomConfig.ContainerImage != nil && apiutils.BoolValue(sbomConfig.ContainerImage.Enabled) {
 			f.containerImageEnabled = true
 			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
+			f.containerImageUncompressedLayersSupport = sbomConfig.ContainerImage.UncompressedLayersSupport
+			f.containerImageOverlayFSDirectScan = sbomConfig.ContainerImage.OverlayFSDirectScan
 		}
 		if sbomConfig.Host != nil && apiutils.BoolValue(sbomConfig.Host.Enabled) {
 			f.hostEnabled = true
@@ -160,6 +164,33 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Name:  apicommon.DDSBOMContainerImageAnalyzers,
 			Value: strings.Join(f.containerImageAnalyzers, " "),
 		})
+	}
+	if f.containerImageUncompressedLayersSupport {
+		if f.containerImageOverlayFSDirectScan {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
+				Value: "true",
+			})
+		} else {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDSBOMContainerUseMount,
+				Value: "true",
+			})
+
+			managers.SecurityContext().AddCapabilitiesToContainer(
+				[]corev1.Capability{"SYS_ADMIN"},
+				apicommonv1.CoreAgentContainerName,
+			)
+
+			managers.Annotation().AddAnnotation(apicommon.AgentAppArmorAnnotationKey, apicommon.AgentAppArmorAnnotationValue)
+		}
+
+		volMgr := managers.Volume()
+		volMountMgr := managers.VolumeMount()
+
+		containerdLibVol, containerdLibVolMount := volume.GetVolumes(apicommon.ContainerdDirVolumeName, apicommon.ContainerdDirVolumePath, apicommon.ContainerdDirMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommonv1.CoreAgentContainerName)
+		volMgr.AddVolume(&containerdLibVol)
 	}
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
