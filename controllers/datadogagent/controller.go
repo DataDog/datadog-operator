@@ -34,6 +34,7 @@ import (
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"

@@ -195,6 +195,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -290,6 +301,17 @@ func Test_defaultFeatures(t *testing.T) {
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -360,6 +382,17 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -468,6 +501,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -588,6 +632,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -701,6 +756,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -812,6 +878,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -936,6 +1013,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1047,6 +1135,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -1165,6 +1264,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1268,6 +1378,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
@@ -1397,6 +1518,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1478,6 +1610,7 @@ func Test_defaultFeatures(t *testing.T) {
 					TCPQueueLength:          &TCPQueueLengthFeatureConfig{},
 					EBPFCheck:               &EBPFCheckFeatureConfig{},
 					APM:                     &APMFeatureConfig{},
+					ASM:                     &ASMFeatureConfig{},
 					CSPM:                    &CSPMFeatureConfig{},
 					CWS:                     &CWSFeatureConfig{},
 					NPM:                     &NPMFeatureConfig{},
@@ -1529,6 +1662,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
