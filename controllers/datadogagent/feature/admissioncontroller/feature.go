@@ -16,7 +16,6 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -162,43 +161,47 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 			}
 
-			if len(sidecarConfig.Selectors) > 0 {
-				f.agentSidecarConfig.selectors = make([]*v2alpha1.Selector, 0, len(sidecarConfig.Selectors))
-				for _, selector := range sidecarConfig.Selectors {
-					newSelector := &v2alpha1.Selector{}
+			// check selector slices If they have values.
+			for _, selector := range sidecarConfig.Selectors {
+				newSelector := &v2alpha1.Selector{}
 
-					// Assign NamespaceSelector if it has value
-					if selector.NamespaceSelector != nil &&
-						(len(selector.NamespaceSelector.MatchLabels) > 0 || len(selector.NamespaceSelector.MatchExpressions) > 0) {
-						newSelector.NamespaceSelector = selector.NamespaceSelector
+				if selector.NamespaceSelector != nil {
+					nsSelector := &metav1.LabelSelector{
+						MatchLabels:      selector.NamespaceSelector.MatchLabels,
+						MatchExpressions: selector.NamespaceSelector.MatchExpressions,
 					}
+					if len(nsSelector.MatchLabels) > 0 || len(nsSelector.MatchExpressions) > 0 {
+						newSelector.NamespaceSelector = nsSelector
+					}
+				}
 
-					// Assign ObjectSelector if it has value
-					if selector.ObjectSelector != nil &&
-						(len(selector.ObjectSelector.MatchLabels) > 0 || len(selector.ObjectSelector.MatchExpressions) > 0) {
-						newSelector.ObjectSelector = selector.ObjectSelector
+				if selector.ObjectSelector != nil {
+					objSelector := &metav1.LabelSelector{
+						MatchLabels:      selector.ObjectSelector.MatchLabels,
+						MatchExpressions: selector.ObjectSelector.MatchExpressions,
 					}
+					if len(objSelector.MatchLabels) > 0 || len(objSelector.MatchExpressions) > 0 {
+						newSelector.ObjectSelector = objSelector
+					}
+				}
 
-					// Append the newSelector if it has any non-nil selectors
-					if newSelector.NamespaceSelector != nil || newSelector.ObjectSelector != nil {
-						f.agentSidecarConfig.selectors = append(f.agentSidecarConfig.selectors, newSelector)
-					}
+				if newSelector.NamespaceSelector != nil || newSelector.ObjectSelector != nil {
+					f.agentSidecarConfig.selectors = append(f.agentSidecarConfig.selectors, newSelector)
 				}
 			}
 
-			if len(sidecarConfig.Profiles) > 0 {
-				f.agentSidecarConfig.profiles = make([]*v2alpha1.Profile, len(sidecarConfig.Profiles))
-				for i, profile := range sidecarConfig.Profiles {
+			// check profile slices If they have values.
+			for _, profile := range sidecarConfig.Profiles {
+				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil {
 					newProfile := &v2alpha1.Profile{
 						EnvVars: profile.EnvVars,
 					}
 					if profile.ResourceRequirements != nil {
 						newProfile.ResourceRequirements = profile.ResourceRequirements
 					}
-					f.agentSidecarConfig.profiles[i] = newProfile
+					f.agentSidecarConfig.profiles = append(f.agentSidecarConfig.profiles, newProfile)
 				}
 			}
-
 		}
 
 	}
@@ -353,29 +356,39 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.selectors != nil {
+		if f.agentSidecarConfig.selectors != nil && len(f.agentSidecarConfig.selectors) > 0 {
 			selectorsJSON, err := json.Marshal(f.agentSidecarConfig.selectors)
 			if err != nil {
 				return err
-			} else {
-				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
-					Value: string(selectorsJSON),
-				})
 			}
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+				Value: string(selectorsJSON),
+			})
 		}
 
-		if f.agentSidecarConfig.profiles != nil {
+		if f.agentSidecarConfig.profiles != nil && len(f.agentSidecarConfig.profiles) > 0 {
 			profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
 			if err != nil {
 				return err
-			} else {
-				managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-					Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
-					Value: string(profilesJSON),
-				})
 			}
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+				Value: string(profilesJSON),
+			})
 		}
+
+		// if f.agentSidecarConfig.profiles != nil {
+		// 	profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
+		// 	if err != nil {
+		// 		return err
+		// 	} else {
+		// 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+		// 			Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+		// 			Value: string(profilesJSON),
+		// 		})
+		// 	}
+		// }
 	}
 	return nil
 }
