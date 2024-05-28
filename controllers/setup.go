@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/version"
@@ -84,6 +85,14 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	versionInfo, err := discoveryClient.ServerVersion()
 	if err != nil {
 		return fmt.Errorf("unable to get APIServer version: %w", err)
+	}
+
+	if versionInfo != nil {
+		gitVersion := versionInfo.GitVersion
+		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
+			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
+				"CRDs of this version will be deprecated and will not be updated starting with Operator v1.8.0 and will be removed in v1.10.0.")
+		}
 	}
 
 	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
