@@ -245,7 +245,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateAcknowledged, Error: ""})
 	}
 
-	r.logger.Info("Successfully applied config")
+	r.logger.Info("Successfully applied configuration")
 }
 
 func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
