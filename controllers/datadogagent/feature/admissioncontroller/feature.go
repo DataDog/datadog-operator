@@ -92,7 +92,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// use `socket` mode if either apm or dsd uses uds
 			apm := dda.Spec.Features.APM
 			dsd := dda.Spec.Features.Dogstatsd
-
 			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
 				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
 				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode

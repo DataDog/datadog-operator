@@ -171,9 +171,6 @@ func (builder *DatadogAgentBuilder) initSidecarInjection() {
 	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
 	}
-	if builder.datadogAgent.Spec.Override == nil {
-		builder.datadogAgent.Spec.Override = map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{}
-	}
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
