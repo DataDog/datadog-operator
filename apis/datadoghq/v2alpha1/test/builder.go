@@ -406,6 +406,22 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.ASM = &v2alpha1.ASMFeatureConfig{
+		Threats: &v2alpha1.ASMThreatsConfig{
+			Enabled: apiutils.NewBoolPointer(threats),
+		},
+		SCA: &v2alpha1.ASMSCAConfig{
+			Enabled: apiutils.NewBoolPointer(sca),
+		},
+		IAST: &v2alpha1.ASMIASTConfig{
+			Enabled: apiutils.NewBoolPointer(iast),
+		},
+	}
+	return builder
+
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {

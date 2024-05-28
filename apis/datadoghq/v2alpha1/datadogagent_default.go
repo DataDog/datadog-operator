@@ -77,6 +77,10 @@ const (
 	// DefaultAdmissionControllerCWSInstrumentationMode default CWS Instrumentation mode
 	DefaultAdmissionControllerCWSInstrumentationMode string = "remote_copy"
 
+	defaultAdmissionASMThreatsEnabled bool = false
+	defaultAdmissionASMSCAEnabled     bool = false
+	defaultAdmissionASMIASTEnabled    bool = false
+
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
 
@@ -264,6 +268,26 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 	}
+
+	// ASM Features
+	if ddaSpec.Features.ASM == nil {
+		ddaSpec.Features.ASM = &ASMFeatureConfig{}
+	}
+
+	if ddaSpec.Features.ASM.Threats == nil {
+		ddaSpec.Features.ASM.Threats = &ASMThreatsConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.Threats.Enabled, defaultAdmissionASMThreatsEnabled)
+
+	if ddaSpec.Features.ASM.SCA == nil {
+		ddaSpec.Features.ASM.SCA = &ASMSCAConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.SCA.Enabled, defaultAdmissionASMSCAEnabled)
+
+	if ddaSpec.Features.ASM.IAST == nil {
+		ddaSpec.Features.ASM.IAST = &ASMIASTConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.IAST.Enabled, defaultAdmissionASMIASTEnabled)
 
 	// CSPM (Cloud Security Posture Management) Feature
 	if ddaSpec.Features.CSPM == nil {

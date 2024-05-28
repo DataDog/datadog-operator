@@ -15441,6 +15441,31 @@ spec:
                               type: string
                           type: object
                       type: object
+                    asm:
+                      description: ASM (Application Security Management) configuration.
+                      properties:
+                        iast:
+                          description: 'IAST configures Interactive Application Security Testing. Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables Interactive Application Security Testing (IAST). Default: false'
+                              type: boolean
+                          type: object
+                        sca:
+                          description: 'SCA configures Software Composition Analysis. Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables Software Composition Analysis (SCA). Default: false'
+                              type: boolean
+                          type: object
+                        threats:
+                          description: 'Threats configures ASM App & API Protection. Enabled Default: false'
+                          properties:
+                            enabled:
+                              description: 'Enabled enables ASM App & API Protection. Default: false'
+                              type: boolean
+                          type: object
+                      type: object
                     clusterChecks:
                       description: ClusterChecks configuration.
                       properties:

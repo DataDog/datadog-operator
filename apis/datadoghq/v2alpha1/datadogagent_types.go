@@ -60,6 +60,8 @@ type DatadogFeatures struct {
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
+	// ASM (Application Security Management) configuration.
+	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -151,6 +153,44 @@ type SingleStepInstrumentation struct {
 	// ex: "java": "v1.18.0"
 	// +optional
 	LibVersions map[string]string `json:"libVersions,omitempty"`
+}
+
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+type ASMFeatureConfig struct {
+	// Threats configures ASM App & API Protection. 
+	// Enabled Default: false
+	// +optional
+	Threats *ASMThreatsConfig `json:"threats,omitempty"`
+	// SCA configures Software Composition Analysis.
+	// Enabled Default: false
+	// +optional
+	SCA *ASMSCAConfig `json:"sca,omitempty"`
+	// IAST configures Interactive Application Security Testing.
+	// Enabled Default: false
+	// +optional
+	IAST *ASMIASTConfig `json:"iast,omitempty"`
+}
+
+type ASMThreatsConfig struct {
+	// Enabled enables ASM App & API Protection. 
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMSCAConfig struct {
+	// Enabled enables Software Composition Analysis (SCA).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMIASTConfig struct {
+	// Enabled enables Interactive Application Security Testing (IAST).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
