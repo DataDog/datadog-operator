@@ -9,7 +9,7 @@ import "fmt"
 
 const (
 	// ADPrefix prefix used for AD annotations
-	ADPrefix = "ad.datadoghq.com/"
+	ADPrefix = "ad\\.datadoghq\\.com/"
 	// AgentLabelValue label value to define the Agent
 	AgentLabelValue = "agent"
 	// ComponentLabelKey label key used to define the datadog agent component
