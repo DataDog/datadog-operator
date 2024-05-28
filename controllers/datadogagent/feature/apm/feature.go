@@ -23,6 +23,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -60,6 +61,8 @@ type apmFeature struct {
 	createCiliumNetworkPolicy     bool
 
 	singleStepInstrumentation *instrumentationConfig
+
+	processCheckRunsInCoreAgent bool
 }
 
 type instrumentationConfig struct {
@@ -134,7 +137,9 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 
-		if f.shouldEnableLanguageDetection() {
+		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
+
+		if f.processCheckRunsInCoreAgent && f.shouldEnableLanguageDetection() {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 
@@ -399,12 +404,19 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 
 	// APM SSI Language Detection
 	if f.shouldEnableLanguageDetection() {
+
+		processCheckContainerName := apicommonv1.ProcessAgentContainerName
+
+		if f.processCheckRunsInCoreAgent {
+			processCheckContainerName = apicommonv1.CoreAgentContainerName
+		}
+
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
 
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(processCheckContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDProcessCollectionEnabled,
 			Value: "true",
 		})

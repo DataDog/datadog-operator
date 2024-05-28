@@ -325,7 +325,7 @@ func TestAPMFeature(t *testing.T) {
 			ClusterAgent:  testAPMInstrumentationNamespaces(),
 		},
 		{
-			Name: "v2alpha1 single step instrumentation with language detection enabled",
+			Name: "v2alpha1 single step instrumentation with language detection enabled, process check runs in process agent",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
@@ -333,9 +333,10 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
 				WithAdmissionControllerEnabled(true).
 				Build(),
-			WantConfigure: true,
-			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(),
+			WantConfigure:  true,
+			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: false},
+			ClusterAgent:   testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
+			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, false),
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
@@ -349,16 +350,16 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
-			ClusterAgent:  testAPMInstrumentationWithLanguageDetectionForClusterAgent(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(),
+			ClusterAgent:  testAPMInstrumentation(),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false, false),
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
-				if !found {
-					t.Error("Should have created proper RBAC for language detection")
+				if found {
+					t.Error("Should not have created RBAC for language detection")
 				}
 			},
 		},
@@ -628,7 +629,7 @@ func testAPMInstrumentation() *test.ComponentTest {
 	)
 }
 
-func testAPMInstrumentationWithLanguageDetectionForClusterAgent() *test.ComponentTest {
+func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -654,38 +655,52 @@ func testAPMInstrumentationWithLanguageDetectionForClusterAgent() *test.Componen
 	)
 }
 
-func testAPMInstrumentationWithLanguageDetectionForNodeAgent() *test.ComponentTest {
+func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool, processCheckInCoreAgent bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// Assert Env Vars Added to All Containers
 			allContEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-			expectedAllContEnvVars := []*corev1.EnvVar{
-				{
+
+			var expectedAllContEnvVars []*corev1.EnvVar
+			if languageDetectionEnabled {
+				expectedAllContEnvVars = []*corev1.EnvVar{{
 					Name:  apicommon.DDLanguageDetectionEnabled,
 					Value: "true",
-				},
+				}}
 			}
+
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(allContEnvVars, expectedAllContEnvVars),
-				"Process Agent ENVs \ndiff = %s", cmp.Diff(allContEnvVars, expectedAllContEnvVars),
+				"All Agent Container ENVs \ndiff = %s", cmp.Diff(allContEnvVars, expectedAllContEnvVars),
 			)
 
-			// Assert Process Agent Specific Env Vars
-			processAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
-			expectedProcessAgentEnvs := []*corev1.EnvVar{
-				{
+			var expectedProcessCheckContainerEnvVars []*corev1.EnvVar
+			if languageDetectionEnabled {
+				expectedProcessCheckContainerEnvVars = []*corev1.EnvVar{{
 					Name:  apicommon.DDProcessCollectionEnabled,
 					Value: "true",
-				},
+				}}
+
 			}
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(processAgentEnvs, expectedProcessAgentEnvs),
-				"Process Agent ENVs \ndiff = %s", cmp.Diff(processAgentEnvs, expectedProcessAgentEnvs),
-			)
+			if processCheckInCoreAgent {
+				coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+				assert.True(
+					t,
+					apiutils.IsEqualStruct(coreAgentEnvVars, expectedProcessCheckContainerEnvVars),
+					"Core Agent ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedProcessCheckContainerEnvVars),
+				)
+			} else {
+				// Assert Process Agent Specific Env Vars
+				processAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+				assert.True(
+					t,
+					apiutils.IsEqualStruct(processAgentEnvs, expectedProcessCheckContainerEnvVars),
+					"Process Agent ENVs \ndiff = %s", cmp.Diff(processAgentEnvs, expectedProcessCheckContainerEnvVars),
+				)
+			}
 		},
 	)
 }
