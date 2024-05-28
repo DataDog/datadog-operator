@@ -356,7 +356,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.selectors != nil && len(f.agentSidecarConfig.selectors) > 0 {
+		if f.agentSidecarConfig.selectors != nil {
 			selectorsJSON, err := json.Marshal(f.agentSidecarConfig.selectors)
 			if err != nil {
 				return err
@@ -367,7 +367,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.profiles != nil && len(f.agentSidecarConfig.profiles) > 0 {
+		if f.agentSidecarConfig.profiles != nil {
 			profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
 			if err != nil {
 				return err
@@ -377,19 +377,8 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				Value: string(profilesJSON),
 			})
 		}
-
-		// if f.agentSidecarConfig.profiles != nil {
-		// 	profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
-		// 	if err != nil {
-		// 		return err
-		// 	} else {
-		// 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
-		// 			Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
-		// 			Value: string(profilesJSON),
-		// 		})
-		// 	}
-		// }
 	}
+
 	return nil
 }
 
