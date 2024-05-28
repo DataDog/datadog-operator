@@ -24,9 +24,9 @@ import (
 
 func Test_admissionControllerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
-		// //////////////////////////
-		// // v1Alpha1.DatadogAgent
-		// //////////////////////////
+		//////////////////////////
+		// v1Alpha1.DatadogAgent
+		//////////////////////////
 		{
 			Name:          "v1alpha1 admission controller not enabled",
 			DDAv1:         newV1Agent(false),
@@ -38,9 +38,9 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources("hostip", "", false),
 		},
-		// //////////////////////////
-		// // v2alpha1.DatadogAgent
-		// //////////////////////////
+		//////////////////////////
+		// v2alpha1.DatadogAgent
+		//////////////////////////
 		{
 			Name: "v2alpha1 Admission Controller not enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
