@@ -484,7 +484,7 @@ spec:
 | site | The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site. |
 
 [1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-all.yaml
-[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-logs.yaml
+[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-logs-apm.yaml
 [3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-apm.yaml
 [4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-clusteragent.yaml
 [5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-tolerations.yaml
