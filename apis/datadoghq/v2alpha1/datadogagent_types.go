@@ -1174,6 +1174,12 @@ type FIPSConfig struct {
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
 }
 
+// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
+// +k8s:openapi-gen=true
+type RemoteConfigConfiguration struct {
+	Features *DatadogFeatures `json:"features,omitempty"`
+}
+
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
@@ -1195,9 +1201,9 @@ type DatadogAgentStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
-	// RemoteConfigConfiguration stores the Features configuration received from RemoteConfig.
+	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
-	RemoteConfigConfiguration *DatadogFeatures `json:"remoteConfigConfiguration,omitempty"`
+	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

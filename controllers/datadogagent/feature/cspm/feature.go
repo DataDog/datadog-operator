@@ -67,7 +67,15 @@ func (f *cspmFeature) ID() feature.IDType {
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.Enabled) {
+	var cspmConfig *v2alpha1.CSPMFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CSPM != nil {
+		cspmConfig = dda.Status.RemoteConfigConfiguration.Features.CSPM
+	} else if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil {
+		cspmConfig = dda.Spec.Features.CSPM
+	}
+
+	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 

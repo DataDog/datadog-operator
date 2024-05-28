@@ -68,7 +68,15 @@ func (f *cwsFeature) ID() feature.IDType {
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
+	var cwsConfig *v2alpha1.CWSFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CWS != nil {
+		cwsConfig = dda.Status.RemoteConfigConfiguration.Features.CWS
+	} else if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil {
+		cwsConfig = dda.Spec.Features.CWS
+	}
+
+	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		cws := dda.Spec.Features.CWS
 
 		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
