@@ -13,7 +13,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,43 +139,22 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
+			f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
+			f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
+
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
-			// if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
-			// 	f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
-			// } else if ok && componentOverride.Image != nil {
-			// 	f.agentSidecarConfig.imageName = componentOverride.Image.Name
-			// } else {
-			// 	f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
-			// }
-			// // set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
-			// // defaults will depend on operator version.
-			// if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
-			// 	f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
-			// } else if ok && componentOverride.Image != nil {
-			// 	f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
-			// } else {
-			// 	f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
-			// }
-
-			if sidecarConfig.Image != nil {
-				if sidecarConfig.Image.Name != "" {
-					f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
-				} else if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageName = componentOverride.Image.Name
-				} else {
-					f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
-				}
-				// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
-				// defaults will depend on operator version.
-				if sidecarConfig.Image.Tag != "" {
-					f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
-				} else if ok && componentOverride.Image != nil {
-					f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
-				} else {
-					f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
-				}
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
+				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageName = componentOverride.Image.Name
 			}
-
+			// set agent image tag from admissionController config or nodeAgent override image tag. else, It will follow default image tag.
+			// defaults will depend on operator version.
+			if sidecarConfig.Image != nil && sidecarConfig.Image.Tag != "" {
+				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
+			} else if ok && componentOverride.Image != nil {
+				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
+			}
 		}
 
 	}
