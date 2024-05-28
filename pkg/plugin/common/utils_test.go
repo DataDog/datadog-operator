@@ -305,7 +305,7 @@ func TestValidateAnnotationsMatching(t *testing.T) {
 }
 
 func TestRegExEscape(t *testing.T) {
-	matched, _ := regexp.MatchString(ADPrefix, "adXdatadoghqXcom/")
+	matched, _ := regexp.MatchString(ADPrefixRegex, "adXdatadoghqXcom/")
 	assert.False(t, matched)
 
 	matched, _ = regexp.MatchString("ad.datadoghq.com/", "adXdatadoghqXcom/")
