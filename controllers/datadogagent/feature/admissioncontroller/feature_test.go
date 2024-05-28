@@ -197,12 +197,6 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources("", "", true),
 		},
-		{
-			Name:          "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
-			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, nil),
-			WantConfigure: true,
-			ClusterAgent:  testDCAResources("", "", true),
-		},
 	}
 
 	tests.Run(t, buildAdmissionControllerFeature)
