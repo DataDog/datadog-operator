@@ -7,7 +7,7 @@
 ## Overview
 
 > [!WARNING]
-> Operator release v1.7.0 removes support for DatadogAgent `v1alpha1` reconciliation (`v2APIEnabled` flag). v1.8.0 will remove the conversion webhook as well, and users will not be able to apply the DatadogAgent `v1alpha1` manifest.
+> Operator v1.7.0 removes support for DatadogAgent `v1alpha1` reconciliation (`v2APIEnabled` flag). v1.8.0 will remove the conversion webhook as well, and users will not be able to apply the DatadogAgent `v1alpha1` manifest.
 > 
 > Operator v1.8.0 will deprecate custom resource definitions using `apiextensions.k8s.io/v1beta1`. They will be kept in the repository but will not be updated. They will be removed in v1.10.0.  
 
