@@ -639,7 +639,7 @@ type AdmissionControllerFeatureConfig struct {
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
 type CWSInstrumentationConfig struct {
-	// Enable the CWS Instrumentation admission controller endpoint
+	// Enable the CWS Instrumentation admission controller endpoint.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
