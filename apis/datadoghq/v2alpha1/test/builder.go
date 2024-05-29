@@ -599,6 +599,26 @@ func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
+// cwsInstrumentation
+
+func (builder *DatadogAgentBuilder) initCWSInstrumentation() {
+	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithCWSInstrumentationEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCWSInstrumentation()
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithCWSInstrumentationMode(mode string) *DatadogAgentBuilder {
+	builder.initCWSInstrumentation()
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Mode = apiutils.NewStringPointer(mode)
+	return builder
+}
+
 // OOMKill
 
 func (builder *DatadogAgentBuilder) initOOMKill() {
