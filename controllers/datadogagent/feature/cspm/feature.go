@@ -67,16 +67,24 @@ func (f *cspmFeature) ID() feature.IDType {
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.Enabled) {
+	var cspmConfig *v2alpha1.CSPMFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CSPM != nil {
+		cspmConfig = dda.Status.RemoteConfigConfiguration.Features.CSPM
+	} else if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil {
+		cspmConfig = dda.Spec.Features.CSPM
+	}
+
+	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
-		if dda.Spec.Features.CSPM.CheckInterval != nil {
-			f.checkInterval = strconv.FormatInt(dda.Spec.Features.CSPM.CheckInterval.Nanoseconds(), 10)
+		if cspmConfig.CheckInterval != nil {
+			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)
 		}
 
-		if dda.Spec.Features.CSPM.CustomBenchmarks != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.CSPM.CustomBenchmarks)
+		if cspmConfig.CustomBenchmarks != nil {
+			f.customConfig = v2alpha1.ConvertCustomConfig(cspmConfig.CustomBenchmarks)
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
@@ -90,7 +98,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 		// TODO add settings to configure f.createPSP
 
-		if dda.Spec.Features.CSPM.HostBenchmarks != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.HostBenchmarks.Enabled) {
+		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
 		}
 

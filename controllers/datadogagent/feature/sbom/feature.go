@@ -60,15 +60,23 @@ func (f *sbomFeature) ID() feature.IDType {
 func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.SBOM != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.Enabled) {
+	var sbomConfig *v2alpha1.SBOMFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.SBOM != nil {
+		sbomConfig = dda.Status.RemoteConfigConfiguration.Features.SBOM
+	} else if dda.Spec.Features != nil && dda.Spec.Features.SBOM != nil {
+		sbomConfig = dda.Spec.Features.SBOM
+	}
+
+	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
-		if dda.Spec.Features.SBOM.ContainerImage != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.ContainerImage.Enabled) {
+		if sbomConfig.ContainerImage != nil && apiutils.BoolValue(sbomConfig.ContainerImage.Enabled) {
 			f.containerImageEnabled = true
-			f.containerImageAnalyzers = dda.Spec.Features.SBOM.ContainerImage.Analyzers
+			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
 		}
-		if dda.Spec.Features.SBOM.Host != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.Host.Enabled) {
+		if sbomConfig.Host != nil && apiutils.BoolValue(sbomConfig.Host.Enabled) {
 			f.hostEnabled = true
-			f.hostAnalyzers = dda.Spec.Features.SBOM.Host.Analyzers
+			f.hostAnalyzers = sbomConfig.Host.Analyzers
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{

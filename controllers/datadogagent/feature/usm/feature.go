@@ -41,7 +41,15 @@ func (f *usmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features != nil && dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {
+	var usmConfig *v2alpha1.USMFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.USM != nil {
+		usmConfig = dda.Status.RemoteConfigConfiguration.Features.USM
+	} else if dda.Spec.Features != nil && dda.Spec.Features.USM != nil {
+		usmConfig = dda.Spec.Features.USM
+	}
+
+	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

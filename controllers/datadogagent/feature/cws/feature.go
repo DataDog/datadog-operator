@@ -68,13 +68,19 @@ func (f *cwsFeature) ID() feature.IDType {
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
-		cws := dda.Spec.Features.CWS
+	var cwsConfig *v2alpha1.CWSFeatureConfig
+	// RemoteConfig configuration takes precedence
+	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CWS != nil {
+		cwsConfig = dda.Status.RemoteConfigConfiguration.Features.CWS
+	} else if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil {
+		cwsConfig = dda.Spec.Features.CWS
+	}
 
-		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
+	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
+		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 
-		if cws.CustomPolicies != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(cws.CustomPolicies)
+		if cwsConfig.CustomPolicies != nil {
+			f.customConfig = v2alpha1.ConvertCustomConfig(cwsConfig.CustomPolicies)
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
@@ -86,17 +92,17 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCWSConf)
 
-		if cws.Network != nil {
-			f.networkEnabled = apiutils.BoolValue(cws.Network.Enabled)
+		if cwsConfig.Network != nil {
+			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
 		}
-		if cws.SecurityProfiles != nil {
-			f.activityDumpEnabled = apiutils.BoolValue(cws.SecurityProfiles.Enabled)
+		if cwsConfig.SecurityProfiles != nil {
+			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
 		}
 
-		if dda.Spec.Features.RemoteConfiguration != nil {
+		if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil {
 			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
-			if cws.RemoteConfiguration != nil {
-				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cws.RemoteConfiguration.Enabled)
+			if cwsConfig.RemoteConfiguration != nil {
+				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cwsConfig.RemoteConfiguration.Enabled)
 			}
 		}
 
