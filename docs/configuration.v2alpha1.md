@@ -35,7 +35,16 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
-| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint Default: false |
+| features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
+| features.admissionController.agentSidecarInjection.enabled | Enabled enables Sidecar injections. Default: false |
+| features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
+| features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
+| features.admissionController.agentSidecarInjection.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.provider | Provider is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
+| features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
+| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint. Default: false |
 | features.admissionController.cwsInstrumentation.mode | Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |

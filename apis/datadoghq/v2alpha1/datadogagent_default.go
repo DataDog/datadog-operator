@@ -69,9 +69,10 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	defaultAdmissionControllerEnabled          bool   = true
-	defaultAdmissionControllerMutateUnlabelled bool   = false
-	defaultAdmissionServiceName                string = "datadog-admission-controller"
+	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
+	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerMutateUnlabelled                bool   = false
+	defaultAdmissionServiceName                               string = "datadog-admission-controller"
 	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
 	DefaultAdmissionControllerCWSInstrumentationEnabled bool = false
 	// DefaultAdmissionControllerCWSInstrumentationMode default CWS Instrumentation mode
@@ -413,6 +414,21 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
+
+	}
+	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
+	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
+		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
+	}
+
+	// CWS Instrumentation in AdmissionController Feature
+	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
+		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
+
+	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
 	}
 
 	// CWS Instrumentation in AdmissionController Feature

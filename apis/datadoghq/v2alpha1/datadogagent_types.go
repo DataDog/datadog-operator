@@ -158,7 +158,7 @@ type SingleStepInstrumentation struct {
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
 // Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 type ASMFeatureConfig struct {
-	// Threats configures ASM App & API Protection. 
+	// Threats configures ASM App & API Protection.
 	// Enabled Default: false
 	// +optional
 	Threats *ASMThreatsConfig `json:"threats,omitempty"`
@@ -173,7 +173,7 @@ type ASMFeatureConfig struct {
 }
 
 type ASMThreatsConfig struct {
-	// Enabled enables ASM App & API Protection. 
+	// Enabled enables ASM App & API Protection.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -624,6 +624,9 @@ type AdmissionControllerFeatureConfig struct {
 	// Default: "datadog-webhook"
 	// +optional
 	WebhookName *string `json:"webhookName,omitempty"`
+	// AgentSidecarInjection contains Agent sidecar injection configurations.
+	// +optional
+	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
 
 	// Registry defines an image registry for the admission controller.
 	// +optional
@@ -636,7 +639,7 @@ type AdmissionControllerFeatureConfig struct {
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
 type CWSInstrumentationConfig struct {
-	// Enable the CWS Instrumentation admission controller endpoint
+	// Enable the CWS Instrumentation admission controller endpoint.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1270,6 +1273,29 @@ type FIPSConfig struct {
 	// proxy sidecar container config is used.
 	// +optional
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
+}
+
+type AgentSidecarInjectionConfig struct {
+	// Enabled enables Sidecar injections.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled"`
+	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
+	// Default : true
+	// +optional
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
+	// Currently only "fargate" is supported.
+	// To use the feature in other environments (including local testing) omit the config.
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
+	// +optional
+	Provider *string `json:"provider,omitempty"`
+	// Registry overrides the default registry for the sidecar Agent.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.
