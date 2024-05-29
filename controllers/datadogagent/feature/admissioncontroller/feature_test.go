@@ -54,13 +54,18 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "")),
+				admissionControllerWantFunc("", "", false)),
 		},
 		{
-			Name:          "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
-			DDAv2:         newV2Agent(true, "", "", true, &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}, nil),
+			Name: "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithCWSInstrumentationEnabled(true).
+				WithCWSInstrumentationMode("test-mode").
+				Build(),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("", "", true),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("", "", true)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with overriding registry",
@@ -70,7 +75,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "testRegistry")),
+				admissionControllerWantFunc("", "testRegistry", false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with custom registry in global config, override with feature config",
@@ -81,7 +86,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "featureRegistry")),
+				admissionControllerWantFunc("", "featureRegistry", false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with apm uds",
@@ -92,7 +97,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("socket", "")),
+				admissionControllerWantFunc("socket", "", false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with DSD uds",
@@ -102,7 +107,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("socket", "")),
+				admissionControllerWantFunc("socket", "", false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar basic setup",
@@ -308,7 +313,7 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 	)
 }
 
-func getACEnvVars(acm, registry string) []*corev1.EnvVar {
+func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDAdmissionControllerEnabled,
@@ -342,14 +347,28 @@ func getACEnvVars(acm, registry string) []*corev1.EnvVar {
 		}
 		envVars = append(envVars, &registryEnv)
 	}
+
+	if cws {
+		cwsEnv := []corev1.EnvVar{
+			{
+				Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+				Value: apiutils.BoolToString(&cws),
+			},
+			{
+				Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+				Value: "test-mode",
+			},
+		}
+		envVars = append(envVars, &cwsEnv[0], &cwsEnv[1])
+	}
 	return envVars
 }
 
-func admissionControllerWantFunc(acm, registry string) func(testing.TB, feature.PodTemplateManagers) {
+func admissionControllerWantFunc(acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-		want := getACEnvVars(acm, registry)
+		want := getACEnvVars(acm, registry, cws)
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,
@@ -409,7 +428,7 @@ func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageT
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry), getSidecarEnvVars(imageName, imageTag, sidecarRegstry))
+		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry))
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,
