@@ -46,6 +46,14 @@ func BoolValue(b *bool) bool {
 	return *b
 }
 
+// StringValue return the string value, "" if nil
+func StringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 // BoolToString return "true" if b == true, else "false"
 func BoolToString(b *bool) string {
 	if BoolValue(b) {

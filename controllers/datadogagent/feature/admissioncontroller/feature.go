@@ -35,9 +35,12 @@ type admissionControllerFeature struct {
 	agentSidecarConfig     *AgentSidecarInjectionConfig
 	localServiceName       string
 	failurePolicy          string
+	registry               string
+	serviceAccountName     string
+	owner                  metav1.Object
 
-	serviceAccountName string
-	owner              metav1.Object
+	cwsInstrumentationEnabled bool
+	cwsInstrumentationMode    string
 }
 
 type AgentSidecarInjectionConfig struct {
@@ -74,6 +77,12 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
+		}
+		// set image registry from feature config or global config if defined
+		if ac.Registry != nil && *ac.Registry != "" {
+			f.registry = *ac.Registry
+		} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
+			f.registry = *dda.Spec.Global.Registry
 		}
 		// agent communication mode set by user
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
@@ -167,6 +176,8 @@ func (f *admissionControllerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (re
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 		}
 		f.webhookName = apicommon.DefaultAdmissionControllerWebhookName
+		f.cwsInstrumentationEnabled = v2alpha1.DefaultAdmissionControllerCWSInstrumentationEnabled
+		f.cwsInstrumentationMode = v2alpha1.DefaultAdmissionControllerCWSInstrumentationMode
 	}
 	return reqComp
 }
@@ -193,7 +204,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	}
 
 	// rbac
-	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName, f.cwsInstrumentationEnabled, f.cwsInstrumentationMode)); err != nil {
 		return err
 	}
 	return managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountName, getRBACPolicyRules())
@@ -209,6 +220,13 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
 		Value: apiutils.BoolToString(&f.mutateUnlabelled),
 	})
+
+	if f.registry != "" {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerRegistryName,
+			Value: f.registry,
+		})
+	}
 
 	if f.serviceName != "" {
 		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{

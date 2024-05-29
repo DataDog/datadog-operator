@@ -44,11 +44,12 @@ spec:
 | features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
 | features.admissionController.agentSidecarInjection.provider | Provider is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
 | features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
-| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint. Default: false |
+| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint Default: false |
 | features.admissionController.cwsInstrumentation.mode | Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| features.admissionController.registry | Registry defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
@@ -60,6 +61,9 @@ spec:
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
+| features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
+| features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
@@ -205,6 +209,7 @@ spec:
 | global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
 | global.networkPolicy.flavor | Flavor defines Which network policy to use. |
 | global.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY> |
+| global.originDetectionUnified.enabled | Enabled enables unified mechanism for origin detection. Default: false |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |

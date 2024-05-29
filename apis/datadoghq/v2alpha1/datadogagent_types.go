@@ -60,6 +60,8 @@ type DatadogFeatures struct {
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
+	// ASM (Application Security Management) configuration.
+	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -637,7 +639,7 @@ type AdmissionControllerFeatureConfig struct {
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
 type CWSInstrumentationConfig struct {
-	// Enable the CWS Instrumentation admission controller endpoint.
+	// Enable the CWS Instrumentation admission controller endpoint
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -781,6 +783,14 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+type OriginDetectionUnified struct {
+	// Enabled enables unified mechanism for origin detection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
 // system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
@@ -858,6 +868,10 @@ type GlobalConfig struct {
 	// +optional
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
+
+	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+	// +optional
+	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
 
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>

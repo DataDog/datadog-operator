@@ -25,6 +25,12 @@ const (
 	DDAdmissionControllerServiceName                     = "DD_ADMISSION_CONTROLLER_SERVICE_NAME"
 	DDAdmissionControllerFailurePolicy                   = "DD_ADMISSION_CONTROLLER_FAILURE_POLICY"
 	DDAdmissionControllerWebhookName                     = "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME"
+	DDAdmissionControllerRegistryName                    = "DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY"
+	DDAdmissionControllerCWSInstrumentationEnabled       = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_ENABLED"
+	DDAdmissionControllerCWSInstrumentationMode          = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_MODE"
+	DDAdmissionControllerAppsecEnabled                   = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_APPSEC_ENABLED"
+	DDAdmissionControllerAppsecSCAEnabled                = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_APPSEC_SCA_ENABLED"
+	DDAdmissionControllerIASTEnabled                     = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_IAST_ENABLED"
 	DDAPIKey                                             = "DD_API_KEY"
 	DDAPMEnabled                                         = "DD_APM_ENABLED"
 	DDAPMInstrumentationInstallTime                      = "DD_INSTRUMENTATION_INSTALL_TIME"
@@ -45,6 +51,7 @@ const (
 	DDClusterAgentAuthToken                              = "DD_CLUSTER_AGENT_AUTH_TOKEN"
 	DDClusterAgentEnabled                                = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName                        = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
+	DDClusterAgentServiceAccountName                     = "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME"
 	DDClusterAgentTokenName                              = "DD_CLUSTER_AGENT_TOKEN_NAME"
 	DDClusterChecksEnabled                               = "DD_CLUSTER_CHECKS_ENABLED"
 	DDClusterName                                        = "DD_CLUSTER_NAME"
@@ -105,6 +112,7 @@ const (
 	DDOrchestratorExplorerDDUrl                          = "DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL"
 	DDOrchestratorExplorerAdditionalEndpoints            = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled      = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
+	DDOriginDetectionUnified                             = "DD_ORIGIN_DETECTION_UNIFIED"
 	DDPodAnnotationsAsTags                               = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDPodLabelsAsTags                                    = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPodName                                            = "DD_POD_NAME"
@@ -162,4 +170,8 @@ const (
 
 	EnvVarTrueValue  = "true"
 	EnvVarFalseValue = "false"
+
+	// InstallInfoToolVersion is used by the Operator to override the tool
+	// version value in the Agent's install info
+	InstallInfoToolVersion = "DD_TOOL_VERSION"
 )

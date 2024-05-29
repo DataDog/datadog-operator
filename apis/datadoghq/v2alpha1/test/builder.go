@@ -159,6 +159,9 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
+	}
 }
 
 func (builder *DatadogAgentBuilder) initSidecarInjection() {
@@ -507,6 +510,22 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		LibVersions:        libVersion,
 	}
 	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.ASM = &v2alpha1.ASMFeatureConfig{
+		Threats: &v2alpha1.ASMThreatsConfig{
+			Enabled: apiutils.NewBoolPointer(threats),
+		},
+		SCA: &v2alpha1.ASMSCAConfig{
+			Enabled: apiutils.NewBoolPointer(sca),
+		},
+		IAST: &v2alpha1.ASMIASTConfig{
+			Enabled: apiutils.NewBoolPointer(iast),
+		},
+	}
+	return builder
+
 }
 
 // OTLP
