@@ -74,6 +74,8 @@ instances:
     - persistentvolumeclaims
     - persistentvolumes
     - ingresses
+    - storageclasses
+    - volumeattachments
 `, stringVal, stringVal)
 
 	if collectorOpts.enableVPA {
