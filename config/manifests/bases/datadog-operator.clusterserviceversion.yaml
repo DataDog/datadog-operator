@@ -17,6 +17,12 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: DatadogAgentProfile is the Schema for the datadogagentprofiles
+        API
+      displayName: Datadog Agent Profile
+      kind: DatadogAgentProfile
+      name: datadogagentprofiles.datadoghq.com
+      version: v1alpha1
     - description: DatadogAgent Deployment with the Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
@@ -37,6 +43,12 @@ spec:
       displayName: Datadog Monitor
       kind: DatadogMonitor
       name: datadogmonitors.datadoghq.com
+      version: v1alpha1
+    - description: DatadogSLO allows a user to define and manage datadog SLOs from
+        Kubernetes cluster.
+      displayName: Datadog SLO
+      kind: DatadogSLO
+      name: datadogslos.datadoghq.com
       version: v1alpha1
   description: Datadog provides a modern monitoring and analytics platform. Gather
     metrics, logs and traces for full observability of your Kubernetes cluster with

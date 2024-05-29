@@ -60,6 +60,41 @@ metadata:
         },
         {
           "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogAgentProfile",
+          "metadata": {
+            "name": "datadogagentprofile-sample"
+          },
+          "spec": {
+            "config": {
+              "override": {
+                "nodeAgent": {
+                  "containers": {
+                    "agent": {
+                      "resources": {
+                        "requests": {
+                          "cpu": "256m"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "profileAffinity": {
+              "profileNodeAffinity": [
+                {
+                  "key": "kubernetes.io/os",
+                  "operator": "In",
+                  "values": [
+                    "linux"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogMetric",
           "metadata": {
             "name": "datadogmetric-sample"
@@ -83,6 +118,28 @@ metadata:
             ],
             "title": "Latency is increasing on staging",
             "type": "metric alert"
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogSLO",
+          "metadata": {
+            "name": "datadogslo-sample"
+          },
+          "spec": {
+            "description": "This is an example metric SLO from datadog-operator",
+            "name": "datadogslo-sample",
+            "query": {
+              "denominator": "sum:requests.total{service:example,env:prod}.as_count()",
+              "numerator": "sum:requests.success{service:example,env:prod}.as_count()"
+            },
+            "tags": [
+              "service:example",
+              "env:prod"
+            ],
+            "targetThreshold": "99.9",
+            "timeframe": "7d",
+            "type": "metric"
           }
         },
         {
@@ -144,16 +201,28 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.23.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.4.0
-    createdAt: "2024-02-22 01:17:16"
+    containerImage: gcr.io/datadoghq/operator:1.7.0-rc.1
+    createdAt: "2024-05-29 18:54:37"
     support: Datadog, Inc.
-    olm.skipRange: <1.4.0
-  name: datadog-operator.v1.4.0
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
+    olm.skipRange: '>=1.7.0 <1.7.0-rc.1'
+  name: datadog-operator.v1.7.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+      - description: DatadogAgentProfile is the Schema for the datadogagentprofiles API
+        displayName: Datadog Agent Profile
+        kind: DatadogAgentProfile
+        name: datadogagentprofiles.datadoghq.com
+        version: v1alpha1
       - description: DatadogAgent Deployment with Datadog Operator.
         displayName: Datadog Agent
         kind: DatadogAgent
@@ -174,7 +243,9 @@ spec:
         kind: DatadogMonitor
         name: datadogmonitors.datadoghq.com
         version: v1alpha1
-      - kind: DatadogSLO
+      - description: DatadogSLO allows a user to define and manage datadog SLOs from Kubernetes cluster.
+        displayName: Datadog SLO
+        kind: DatadogSLO
         name: datadogslos.datadoghq.com
         version: v1alpha1
   description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
@@ -266,6 +337,7 @@ spec:
                 - get
                 - list
                 - watch
+                - patch
             - apiGroups:
                 - ""
               resources:
@@ -876,6 +948,32 @@ spec:
                 - get
                 - patch
                 - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/finalizers
+              verbs:
+                - update
           serviceAccountName: datadog-operator-controller-manager
         - rules:
             - apiGroups:
@@ -902,9 +1000,9 @@ spec:
             template:
               metadata:
                 annotations:
-                  ad.datadoghq.com/datadog-operator.check_names: '["openmetrics"]'
-                  ad.datadoghq.com/datadog-operator.init_configs: '[{}]'
-                  ad.datadoghq.com/datadog-operator.instances: |
+                  ad.datadoghq.com/manager.check_names: '["openmetrics"]'
+                  ad.datadoghq.com/manager.init_configs: '[{}]'
+                  ad.datadoghq.com/manager.instances: |
                     [{
                       "prometheus_url": "http://%%host%%:8080/metrics",
                       "namespace": "datadog.operator",
@@ -928,7 +1026,7 @@ spec:
                         valueFrom:
                           fieldRef:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
-                    image: gcr.io/datadoghq/operator:1.4.0
+                    image: gcr.io/datadoghq/operator:1.7.0-rc.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1026,5 +1124,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.4.0
-  replaces: datadog-operator.v1.3.0
+  version: 1.7.0-rc.1
+  replaces: datadog-operator.v1.6.0
