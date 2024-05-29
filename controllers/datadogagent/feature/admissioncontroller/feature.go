@@ -156,6 +156,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 			}
 		}
+
 	}
 	return reqComp
 }
