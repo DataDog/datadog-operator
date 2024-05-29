@@ -21,13 +21,15 @@ core,github.com/DataDog/viper,MIT
 core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/Masterminds/semver,MIT
 core,github.com/Masterminds/semver/v3,MIT
+core,github.com/PuerkitoBio/purell,BSD-3-Clause
+core,github.com/PuerkitoBio/urlesc,BSD-3-Clause
 core,github.com/benbjohnson/clock,MIT
 core,github.com/beorn7/perks/quantile,MIT
 core,github.com/cenkalti/backoff,MIT
 core,github.com/cespare/xxhash/v2,MIT
 core,github.com/cihub/seelog,BSD-3-Clause
 core,github.com/davecgh/go-spew/spew,ISC
-core,github.com/emicklei/go-restful/v3,MIT
+core,github.com/emicklei/go-restful,MIT
 core,github.com/evanphx/json-patch,BSD-3-Clause
 core,github.com/fsnotify/fsnotify,BSD-3-Clause
 core,github.com/go-logr/logr,Apache-2.0
@@ -113,7 +115,6 @@ core,k8s.io/component-base/config,Apache-2.0
 core,k8s.io/klog/v2,Apache-2.0
 core,k8s.io/kube-aggregator/pkg/apis/apiregistration,Apache-2.0
 core,k8s.io/kube-openapi/pkg,Apache-2.0
-core,k8s.io/kube-openapi/pkg/internal/third_party/go-json-experiment/json,BSD-3-Clause
 core,k8s.io/kube-openapi/pkg/validation/spec,Apache-2.0
 core,k8s.io/kube-state-metrics/pkg/metric,Apache-2.0
 core,k8s.io/utils,Apache-2.0
