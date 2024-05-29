@@ -195,6 +195,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -249,6 +260,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -286,6 +300,17 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -358,6 +383,17 @@ func Test_defaultFeatures(t *testing.T) {
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -399,6 +435,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -464,6 +503,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -518,6 +568,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -579,6 +632,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -633,6 +697,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -689,6 +756,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -743,6 +821,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -797,6 +878,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -855,6 +947,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -918,6 +1013,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -972,6 +1078,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1026,6 +1135,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -1085,6 +1205,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1141,6 +1264,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1195,6 +1329,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1212,6 +1349,9 @@ func Test_defaultFeatures(t *testing.T) {
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
 					},
 				},
 			},
@@ -1238,6 +1378,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
@@ -1307,6 +1458,10 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
 						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(valueTrue),
+							Mode:    apiutils.NewStringPointer(DefaultAdmissionControllerCWSInstrumentationMode),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1363,6 +1518,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 						},
 					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1418,6 +1584,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1441,6 +1610,7 @@ func Test_defaultFeatures(t *testing.T) {
 					TCPQueueLength:          &TCPQueueLengthFeatureConfig{},
 					EBPFCheck:               &EBPFCheckFeatureConfig{},
 					APM:                     &APMFeatureConfig{},
+					ASM:                     &ASMFeatureConfig{},
 					CSPM:                    &CSPMFeatureConfig{},
 					CWS:                     &CWSFeatureConfig{},
 					NPM:                     &NPMFeatureConfig{},
@@ -1492,6 +1662,17 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
 					CSPM: &CSPMFeatureConfig{
@@ -1548,6 +1729,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
