@@ -66,6 +66,7 @@ instances:
     - endpoints
     - daemonsets
     - horizontalpodautoscalers
+    - poddisruptionbudgets
     - limitranges
     - resourcequotas
     - secrets
