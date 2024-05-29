@@ -31,12 +31,12 @@ func TestProfileToApply(t *testing.T) {
 		name                           string
 		profile                        v1alpha1.DatadogAgentProfile
 		nodes                          []v1.Node
-		profileAppliedPerNode          map[string]types.NamespacedName
+		profileAppliedByNode           map[string]types.NamespacedName
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
 		expectedErr                    error
 	}{
 		{
-			name:    "empty profile, empty profileAppliedPerNode",
+			name:    "empty profile, empty profileAppliedByNode",
 			profile: v1alpha1.DatadogAgentProfile{},
 			nodes: []v1.Node{
 				{
@@ -48,12 +48,12 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode:          map[string]types.NamespacedName{},
+			profileAppliedByNode:           map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
 			expectedErr:                    fmt.Errorf("profileAffinity must be defined"),
 		},
 		{
-			name:    "empty profile, non-empty profileAppliedPerNode",
+			name:    "empty profile, non-empty profileAppliedByNode",
 			profile: v1alpha1.DatadogAgentProfile{},
 			nodes: []v1.Node{
 				{
@@ -65,7 +65,7 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
@@ -80,10 +80,10 @@ func TestProfileToApply(t *testing.T) {
 			expectedErr: fmt.Errorf("profileAffinity must be defined"),
 		},
 		{
-			name:    "empty profile, , non-empty profileAppliedPerNode, no nodes",
+			name:    "empty profile, , non-empty profileAppliedByNode, no nodes",
 			profile: v1alpha1.DatadogAgentProfile{},
 			nodes:   []v1.Node{},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
@@ -98,7 +98,7 @@ func TestProfileToApply(t *testing.T) {
 			expectedErr: fmt.Errorf("profileAffinity must be defined"),
 		},
 		{
-			name:    "non-conflicting profile, empty profileAppliedPerNode",
+			name:    "non-conflicting profile, empty profileAppliedByNode",
 			profile: exampleProfileForLinux(),
 			nodes: []v1.Node{
 				{
@@ -110,7 +110,7 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode: map[string]types.NamespacedName{},
+			profileAppliedByNode: map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -120,7 +120,7 @@ func TestProfileToApply(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:    "non-conflicting profile, non-empty profileAppliedPerNode",
+			name:    "non-conflicting profile, non-empty profileAppliedByNode",
 			profile: exampleProfileForLinux(),
 			nodes: []v1.Node{
 				{
@@ -140,7 +140,7 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
 					Name:      "windows",
@@ -159,10 +159,10 @@ func TestProfileToApply(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			name:    "non-conflicting profile, non-empty profileAppliedPerNode, no nodes",
+			name:    "non-conflicting profile, non-empty profileAppliedByNode, no nodes",
 			profile: exampleProfileForLinux(),
 			nodes:   []v1.Node{},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
 					Name:      "windows",
@@ -197,7 +197,7 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
@@ -231,7 +231,7 @@ func TestProfileToApply(t *testing.T) {
 					},
 				},
 			},
-			profileAppliedPerNode: map[string]types.NamespacedName{
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
@@ -250,9 +250,9 @@ func TestProfileToApply(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
 			now := metav1.NewTime(time.Now())
-			profileAppliedPerNode, err := ProfileToApply(testLogger, &test.profile, test.nodes, test.profileAppliedPerNode, now)
+			profileAppliedByNode, err := ProfileToApply(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now)
 			assert.Equal(t, test.expectedErr, err)
-			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)
+			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedByNode)
 		})
 	}
 }

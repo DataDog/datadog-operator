@@ -171,11 +171,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
-			profileList, profilesByNode, e := r.profilesToApply(ctx, logger, nodeList, now)
-			if e != nil {
+			var profilesByNode map[string]types.NamespacedName
+			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now)
+			if err != nil {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
 			}
-			profiles = profileList
 
 			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
@@ -322,7 +322,7 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 	// }
 }
 
-// ProfilesToApply gets a list of profiles and returns the ones that should be
+// profilesToApply gets a list of profiles and returns the ones that should be
 // applied in the cluster.
 // - If there are no profiles, it returns the default profile.
 // - If there are no conflicting profiles, it returns all the profiles plus the default one.
@@ -340,26 +340,26 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		return nil, nil, err
 	}
 
-	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
-	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodeList))
+	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
+	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
 
-		profileAppliedPerNode, err = agentprofile.ProfileToApply(logger, &profile, nodeList, profileAppliedPerNode, now)
+		profileAppliedByNode, err = agentprofile.ProfileToApply(logger, &profile, nodeList, profileAppliedByNode, now)
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {
 			// profile is invalid or conflicts
 			logger.Error(err, "profile cannot be applied", "name", profile.Name, "namespace", profile.Namespace)
 			continue
 		}
-		profilesToApply = append(profilesToApply, profile)
+		profileListToApply = append(profileListToApply, profile)
 	}
 
 	// add default profile
-	profilesToApply = agentprofile.ApplyDefaultProfile(profilesToApply, profileAppliedPerNode, nodeList)
+	profileListToApply = agentprofile.ApplyDefaultProfile(profileListToApply, profileAppliedByNode, nodeList)
 
-	return profilesToApply, profileAppliedPerNode, nil
+	return profileListToApply, profileAppliedByNode, nil
 }
 
 func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {

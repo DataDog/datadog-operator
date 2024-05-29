@@ -31,9 +31,8 @@ const (
 
 // ProfileToApply validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedPerNode map[string]types.NamespacedName,
+func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
 	now metav1.Time) (map[string]types.NamespacedName, error) {
-	conflicts := false
 	nodesThatMatchProfile := map[string]bool{}
 	profileStatus := datadoghqv1alpha1.DatadogAgentProfileStatus{}
 
@@ -48,24 +47,29 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
 		UpdateProfileStatus(profile, profileStatus, now)
-		return profileAppliedPerNode, err
+		return profileAppliedByNode, err
 	}
 
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
 		if err != nil {
+			logger.Error(err, "profile selector is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
 			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 			profileStatus.Valid = metav1.ConditionFalse
 			UpdateProfileStatus(profile, profileStatus, now)
-			return profileAppliedPerNode, err
+			return profileAppliedByNode, err
 		}
+		profileStatus.Valid = metav1.ConditionTrue
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
 
 		if matchesNode {
-			if existingProfile, found := profileAppliedPerNode[node.Name]; found {
+			if existingProfile, found := profileAppliedByNode[node.Name]; found {
 				// Conflict. This profile should not be applied.
-				conflicts = true
 				logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
-				break
+				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
+				profileStatus.Applied = metav1.ConditionFalse
+				UpdateProfileStatus(profile, profileStatus, now)
+				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
 				nodesThatMatchProfile[node.Name] = true
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
@@ -74,18 +78,8 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		}
 	}
 
-	profileStatus.Valid = metav1.ConditionTrue
-	profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
-
-	if conflicts {
-		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
-		profileStatus.Applied = metav1.ConditionFalse
-		UpdateProfileStatus(profile, profileStatus, now)
-		return profileAppliedPerNode, fmt.Errorf("conflict with existing profile")
-	}
-
 	for node := range nodesThatMatchProfile {
-		profileAppliedPerNode[node] = types.NamespacedName{
+		profileAppliedByNode[node] = types.NamespacedName{
 			Namespace: profile.Namespace,
 			Name:      profile.Name,
 		}
@@ -93,16 +87,16 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 
 	UpdateProfileStatus(profile, profileStatus, now)
 
-	return profileAppliedPerNode, nil
+	return profileAppliedByNode, nil
 }
 
-func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile, profileAppliedPerNode map[string]types.NamespacedName, nodes []v1.Node) []datadoghqv1alpha1.DatadogAgentProfile {
+func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []datadoghqv1alpha1.DatadogAgentProfile {
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
 	for _, node := range nodes {
-		if _, found := profileAppliedPerNode[node.Name]; !found {
-			profileAppliedPerNode[node.Name] = types.NamespacedName{
+		if _, found := profileAppliedByNode[node.Name]; !found {
+			profileAppliedByNode[node.Name] = types.NamespacedName{
 				Name: defaultProfileName,
 			}
 		}

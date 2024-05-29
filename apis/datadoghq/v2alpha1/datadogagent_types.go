@@ -158,7 +158,7 @@ type SingleStepInstrumentation struct {
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
 // Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
 type ASMFeatureConfig struct {
-	// Threats configures ASM App & API Protection. 
+	// Threats configures ASM App & API Protection.
 	// Enabled Default: false
 	// +optional
 	Threats *ASMThreatsConfig `json:"threats,omitempty"`
@@ -173,7 +173,7 @@ type ASMFeatureConfig struct {
 }
 
 type ASMThreatsConfig struct {
-	// Enabled enables ASM App & API Protection. 
+	// Enabled enables ASM App & API Protection.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

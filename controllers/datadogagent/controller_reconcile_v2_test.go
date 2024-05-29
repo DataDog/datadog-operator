@@ -38,12 +38,12 @@ func Test_profilesToApply(t *testing.T) {
 	ctx := context.Background()
 
 	testCases := []struct {
-		name                      string
-		nodeList                  []corev1.Node
-		profileList               []client.Object
-		wantProfilesToApply       func() []v1alpha1.DatadogAgentProfile
-		wantProfileAppliedPerNode map[string]types.NamespacedName
-		wantError                 error
+		name                     string
+		nodeList                 []corev1.Node
+		profileList              []client.Object
+		wantProfilesToApply      func() []v1alpha1.DatadogAgentProfile
+		wantProfileAppliedByNode map[string]types.NamespacedName
+		wantError                error
 	}{
 		{
 			name: "no user-created profiles to apply",
@@ -69,7 +69,7 @@ func Test_profilesToApply(t *testing.T) {
 			wantProfilesToApply: func() []v1alpha1.DatadogAgentProfile {
 				return []v1alpha1.DatadogAgentProfile{defaultProfile()}
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: "",
 					Name:      "default",
@@ -86,7 +86,7 @@ func Test_profilesToApply(t *testing.T) {
 			profileList: []client.Object{},
 			wantProfilesToApply: func() []v1alpha1.DatadogAgentProfile {
 				return []v1alpha1.DatadogAgentProfile{defaultProfile()}
-			}, wantProfileAppliedPerNode: map[string]types.NamespacedName{},
+			}, wantProfileAppliedByNode: map[string]types.NamespacedName{},
 		},
 		{
 			name:        "no nodes",
@@ -112,7 +112,7 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[0].ResourceVersion = "1000"
 				return profileList
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{},
+			wantProfileAppliedByNode: map[string]types.NamespacedName{},
 		},
 		{
 			name: "one profile",
@@ -162,7 +162,7 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[0].ResourceVersion = "1000"
 				return profileList
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "1",
@@ -244,7 +244,7 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[1].ResourceVersion = "1000"
 				return profileList
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "1",
@@ -348,7 +348,7 @@ func Test_profilesToApply(t *testing.T) {
 				return profileList
 			},
 
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "3",
@@ -411,7 +411,7 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[0].ResourceVersion = "1000"
 				return profileList
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "1",
@@ -442,7 +442,7 @@ func Test_profilesToApply(t *testing.T) {
 			wantProfilesToApply: func() []v1alpha1.DatadogAgentProfile {
 				return generateProfileList([]string{}, []time.Time{})
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: "",
 					Name:      "default",
@@ -549,7 +549,7 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[1].ResourceVersion = "1000"
 				return profileList
 			},
-			wantProfileAppliedPerNode: map[string]types.NamespacedName{
+			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "1",
@@ -574,13 +574,13 @@ func Test_profilesToApply(t *testing.T) {
 				},
 			}
 
-			profilesToApply, profileAppliedPerNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1))
+			profilesToApply, profileAppliedByNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1))
 			require.NoError(t, err)
 
 			wantProfilesToApply := tt.wantProfilesToApply()
 			assert.Equal(t, wantProfilesToApply, profilesToApply)
 			// assert.ElementsMatch(t, wantProfilesToApply, profilesToApply)
-			assert.Equal(t, tt.wantProfileAppliedPerNode, profileAppliedPerNode)
+			assert.Equal(t, tt.wantProfileAppliedByNode, profileAppliedByNode)
 		})
 	}
 }
