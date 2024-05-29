@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -97,17 +96,9 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[0].Status = v1alpha1.DatadogAgentProfileStatus{
 					LastUpdate:  &now,
 					CurrentHash: "36a4d655a44a0ca07780fff47dd96c6a",
-					Conditions: []metav1.Condition{
-						{
-							Type:               "Valid",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Valid",
-							Message:            "Valid manifest",
-						},
-					},
-					Valid:   "True",
-					Applied: "Unknown",
+					Conditions:  nil,
+					Valid:       "Unknown",
+					Applied:     "Unknown",
 				}
 				profileList[0].ResourceVersion = "1000"
 				return profileList
@@ -142,18 +133,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "36a4d655a44a0ca07780fff47dd96c6a",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -175,7 +166,7 @@ func Test_profilesToApply(t *testing.T) {
 		},
 		{
 			name: "several non-conflicting profiles",
-			nodeList: []v1.Node{
+			nodeList: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -201,18 +192,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "36a4d655a44a0ca07780fff47dd96c6a",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -224,18 +215,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "e7eda6755e8a98d127140e2169204312",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -265,7 +256,7 @@ func Test_profilesToApply(t *testing.T) {
 			// So in this case, the returned profiles should be profile-2,
 			// profile-3 and a default one.
 			name: "several conflicting profiles with different creation timestamps",
-			nodeList: []v1.Node{
+			nodeList: []corev1.Node{
 				// node1 matches profile-1 and profile-3
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -304,18 +295,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "e7eda6755e8a98d127140e2169204312",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -327,18 +318,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "6cc0746a51b8e52da6e4e625d3181686",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -347,7 +338,6 @@ func Test_profilesToApply(t *testing.T) {
 				profileList[1].ResourceVersion = "1000"
 				return profileList
 			},
-
 			wantProfileAppliedByNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
@@ -370,7 +360,7 @@ func Test_profilesToApply(t *testing.T) {
 			// The 3 profiles conflict and only profile-1 should apply because
 			// it's the first one alphabetically.
 			name: "conflicting profiles with the same creation timestamp",
-			nodeList: []v1.Node{
+			nodeList: []corev1.Node{
 				// matches all profiles
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -391,18 +381,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "36a4d655a44a0ca07780fff47dd96c6a",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -420,7 +410,7 @@ func Test_profilesToApply(t *testing.T) {
 		},
 		{
 			name: "invalid profile",
-			nodeList: []v1.Node{
+			nodeList: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -454,7 +444,7 @@ func Test_profilesToApply(t *testing.T) {
 			// Profile 2 doesn't conflict with Profile 1 but doesn't apply
 			// to any nodes since there are no matching nodes.
 			name: "invalid profiles + valid profiles",
-			nodeList: []v1.Node{
+			nodeList: []corev1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
@@ -476,9 +466,9 @@ func Test_profilesToApply(t *testing.T) {
 								v1alpha1.NodeAgentComponentName: {
 									Containers: map[common.AgentContainerName]*v1alpha1.Container{
 										common.CoreAgentContainerName: {
-											Resources: &v1.ResourceRequirements{
-												Requests: v1.ResourceList{
-													v1.ResourceCPU: resource.MustParse("100m"),
+											Resources: &corev1.ResourceRequirements{
+												Requests: corev1.ResourceList{
+													corev1.ResourceCPU: resource.MustParse("100m"),
 												},
 											},
 										},
@@ -495,10 +485,10 @@ func Test_profilesToApply(t *testing.T) {
 					},
 					Spec: v1alpha1.DatadogAgentProfileSpec{
 						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+							ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 								{
 									Key:      "os",
-									Operator: v1.NodeSelectorOpIn,
+									Operator: corev1.NodeSelectorOpIn,
 									Values:   []string{"linux"},
 								},
 							},
@@ -513,18 +503,18 @@ func Test_profilesToApply(t *testing.T) {
 					CurrentHash: "36a4d655a44a0ca07780fff47dd96c6a",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Applied",
-							Status:             "True",
-							LastTransitionTime: now,
-							Reason:             "Applied",
-							Message:            "Profile applied",
-						},
-						{
 							Type:               "Valid",
 							Status:             "True",
 							LastTransitionTime: now,
 							Reason:             "Valid",
 							Message:            "Valid manifest",
+						},
+						{
+							Type:               "Applied",
+							Status:             "True",
+							LastTransitionTime: now,
+							Reason:             "Applied",
+							Message:            "Profile applied",
 						},
 					},
 					Valid:   "True",
@@ -612,10 +602,10 @@ func exampleProfile(i string, creationTime time.Time) v1alpha1.DatadogAgentProfi
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{
-				ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+				ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
 					{
 						Key:      i,
-						Operator: v1.NodeSelectorOpIn,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"1"},
 					},
 				},
@@ -625,9 +615,9 @@ func exampleProfile(i string, creationTime time.Time) v1alpha1.DatadogAgentProfi
 					v1alpha1.NodeAgentComponentName: {
 						Containers: map[common.AgentContainerName]*v1alpha1.Container{
 							common.CoreAgentContainerName: {
-								Resources: &v1.ResourceRequirements{
-									Requests: v1.ResourceList{
-										v1.ResourceCPU: resource.MustParse(fmt.Sprintf("%s00m", i)),
+								Resources: &corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU: resource.MustParse(fmt.Sprintf("%s00m", i)),
 									},
 								},
 							},
