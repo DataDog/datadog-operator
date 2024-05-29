@@ -212,42 +212,6 @@ func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enabled bool, acm, registry string, cwsInstrumentationEnabled bool, apm *v2alpha1.APMFeatureConfig, dsd *v2alpha1.DogstatsdFeatureConfig, global *v2alpha1.GlobalConfig) *v2alpha1.DatadogAgent {
-	dda := &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Global: &v2alpha1.GlobalConfig{},
-			Features: &v2alpha1.DatadogFeatures{
-				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled:          apiutils.NewBoolPointer(enabled),
-					MutateUnlabelled: apiutils.NewBoolPointer(true),
-					ServiceName:      apiutils.NewStringPointer("testServiceName"),
-					CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
-						Enabled: apiutils.NewBoolPointer(cwsInstrumentationEnabled),
-						Mode:    apiutils.NewStringPointer("test-mode"),
-					},
-				},
-			},
-		},
-	}
-	if acm != "" {
-		dda.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(acm)
-	}
-	if apm != nil {
-		dda.Spec.Features.APM = apm
-	}
-	if dsd != nil {
-		dda.Spec.Features.Dogstatsd = dsd
-	}
-	if registry != "" {
-		dda.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(registry)
-
-	}
-	if global != nil {
-		dda.Spec.Global = global
-	}
-	return dda
-}
-
 func testDCAResources(acm string, registry string, cwsInstrumentationEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
