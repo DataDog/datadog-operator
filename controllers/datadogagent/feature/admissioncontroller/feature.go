@@ -6,6 +6,8 @@
 package admissioncontroller
 
 import (
+	"encoding/json"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -50,6 +52,8 @@ type AgentSidecarInjectionConfig struct {
 	registry                         string
 	imageName                        string
 	imageTag                         string
+	selectors                        []*v2alpha1.Selector
+	profiles                         []*v2alpha1.Profile
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -154,6 +158,48 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageTag = sidecarConfig.Image.Tag
 			} else if ok && componentOverride.Image != nil {
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
+			}
+
+			// check selector slices If they have values.
+			for _, selector := range sidecarConfig.Selectors {
+				newSelector := &v2alpha1.Selector{}
+
+				if selector.NamespaceSelector != nil {
+					nsSelector := &metav1.LabelSelector{
+						MatchLabels:      selector.NamespaceSelector.MatchLabels,
+						MatchExpressions: selector.NamespaceSelector.MatchExpressions,
+					}
+					if len(nsSelector.MatchLabels) > 0 || len(nsSelector.MatchExpressions) > 0 {
+						newSelector.NamespaceSelector = nsSelector
+					}
+				}
+
+				if selector.ObjectSelector != nil {
+					objSelector := &metav1.LabelSelector{
+						MatchLabels:      selector.ObjectSelector.MatchLabels,
+						MatchExpressions: selector.ObjectSelector.MatchExpressions,
+					}
+					if len(objSelector.MatchLabels) > 0 || len(objSelector.MatchExpressions) > 0 {
+						newSelector.ObjectSelector = objSelector
+					}
+				}
+
+				if newSelector.NamespaceSelector != nil || newSelector.ObjectSelector != nil {
+					f.agentSidecarConfig.selectors = append(f.agentSidecarConfig.selectors, newSelector)
+				}
+			}
+
+			// check profile slices If they have values.
+			for _, profile := range sidecarConfig.Profiles {
+				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil {
+					newProfile := &v2alpha1.Profile{
+						EnvVars: profile.EnvVars,
+					}
+					if profile.ResourceRequirements != nil {
+						newProfile.ResourceRequirements = profile.ResourceRequirements
+					}
+					f.agentSidecarConfig.profiles = append(f.agentSidecarConfig.profiles, newProfile)
+				}
 			}
 		}
 
@@ -305,6 +351,28 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
 				Value: f.agentSidecarConfig.imageTag,
+			})
+		}
+
+		if f.agentSidecarConfig.selectors != nil {
+			selectorsJSON, err := json.Marshal(f.agentSidecarConfig.selectors)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+				Value: string(selectorsJSON),
+			})
+		}
+
+		if f.agentSidecarConfig.profiles != nil {
+			profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+				Value: string(profilesJSON),
 			})
 		}
 
