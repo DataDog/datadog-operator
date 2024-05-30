@@ -172,7 +172,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				}
 
 				if selector.ObjectSelector != nil {
-					newSelector.NamespaceSelector = &metav1.LabelSelector{
+					newSelector.ObjectSelector = &metav1.LabelSelector{
 						MatchLabels:      selector.ObjectSelector.MatchLabels,
 						MatchExpressions: selector.ObjectSelector.MatchExpressions,
 					}

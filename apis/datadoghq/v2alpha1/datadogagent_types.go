@@ -1320,6 +1320,8 @@ type Selector struct {
 type Profile struct {
 	// EnvVars specifies the environment variables for the profile.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	EnvVars []corev1.EnvVar `json:"env,omitempty"`
 
 	// ResourceRequirements specifies the resource requirements for the profile.
