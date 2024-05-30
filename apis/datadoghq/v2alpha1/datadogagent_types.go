@@ -1296,21 +1296,27 @@ type AgentSidecarInjectionConfig struct {
 	// Image overrides the default Agent image name and tag for the Agent sidecar.
 	// +optional
 	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
-	//Selectors defines the pod selector for sidecar injection, currently only one rule is supported.
+	// Selectors defines the pod selector for sidecar injection. Currently only one rule is supported.
+	// +optional
+	// +listType=atomic
 	Selectors []*Selector `json:"selectors,omitempty"`
-	//profiles defines the sidecar configuration override, currently only one profile is supported.
+	// Profiles defines the sidecar configuration override. Currently only one profile is supported.
+	// +optional
+	// +listType=atomic
 	Profiles []*Profile `json:"profiles,omitempty"`
 }
 
+// Selectors define a pod selector for sidecar injection.
 type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
-	// +option
+	// +optional
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 	// ObjectSelector specifies the label selector for objects.
 	// +optional
 	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty"`
 }
 
+// Profile defines a sidecar configuration override.
 type Profile struct {
 	// EnvVars specifies the environment variables for the profile.
 	// +optional

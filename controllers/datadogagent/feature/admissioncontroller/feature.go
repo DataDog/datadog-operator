@@ -160,27 +160,21 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				f.agentSidecarConfig.imageTag = componentOverride.Image.Tag
 			}
 
-			// check selector slices If they have values.
+			// Assemble agent sidecar selectors.
 			for _, selector := range sidecarConfig.Selectors {
 				newSelector := &v2alpha1.Selector{}
 
 				if selector.NamespaceSelector != nil {
-					nsSelector := &metav1.LabelSelector{
+					newSelector.NamespaceSelector = &metav1.LabelSelector{
 						MatchLabels:      selector.NamespaceSelector.MatchLabels,
 						MatchExpressions: selector.NamespaceSelector.MatchExpressions,
-					}
-					if len(nsSelector.MatchLabels) > 0 || len(nsSelector.MatchExpressions) > 0 {
-						newSelector.NamespaceSelector = nsSelector
 					}
 				}
 
 				if selector.ObjectSelector != nil {
-					objSelector := &metav1.LabelSelector{
+					newSelector.NamespaceSelector = &metav1.LabelSelector{
 						MatchLabels:      selector.ObjectSelector.MatchLabels,
 						MatchExpressions: selector.ObjectSelector.MatchExpressions,
-					}
-					if len(objSelector.MatchLabels) > 0 || len(objSelector.MatchExpressions) > 0 {
-						newSelector.ObjectSelector = objSelector
 					}
 				}
 
@@ -189,7 +183,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 				}
 			}
 
-			// check profile slices If they have values.
+			// Assemble agent sidecar profiles.
 			for _, profile := range sidecarConfig.Profiles {
 				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil {
 					newProfile := &v2alpha1.Profile{
@@ -354,7 +348,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.selectors != nil {
+		if len(f.agentSidecarConfig.selectors) > 0 {
 			selectorsJSON, err := json.Marshal(f.agentSidecarConfig.selectors)
 			if err != nil {
 				return err
@@ -365,7 +359,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 			})
 		}
 
-		if f.agentSidecarConfig.profiles != nil {
+		if len(f.agentSidecarConfig.profiles) > 0 {
 			profilesJSON, err := json.Marshal(f.agentSidecarConfig.profiles)
 			if err != nil {
 				return err
