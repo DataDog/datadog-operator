@@ -37,55 +37,6 @@ const (
 	remoteConfigUrlPrefix = "https://config."
 )
 
-type RemoteConfigUpdater struct {
-	kubeClient  kubeclient.Client
-	rcClient    *client.Client
-	rcService   *service.Service
-	serviceConf RcServiceConfiguration
-	logger      logr.Logger
-}
-
-type RcServiceConfiguration struct {
-	cfg               model.Config
-	apiKey            string
-	baseRawURL        string
-	hostname          string
-	clusterName       string
-	telemetryReporter service.RcTelemetryReporter
-	agentVersion      string
-	rcDatabaseDir     string
-}
-
-// DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
-type DatadogAgentRemoteConfig struct {
-	ID            string                       `json:"id,omitempty"`
-	Name          string                       `json:"name,omitempty"`
-	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
-	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
-	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
-}
-
-type CoreAgentFeaturesConfig struct {
-	SBOM *SbomConfig `json:"sbom"`
-}
-
-type SystemProbeFeaturesConfig struct {
-	CWS *FeatureEnabledConfig `json:"runtime_security_config"`
-	USM *FeatureEnabledConfig `json:"service_monitoring_config"`
-}
-
-type SecurityAgentFeaturesConfig struct {
-	CSPM *FeatureEnabledConfig `json:"compliance_config"`
-}
-type SbomConfig struct {
-	Enabled        *bool                 `json:"enabled"`
-	Host           *FeatureEnabledConfig `json:"host"`
-	ContainerImage *FeatureEnabledConfig `json:"container_image"`
-}
-type FeatureEnabledConfig struct {
-	Enabled *bool `json:"enabled"`
-}
-
 type agentConfigOrder struct {
 	Order         []string `json:"order"`
 	InternalOrder []string `json:"internal_order"`
@@ -94,9 +45,13 @@ type agentConfigOrder struct {
 // TODO replace
 type dummyTelemetryReporter struct{}
 
+// IncRateLimit TODO
 func (d dummyTelemetryReporter) IncRateLimit() {}
-func (d dummyTelemetryReporter) IncTimeout()   {}
 
+// IncTimeout TODO
+func (d dummyTelemetryReporter) IncTimeout() {}
+
+// Setup TODO
 func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 	apiKey := creds.APIKey
 	if apiKey == "" {
@@ -121,6 +76,7 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 }
 
+// Start TODO
 func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
 
 	r.logger.Info("Starting Remote Configuration client and service")
@@ -475,6 +431,7 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 	return nil
 }
 
+// Stop TODO
 func (r *RemoteConfigUpdater) Stop() error {
 	if r.rcService != nil {
 		err := r.rcService.Stop()
@@ -490,6 +447,7 @@ func (r *RemoteConfigUpdater) Stop() error {
 	return nil
 }
 
+// NewRemoteConfigUpdater TODO
 func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *RemoteConfigUpdater {
 	return &RemoteConfigUpdater{
 		kubeClient: client,
