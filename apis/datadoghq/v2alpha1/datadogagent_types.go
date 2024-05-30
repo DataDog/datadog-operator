@@ -1250,6 +1250,29 @@ type FIPSConfig struct {
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
 }
 
+type AgentSidecarInjectionConfig struct {
+	// Enabled enables Sidecar injections.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled"`
+	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
+	// Default : true
+	// +optional
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
+	// Currently only "fargate" is supported.
+	// To use the feature in other environments (including local testing) omit the config.
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
+	// +optional
+	Provider *string `json:"provider,omitempty"`
+	// Registry overrides the default registry for the sidecar Agent.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+}
+
 // RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 // +k8s:openapi-gen=true
 type RemoteConfigConfiguration struct {
@@ -1280,29 +1303,6 @@ type DatadogAgentStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
-}
-
-type AgentSidecarInjectionConfig struct {
-	// Enabled enables Sidecar injections.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled"`
-	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
-	// Default : true
-	// +optional
-	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
-	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
-	// Currently only "fargate" is supported.
-	// To use the feature in other environments (including local testing) omit the config.
-	// See also: https://docs.datadoghq.com/integrations/eks_fargate
-	// +optional
-	Provider *string `json:"provider,omitempty"`
-	// Registry overrides the default registry for the sidecar Agent.
-	// +optional
-	Registry *string `json:"registry,omitempty"`
-	// Image overrides the default Agent image name and tag for the Agent sidecar.
-	// +optional
-	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.
