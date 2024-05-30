@@ -117,7 +117,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion)),
+				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding global registry",
@@ -128,7 +128,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", defaulting.AgentLatestVersion)),
+				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", defaulting.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding both sidecar and global registry",
@@ -140,7 +140,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", defaulting.AgentLatestVersion)),
+				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", defaulting.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding test sidecar image and tag",
@@ -152,7 +152,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "testAgentImage", "testAgentTag")),
+				sidecarInjectionWantFunc("", "", "", "testAgentImage", "testAgentTag", false, false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding global image and tag",
@@ -170,7 +170,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "overrideName", "overrideTag")),
+				sidecarInjectionWantFunc("", "", "", "overrideName", "overrideTag", false, false)),
 		},
 		{
 			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding both global and sidecar image and tag",
@@ -188,7 +188,19 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag")),
+				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag", false, false)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection with selector and profile",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithSidecarInjectionSelectors("testKey", "testValue").
+				WithSidecarInjectionProfiles("testName", "testValue", "500m", "1Gi").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion, true, true)),
 		},
 	}
 
@@ -354,7 +366,7 @@ func sidecarHelperFunc(admissionControllerConfig, sidecarConfig []*corev1.EnvVar
 	return envVars
 }
 
-func getSidecarEnvVars(imageName, imageTag, registry string) []*corev1.EnvVar {
+func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
@@ -384,15 +396,30 @@ func getSidecarEnvVars(imageName, imageTag, registry string) []*corev1.EnvVar {
 		}
 		envVars = append(envVars, &registryEnv)
 	}
+	if selectors {
+		selectorEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+			Value: "[{\"namespaceSelector\":{\"matchLabels\":{\"testKey\":\"testValue\"}},\"objectSelector\":{\"matchLabels\":{\"testKey\":\"testValue\"}}}]",
+		}
+		envVars = append(envVars, &selectorEnv)
+	}
+
+	if profiles {
+		profileEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}}}]",
+		}
+		envVars = append(envVars, &profileEnv)
+	}
 
 	return envVars
 }
 
-func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string) func(testing.TB, feature.PodTemplateManagers) {
+func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string, selectors, profiles bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry))
+		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles))
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,
