@@ -60,6 +60,8 @@ type DatadogFeatures struct {
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
+	// ASM (Application Security Management) configuration.
+	ASM *ASMFeatureConfig `json:"asm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -151,6 +153,44 @@ type SingleStepInstrumentation struct {
 	// ex: "java": "v1.18.0"
 	// +optional
 	LibVersions map[string]string `json:"libVersions,omitempty"`
+}
+
+// ASMFeatureConfig contains Application Security Management (ASM) configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+type ASMFeatureConfig struct {
+	// Threats configures ASM App & API Protection.
+	// Enabled Default: false
+	// +optional
+	Threats *ASMThreatsConfig `json:"threats,omitempty"`
+	// SCA configures Software Composition Analysis.
+	// Enabled Default: false
+	// +optional
+	SCA *ASMSCAConfig `json:"sca,omitempty"`
+	// IAST configures Interactive Application Security Testing.
+	// Enabled Default: false
+	// +optional
+	IAST *ASMIASTConfig `json:"iast,omitempty"`
+}
+
+type ASMThreatsConfig struct {
+	// Enabled enables ASM App & API Protection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMSCAConfig struct {
+	// Enabled enables Software Composition Analysis (SCA).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type ASMIASTConfig struct {
+	// Enabled enables Interactive Application Security Testing (IAST).
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
@@ -584,6 +624,30 @@ type AdmissionControllerFeatureConfig struct {
 	// Default: "datadog-webhook"
 	// +optional
 	WebhookName *string `json:"webhookName,omitempty"`
+	// AgentSidecarInjection contains Agent sidecar injection configurations.
+	// +optional
+	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
+
+	// Registry defines an image registry for the admission controller.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+
+	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
+	// +optional
+	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+// CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
+type CWSInstrumentationConfig struct {
+	// Enable the CWS Instrumentation admission controller endpoint.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy".
+	// Default: "remote_copy"
+	// +optional
+	Mode *string `json:"mode,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
@@ -719,6 +783,14 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
+// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+type OriginDetectionUnified struct {
+	// Enabled enables unified mechanism for origin detection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
 // system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
@@ -794,6 +866,10 @@ type GlobalConfig struct {
 	// +optional
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
+
+	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
+	// +optional
+	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
 
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
@@ -1204,6 +1280,29 @@ type DatadogAgentStatus struct {
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
+}
+
+type AgentSidecarInjectionConfig struct {
+	// Enabled enables Sidecar injections.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled"`
+	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
+	// Default : true
+	// +optional
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
+	// Currently only "fargate" is supported.
+	// To use the feature in other environments (including local testing) omit the config.
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
+	// +optional
+	Provider *string `json:"provider,omitempty"`
+	// Registry overrides the default registry for the sidecar Agent.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

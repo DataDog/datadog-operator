@@ -2,7 +2,6 @@
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
-
 package admissioncontroller
 
 import (
@@ -12,29 +11,18 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
-
+	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestAdmissionControllerFeature(t *testing.T) {
-	apmUDS := &v2alpha1.APMFeatureConfig{
-		Enabled: apiutils.NewBoolPointer(true),
-		UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-			Enabled: apiutils.NewBoolPointer(true),
-		},
-	}
-	dsdUDS := &v2alpha1.DogstatsdFeatureConfig{
-		UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-			Enabled: apiutils.NewBoolPointer(true),
-		},
-	}
-
+func Test_admissionControllerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
@@ -45,37 +33,162 @@ func TestAdmissionControllerFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 admission controller enabled",
+			Name:          "v1alpha1 admission controller enabled, cwsInstrumentation not enabled",
 			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("hostip"),
+			ClusterAgent:  testDCAResources("hostip", "", false),
 		},
-
 		//////////////////////////
-		// v2Alpha1.DatadogAgent
+		// v2alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 admission controller not enabled",
-			DDAv2:         newV2Agent(false, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
+			Name: "v2alpha1 Admission Controller not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 admission controller enabled",
-			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
+			Name: "v2alpha1 Admission Controller enabled with basic setup",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				Build(),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources(""),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("", "", false)),
 		},
 		{
-			Name:          "v2alpha1 admission controller enabled, apm uses uds",
-			DDAv2:         newV2Agent(true, "", apmUDS, &v2alpha1.DogstatsdFeatureConfig{}),
+			Name: "v2alpha1 admission controller enabled, cwsInstrumentation enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithCWSInstrumentationEnabled(true).
+				WithCWSInstrumentationMode("test-mode").
+				Build(),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("socket"),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("", "", true)),
 		},
 		{
-			Name:          "v2alpha1 admission controller enabled, dsd uses uds",
-			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, dsdUDS),
+			Name: "v2alpha1 Admission Controller enabled with overriding registry",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithRegistry("testRegistry").
+				Build(),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources("socket"),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("", "testRegistry", false)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with custom registry in global config, override with feature config",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerRegistry("featureRegistry").
+				WithRegistry("globalRegistry").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("", "featureRegistry", false)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with apm uds",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAPMEnabled(true).
+				WithAPMUDSEnabled(true, "testHostPath").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("socket", "", false)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with DSD uds",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithDogstatsdUnixDomainSocketConfigEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc("socket", "", false)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar basic setup",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding global registry",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithRegistry("globalRegistry").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", defaulting.AgentLatestVersion)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding both sidecar and global registry",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithRegistry("globalRegistry").
+				WithSidecarInjectionRegistry("sidecarRegistry").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", defaulting.AgentLatestVersion)),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding test sidecar image and tag",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithSidecarInjectionImageName("testAgentImage").
+				WithSidecarInjectionImageTag("testAgentTag").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "testAgentImage", "testAgentTag")),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding global image and tag",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &apicommonv1.AgentImageConfig{
+						Name: "overrideName",
+						Tag:  "overrideTag",
+					},
+				}).
+				WithSidecarInjectionImageName("").
+				WithSidecarInjectionImageTag("").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "overrideName", "overrideTag")),
+		},
+		{
+			Name: "v2alpha1 Admission Controller enabled with sidecar injection adding both global and sidecar image and tag",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithSidecarInjectionEnabled(true).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Image: &apicommonv1.AgentImageConfig{
+						Name: "overrideName",
+						Tag:  "overrideTag",
+					},
+				}).
+				WithSidecarInjectionImageName("sidecarAgent").
+				WithSidecarInjectionImageTag("sidecarTag").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				sidecarInjectionWantFunc("", "", "", "sidecarAgent", "sidecarTag")),
 		},
 	}
 
@@ -99,32 +212,7 @@ func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enabled bool, acm string, apm *v2alpha1.APMFeatureConfig, dsd *v2alpha1.DogstatsdFeatureConfig) *v2alpha1.DatadogAgent {
-	dda := &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled:          apiutils.NewBoolPointer(enabled),
-					MutateUnlabelled: apiutils.NewBoolPointer(true),
-					ServiceName:      apiutils.NewStringPointer("testServiceName"),
-				},
-			},
-			Global: &v2alpha1.GlobalConfig{},
-		},
-	}
-	if acm != "" {
-		dda.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(acm)
-	}
-	if apm != nil {
-		dda.Spec.Features.APM = apm
-	}
-	if dsd != nil {
-		dda.Spec.Features.Dogstatsd = dsd
-	}
-	return dda
-}
-
-func testDCAResources(acm string) *test.ComponentTest {
+func testDCAResources(acm string, registry string, cwsInstrumentationEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -152,12 +240,31 @@ func testDCAResources(acm string) *test.ComponentTest {
 					Value: "datadog-webhook",
 				},
 			}
+			if cwsInstrumentationEnabled {
+				expectedAgentEnvs = append(expectedAgentEnvs, []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+						Value: apiutils.BoolToString(&cwsInstrumentationEnabled),
+					},
+					{
+						Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+						Value: "test-mode",
+					},
+				}...)
+			}
 			if acm != "" {
 				acmEnv := corev1.EnvVar{
 					Name:  apicommon.DDAdmissionControllerInjectConfigMode,
 					Value: acm,
 				}
 				expectedAgentEnvs = append(expectedAgentEnvs, &acmEnv)
+			}
+			if registry != "" {
+				registryEnv := corev1.EnvVar{
+					Name:  apicommon.DDAdmissionControllerRegistryName,
+					Value: registry,
+				}
+				expectedAgentEnvs = append(expectedAgentEnvs, &registryEnv)
 			}
 
 			assert.ElementsMatch(t,
@@ -168,4 +275,129 @@ func testDCAResources(acm string) *test.ComponentTest {
 			)
 		},
 	)
+}
+
+func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
+	envVars := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDAdmissionControllerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+			Value: "false",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerLocalServiceName,
+			Value: "-agent",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerWebhookName,
+			Value: "datadog-webhook",
+		},
+	}
+
+	if acm != "" {
+		acmEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+			Value: acm,
+		}
+		envVars = append(envVars, &acmEnv)
+	}
+	if registry != "" {
+		registryEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerRegistryName,
+			Value: registry,
+		}
+		envVars = append(envVars, &registryEnv)
+	}
+
+	if cws {
+		cwsEnv := []corev1.EnvVar{
+			{
+				Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+				Value: apiutils.BoolToString(&cws),
+			},
+			{
+				Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+				Value: "test-mode",
+			},
+		}
+		envVars = append(envVars, &cwsEnv[0], &cwsEnv[1])
+	}
+	return envVars
+}
+
+func admissionControllerWantFunc(acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+		want := getACEnvVars(acm, registry, cws)
+		assert.ElementsMatch(
+			t,
+			dcaEnvVars,
+			want,
+			"DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want),
+		)
+	}
+}
+
+func sidecarHelperFunc(admissionControllerConfig, sidecarConfig []*corev1.EnvVar) []*corev1.EnvVar {
+	envVars := []*corev1.EnvVar{}
+
+	// Append elements of admissionControllerConfig to envVars
+	envVars = append(envVars, admissionControllerConfig...)
+
+	// Append elements of sidecarConfig to envVars
+	envVars = append(envVars, sidecarConfig...)
+
+	return envVars
+}
+
+func getSidecarEnvVars(imageName, imageTag, registry string) []*corev1.EnvVar {
+	envVars := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+			Value: "fargate",
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+			Value: imageName,
+		},
+		{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+			Value: imageTag,
+		},
+	}
+	if registry != "" {
+		registryEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+			Value: registry,
+		}
+		envVars = append(envVars, &registryEnv)
+	}
+
+	return envVars
+}
+
+func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string) func(testing.TB, feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry))
+		assert.ElementsMatch(
+			t,
+			dcaEnvVars,
+			want,
+			"DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want),
+		)
+	}
 }

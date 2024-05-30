@@ -55,6 +55,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with admission controller enabled, CWS Instrumentation enabled",
+		testFunction(testutils.NewDatadogAgentWithCWSInstrumentation(namespace, "with-cws-instrumentation")),
+	)
+
+	Context(
 		"with APM enabled",
 		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "with-apm")),
 	)

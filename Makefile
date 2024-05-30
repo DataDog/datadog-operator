@@ -150,7 +150,7 @@ generate-manifests: $(CONTROLLER_GEN)
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/.."
 
 .PHONY: generate-docs
 generate-docs: manifests
@@ -174,7 +174,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
+	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -339,7 +339,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.2.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.2.1
+	hack/install-openshift-preflight.sh 1.9.4
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)

@@ -158,23 +158,27 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	return common.NewV2StatusWrapper(datadogAgent), nil
 }
 
-func isReconcileError(conditions []metav1.Condition) bool {
+func isReconcileError(conditions []metav1.Condition) error {
 	for _, condition := range conditions {
-		if (condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue) ||
-			(condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse) ||
-			(condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse) ||
-			(condition.Type == "ClusterChecksRunnerReconcile" && condition.Status == metav1.ConditionFalse) {
-			return true
+		switch {
+		case condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue:
+			return fmt.Errorf("datadogAgent reconciliation error message: %s", condition.Message)
+		case condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse:
+			return fmt.Errorf("agent reconciliation error message: %s", condition.Message)
+		case condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse:
+			return fmt.Errorf("cluster Agent reconciliation error message: %s", condition.Message)
+		case condition.Type == "ClusterChecksRunnerReconcile" && condition.Status == metav1.ConditionFalse:
+			return fmt.Errorf("cluster Check Runner reconciliation error message: %s", condition.Message)
 		}
 	}
-	return false
+	return nil
 }
 
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
-	agentDone, dcaDone, clcDone := false, false, false
 	checkFunc := func() (bool, error) {
+		var agentDone, dcaDone, ccrDone, reconcileError bool
 		v2Available, err := common.IsV2Available(o.Clientset)
 		if err != nil {
 			return false, fmt.Errorf("unable to detect if CRD v2 is available, err:%w", err)
@@ -195,8 +199,9 @@ func (o *Options) Run() error {
 			return false, fmt.Errorf("unable to get the DatadogAgent.status, err:%w", err)
 		}
 
-		if isReconcileError(status.GetStatusCondition()) {
-			return false, fmt.Errorf("got reconcile error")
+		if err = isReconcileError(status.GetStatusCondition()); err != nil {
+			o.printOutf("received a reconcile error: %v", err)
+			reconcileError = true
 		}
 
 		if !agentDone {
@@ -207,11 +212,11 @@ func (o *Options) Run() error {
 			dcaDone = o.isDeploymentDone(status.GetClusterAgentStatus(), o.dcaMinUpToDate, "Cluster Agent")
 		}
 
-		if !clcDone {
-			clcDone = o.isDeploymentDone(status.GetClusterChecksRunnerStatus(), o.clcMinUpToDate, "Cluster Check Runner")
+		if !ccrDone {
+			ccrDone = o.isDeploymentDone(status.GetClusterChecksRunnerStatus(), o.clcMinUpToDate, "Cluster Check Runner")
 		}
 
-		if agentDone && dcaDone && clcDone {
+		if agentDone && dcaDone && ccrDone && !reconcileError {
 			return true, nil
 		}
 

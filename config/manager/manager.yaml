@@ -22,6 +22,15 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: datadog-operator
+      annotations:
+        ad.datadoghq.com/manager.check_names: '["openmetrics"]'
+        ad.datadoghq.com/manager.init_configs: '[{}]'
+        ad.datadoghq.com/manager.instances: |
+          [{
+            "prometheus_url": "http://%%host%%:8080/metrics",
+            "namespace": "datadog.operator",
+            "metrics": ["*"]
+          }]
     spec:
       containers:
       - command:
@@ -29,7 +38,6 @@ spec:
         args:
         - --enable-leader-election
         - --pprof
-        - --webhookEnabled
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager

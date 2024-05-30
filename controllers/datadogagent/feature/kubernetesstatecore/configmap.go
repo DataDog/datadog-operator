@@ -66,6 +66,7 @@ instances:
     - endpoints
     - daemonsets
     - horizontalpodautoscalers
+    - poddisruptionbudgets
     - limitranges
     - resourcequotas
     - secrets
@@ -73,6 +74,8 @@ instances:
     - persistentvolumeclaims
     - persistentvolumes
     - ingresses
+    - storageclasses
+    - volumeattachments
 `, stringVal, stringVal)
 
 	if collectorOpts.enableVPA {

@@ -53,16 +53,39 @@ type Container struct {
 }
 
 // DatadogAgentProfileStatus defines the observed state of DatadogAgentProfile
+// +k8s:openapi-gen=true
 type DatadogAgentProfileStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// LastUpdate is the last time the status was updated.
+	// +optional
+	LastUpdate *metav1.Time `json:"lastUpdate,omitempty"`
+
+	// CurrentHash is the stored hash of the DatadogAgentProfile.
+	// +optional
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// Conditions represents the latest available observations of a DatadogAgentProfile's current state.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
+
+	// Valid shows if the DatadogAgentProfile has a valid config spec.
+	// +optional
+	Valid metav1.ConditionStatus `json:"valid,omitempty"`
+
+	// Applied shows whether the DatadogAgentProfile conflicts with an existing DatadogAgentProfile.
+	// +optional
+	Applied metav1.ConditionStatus `json:"applied,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:path=datadogagentprofiles,shortName=dap
-
 // DatadogAgentProfile is the Schema for the datadogagentprofiles API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:path=datadogagentprofiles,shortName=dap
+// +kubebuilder:printcolumn:name="valid",type="string",JSONPath=".status.valid"
+// +kubebuilder:printcolumn:name="applied",type="string",JSONPath=".status.applied"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +k8s:openapi-gen=true
 type DatadogAgentProfile struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

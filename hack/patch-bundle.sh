@@ -30,9 +30,9 @@ $YQ -i '.metadata.annotations."features.operators.openshift.io/token-auth-aws" =
 $YQ -i '.metadata.annotations."features.operators.openshift.io/token-auth-azure" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
 $YQ -i '.metadata.annotations."features.operators.openshift.io/token-auth-gcp" = "false"' bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
-# Add skipRange annotation to allow direct upgrades
+# Add skipRange annotation to allow direct upgrades. '>=1.7.0' is hard-coded because this is the version where the webhook conversion was removed from the bundle
 VERSION=$($YQ '.spec.version' bundle/manifests/datadog-operator.clusterserviceversion.yaml )
-$YQ -i ".metadata.annotations.\"olm.skipRange\" = \"<$VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
+$YQ -i ".metadata.annotations.\"olm.skipRange\" = \">=1.7.0 <$VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Set spec.replaces to latest released version
 $YQ -i ".spec.\"replaces\" = \"datadog-operator.v$LATEST_VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml

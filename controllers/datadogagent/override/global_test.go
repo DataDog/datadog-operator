@@ -40,6 +40,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		Scheme: testScheme,
 	}
 
+	var emptyVolumeMounts []*corev1.VolumeMount
+	emptyVolumes := []*corev1.Volume{}
+
 	tests := []struct {
 		name                           string
 		dda                            *v2alpha1.DatadogAgent
@@ -56,7 +59,20 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
-			wantEnvVars:      getExpectedEnvVars(),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  apicommon.DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDKubeletCAPath,
+					Value: agentCAPath,
+				},
+				{
+					Name:  apicommon.DockerHost,
+					Value: "unix:///host" + dockerSocketPath,
+				},
+			}...),
 			wantVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumes:      getExpectedVolumes(),
 			want:             assertAll,
@@ -68,10 +84,37 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
-			wantEnvVars:      getExpectedEnvVars(),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  apicommon.DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDKubeletCAPath,
+					Value: agentCAPath,
+				},
+				{
+					Name:  apicommon.DockerHost,
+					Value: "unix:///host" + dockerSocketPath,
+				},
+			}...),
 			wantVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumes:      getExpectedVolumes(),
 			want:             assertAllAgentSingleContainer,
+		},
+		{
+			name:                           "Unified origin detection activated",
+			singleContainerStrategyEnabled: false,
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithOriginDetectionUnified(true).
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
+				Name:  apicommon.DDOriginDetectionUnified,
+				Value: "true",
+			}),
+			wantVolumeMounts: emptyVolumeMounts,
+			wantVolumes:      emptyVolumes,
+			want:             assertAll,
 		},
 	}
 
@@ -120,8 +163,8 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedEnvVars))
 }
 
-func getExpectedEnvVars() []*corev1.EnvVar {
-	return []*corev1.EnvVar{
+func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
+	defaultEnvVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDSite,
 			Value: "datadoghq.com",
@@ -130,20 +173,11 @@ func getExpectedEnvVars() []*corev1.EnvVar {
 			Name:  apicommon.DDLogLevel,
 			Value: "info",
 		},
-		{
-			Name:  apicommon.DDKubeletTLSVerify,
-			Value: "true",
-		},
-		{
-			Name:  apicommon.DDKubeletCAPath,
-			Value: agentCAPath,
-		},
-		{
-			Name:  apicommon.DockerHost,
-			Value: "unix:///host" + dockerSocketPath,
-		},
 	}
+
+	return append(defaultEnvVars, addedEnvVars...)
 }
+
 func getExpectedVolumes() []*corev1.Volume {
 	return []*corev1.Volume{
 		{

@@ -47,6 +47,23 @@ func NewDatadogAgentWithAdmissionController(namespace string, name string) v2alp
 	)
 }
 
+// NewDatadogAgentWithCWSInstrumentation returns an agent with CWS Instrumentation enabled
+func NewDatadogAgentWithCWSInstrumentation(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+				Enabled:          apiutils.NewBoolPointer(true),
+				MutateUnlabelled: apiutils.NewBoolPointer(true),
+				CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithAPM returns an agent with APM enabled
 func NewDatadogAgentWithAPM(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
