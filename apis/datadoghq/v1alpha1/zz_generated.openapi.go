@@ -35,6 +35,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgent":                            schema__apis_datadoghq_v1alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentCondition":                   schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref),
+		"./apis/datadoghq/v1alpha1.DatadogAgentProfile":                     schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref),
+		"./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus":               schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentSpec":                        schema__apis_datadoghq_v1alpha1_DatadogAgentSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec":               schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
@@ -1068,6 +1070,117 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentProfile is the Schema for the datadogagentprofiles API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentProfileSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogAgentProfileSpec", "./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentProfileStatus defines the observed state of DatadogAgentProfile",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"lastUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdate is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash is the stored hash of the DatadogAgentProfile.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of a DatadogAgentProfile's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"valid": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Valid shows if the DatadogAgentProfile has a valid config spec.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"applied": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Applied shows whether the DatadogAgentProfile conflicts with an existing DatadogAgentProfile.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
