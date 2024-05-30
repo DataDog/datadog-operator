@@ -195,8 +195,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.ServiceAccount{}).
 		// We let PlatformInfo supply PDB object based on the current API version
 		Owns(r.PlatformInfo.CreatePDBObject()).
-		Owns(&networkingv1.NetworkPolicy{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{})
+		Owns(&networkingv1.NetworkPolicy{})
 
 	if r.Options.DatadogAgentProfileEnabled {
 		builder.Watches(

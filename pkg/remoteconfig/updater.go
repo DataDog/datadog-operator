@@ -151,7 +151,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		client.WithAgent("datadog-operator", version.Version),
 		client.WithProducts(state.ProductAgentConfig),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("remote_configuration.director_root")),
-		client.WithPollInterval(10*time.Second))
+		client.WithPollInterval(pollInterval),
+	)
 	if err != nil {
 		r.logger.Error(err, "Failed to create Remote Configuration client")
 		return err
