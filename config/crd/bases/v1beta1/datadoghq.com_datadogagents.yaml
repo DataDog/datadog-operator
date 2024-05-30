@@ -15396,7 +15396,7 @@ spec:
                                   type: string
                               type: object
                             profiles:
-                              description: Profiles defines the sidecar configuration override. Currently only one profile is supported.
+                              description: Profiles define the sidecar configuration override. Only one profile is supported.
                               items:
                                 description: Profile defines a sidecar configuration override.
                                 properties:
@@ -15515,7 +15515,7 @@ spec:
                               description: Registry overrides the default registry for the sidecar Agent.
                               type: string
                             selectors:
-                              description: Selectors defines the pod selector for sidecar injection. Currently only one rule is supported.
+                              description: Selectors define the pod selector for sidecar injection. Only one rule is supported.
                               items:
                                 description: Selectors define a pod selector for sidecar injection.
                                 properties:
