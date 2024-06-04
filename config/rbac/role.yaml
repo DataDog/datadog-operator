@@ -723,3 +723,9 @@ rules:
     - datadogagentprofiles/finalizers
   verbs:
     - update
+- apiGroups:
+    - ""
+  resources:
+    - pods/exec
+  verbs:
+    - create
