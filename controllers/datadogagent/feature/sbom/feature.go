@@ -61,7 +61,9 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	f.owner = dda
 
 	// Merge configurations from Spec and Status.RemoteConfigConfiguration
-	sbomConfig := mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&dda.Spec, &dda.Status)
+
+	sbomConfig := dda.Spec.Features.SBOM
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
@@ -91,41 +93,36 @@ func (f *sbomFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 	return
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.SBOMFeatureConfig {
-	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil) && (ddaSpec.Features == nil || ddaSpec.Features.SBOM == nil) {
-		return nil
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
+		return
 	}
 
-	if ddaSpec.Features == nil || ddaSpec.Features.SBOM == nil {
-		return ddaStatus.RemoteConfigConfiguration.Features.SBOM
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil {
-		return ddaSpec.Features.SBOM
+	if ddaSpec.Features.SBOM == nil {
+		ddaSpec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 	}
 
-	mergedSBOMConfig := ddaSpec.Features.SBOM
-	rcSBOMConfig := ddaStatus.RemoteConfigConfiguration.Features.SBOM
-
-	if rcSBOMConfig.Enabled != nil {
-		mergedSBOMConfig.Enabled = rcSBOMConfig.Enabled
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
+		ddaSpec.Features.SBOM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
 	}
 
-	if rcSBOMConfig.Host != nil && rcSBOMConfig.Host.Enabled != nil {
-		if mergedSBOMConfig.Host == nil {
-			mergedSBOMConfig.Host = &v2alpha1.SBOMTypeConfig{}
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
+		if ddaSpec.Features.SBOM.Host == nil {
+			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
 		}
-		mergedSBOMConfig.Host.Enabled = rcSBOMConfig.Host.Enabled
+		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
 	}
 
-	if rcSBOMConfig.ContainerImage != nil && rcSBOMConfig.ContainerImage.Enabled != nil {
-		if mergedSBOMConfig.ContainerImage == nil {
-			mergedSBOMConfig.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
+		if ddaSpec.Features.SBOM.ContainerImage == nil {
+			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
 		}
-		mergedSBOMConfig.ContainerImage.Enabled = rcSBOMConfig.ContainerImage.Enabled
+		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
 	}
-
-	return mergedSBOMConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

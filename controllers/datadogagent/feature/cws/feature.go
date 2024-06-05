@@ -69,7 +69,9 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	f.owner = dda
 
 	// Merge configurations from Spec and Status.RemoteConfigConfiguration
-	cwsConfig := mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&dda.Spec, &dda.Status)
+
+	cwsConfig := dda.Spec.Features.CWS
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
@@ -143,27 +145,22 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.CWSFeatureConfig {
-	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil) && (ddaSpec.Features == nil || ddaSpec.Features.CWS == nil) {
-		return nil
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled == nil {
+		return
 	}
 
-	if ddaSpec.Features == nil || ddaSpec.Features.CWS == nil {
-		return ddaStatus.RemoteConfigConfiguration.Features.CWS
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil {
-		return ddaSpec.Features.CWS
+	if ddaSpec.Features.CWS == nil {
+		ddaSpec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 	}
 
-	mergedCWSConfig := ddaSpec.Features.CWS
-	rcCWSConfig := ddaStatus.RemoteConfigConfiguration.Features.CWS
-
-	if rcCWSConfig.Enabled != nil {
-		mergedCWSConfig.Enabled = rcCWSConfig.Enabled
+	if ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled != nil {
+		ddaSpec.Features.CWS.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled
 	}
-
-	return mergedCWSConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

@@ -68,7 +68,9 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	f.owner = dda
 
 	// Merge configurations from Spec and Status.RemoteConfigConfiguration
-	cspmConfig := mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&dda.Spec, &dda.Status)
+
+	cspmConfig := dda.Spec.Features.CSPM
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
@@ -142,27 +144,22 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.CSPMFeatureConfig {
-	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil) && (ddaSpec.Features == nil || ddaSpec.Features.CSPM == nil) {
-		return nil
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled == nil {
+		return
 	}
 
-	if ddaSpec.Features == nil || ddaSpec.Features.CSPM == nil {
-		return ddaStatus.RemoteConfigConfiguration.Features.CSPM
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil {
-		return ddaSpec.Features.CSPM
+	if ddaSpec.Features.CSPM == nil {
+		ddaSpec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 	}
 
-	mergedCSPMConfig := ddaSpec.Features.CSPM
-	rcCSPMConfig := ddaStatus.RemoteConfigConfiguration.Features.CSPM
-
-	if rcCSPMConfig.Enabled != nil {
-		mergedCSPMConfig.Enabled = rcCSPMConfig.Enabled
+	if ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled != nil {
+		ddaSpec.Features.CSPM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled
 	}
-
-	return mergedCSPMConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
