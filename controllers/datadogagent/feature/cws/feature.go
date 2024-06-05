@@ -68,13 +68,8 @@ func (f *cwsFeature) ID() feature.IDType {
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	var cwsConfig *v2alpha1.CWSFeatureConfig
-	// RemoteConfig configuration takes precedence
-	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CWS != nil {
-		cwsConfig = dda.Status.RemoteConfigConfiguration.Features.CWS
-	} else if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil {
-		cwsConfig = dda.Spec.Features.CWS
-	}
+	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	cwsConfig := mergeConfigs(&dda.Spec, &dda.Status)
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
@@ -146,6 +141,29 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.CWSFeatureConfig {
+	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil) && (ddaSpec.Features == nil || ddaSpec.Features.CWS == nil) {
+		return nil
+	}
+
+	if ddaSpec.Features == nil || ddaSpec.Features.CWS == nil {
+		return ddaStatus.RemoteConfigConfiguration.Features.CWS
+	}
+
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil {
+		return ddaSpec.Features.CWS
+	}
+
+	mergedCWSConfig := ddaSpec.Features.CWS
+	rcCWSConfig := ddaStatus.RemoteConfigConfiguration.Features.CWS
+
+	if rcCWSConfig.Enabled != nil {
+		mergedCWSConfig.Enabled = rcCWSConfig.Enabled
+	}
+
+	return mergedCWSConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

@@ -41,13 +41,8 @@ func (f *usmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	var usmConfig *v2alpha1.USMFeatureConfig
-	// RemoteConfig configuration takes precedence
-	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.USM != nil {
-		usmConfig = dda.Status.RemoteConfigConfiguration.Features.USM
-	} else if dda.Spec.Features != nil && dda.Spec.Features.USM != nil {
-		usmConfig = dda.Spec.Features.USM
-	}
+	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	usmConfig := mergeConfigs(&dda.Spec, &dda.Status)
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
 		reqComp = feature.RequiredComponents{
@@ -92,6 +87,29 @@ func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.USMFeatureConfig {
+	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.USM == nil) && (ddaSpec.Features == nil || ddaSpec.Features.USM == nil) {
+		return nil
+	}
+
+	if ddaSpec.Features == nil || ddaSpec.Features.USM == nil {
+		return ddaStatus.RemoteConfigConfiguration.Features.USM
+	}
+
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.USM == nil {
+		return ddaSpec.Features.USM
+	}
+
+	mergedUSMConfig := ddaSpec.Features.USM
+	rcUSMConfig := ddaStatus.RemoteConfigConfiguration.Features.USM
+
+	if rcUSMConfig.Enabled != nil {
+		mergedUSMConfig.Enabled = rcUSMConfig.Enabled
+	}
+
+	return mergedUSMConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

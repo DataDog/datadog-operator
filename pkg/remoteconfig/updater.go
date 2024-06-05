@@ -163,7 +163,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.logger.Info("Remote Configuration service started")
 
 	rcClient.Start()
-	r.logger.Info("Remote Conifguration client started")
+	r.logger.Info("Remote Configuration client started")
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
 

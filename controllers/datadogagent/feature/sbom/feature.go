@@ -60,13 +60,8 @@ func (f *sbomFeature) ID() feature.IDType {
 func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	var sbomConfig *v2alpha1.SBOMFeatureConfig
-	// RemoteConfig configuration takes precedence
-	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.SBOM != nil {
-		sbomConfig = dda.Status.RemoteConfigConfiguration.Features.SBOM
-	} else if dda.Spec.Features != nil && dda.Spec.Features.SBOM != nil {
-		sbomConfig = dda.Spec.Features.SBOM
-	}
+	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	sbomConfig := mergeConfigs(&dda.Spec, &dda.Status)
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
@@ -94,6 +89,43 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *sbomFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	return
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.SBOMFeatureConfig {
+	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil) && (ddaSpec.Features == nil || ddaSpec.Features.SBOM == nil) {
+		return nil
+	}
+
+	if ddaSpec.Features == nil || ddaSpec.Features.SBOM == nil {
+		return ddaStatus.RemoteConfigConfiguration.Features.SBOM
+	}
+
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil {
+		return ddaSpec.Features.SBOM
+	}
+
+	mergedSBOMConfig := ddaSpec.Features.SBOM
+	rcSBOMConfig := ddaStatus.RemoteConfigConfiguration.Features.SBOM
+
+	if rcSBOMConfig.Enabled != nil {
+		mergedSBOMConfig.Enabled = rcSBOMConfig.Enabled
+	}
+
+	if rcSBOMConfig.Host != nil && rcSBOMConfig.Host.Enabled != nil {
+		if mergedSBOMConfig.Host == nil {
+			mergedSBOMConfig.Host = &v2alpha1.SBOMTypeConfig{}
+		}
+		mergedSBOMConfig.Host.Enabled = rcSBOMConfig.Host.Enabled
+	}
+
+	if rcSBOMConfig.ContainerImage != nil && rcSBOMConfig.ContainerImage.Enabled != nil {
+		if mergedSBOMConfig.ContainerImage == nil {
+			mergedSBOMConfig.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+		}
+		mergedSBOMConfig.ContainerImage.Enabled = rcSBOMConfig.ContainerImage.Enabled
+	}
+
+	return mergedSBOMConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

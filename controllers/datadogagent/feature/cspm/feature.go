@@ -67,13 +67,8 @@ func (f *cspmFeature) ID() feature.IDType {
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	var cspmConfig *v2alpha1.CSPMFeatureConfig
-	// RemoteConfig configuration takes precedence
-	if dda.Status.RemoteConfigConfiguration != nil && dda.Status.RemoteConfigConfiguration.Features != nil && dda.Status.RemoteConfigConfiguration.Features.CSPM != nil {
-		cspmConfig = dda.Status.RemoteConfigConfiguration.Features.CSPM
-	} else if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil {
-		cspmConfig = dda.Spec.Features.CSPM
-	}
+	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	cspmConfig := mergeConfigs(&dda.Spec, &dda.Status)
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
@@ -145,6 +140,29 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) *v2alpha1.CSPMFeatureConfig {
+	if (ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil) && (ddaSpec.Features == nil || ddaSpec.Features.CSPM == nil) {
+		return nil
+	}
+
+	if ddaSpec.Features == nil || ddaSpec.Features.CSPM == nil {
+		return ddaStatus.RemoteConfigConfiguration.Features.CSPM
+	}
+
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil {
+		return ddaSpec.Features.CSPM
+	}
+
+	mergedCSPMConfig := ddaSpec.Features.CSPM
+	rcCSPMConfig := ddaStatus.RemoteConfigConfiguration.Features.CSPM
+
+	if rcCSPMConfig.Enabled != nil {
+		mergedCSPMConfig.Enabled = rcCSPMConfig.Enabled
+	}
+
+	return mergedCSPMConfig
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
