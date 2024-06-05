@@ -637,6 +637,60 @@ type AdmissionControllerFeatureConfig struct {
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
 }
 
+type AgentSidecarInjectionConfig struct {
+	// Enabled enables Sidecar injections.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled"`
+	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
+	// Default : true
+	// +optional
+	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
+	// Currently only "fargate" is supported.
+	// To use the feature in other environments (including local testing) omit the config.
+	// See also: https://docs.datadoghq.com/integrations/eks_fargate
+	// +optional
+	Provider *string `json:"provider,omitempty"`
+	// Registry overrides the default registry for the sidecar Agent.
+	// +optional
+	Registry *string `json:"registry,omitempty"`
+	// Image overrides the default Agent image name and tag for the Agent sidecar.
+	// +optional
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+	// Selectors define the pod selector for sidecar injection. Only one rule is supported.
+	// +optional
+	// +listType=atomic
+	Selectors []*Selector `json:"selectors,omitempty"`
+	// Profiles define the sidecar configuration override. Only one profile is supported.
+	// +optional
+	// +listType=atomic
+	Profiles []*Profile `json:"profiles,omitempty"`
+}
+
+// Selectors define a pod selector for sidecar injection.
+type Selector struct {
+	// NamespaceSelector specifies the label selector for namespaces.
+	// +optional
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	// ObjectSelector specifies the label selector for objects.
+	// +optional
+	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty"`
+}
+
+// Profile defines a sidecar configuration override.
+type Profile struct {
+	// EnvVars specifies the environment variables for the profile.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	EnvVars []corev1.EnvVar `json:"env,omitempty"`
+
+	// ResourceRequirements specifies the resource requirements for the profile.
+	// +optional
+	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
 type CWSInstrumentationConfig struct {
 	// Enable the CWS Instrumentation admission controller endpoint.
@@ -1248,29 +1302,6 @@ type FIPSConfig struct {
 	// proxy sidecar container config is used.
 	// +optional
 	CustomFIPSConfig *CustomConfig `json:"customFIPSConfig,omitempty"`
-}
-
-type AgentSidecarInjectionConfig struct {
-	// Enabled enables Sidecar injections.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled"`
-	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
-	// Default : true
-	// +optional
-	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
-	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
-	// Currently only "fargate" is supported.
-	// To use the feature in other environments (including local testing) omit the config.
-	// See also: https://docs.datadoghq.com/integrations/eks_fargate
-	// +optional
-	Provider *string `json:"provider,omitempty"`
-	// Registry overrides the default registry for the sidecar Agent.
-	// +optional
-	Registry *string `json:"registry,omitempty"`
-	// Image overrides the default Agent image name and tag for the Agent sidecar.
-	// +optional
-	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 }
 
 // RemoteConfigConfiguration stores the configuration received from RemoteConfig.
