@@ -68,7 +68,7 @@ func (f *cwsFeature) ID() feature.IDType {
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(&dda.Spec, &dda.Status)
 
 	cwsConfig := dda.Spec.Features.CWS

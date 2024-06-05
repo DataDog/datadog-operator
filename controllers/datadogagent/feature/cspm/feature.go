@@ -67,7 +67,7 @@ func (f *cspmFeature) ID() feature.IDType {
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	// Merge configurations from Spec and Status.RemoteConfigConfiguration
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(&dda.Spec, &dda.Status)
 
 	cspmConfig := dda.Spec.Features.CSPM
