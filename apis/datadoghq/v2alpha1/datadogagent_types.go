@@ -162,10 +162,12 @@ type ASMFeatureConfig struct {
 	// Enabled Default: false
 	// +optional
 	Threats *ASMThreatsConfig `json:"threats,omitempty"`
+
 	// SCA configures Software Composition Analysis.
 	// Enabled Default: false
 	// +optional
 	SCA *ASMSCAConfig `json:"sca,omitempty"`
+
 	// IAST configures Interactive Application Security Testing.
 	// Enabled Default: false
 	// +optional
@@ -499,6 +501,7 @@ type OTLPProtocolsConfig struct {
 	// GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
 	// +optional
 	GRPC *OTLPGRPCConfig `json:"grpc,omitempty"`
+
 	// HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
 	// +optional
 	HTTP *OTLPHTTPConfig `json:"http,omitempty"`
@@ -624,6 +627,7 @@ type AdmissionControllerFeatureConfig struct {
 	// Default: "datadog-webhook"
 	// +optional
 	WebhookName *string `json:"webhookName,omitempty"`
+
 	// AgentSidecarInjection contains Agent sidecar injection configurations.
 	// +optional
 	AgentSidecarInjection *AgentSidecarInjectionConfig `json:"agentSidecarInjection,omitempty"`
@@ -642,26 +646,32 @@ type AgentSidecarInjectionConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled"`
+
 	// ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.
 	// Default : true
 	// +optional
 	ClusterAgentCommunicationEnabled *bool `json:"clusterAgentCommunicationEnabled,omitempty"`
+
 	// Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.
 	// Currently only "fargate" is supported.
 	// To use the feature in other environments (including local testing) omit the config.
 	// See also: https://docs.datadoghq.com/integrations/eks_fargate
 	// +optional
 	Provider *string `json:"provider,omitempty"`
+
 	// Registry overrides the default registry for the sidecar Agent.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
 	// Image overrides the default Agent image name and tag for the Agent sidecar.
 	// +optional
 	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+
 	// Selectors define the pod selector for sidecar injection. Only one rule is supported.
 	// +optional
 	// +listType=atomic
 	Selectors []*Selector `json:"selectors,omitempty"`
+
 	// Profiles define the sidecar configuration override. Only one profile is supported.
 	// +optional
 	// +listType=atomic
@@ -673,6 +683,7 @@ type Selector struct {
 	// NamespaceSelector specifies the label selector for namespaces.
 	// +optional
 	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+
 	// ObjectSelector specifies the label selector for objects.
 	// +optional
 	ObjectSelector *metav1.LabelSelector `json:"objectSelector,omitempty"`
