@@ -46,6 +46,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -128,6 +129,7 @@ type options struct {
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
+	remoteConfigEnabled                    bool
 	processChecksInCoreAgentEnabled        bool
 
 	// Secret Backend options
@@ -162,6 +164,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
+	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 
 	// ExtendedDaemonset configuration
@@ -257,6 +260,13 @@ func run(opts *options) error {
 	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
+	}
+
+	if opts.remoteConfigEnabled {
+		err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
+		if err != nil {
+			setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+		}
 	}
 
 	options := controllers.SetupOptions{

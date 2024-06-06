@@ -37,6 +37,13 @@ func (_m *EnvVarManager) AddEnvVarToContainer(containerName commonv1.AgentContai
 	}
 }
 
+// AddEnvVarToContainers provides a mock function with given fields: containerNames, newEnvVar
+func (_m *EnvVarManager) AddEnvVarToContainers(containerNames []commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
+	for _, containerName := range containerNames {
+		_m.AddEnvVarToContainer(containerName, newEnvVar)
+	}
+}
+
 // AddEnvVarToInitContainer provides a mock function with given fields: containerName, newEnvVar
 func (_m *EnvVarManager) AddEnvVarToInitContainer(containerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
 	for _, initContainerName := range initContainerNames {
