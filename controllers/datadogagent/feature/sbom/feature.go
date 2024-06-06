@@ -60,15 +60,20 @@ func (f *sbomFeature) ID() feature.IDType {
 func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.SBOM != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.Enabled) {
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	mergeConfigs(&dda.Spec, &dda.Status)
+
+	sbomConfig := dda.Spec.Features.SBOM
+
+	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
-		if dda.Spec.Features.SBOM.ContainerImage != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.ContainerImage.Enabled) {
+		if sbomConfig.ContainerImage != nil && apiutils.BoolValue(sbomConfig.ContainerImage.Enabled) {
 			f.containerImageEnabled = true
-			f.containerImageAnalyzers = dda.Spec.Features.SBOM.ContainerImage.Analyzers
+			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
 		}
-		if dda.Spec.Features.SBOM.Host != nil && apiutils.BoolValue(dda.Spec.Features.SBOM.Host.Enabled) {
+		if sbomConfig.Host != nil && apiutils.BoolValue(sbomConfig.Host.Enabled) {
 			f.hostEnabled = true
-			f.hostAnalyzers = dda.Spec.Features.SBOM.Host.Analyzers
+			f.hostAnalyzers = sbomConfig.Host.Analyzers
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -86,6 +91,38 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *sbomFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	return
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.SBOM == nil {
+		ddaSpec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
+		ddaSpec.Features.SBOM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
+		if ddaSpec.Features.SBOM.Host == nil {
+			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
+		}
+		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
+		if ddaSpec.Features.SBOM.ContainerImage == nil {
+			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+		}
+		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
