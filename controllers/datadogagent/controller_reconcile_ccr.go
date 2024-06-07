@@ -109,6 +109,12 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(logger logr.Logger, dda *datad
 		}
 	}
 
-	newStatus.ClusterChecksRunner = nil
+	deleteStatusWithClusterChecksRunner(newStatus)
+
 	return reconcile.Result{}, nil
+}
+
+func deleteStatusWithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+	newStatus.ClusterChecksRunner = nil
+	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
 }

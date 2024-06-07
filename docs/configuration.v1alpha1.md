@@ -4,10 +4,9 @@
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
 * [Manifest with Logs, APM, and metrics collection enabled.][2]
-* [Manifest with Logs and metrics collection enabled.][3]
-* [Manifest with APM and metrics collection enabled.][4]
-* [Manifest with Cluster Agent.][5]
-* [Manifest with tolerations.][6]
+* [Manifest with APM and metrics collection enabled.][3]
+* [Manifest with Cluster Agent.][4]
+* [Manifest with tolerations.][5]
 
 ## All configuration options
 
@@ -486,7 +485,6 @@ spec:
 
 [1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-all.yaml
 [2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-logs-apm.yaml
-[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-logs.yaml
-[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-apm.yaml
-[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-clusteragent.yaml
-[6]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-tolerations.yaml
+[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-apm.yaml
+[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-clusteragent.yaml
+[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v1alpha1/datadog-agent-with-tolerations.yaml

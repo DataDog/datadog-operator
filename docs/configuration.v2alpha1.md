@@ -4,10 +4,9 @@
 
 * [Manifest with Logs, APM, process, and metrics collection enabled.][1]
 * [Manifest with Logs, APM, and metrics collection enabled.][2]
-* [Manifest with Logs and metrics collection enabled.][3]
-* [Manifest with APM and metrics collection enabled.][4]
-* [Manifest with Cluster Agent.][5]
-* [Manifest with tolerations.][6]
+* [Manifest with APM and metrics collection enabled.][3]
+* [Manifest with Cluster Agent.][4]
+* [Manifest with tolerations.][5]
 
 ## All configuration options
 
@@ -35,9 +34,23 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
+| features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
+| features.admissionController.agentSidecarInjection.enabled | Enabled enables Sidecar injections. Default: false |
+| features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
+| features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
+| features.admissionController.agentSidecarInjection.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.profiles | Profiles define the sidecar configuration override. Only one profile is supported. |
+| features.admissionController.agentSidecarInjection.provider | Provider is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
+| features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
+| features.admissionController.agentSidecarInjection.selectors | Selectors define the pod selector for sidecar injection. Only one rule is supported. |
+| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint. Default: false |
+| features.admissionController.cwsInstrumentation.mode | Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| features.admissionController.registry | Registry defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
@@ -49,6 +62,9 @@ spec:
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
+| features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
+| features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
@@ -194,6 +210,7 @@ spec:
 | global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
 | global.networkPolicy.flavor | Flavor defines Which network policy to use. |
 | global.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY> |
+| global.originDetectionUnified.enabled | Enabled enables unified mechanism for origin detection. Default: false |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
@@ -351,8 +368,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].volumes `[]object` | Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner). |
 
 [1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-all.yaml
-[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-logs-apm.yaml
-[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-logs.yaml
-[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-apm.yaml
-[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-clusteragent.yaml
-[6]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-tolerations.yaml
+[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-logs-apm.yaml
+[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-apm-hostport.yaml
+[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-clusteragent.yaml
+[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-tolerations.yaml

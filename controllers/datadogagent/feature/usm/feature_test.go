@@ -163,6 +163,10 @@ func Test_usmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  apicommon.DDSystemProbeEnabled,
+				Value: "true",
+			},
+			{
 				Name:  apicommon.DDSystemProbeSocket,
 				Value: apicommon.DefaultSystemProbeSocketPath,
 			},

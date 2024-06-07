@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OTLPReceiverConfig":                schema__apis_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
@@ -364,11 +365,17 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus"),
 						},
 					},
+					"remoteConfigConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.RemoteConfigConfiguration"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -466,6 +473,12 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "APM (Application Performance Monitoring) configuration.",
 							Ref:         ref("./apis/datadoghq/v2alpha1.APMFeatureConfig"),
+						},
+					},
+					"asm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ASM (Application Security Management) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ASMFeatureConfig"),
 						},
 					},
 					"cspm": {
@@ -568,7 +581,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.ASMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -1135,6 +1148,26 @@ func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.Re
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"features": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./apis/datadoghq/v2alpha1.DatadogFeatures"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.DatadogFeatures"},
 	}
 }
 

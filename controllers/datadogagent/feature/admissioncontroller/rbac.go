@@ -12,8 +12,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getRBACClusterPolicyRules(webhookName string) []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
+func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled bool, cwsInstrumentationMode string) []rbacv1.PolicyRule {
+	clusterPolicyRules := []rbacv1.PolicyRule{
 		// MutatingWebhooksConfigs
 		{
 			APIGroups: []string{rbac.AdmissionAPIGroup},
@@ -73,6 +73,18 @@ func getRBACClusterPolicyRules(webhookName string) []rbacv1.PolicyRule {
 			},
 		},
 	}
+
+	if cwsInstrumentationEnabled && cwsInstrumentationMode == "remote_copy" {
+		clusterPolicyRules = append(clusterPolicyRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.PodsExecResource},
+			Verbs: []string{
+				rbac.CreateVerb,
+			},
+		})
+	}
+
+	return clusterPolicyRules
 }
 
 func getRBACPolicyRules() []rbacv1.PolicyRule {

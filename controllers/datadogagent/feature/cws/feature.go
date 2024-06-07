@@ -68,13 +68,16 @@ func (f *cwsFeature) ID() feature.IDType {
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
-		cws := dda.Spec.Features.CWS
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	mergeConfigs(&dda.Spec, &dda.Status)
 
-		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
+	cwsConfig := dda.Spec.Features.CWS
 
-		if cws.CustomPolicies != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(cws.CustomPolicies)
+	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
+		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
+
+		if cwsConfig.CustomPolicies != nil {
+			f.customConfig = v2alpha1.ConvertCustomConfig(cwsConfig.CustomPolicies)
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
@@ -86,17 +89,17 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCWSConf)
 
-		if cws.Network != nil {
-			f.networkEnabled = apiutils.BoolValue(cws.Network.Enabled)
+		if cwsConfig.Network != nil {
+			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
 		}
-		if cws.SecurityProfiles != nil {
-			f.activityDumpEnabled = apiutils.BoolValue(cws.SecurityProfiles.Enabled)
+		if cwsConfig.SecurityProfiles != nil {
+			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
 		}
 
-		if dda.Spec.Features.RemoteConfiguration != nil {
+		if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil {
 			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
-			if cws.RemoteConfiguration != nil {
-				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cws.RemoteConfiguration.Enabled)
+			if cwsConfig.RemoteConfiguration != nil {
+				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cwsConfig.RemoteConfiguration.Enabled)
 			}
 		}
 
@@ -140,6 +143,24 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.CWS == nil {
+		ddaSpec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled != nil {
+		ddaSpec.Features.CWS.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -190,28 +211,32 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// envvars
+
+	// env vars for Core Agent, Security Agent and System Probe
+	containersForEnvVars := []apicommonv1.AgentContainerName{
+		apicommonv1.CoreAgentContainerName,
+		apicommonv1.SecurityAgentContainerName,
+		apicommonv1.SystemProbeContainerName,
+	}
+
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigSocket,
 		Value: filepath.Join(apicommon.SystemProbeSocketVolumePath, "runtime-security.sock"),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, runtimeSocketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, runtimeSocketEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
 	if f.syscallMonitorEnabled {
 		monitorEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
 			Value: "true",
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, monitorEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, monitorEnvVar)
+		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, monitorEnvVar)
 	}
 
 	if f.networkEnabled {
@@ -273,7 +298,13 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
 
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.SecurityAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainers(
+		&socketVolMountReadOnly,
+		[]apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+			apicommonv1.SecurityAgentContainerName,
+		},
+	)
 	volMgr.AddVolume(&socketVol)
 
 	// procdir volume mount

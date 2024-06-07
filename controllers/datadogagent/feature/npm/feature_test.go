@@ -67,16 +67,16 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  apicommon.DDSystemProbeSocket,
+				Value: apicommon.DefaultSystemProbeSocketPath,
+			},
+			{
 				Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
 				Value: "true",
 			},
 			{
 				Name:  apicommon.DDSystemProbeConntrackEnabled,
 				Value: "false",
-			},
-			{
-				Name:  apicommon.DDSystemProbeSocket,
-				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]

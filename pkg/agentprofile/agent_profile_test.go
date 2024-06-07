@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,25 +21,23 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 const testNamespace = "default"
 
-func TestProfilesToApply(t *testing.T) {
-	t1 := time.Now()
-	t2 := t1.Add(time.Minute)
-	t3 := t2.Add(time.Minute)
-
+func TestProfileToApply(t *testing.T) {
 	tests := []struct {
 		name                           string
-		profiles                       []v1alpha1.DatadogAgentProfile
+		profile                        v1alpha1.DatadogAgentProfile
 		nodes                          []v1.Node
-		expectedProfiles               []v1alpha1.DatadogAgentProfile
+		profileAppliedByNode           map[string]types.NamespacedName
 		expectedProfilesAppliedPerNode map[string]types.NamespacedName
+		expectedErr                    error
 	}{
 		{
-			name:     "no profiles",
-			profiles: []v1alpha1.DatadogAgentProfile{},
+			name:    "empty profile, empty profileAppliedByNode",
+			profile: v1alpha1.DatadogAgentProfile{},
 			nodes: []v1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -51,30 +48,13 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: nil, // Applies to all nodes
-						Config:          nil, // No overrides
-					},
-				},
-			},
-			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				"node1": {
-					Namespace: "",
-					Name:      "default",
-				},
-			},
+			profileAppliedByNode:           map[string]types.NamespacedName{},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
+			expectedErr:                    fmt.Errorf("profileAffinity must be defined"),
 		},
 		{
-			name: "several non-conflicting profiles",
-			profiles: []v1alpha1.DatadogAgentProfile{
-				exampleProfileForLinux(),
-				exampleProfileForWindows(),
-			},
+			name:    "empty profile, non-empty profileAppliedByNode",
+			profile: v1alpha1.DatadogAgentProfile{},
 			nodes: []v1.Node{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -85,10 +65,11 @@ func TestProfilesToApply(t *testing.T) {
 					},
 				},
 			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				exampleProfileForLinux(),
-				exampleProfileForWindows(),
-				defaultProfile(),
+			profileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
@@ -96,88 +77,60 @@ func TestProfilesToApply(t *testing.T) {
 					Name:      "linux",
 				},
 			},
+			expectedErr: fmt.Errorf("profileAffinity must be defined"),
 		},
 		{
-			// This test defines 3 profiles created in this order: profile-2,
-			// profile-1, profile-3 (not sorted here to make sure that the code does).
-			// - profile-1 and profile-2 conflict, but profile-2 is the oldest,
-			// so it wins.
-			// - profile-1 and profile-3 conflict, but profile-1 is not applied
-			// because of the conflict with profile-2, so profile-3 should be.
-			// So in this case, the returned profiles should be profile-2,
-			// profile-3 and a default one.
-			name: "several conflicting profiles with different creation timestamps",
-			profiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-1",
-						CreationTimestamp: metav1.NewTime(t2),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "a",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("100m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-2",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("200m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-3",
-						CreationTimestamp: metav1.NewTime(t3),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "c",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("300m"),
-					},
+			name:    "empty profile, , non-empty profileAppliedByNode, no nodes",
+			profile: v1alpha1.DatadogAgentProfile{},
+			nodes:   []v1.Node{},
+			profileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
 				},
 			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			},
+			expectedErr: fmt.Errorf("profileAffinity must be defined"),
+		},
+		{
+			name:    "non-conflicting profile, empty profileAppliedByNode",
+			profile: exampleProfileForLinux(),
 			nodes: []v1.Node{
-				// node1 matches profile-1 and profile-3
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node1",
 						Labels: map[string]string{
-							"a": "1",
-							"c": "1",
+							"os": "linux",
 						},
 					},
 				},
-				// node2 matches profile-2
+			},
+			profileAppliedByNode: map[string]types.NamespacedName{},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:    "non-conflicting profile, non-empty profileAppliedByNode",
+			profile: exampleProfileForLinux(),
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
+				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "node2",
@@ -186,282 +139,125 @@ func TestProfilesToApply(t *testing.T) {
 						},
 					},
 				},
-				// node3 matches profile-1 and profile-2
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node3",
-						Labels: map[string]string{
-							"a": "1",
-							"b": "1",
-						},
-					},
-				},
 			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-2",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("200m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-3",
-						CreationTimestamp: metav1.NewTime(t3),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "c",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("300m"),
-					},
-				},
-				defaultProfile(),
-			},
-			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				"node1": {
-					Namespace: testNamespace,
-					Name:      "profile-3",
-				},
+			profileAppliedByNode: map[string]types.NamespacedName{
 				"node2": {
 					Namespace: testNamespace,
-					Name:      "profile-2",
+					Name:      "windows",
 				},
-				"node3": {
-					Namespace: testNamespace,
-					Name:      "profile-2",
-				},
-			},
-		},
-		{
-			// This test defines 3 profiles with the same creation timestamp:
-			// profile-2, profile-1, profile-3 (not sorted alphabetically here
-			// to make sure that the code does).
-			// The 3 profiles conflict and only profile-1 should apply because
-			// it's the first one alphabetically.
-			name: "conflicting profiles with the same creation timestamp",
-			profiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-2",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "a",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("100m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-1",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("200m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-3",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "c",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("300m"),
-					},
-				},
-			},
-			nodes: []v1.Node{
-				// matches all profiles
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"a": "1",
-							"b": "1",
-							"c": "1",
-						},
-					},
-				},
-			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace:         testNamespace,
-						Name:              "profile-1",
-						CreationTimestamp: metav1.NewTime(t1),
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "b",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"1"},
-								},
-							},
-						},
-						Config: configWithCPURequestOverrideForCoreAgent("200m"),
-					},
-				},
-				defaultProfile(),
-			},
-			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				"node1": {
-					Namespace: testNamespace,
-					Name:      "profile-1",
-				},
-			},
-		},
-		{
-			name: "invalid profile",
-			profiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: testNamespace,
-						Name:      "invalid",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						Config: configWithCPURequestOverrideForCoreAgent("100m"),
-					},
-				},
-			},
-			nodes: []v1.Node{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"os": "linux",
-						},
-					},
-				},
-			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				defaultProfile(),
-			},
-			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
-				"node1": {
-					Namespace: "",
-					Name:      "default",
-				},
-			},
-		},
-		{
-			name: "invalid profiles + valid profiles",
-			profiles: []v1alpha1.DatadogAgentProfile{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: testNamespace,
-						Name:      "invalid-no-affinity",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						Config: configWithCPURequestOverrideForCoreAgent("100m"),
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: testNamespace,
-						Name:      "invalid-no-config",
-					},
-					Spec: v1alpha1.DatadogAgentProfileSpec{
-						ProfileAffinity: &v1alpha1.ProfileAffinity{
-							ProfileNodeAffinity: []v1.NodeSelectorRequirement{
-								{
-									Key:      "os",
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"linux"},
-								},
-							},
-						},
-					},
-				},
-				exampleProfileForLinux(),
-				exampleProfileForWindows(),
-			},
-			nodes: []v1.Node{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node1",
-						Labels: map[string]string{
-							"os": "linux",
-						},
-					},
-				},
-			},
-			expectedProfiles: []v1alpha1.DatadogAgentProfile{
-				exampleProfileForLinux(),
-				exampleProfileForWindows(),
-				defaultProfile(),
 			},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
 				"node1": {
 					Namespace: testNamespace,
 					Name:      "linux",
 				},
+				"node2": {
+					Namespace: testNamespace,
+					Name:      "windows",
+				},
 			},
+			expectedErr: nil,
+		},
+		{
+			name:    "non-conflicting profile, non-empty profileAppliedByNode, no nodes",
+			profile: exampleProfileForLinux(),
+			nodes:   []v1.Node{},
+			profileAppliedByNode: map[string]types.NamespacedName{
+				"node2": {
+					Namespace: testNamespace,
+					Name:      "windows",
+				},
+			},
+			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node2": {
+					Namespace: testNamespace,
+					Name:      "windows",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			name:    "conflicting profile",
+			profile: exampleProfileForLinux(),
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							"os": "windows",
+						},
+					},
+				},
+			},
+			profileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			}, expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			},
+			expectedErr: fmt.Errorf("conflict with existing profile"),
+		},
+		{
+			name:    "invalid profile",
+			profile: exampleInvalidProfile(),
+			nodes: []v1.Node{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node1",
+						Labels: map[string]string{
+							"os": "linux",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node2",
+						Labels: map[string]string{
+							"os": "windows",
+						},
+					},
+				},
+			},
+			profileAppliedByNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			}, expectedProfilesAppliedPerNode: map[string]types.NamespacedName{
+				"node1": {
+					Namespace: testNamespace,
+					Name:      "linux",
+				},
+			},
+			expectedErr: fmt.Errorf("profileAffinity must be defined"),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			profilesToApply, profileAppliedPerNode, err := ProfilesToApply(test.profiles, test.nodes, testLogger)
-			require.NoError(t, err)
-			assert.ElementsMatch(t, test.expectedProfiles, profilesToApply)
-			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedPerNode)
+			now := metav1.NewTime(time.Now())
+			profileAppliedByNode, err := ProfileToApply(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now)
+			assert.Equal(t, test.expectedErr, err)
+			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedByNode)
 		})
 	}
 }
 
-func TestComponentOverrideFromProfile(t *testing.T) {
+func TestOverrideFromProfile(t *testing.T) {
 	overrideNameForLinuxProfile := "datadog-agent-with-profile-default-linux"
 	overrideNameForExampleProfile := "datadog-agent-with-profile-default-example"
 
@@ -564,7 +360,7 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedOverride, ComponentOverrideFromProfile(&test.profile))
+			assert.Equal(t, test.expectedOverride, OverrideFromProfile(&test.profile))
 		})
 	}
 }
@@ -596,6 +392,85 @@ func TestDaemonSetName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName))
+		})
+	}
+}
+
+func TestPriorityClassNameOverride(t *testing.T) {
+	tests := []struct {
+		name                  string
+		profile               v1alpha1.DatadogAgentProfile
+		expectedpriorityClass *string
+	}{
+		{
+			name:                  "empty profile",
+			profile:               v1alpha1.DatadogAgentProfile{},
+			expectedpriorityClass: nil,
+		},
+		{
+			name: "profile with no priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers: map[common.AgentContainerName]*v1alpha1.Container{},
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: nil,
+		},
+		{
+			name: "profile with empty priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
+								PriorityClassName: apiutils.NewStringPointer(""),
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: apiutils.NewStringPointer(""),
+		},
+		{
+			name: "profile with priority class set",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
+								PriorityClassName: apiutils.NewStringPointer("bar"),
+							},
+						},
+					},
+				},
+			},
+			expectedpriorityClass: apiutils.NewStringPointer("bar"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedpriorityClass, priorityClassNameOverride(&test.profile))
 		})
 	}
 }
@@ -637,6 +512,19 @@ func exampleProfileForWindows() v1alpha1.DatadogAgentProfile {
 					},
 				},
 			},
+			Config: configWithCPURequestOverrideForCoreAgent("200m"),
+		},
+	}
+}
+
+func exampleInvalidProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "windows",
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			// missing ProfileAffinity
 			Config: configWithCPURequestOverrideForCoreAgent("200m"),
 		},
 	}

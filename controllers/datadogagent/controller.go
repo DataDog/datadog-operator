@@ -34,6 +34,7 @@ import (
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
@@ -66,12 +67,13 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
-	SupportCilium              bool
-	OperatorMetricsEnabled     bool
-	V2Enabled                  bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
+	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	OperatorMetricsEnabled          bool
+	V2Enabled                       bool
+	IntrospectionEnabled            bool
+	DatadogAgentProfileEnabled      bool
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -164,8 +166,9 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
-		Logger:                   logger,
+		SupportExtendedDaemonset:        opts.ExtendedDaemonsetOptions.Enabled,
+		Logger:                          logger,
+		ProcessChecksInCoreAgentEnabled: opts.ProcessChecksInCoreAgentEnabled,
 	}
 }
 

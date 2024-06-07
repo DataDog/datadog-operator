@@ -46,6 +46,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -125,10 +126,11 @@ type options struct {
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
 	webhookEnabled                         bool
-	v2APIEnabled                           bool
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
+	remoteConfigEnabled                    bool
+	processChecksInCoreAgentEnabled        bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -158,11 +160,12 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
-	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
+	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
+	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -206,11 +209,8 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
-	if !opts.v2APIEnabled {
-		setupLog.Error(nil, "The 'v2APIEnabled' flag is deprecated since v1.2.0+ and will be removed in v1.7.0. "+
-			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. "+
-			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled'). "+
-			"DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
+	if opts.webhookEnabled {
+		setupLog.Error(nil, "DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
 			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
 	}
 
@@ -262,6 +262,13 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
 	}
 
+	if opts.remoteConfigEnabled {
+		err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
+		if err != nil {
+			setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+		}
+	}
+
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
@@ -275,15 +282,16 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:              opts.supportCilium,
-		Creds:                      creds,
-		DatadogAgentEnabled:        opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:          opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
-		V2APIEnabled:               opts.v2APIEnabled,
-		IntrospectionEnabled:       opts.introspectionEnabled,
-		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
+		SupportCilium:                   opts.supportCilium,
+		Creds:                           creds,
+		DatadogAgentEnabled:             opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:           opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:               opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:          opts.operatorMetricsEnabled,
+		V2APIEnabled:                    true,
+		IntrospectionEnabled:            opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
+		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

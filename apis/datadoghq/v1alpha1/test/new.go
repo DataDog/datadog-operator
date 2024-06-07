@@ -7,11 +7,13 @@ package test
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -20,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/google/uuid"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -30,6 +33,9 @@ var (
 	apiVersion   = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
 	pullPolicy   = corev1.PullIfNotPresent
 	defaultImage = defaulting.GetLatestAgentImage()
+	// AgentInstallTime records the Agent install time
+	AgentInstallTime = metav1.NewTime(time.Now())
+	AgentInstallId   = types.UID(uuid.New().String())
 )
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation
@@ -108,10 +114,12 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			APIVersion: apiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:  ns,
-			Name:       name,
-			Labels:     map[string]string{},
-			Finalizers: []string{"finalizer.agent.datadoghq.com"},
+			Namespace:         ns,
+			Name:              name,
+			Labels:            map[string]string{},
+			Finalizers:        []string{"finalizer.agent.datadoghq.com"},
+			CreationTimestamp: AgentInstallTime,
+			UID:               AgentInstallId,
 		},
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
@@ -310,11 +318,11 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.Apm.Env = []corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallId,
-					Value: component.AgentInstallId,
+					Value: string(ad.GetUID()),
 				},
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallTime,
-					Value: component.AgentInstallTime,
+					Value: strconv.FormatInt(ad.GetCreationTimestamp().Unix(), 10),
 				},
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallType,

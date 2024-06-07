@@ -208,7 +208,7 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
-			Value: component.AgentInstallTime,
+			Value: strconv.FormatInt(test.AgentInstallTime.Time.Unix(), 10),
 		},
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
@@ -216,7 +216,7 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
-			Value: component.AgentInstallId,
+			Value: string(test.AgentInstallId),
 		},
 	}
 }
