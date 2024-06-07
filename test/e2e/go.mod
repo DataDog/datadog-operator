@@ -8,6 +8,7 @@ require (
 	github.com/gruntwork-io/terratest v0.46.13
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.9.0
 	github.com/pulumi/pulumi/sdk/v3 v3.108.1
+	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 	k8s.io/apimachinery v0.28.4
 )
 
