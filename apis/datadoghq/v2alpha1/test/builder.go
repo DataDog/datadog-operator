@@ -10,6 +10,10 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DatadogAgentBuilder struct {
@@ -72,6 +76,7 @@ func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 func (builder *DatadogAgentBuilder) initDogstatsd() {
 	if builder.datadogAgent.Spec.Features.Dogstatsd == nil {
 		builder.datadogAgent.Spec.Features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
+		builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{}
 	}
 }
 
@@ -107,6 +112,7 @@ func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigEnabled(e
 }
 
 func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	return builder
 }
@@ -156,11 +162,178 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) initSidecarInjection() {
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
+	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
+	}
 }
 
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerMutateUnlabelled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.MutateUnlabelled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerServiceName(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.ServiceName = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerAgentCommunicationMode(comMode string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(comMode)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerFailurePolicy(policy string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.FailurePolicy = apiutils.NewStringPointer(policy)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerWebhookName(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.WebhookName = apiutils.NewStringPointer(name)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Registry = apiutils.NewStringPointer(name)
+	return builder
+}
+
+//sidecar Injection
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
+	//builder.initAdmissionController()
+	builder.initSidecarInjection()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
+	if enabled {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = apiutils.NewStringPointer("fargate")
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = "agent"
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = defaulting.AgentLatestVersion
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionClusterAgentCommunicationEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionProvider(provider string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = apiutils.NewStringPointer(provider)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionRegistry(registry string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Registry = apiutils.NewStringPointer(registry)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionImageName(name string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	if name != "" {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = name
+	} else if builder.datadogAgent.Spec.Override["nodeAgent"] != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image.Name != "" {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = builder.datadogAgent.Spec.Override["nodeAgent"].Image.Name
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionImageTag(tag string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+	if tag != "" {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = tag
+	} else if builder.datadogAgent.Spec.Override["nodeAgent"] != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image != nil && builder.datadogAgent.Spec.Override["nodeAgent"].Image.Tag != "" {
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = builder.datadogAgent.Spec.Override["nodeAgent"].Image.Tag
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionSelectors(selectorKey, selectorValue string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+
+	selectors := []*v2alpha1.Selector{
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					selectorKey: selectorValue,
+				},
+			},
+			ObjectSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					selectorKey: selectorValue,
+				},
+			},
+		},
+	}
+
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Selectors = selectors
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.initSidecarInjection()
+
+	profiles := []*v2alpha1.Profile{
+		{
+			EnvVars: []corev1.EnvVar{
+				{
+					Name:  envKey,
+					Value: envValue,
+				},
+			},
+			ResourceRequirements: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse(resourceCPU),
+					corev1.ResourceMemory: resource.MustParse(resourceMem),
+				},
+			},
+		},
+	}
+
+	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Profiles = profiles
+	return builder
+}
+
+// Process Discovery
+func (builder *DatadogAgentBuilder) initProcessDiscovery() {
+	if builder.datadogAgent.Spec.Features.ProcessDiscovery == nil {
+		builder.datadogAgent.Spec.Features.ProcessDiscovery = &v2alpha1.ProcessDiscoveryFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initProcessDiscovery()
+	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
@@ -390,6 +563,22 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.ASM = &v2alpha1.ASMFeatureConfig{
+		Threats: &v2alpha1.ASMThreatsConfig{
+			Enabled: apiutils.NewBoolPointer(threats),
+		},
+		SCA: &v2alpha1.ASMSCAConfig{
+			Enabled: apiutils.NewBoolPointer(sca),
+		},
+		IAST: &v2alpha1.ASMIASTConfig{
+			Enabled: apiutils.NewBoolPointer(iast),
+		},
+	}
+	return builder
+
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {
@@ -458,6 +647,26 @@ func (builder *DatadogAgentBuilder) initCWS() {
 func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initCWS()
 	builder.datadogAgent.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// cwsInstrumentation
+
+func (builder *DatadogAgentBuilder) initCWSInstrumentation() {
+	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithCWSInstrumentationEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCWSInstrumentation()
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithCWSInstrumentationMode(mode string) *DatadogAgentBuilder {
+	builder.initCWSInstrumentation()
+	builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation.Mode = apiutils.NewStringPointer(mode)
 	return builder
 }
 
@@ -542,6 +751,23 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 		APIKey: utils.NewStringPointer(apiKey),
 		AppKey: utils.NewStringPointer(appKey),
 	}
+	return builder
+}
+
+// Global OriginDetectionUnified
+
+func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.OriginDetectionUnified = &v2alpha1.OriginDetectionUnified{
+		Enabled: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
+// Global OriginDetectionUnified
+
+func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Registry = apiutils.NewStringPointer(registry)
+
 	return builder
 }
 

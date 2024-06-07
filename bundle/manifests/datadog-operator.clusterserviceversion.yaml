@@ -901,6 +901,15 @@ spec:
             strategy: {}
             template:
               metadata:
+                annotations:
+                  ad.datadoghq.com/datadog-operator.check_names: '["openmetrics"]'
+                  ad.datadoghq.com/datadog-operator.init_configs: '[{}]'
+                  ad.datadoghq.com/datadog-operator.instances: |
+                    [{
+                      "prometheus_url": "http://%%host%%:8080/metrics",
+                      "namespace": "datadog.operator",
+                      "metrics": ["*"]
+                    }]
                 labels:
                   app.kubernetes.io/name: datadog-operator
               spec:

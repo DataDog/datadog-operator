@@ -37,7 +37,7 @@ jobs:
         uses: goreleaser/goreleaser-action@v3
         with:
           version: latest
-          args: release --skip-publish --config .goreleaser-for-linux.yaml
+          args: release --skip=publish --config .goreleaser-for-linux.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
@@ -72,7 +72,7 @@ jobs:
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
-          args: release --skip-publish --config .goreleaser-for-darwin.yaml
+          args: release --skip=publish --config .goreleaser-for-darwin.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload
@@ -106,7 +106,7 @@ jobs:
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
-          args: release --skip-publish --config .goreleaser-for-windows.yaml
+          args: release --skip=publish --config .goreleaser-for-windows.yaml
         env:
           GORELEASER_PREVIOUS_TAG: ${{steps.latest_version.outputs.release}}
       - name: Upload

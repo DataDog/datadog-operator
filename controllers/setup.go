@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/version"
@@ -34,16 +35,17 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset   ExtendedDaemonsetOptions
-	SupportCilium              bool
-	Creds                      config.Creds
-	DatadogAgentEnabled        bool
-	DatadogMonitorEnabled      bool
-	DatadogSLOEnabled          bool
-	OperatorMetricsEnabled     bool
-	V2APIEnabled               bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
+	SupportExtendedDaemonset        ExtendedDaemonsetOptions
+	SupportCilium                   bool
+	Creds                           config.Creds
+	DatadogAgentEnabled             bool
+	DatadogMonitorEnabled           bool
+	DatadogSLOEnabled               bool
+	OperatorMetricsEnabled          bool
+	V2APIEnabled                    bool
+	IntrospectionEnabled            bool
+	DatadogAgentProfileEnabled      bool
+	ProcessChecksInCoreAgentEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -83,6 +85,14 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	versionInfo, err := discoveryClient.ServerVersion()
 	if err != nil {
 		return fmt.Errorf("unable to get APIServer version: %w", err)
+	}
+
+	if versionInfo != nil {
+		gitVersion := versionInfo.GitVersion
+		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
+			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+
+				"CRDs of this version will be deprecated and will not be updated starting with Operator v1.8.0 and will be removed in v1.10.0.")
+		}
 	}
 
 	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
@@ -138,11 +148,12 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:              options.SupportCilium,
-			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
-			V2Enabled:                  options.V2APIEnabled,
-			IntrospectionEnabled:       options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			SupportCilium:                   options.SupportCilium,
+			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
+			V2Enabled:                       options.V2APIEnabled,
+			IntrospectionEnabled:            options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled:      options.DatadogAgentProfileEnabled,
+			ProcessChecksInCoreAgentEnabled: options.ProcessChecksInCoreAgentEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

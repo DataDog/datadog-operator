@@ -9,17 +9,18 @@ import (
 	"fmt"
 	"sort"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
+	"github.com/go-logr/logr"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/go-logr/logr"
 )
 
 const (
@@ -28,81 +29,85 @@ const (
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 )
 
-// ProfilesToApply given a list of profiles, returns the ones that should be
-// applied in the cluster.
-// - If there are no profiles, it returns the default profile.
-// - If there are no conflicting profiles, it returns all the profiles plus the default one.
-// - If there are conflicting profiles, it returns a subset that does not
-// conflict plus the default one. When there are conflicting profiles, the
-// oldest one is the one that takes precedence. When two profiles share an
-// identical creation timestamp, the profile whose name is alphabetically first
-// is considered to have priority.
-// This function also returns a map that maps each node name to the profile that
-// should be applied to it.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, logger logr.Logger) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
-	var profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
-	profileAppliedPerNode := make(map[string]types.NamespacedName, len(nodes))
+// ProfileToApply validates a profile spec and returns a map that maps each
+// node name to the profile that should be applied to it.
+func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
+	now metav1.Time) (map[string]types.NamespacedName, error) {
+	nodesThatMatchProfile := map[string]bool{}
+	profileStatus := datadoghqv1alpha1.DatadogAgentProfileStatus{}
 
-	sortedProfiles := sortProfiles(profiles)
-
-	for _, profile := range sortedProfiles {
-		conflicts := false
-		nodesThatMatchProfile := map[string]bool{}
-
-		if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
-			logger.Error(err, "profile spec is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
-			continue
-		}
-
-		for _, node := range nodes {
-			matchesNode, err := profileMatchesNode(&profile, node.Labels)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			if matchesNode {
-				if existingProfile, found := profileAppliedPerNode[node.Name]; found {
-					// Conflict. This profile should not be applied.
-					conflicts = true
-					logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
-					break
-				} else {
-					nodesThatMatchProfile[node.Name] = true
-				}
-			}
-		}
-
-		if conflicts {
-			continue
-		}
-
-		for node := range nodesThatMatchProfile {
-			profileAppliedPerNode[node] = types.NamespacedName{
-				Namespace: profile.Namespace,
-				Name:      profile.Name,
-			}
-		}
-
-		profilesToApply = append(profilesToApply, profile)
+	if hash, err := comparison.GenerateMD5ForSpec(profile.Spec); err != nil {
+		logger.Error(err, "couldn't generate hash for profile", "name", profile.Name, "namespace", profile.Namespace)
+	} else {
+		profileStatus.CurrentHash = hash
 	}
 
+	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+		logger.Error(err, "profile spec is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+		profileStatus.Valid = metav1.ConditionFalse
+		UpdateProfileStatus(profile, profileStatus, now)
+		return profileAppliedByNode, err
+	}
+
+	for _, node := range nodes {
+		matchesNode, err := profileMatchesNode(profile, node.Labels)
+		if err != nil {
+			logger.Error(err, "profile selector is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
+			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+			profileStatus.Valid = metav1.ConditionFalse
+			UpdateProfileStatus(profile, profileStatus, now)
+			return profileAppliedByNode, err
+		}
+		profileStatus.Valid = metav1.ConditionTrue
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
+
+		if matchesNode {
+			if existingProfile, found := profileAppliedByNode[node.Name]; found {
+				// Conflict. This profile should not be applied.
+				logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
+				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
+				profileStatus.Applied = metav1.ConditionFalse
+				UpdateProfileStatus(profile, profileStatus, now)
+				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
+			} else {
+				nodesThatMatchProfile[node.Name] = true
+				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
+				profileStatus.Applied = metav1.ConditionTrue
+			}
+		}
+	}
+
+	for node := range nodesThatMatchProfile {
+		profileAppliedByNode[node] = types.NamespacedName{
+			Namespace: profile.Namespace,
+			Name:      profile.Name,
+		}
+	}
+
+	UpdateProfileStatus(profile, profileStatus, now)
+
+	return profileAppliedByNode, nil
+}
+
+func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []datadoghqv1alpha1.DatadogAgentProfile {
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
 	for _, node := range nodes {
-		if _, found := profileAppliedPerNode[node.Name]; !found {
-			profileAppliedPerNode[node.Name] = types.NamespacedName{
+		if _, found := profileAppliedByNode[node.Name]; !found {
+			profileAppliedByNode[node.Name] = types.NamespacedName{
 				Name: defaultProfileName,
 			}
 		}
 	}
 
-	return profilesToApply, profileAppliedPerNode, nil
+	return profilesToApply
 }
 
-// ComponentOverrideFromProfile returns the component override that should be
+// OverrideFromProfile returns the component override that should be
 // applied according to the given profile.
-func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
 	if profile.Name == "" && profile.Namespace == "" {
 		return v2alpha1.DatadogAgentComponentOverride{}
 	}
@@ -111,12 +116,18 @@ func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile
 		Name:      profile.Name,
 	})
 
-	return v2alpha1.DatadogAgentComponentOverride{
+	profileComponentOverride := v2alpha1.DatadogAgentComponentOverride{
 		Name:       &overrideDSName,
 		Affinity:   affinityOverride(profile),
 		Containers: containersOverride(profile),
 		Labels:     labelsOverride(profile),
 	}
+
+	if priorityClassName := priorityClassNameOverride(profile); priorityClassName != nil {
+		profileComponentOverride.PriorityClassName = priorityClassName
+	}
+
+	return profileComponentOverride
 }
 
 // IsDefaultProfile returns true if the given profile namespace and name
@@ -264,9 +275,26 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 	}
 }
 
-// sortProfiles sorts the profiles by creation timestamp. If two profiles have
+func priorityClassNameOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *string {
+	if IsDefaultProfile(profile.Namespace, profile.Name) {
+		return nil
+	}
+
+	if profile.Spec.Config == nil {
+		return nil
+	}
+
+	nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]
+	if !ok { // We only support overrides for the node agent, if there is no override for it, there's nothing to do
+		return nil
+	}
+
+	return nodeAgentOverride.PriorityClassName
+}
+
+// SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
-func sortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
+func SortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
 	sortedProfiles := make([]datadoghqv1alpha1.DatadogAgentProfile, len(profiles))
 	copy(sortedProfiles, profiles)
 

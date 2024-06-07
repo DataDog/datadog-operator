@@ -41,7 +41,12 @@ func (f *usmFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features != nil && dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	mergeConfigs(&dda.Spec, &dda.Status)
+
+	usmConfig := dda.Spec.Features.USM
+
+	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -84,6 +89,24 @@ func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.USM == nil || ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.USM == nil {
+		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled != nil {
+		ddaSpec.Features.USM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -146,20 +169,33 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		},
 	)
 
-	// env vars for System Probe and Process Agent
+	// env vars for Core Agent, Process Agent and System Probe
+	containersForEnvVars := []apicommonv1.AgentContainerName{
+		apicommonv1.CoreAgentContainerName,
+		apicommonv1.ProcessAgentContainerName,
+		apicommonv1.SystemProbeContainerName,
+	}
+
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
+
+	sysProbeEnableEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeEnabled,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainers(
+		[]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		sysProbeEnableEnvVar,
+	)
 
 	sysProbeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
 		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeSocketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeSocketEnvVar)
+	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeSocketEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{

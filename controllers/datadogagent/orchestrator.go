@@ -174,6 +174,7 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 				rbac.PodsResource,
 				rbac.ServicesResource,
 				rbac.NodesResource,
+				rbac.LimitRangesResource,
 			},
 		},
 		{
@@ -222,6 +223,14 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		{
 			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
 			Resources: []string{rbac.VPAResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.StorageAPIGroup},
+			Resources: []string{rbac.StorageClassesResource},
 			Verbs: []string{
 				rbac.ListVerb,
 				rbac.WatchVerb,

@@ -96,6 +96,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
+	now := metav1.NewTime(time.Now())
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
@@ -123,9 +124,15 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			errs = append(errs, featErr)
 		}
 	}
+	if len(errs) > 0 {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
+	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(logger, resourceManagers, instance)...)
+	errs = override.Dependencies(logger, resourceManagers, instance)
+	if len(errs) > 0 {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
+	}
 
 	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
 	if !userSpecifiedClusterAgentToken {
@@ -140,7 +147,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	} else {
+		// Update the status to make it the ClusterAgentReconcileConditionType successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// Start with an "empty" profile and provider
@@ -153,25 +163,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		// Get a node list for profiles and introspection
 		nodeList, e := r.getNodeList(ctx)
 		if e != nil {
-			return reconcile.Result{}, e
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
 		}
 
 		if r.options.IntrospectionEnabled {
-			providerList, err = r.handleProviders(ctx, instance, newStatus, nodeList, logger)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
-			profileList, profilesByNode, e := r.profilesToApply(ctx, logger, nodeList)
+			var profilesByNode map[string]types.NamespacedName
+			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now)
 			if err != nil {
-				return reconcile.Result{}, e
+				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
 			}
-			profiles = profileList
 
-			if err = r.handleProfiles(ctx, profiles, profilesByNode, instance.Namespace, providerList); err != nil {
-				return reconcile.Result{}, err
+			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
+				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 			}
 		}
 	}
@@ -180,14 +187,29 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		for provider := range providerList {
 			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
 			if utils.ShouldReturn(result, err) {
-				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+				// If the agent reconcile failed, we should not continue with the other profiles
+				errs = append(errs, err)
 			}
 		}
 	}
 
+	if err = r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
+		errs = append(errs, err)
+		logger.Error(err, "Error cleaning up old DaemonSets")
+	}
+	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
+	} else {
+		// Update the status to set AgentReconcileConditionType to successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	}
+
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	} else {
+		// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// ------------------------------
@@ -196,7 +218,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
-		return result, errors.NewAggregate(errs)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
 	}
 
 	// -----------------------------
@@ -204,18 +226,17 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------------
 	// Run it after the deployments reconcile
 	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
-		return result, errors.NewAggregate(errs)
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
 	}
 
 	// Always requeue
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+	return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 }
 
-func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
-	now := metav1.NewTime(time.Now())
+func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
@@ -238,6 +259,15 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	}
 
 	return result, currentError
+}
+
+func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) {
+	if err := r.client.Status().Update(context.TODO(), profile); err != nil {
+		if apierrors.IsConflict(err) {
+			logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+		}
+		logger.Error(err, "unable to update DatadogAgentProfile status")
+	}
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
@@ -286,20 +316,49 @@ func ensureAutoGeneratedTokenInStatus(instance *datadoghqv2alpha1.DatadogAgent, 
 }
 
 func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.DatadogAgent, features []feature.Feature) {
-	// todo: fix nil pointer metrics forwarder
-	// if r.forwarders != nil {
-	// 	r.forwarders.SetEnabledFeatures(dda, features)
-	// }
+	if r.forwarders != nil {
+		r.forwarders.SetEnabledFeatures(dda, features)
+	}
 }
 
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+// profilesToApply gets a list of profiles and returns the ones that should be
+// applied in the cluster.
+// - If there are no profiles, it returns the default profile.
+// - If there are no conflicting profiles, it returns all the profiles plus the default one.
+// - If there are conflicting profiles, it returns a subset that does not
+// conflict plus the default one. When there are conflicting profiles, the
+// oldest one is the one that takes precedence. When two profiles share an
+// identical creation timestamp, the profile whose name is alphabetically first
+// is considered to have priority.
+// This function also returns a map that maps each node name to the profile that
+// should be applied to it.
+func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return agentprofile.ProfilesToApply(profilesList.Items, nodeList, logger)
+	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
+	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
+
+	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
+	for _, profile := range sortedProfiles {
+
+		profileAppliedByNode, err = agentprofile.ProfileToApply(logger, &profile, nodeList, profileAppliedByNode, now)
+		r.updateDAPStatus(logger, &profile)
+		if err != nil {
+			// profile is invalid or conflicts
+			logger.Error(err, "profile cannot be applied", "name", profile.Name, "namespace", profile.Namespace)
+			continue
+		}
+		profileListToApply = append(profileListToApply, profile)
+	}
+
+	// add default profile
+	profileListToApply = agentprofile.ApplyDefaultProfile(profileListToApply, profileAppliedByNode, nodeList)
+
+	return profileListToApply, profileAppliedByNode, nil
 }
 
 func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
