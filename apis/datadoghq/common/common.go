@@ -48,6 +48,24 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 	return readinessProbe
 }
 
+// GetDefaultStartupProbe creates a defaulted StartupProbe
+func GetDefaultStartupProbe() *corev1.Probe {
+	startupProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultStartupProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultStartupProbePeriodSeconds,
+		TimeoutSeconds:      DefaultStartupProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultStartupProbeSuccessThreshold,
+		FailureThreshold:    DefaultStartupProbeFailureThreshold,
+	}
+	startupProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultStartupProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultAgentHealthPort,
+		},
+	}
+	return startupProbe
+}
+
 // GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent
 func GetDefaultTraceAgentProbe() *corev1.Probe {
 	probe := &corev1.Probe{
