@@ -8,6 +8,7 @@ require (
 	github.com/gruntwork-io/terratest v0.46.13
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.9.0
 	github.com/pulumi/pulumi/sdk/v3 v3.108.1
+	github.com/stretchr/testify v1.8.5-0.20231013065317-89920137cdfa
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 	k8s.io/apimachinery v0.28.4
 )
@@ -147,7 +148,6 @@ require (
 	github.com/spf13/cast v1.6.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.5-0.20231013065317-89920137cdfa // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tweekmonster/luser v0.0.0-20161003172636-3fa38070dbd7 // indirect
