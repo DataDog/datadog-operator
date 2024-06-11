@@ -263,10 +263,17 @@ func run(opts *options) error {
 	}
 
 	if opts.remoteConfigEnabled {
-		err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
-		if err != nil {
-			setupErrorf(setupLog, err, "Unable to set up Remote Config service")
-		}
+		go func() {
+			// Block until this controller manager is elected leader. We presume the
+			// entire process will terminate if we lose leadership, so we don't need
+			// to handle that.
+			<-mgr.Elected()
+
+			err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
+			if err != nil {
+				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+			}
+		}()
 	}
 
 	options := controllers.SetupOptions{
