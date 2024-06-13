@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -273,7 +272,7 @@ func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[stri
 	return nil
 }
 
-// labelNodesWithProfiles sets the "agent.datadoghq.com/profile" label only in
+// labelNodesWithProfiles sets the "agent.datadoghq.com/datadogagentprofile" label only in
 // the nodes where a profile is applied
 func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
 	for nodeName, profileNamespacedName := range profilesByNode {
@@ -288,15 +287,13 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 
 		var newLabels map[string]string
 
+		// If the profile uses the old profile label key, it should be removed
+		newLabels = removeAnnotationLabel(node.Labels, agentprofile.OldProfileLabelKey)
+
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
 		if isDefaultProfile && profileLabelExists {
-			newLabels = make(map[string]string, len(node.Labels)-1)
-			for label, value := range node.Labels {
-				if label != agentprofile.ProfileLabelKey {
-					newLabels[label] = value
-				}
-			}
+			newLabels = removeAnnotationLabel(newLabels, agentprofile.ProfileLabelKey)
 		}
 
 		// If the profile is not the default one and the label does not exist in
@@ -306,7 +303,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			for label, value := range node.Labels {
 				newLabels[label] = value
 			}
-			newLabels[agentprofile.ProfileLabelKey] = fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+			newLabels[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
 		}
 
 		if len(newLabels) == 0 {
@@ -356,7 +353,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		}
 
 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-		expectedProfileLabelValue := fmt.Sprintf("%s-%s", profileNamespacedName.Namespace, profileNamespacedName.Name)
+		expectedProfileLabelValue := profileNamespacedName.Name
 
 		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
 
