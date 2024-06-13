@@ -24,7 +24,9 @@ import (
 )
 
 const (
-	ProfileLabelKey     = "agent.datadoghq.com/datadogagentprofile"
+	ProfileLabelKey = "agent.datadoghq.com/datadogagentprofile"
+	// OldProfileLabelKey was deprecated in operator v1.8.0
+	OldProfileLabelKey  = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 )

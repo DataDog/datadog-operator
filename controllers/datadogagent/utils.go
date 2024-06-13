@@ -1936,6 +1936,21 @@ func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, n
 	return mergedMap
 }
 
+func removeAnnotationLabel(vals map[string]string, valToRemove string) map[string]string {
+	_, labelExists := vals[valToRemove]
+	if labelExists {
+		newVals := make(map[string]string, len(vals)-1)
+		for key, value := range vals {
+			if key != valToRemove {
+				newVals[key] = value
+			}
+		}
+		return newVals
+	}
+
+	return vals
+}
+
 // GetConfName get the name of the Configmap for a CustomConfigSpec
 func GetConfName(dca metav1.Object, conf *datadoghqv1alpha1.CustomConfigSpec, defaultName string) string {
 	// `configData` and `configMap` can't be set together.
