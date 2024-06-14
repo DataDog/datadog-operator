@@ -235,7 +235,7 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
-	mgr, err := ctrl.NewManager(restConfig, config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   opts.metricsAddr,
@@ -248,8 +248,8 @@ func run(opts *options) error {
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
-		Cache:                      cacheOptions(),
-	}))
+		Cache:                      cacheOptions(setupLog),
+	})
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
 
@@ -331,17 +331,24 @@ func run(opts *options) error {
 // interested in the node name and the labels.
 // Note that if in the future we need to list or get pods or nodes and use other
 // fields we'll need to modify this function.
-func cacheOptions() cache.Options {
+func cacheOptions(logger logr.Logger) cache.Options {
 	return cache.Options{
+		DefaultNamespaces: config.GetNamespaceConfigs(logger, cache.Config{}),
 		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {
+
 				Label: labels.SelectorFromSet(map[string]string{
 					common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
 				}),
 
+				Namespaces: config.GetNamespaceConfigs(logger, cache.Config{
+					LabelSelector: labels.SelectorFromSet(map[string]string{
+						common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
+					}),
+				}),
+
 				Transform: func(obj interface{}) (interface{}, error) {
 					pod := obj.(*corev1.Pod)
-
 					newPod := &corev1.Pod{
 						TypeMeta: pod.TypeMeta,
 						ObjectMeta: v1.ObjectMeta{
