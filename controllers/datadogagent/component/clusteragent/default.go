@@ -115,6 +115,12 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
 		// },
 	}
+
+	// set container
+	container := &podSpec.Containers[0]
+	container.LivenessProbe = apicommon.GetDefaultLivenessProbe()
+	container.ReadinessProbe = apicommon.GetDefaultReadinessProbe()
+
 	return podSpec
 }
 
