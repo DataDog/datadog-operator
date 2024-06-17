@@ -106,7 +106,6 @@ type options struct {
 
 	// Leader Election options
 	enableLeaderElection        bool
-	leaderElectionResourceLock  string
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
@@ -149,7 +148,6 @@ func (opts *options) Parse() {
 	// Leader Election options flags
 	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", resourcelock.LeasesResourceLock, "determines which resource lock to use for leader election. option:[leases]")
 	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
@@ -244,7 +242,7 @@ func run(opts *options) error {
 		WebhookServer:              webhook.NewServer(webhook.Options{Port: 9443}),
 		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
-		LeaderElectionResourceLock: opts.leaderElectionResourceLock,
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
