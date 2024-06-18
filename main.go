@@ -339,12 +339,6 @@ func cacheOptions(logger logr.Logger) cache.Options {
 					common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
 				}),
 
-				Namespaces: config.GetNamespaceConfigs(logger, cache.Config{
-					LabelSelector: labels.SelectorFromSet(map[string]string{
-						common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
-					}),
-				}),
-
 				Transform: func(obj interface{}) (interface{}, error) {
 					pod := obj.(*corev1.Pod)
 					newPod := &corev1.Pod{
