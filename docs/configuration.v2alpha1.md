@@ -1,18 +1,28 @@
 # Configuration
 
+This page describes configuration options for Datadog Operator v1.0.0, which uses `DatadogAgent/v2alpha1`. For earlier versions of the Datadog Operator, see [configuration options for `DatadogAgent/v1alpha1`][7] or [migrate to `v2alpha1`][8].
+
+After you [install the Datadog Operator][9], create a manifest file called `datadog-agent.yaml` with the configuration options listed on this page. You can also use one of the provided [manifest templates](#manifest-templates).
+
+To apply your configuration, run the following command:
+
+```sh
+kubectl apply -f datadog-agent.yaml
+```
+
 ## Manifest Templates
 
-* [Manifest with Logs, APM, process, and metrics collection enabled.][1]
-* [Manifest with Logs, APM, and metrics collection enabled.][2]
-* [Manifest with APM and metrics collection enabled.][3]
-* [Manifest with Cluster Agent.][4]
-* [Manifest with tolerations.][5]
+* [Manifest with logs, APM, process, and metrics collection enabled][1]
+* [Manifest with logs, APM, and metrics collection enabled][2]
+* [Manifest with APM and metrics collection enabled][3]
+* [Manifest with Cluster Agent][4]
+* [Manifest with tolerations][5]
 
 ## All configuration options
 
-The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a custom cluster name, your
-`DatadogAgent` resource would look like the following:
+Use the parameters in this section for the `DatadogAgent` resource. 
+
+**Example**: The following `DatadogAgent` resource sets a custom cluster name.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -33,7 +43,7 @@ spec:
 
 | Parameter | Description |
 | --------- | ----------- |
-| features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
+| `features.admissionController.agentCommunicationMode` | Corresponds to the mode used by the Datadog application libraries to communicate with the Agent. Values: `hostip`, `service`, or `socket`. |
 | features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
 | features.admissionController.agentSidecarInjection.enabled | Enabled enables Sidecar injections. Default: false |
 | features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
@@ -47,125 +57,125 @@ spec:
 | features.admissionController.agentSidecarInjection.selectors | Selectors define the pod selector for sidecar injection. Only one rule is supported. |
 | features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint. Default: false |
 | features.admissionController.cwsInstrumentation.mode | Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
-| features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
-| features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
-| features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| `features.admissionController.enabled` | If `true`, enables the Admission Controller. Default: `true`. |
+| `features.admissionController.failurePolicy` | Determines how unrecognized and timeout errors are handled. Values: `Ignore` or `Fail`. |
+| `features.admissionController.mutateUnlabelled` | If `true`, enables config injection without the need of pod label `admission.datadoghq.com/enabled="true"`. Default: `false`. |
 | features.admissionController.registry | Registry defines an image registry for the admission controller. |
-| features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
-| features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
-| features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
-| features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
-| features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
-| features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
-| features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
-| features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
-| features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
-| features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| `features.admissionController.serviceName` | Corresponds to the webhook service name. |
+| `features.admissionController.webhookName` | A custom name for the `MutatingWebhookConfiguration`. Default: `datadog-webhook`. |
+| `features.apm.enabled` | If `true`, enables Application Performance Monitoring (APM). Default: `true`. |
+| `features.apm.hostPortConfig.enabled` | If `true`, enables sending traces over TCP. Default: `false`. |
+| `features.apm.hostPortConfig.hostPort` | If sending traces over TCP is enabled, takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If `hostNetwork` is enabled, this value must match the `containerPort`. |
+| `features.apm.instrumentation.disabledNamespaces` | A list of namespaces into which injecting the Datadog APM libraries into pods is disabled. |
+| `features.apm.instrumentation.enabled` | If `true`, enables injecting the Datadog APM libraries into all pods in the cluster. Default: `false`. |
+| `features.apm.instrumentation.enabledNamespaces` | A list of namespaces into which injecting the Datadog APM libraries into pods is enabled. |
+| `features.apm.instrumentation.libVersions` | Configures injection of specific tracing library versions with single step instrumentation. Use the format `<library>: <version>`. For example, `"java": "v1.18.0"`. |
+| `features.apm.unixDomainSocketConfig.enabled` | If `true`, enables sending traces over Unix Domain Socket (UDS). Default: `true` |
+| `features.apm.unixDomainSocketConfig.path` | If sending traces over UDS is enabled (default), defines the socket path used. |
 | features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
-| features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
-| features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
-| features.cspm.checkInterval | CheckInterval defines the check interval. |
-| features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
-| features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
-| features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: false |
-| features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
-| features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
-| features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
-| features.cws.network.enabled | Enabled enables Cloud Workload Security Network detections. Default: true |
-| features.cws.remoteConfiguration.enabled | Enabled enables Remote Configuration for Cloud Workload Security. Default: true |
-| features.cws.securityProfiles.enabled | Enabled enables Security Profiles collection for Cloud Workload Security. Default: true |
-| features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
-| features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
-| features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
-| features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
-| features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
-| features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
-| features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
-| features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
-| features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
-| features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
-| features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
-| features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
-| features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
-| features.externalMetricsServer.endpoint.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| features.externalMetricsServer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
-| features.externalMetricsServer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
-| features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
-| features.externalMetricsServer.port | Port specifies the metricsProvider External Metrics Server service port. Default: 8443 |
-| features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
-| features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
-| features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
-| features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
-| features.helmCheck.enabled | Enabled enables the Helm check. Default: false |
-| features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
-| features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
-| features.kubeStateMetricsCore.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.kubeStateMetricsCore.conf.configMap.name | Name is the name of the ConfigMap. |
-| features.kubeStateMetricsCore.enabled | Enabled enables Kube State Metrics Core. Default: true |
-| features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
-| features.liveProcessCollection.enabled | Enabled enables Process monitoring. Default: false |
-| features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
-| features.liveProcessCollection.stripProcessArguments | StripProcessArguments enables stripping of all process arguments. Default: false |
-| features.logCollection.containerCollectAll | ContainerCollectAll enables Log collection from all containers. Default: false |
-| features.logCollection.containerCollectUsingFiles | ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true |
-| features.logCollection.containerLogsPath | ContainerLogsPath allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default: `/var/lib/docker/containers` |
-| features.logCollection.containerSymlinksPath | ContainerSymlinksPath allows log collection to use symbolic links in this directory to validate container ID -> pod. Default: `/var/log/containers` |
-| features.logCollection.enabled | Enabled enables Log collection. Default: false |
-| features.logCollection.openFilesLimit | OpenFilesLimit sets the maximum number of log files that the Datadog Agent tails. Increasing this limit can increase resource consumption of the Agent. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: 100 |
-| features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
-| features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
-| features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
-| features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
-| features.npm.enabled | Enabled enables Network Performance Monitoring. Default: false |
-| features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
-| features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
-| features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| features.orchestratorExplorer.conf.configMap.name | Name is the name of the ConfigMap. |
-| features.orchestratorExplorer.customResources | `CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`. |
-| features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
-| features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
-| features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
-| features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
-| features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. |
-| features.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
-| features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
-| features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
-| features.processDiscovery.enabled | Enabled enables the Process Discovery check in the Agent. Default: true |
-| features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
-| features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
-| features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
-| features.prometheusScrape.version | Version specifies the version of the OpenMetrics check. Default: 2 |
-| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
-| features.sbom.containerImage.analyzers | Analyzers to use for SBOM collection. |
-| features.sbom.containerImage.enabled | Enable this option to activate SBOM collection. Default: false |
-| features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
-| features.sbom.host.analyzers | Analyzers to use for SBOM collection. |
-| features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
-| features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
-| features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
-| global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
-| global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
-| global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
-| global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
-| global.containerStrategy | ContainerStrategy determines whether agents run in a single or multiple containers. Default: 'optimized' |
-| global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
-| global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
-| global.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| global.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
-| global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
-| global.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| global.criSocketPath | Path to the container runtime socket (if different from Docker). |
-| global.disableNonResourceRules | Set DisableNonResourceRules to exclude NonResourceURLs from default ClusterRoles. Required 'true' for Google Cloud Marketplace. |
-| global.dockerSocketPath | Path to the docker runtime socket. |
+| `features.clusterChecks.enabled` | If `true`, enables cluster check scheduling in the Cluster Agent. Default: `true`. |
+| `features.clusterChecks.useClusterChecksRunners` | If `true`, enables cluster check runners to run all cluster checks. Default: `false`. |
+| `features.cspm.checkInterval` | Defines the check interval for Cloud Security Posture Management (CSPM). |
+| `features.cspm.customBenchmarks.configData` | Corresponds to configuration file content for CSPM. |
+| `features.cspm.customBenchmarks.configMap.items` | When configuring CSPM, maps a ConfigMap data `key` to a file `path` mount. |
+| `features.cspm.customBenchmarks.configMap.name` | When configuring CSPM, the name of the ConfigMap. |
+| `features.cspm.enabled` | If `true`, enables Cloud Security Posture Management (CSPM). Default: `false`. |
+| `features.cspm.hostBenchmarks.enabled` | If `true`, enables host benchmarks for CSPM. Default: `false`. |
+| `features.cws.customPolicies.configData` | Corresponds to the configuration file content for Cloud Workload Security (CWS). |
+| `features.cws.customPolicies.configMap.items` | When configuring CWS, maps a ConfigMap data `key` to a file `path` mount. |
+| `features.cws.customPolicies.configMap.name` | When configuring CWS, the name of the ConfigMap. |
+| `features.cws.enabled` | If `true`, enables Cloud Workload Security (CWS). Default: `false`. |
+| `features.cws.network.enabled` | If `true`, enables CWS network detections. Default: `true`. |
+| `features.cws.remoteConfiguration.enabled` | If `true`, enables Remote Configuration for CWS. Default: `true`. |
+| `features.cws.securityProfiles.enabled` | If `true`, enables security profile collection for CWS. Default: `true`. |
+| `features.cws.syscallMonitorEnabled` | If `true`, enables monitoring syscalls. Recommended only for troubleshooting. Default: `false`. |
+| `features.dogstatsd.hostPortConfig.enabled` | If `true`, enables host port configuration for DogStatsD. Default: `false`. |
+| `features.dogstatsd.hostPortConfig.hostPort` | If host port configuration for DogStatsD is enabled, takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If `hostNetwork` is enabled, this value must match the `containerPort`. |
+| `features.dogstatsd.mapperProfiles.configData` | Corresponds to configuration file content for DogStatsD. |
+| `features.dogstatsd.mapperProfiles.configMap.items` | For configuring DogStatsD. Maps a ConfigMap data `key` to a file `path` mount. |
+| `features.dogstatsd.mapperProfiles.configMap.name` | For configuring DogStatsD. The name of the ConfigMap. |
+| `features.dogstatsd.originDetectionEnabled` | When `true`, enables DogStatsD to perform origin detection for container tagging. See [DogStatsD: Origin Detection][10]. Default: `false`. |
+| `features.dogstatsd.tagCardinality` | Configures tag cardinality for the metrics collected using origin detection for DogStatsD. Values: `low`, `orchestrator` or `high`. Default: `low`. See [Assigning Tags][11]. |
+| `features.dogstatsd.unixDomainSocketConfig.enabled` | If `true`, enables sending DogStatsD data over Unix Domain Socket. Default: `true`. |
+| `features.dogstatsd.unixDomainSocketConfig.path` | If sending DogStatsD data over Unix Domain Socket is enabled (default), defines the socket path used. |
+| `features.ebpfCheck.enabled` | If `true`, enables the eBPF check. Default: `false`. |
+| `features.eventCollection.collectKubernetesEvents` | If `true`, enables Kubernetes event collection. Default: `true`. |
+| `features.externalMetricsServer.enabled` | If `true`, enables the External Metrics Server. Default: `false`. |
+| `features.externalMetricsServer.endpoint.credentials.apiKey` | Your Datadog API key for the External Metrics Server. |
+| `features.externalMetricsServer.endpoint.credentials.apiSecret.keyName` | Key of the secret that contains your Datadog API key for the External Metrics Server. |
+| `features.externalMetricsServer.endpoint.credentials.apiSecret.secretName` | Name of the secret that contains your Datadog API key for the External Metrics Server. |
+| `features.externalMetricsServer.endpoint.credentials.appKey` | Your Datadog application key for the External Metrics Server. If the External Metrics Server is enabled, you must set a Datadog application key for read access to your metrics. |
+| `features.externalMetricsServer.endpoint.credentials.appSecret.keyName` | Key of the secret that contains your Datadog application key for the External Metrics Server. If the External Metrics Server is enabled, you must set a Datadog application key for read access to your metrics. |
+| `features.externalMetricsServer.endpoint.credentials.appSecret.secretName` | Name of the secret that contains your Datadog application key for the External Metrics Server. If the External Metrics Server is enabled, you must set a Datadog application key for read access to your metrics. |
+| `features.externalMetricsServer.endpoint.url` | Defines the endpoint URL for the External Metrics Server. |
+| `features.externalMetricsServer.port` | Specifies the service port for the `metricsProvider` External Metrics Server. Default: `8443`. |
+| features.externalMetricsServer.registerAPIService | If `true`, registers the External Metrics endpoint as an APIService. Default: `true`. |
+| `features.externalMetricsServer.useDatadogMetrics` | If `true`, enables usage of the `DatadogMetrics` CRD. This allows you to scale on arbitrary Datadog metric queries. Default: `true`. |
+| `features.externalMetricsServer.wpaController` | If `true`, enables the informer and controller of the [Watermark Pod Autoscaler][12]. **Note**: The Watermark Pod Autoscaler controller needs to be installed. Default: `false`. |
+| `features.helmCheck.collectEvents` | If `true`, enables event collection in the Helm check. Requires Agent 7.36.0+ and Cluster Agent 1.20.0+. Default: `false`. |
+| `features.helmCheck.enabled` | If `true`, enables the Helm check. Default: `false`. |
+| `features.helmCheck.valuesAsTags` | Collects Helm values from a release and uses them as tags. Requires Agent 7.40.0+ and Cluster Agent 7.40.0+. Default: `{}`. |
+| `features.kubeStateMetricsCore.conf.configData` | Corresponds to configuration file content for the kube-state-metrics check. |
+| `features.kubeStateMetricsCore.conf.configMap.items` | For configuring the kube-state-metrics check. Maps a ConfigMap data `key` to a file `path` mount. |
+| `features.kubeStateMetricsCore.conf.configMap.name` | For configuring the kube-state-metrics check. The name of the ConfigMap. |
+| `features.kubeStateMetricsCore.enabled` | If `true`, enables the [kube-state-metrics][13] check. Default: `true`. |
+| `features.liveContainerCollection.enabled` | If `true`, enables container collection for the Containers page. Default: `true`. |
+| `features.liveProcessCollection.enabled` | If `true`, enables process collection. Default: `false`. |
+| `features.liveProcessCollection.scrubProcessArguments` | If `true`, enables scrubbing of sensitive data in process command lines, including passwords and tokens. Default: `true`. |
+| `features.liveProcessCollection.stripProcessArguments` | If `true`, enables stripping of all process arguments. Default: `false`. |
+| `features.logCollection.containerCollectAll` | If `true`, enables log collection from all containers. Default: `false`. |
+| `features.logCollection.containerCollectUsingFiles` | If `true`, enables log collection from files in `/var/log/pods` instead of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See [Kubernetes Log Collection in Datadog][14]. Default: `true`. |
+| `features.logCollection.containerLogsPath` | Sets the container log path for log collection. The default value corresponds to the Docker runtime; if you are not using the Docker runtime, set a different path. See [Kubernetes Log Collection in Datadog][14]. Default: `/var/lib/docker/containers`. |
+| `features.logCollection.containerSymlinksPath` | Sets a path for a directory in which log collection can use symbolic links to validate container ID -> pod. Default: `/var/log/containers`. |
+| `features.logCollection.enabled` | If `true`, enables log collection. Default: `false`. |
+| `features.logCollection.openFilesLimit` | Sets the maximum number of log files that the Datadog Agent tails. Increasing this limit can increase resource consumption of the Agent. Default: `100`. |
+| `features.logCollection.podLogsPath` | Sets the pod log path for log collection. Default: `/var/log/pods`. |
+| `features.logCollection.tempStoragePath` | Sets a path (always mounted from the host) where the Agent temporarily stores information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs`. |
+| `features.npm.collectDNSStats` | If `true`, enables DNS stat collection. Default: `false`. |
+| `features.npm.enableConntrack` | If `true` enables the system-probe Agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See [conntrack-tools][15]. Default: `false`. |
+| `features.npm.enabled` | If `true`, enables Network Performance Monitoring (NPM). Default: `false`. |
+| `features.oomKill.enabled` | Enables the OOMKill eBPF-based check. Default: `false`. |
+| `features.orchestratorExplorer.conf.configData` | Corresponds to configuration file content for Orhestrator Explorer. |
+| `features.orchestratorExplorer.conf.configMap.items` | For configuring the Orchestrator Explorer. Maps a ConfigMap data `key` to a file `path` mount. |
+| `features.orchestratorExplorer.conf.configMap.name` | For configuring the Orchestrator Explorer. The name of the ConfigMap. |
+| `features.orchestratorExplorer.customResources` | Defines custom resources for the Orchestrator Explorer to collect. Each item should follow the convention `<group>/<version>/<kind>`. For example, `datadoghq.com/v1alpha1/datadogmetrics`. |
+| `features.orchestratorExplorer.ddUrl` | Overrides the API endpoint for the Orchestrator Explorer. Default: `https://orchestrator.datadoghq.com`. |
+| `features.orchestratorExplorer.enabled` | If `true`, enables the Orchestrator Explorer. Default: `true`. |
+| `features.orchestratorExplorer.extraTags` | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option, distinct from `DD_TAGS`, that is used in the Orchestrator Explorer. |
+| `features.orchestratorExplorer.scrubContainers` | If `true`, enables scrubbing of sensitive container data, such as passwords and tokens. Default: `true`. |
+| `features.otlp.receiver.protocols.grpc.enabled` | If `true`, enables the OTLP/gRPC endpoint. |
+| `features.otlp.receiver.protocols.grpc.endpoint` | Endpoint for OTLP/gRPC. Use a `<host>:<port>` URI scheme. Default: `0.0.0.0:4317`. |
+| `features.otlp.receiver.protocols.http.enabled` | If `true`, enables the OTLP/HTTP endpoint. |
+| `features.otlp.receiver.protocols.http.endpoint` | Endpoint for OTLP/HTTP. Default: `0.0.0.0:4318`. |
+| `features.processDiscovery.enabled` | If `true`, enables the process discovery check in the Datadog Agent. Default: `true`. |
+| `features.prometheusScrape.additionalConfigs` | Adds advanced Prometheus check configurations with custom discovery rules. |
+| `features.prometheusScrape.enableServiceEndpoints` | If `true`, enables generating dedicated checks for service endpoints. Default: `false`. |
+| `features.prometheusScrape.enabled` | If `true`, enables the automatic discovery of pods and services exposing Prometheus metrics. Default: `false`. |
+| `features.prometheusScrape.version` | The version of the OpenMetrics check. Default: `2`. |
+| `features.remoteConfiguration.enabled` | If `true`, enables Remote Configuration. Default: `true`. |
+| `features.sbom.containerImage.analyzers` | Analyzers to use for SBOM collection. |
+| `features.sbom.containerImage.enabled` | If `true`, enables SBOM collection. Default: `false`. |
+| `features.sbom.enabled` | If `true`, enables SBOM collection. Default: `false`. |
+| `features.sbom.host.analyzers` | Analyzers to use for SBOM collection. |
+| `features.sbom.host.enabled` | If `true`, enables SBOM collection. Default: `false`. |
+| `features.tcpQueueLength.enabled` | Enables the TCP queue length eBPF-based check. Default: `false`. |
+| `features.usm.enabled` | If `true`, enables Universal Service Monitoring. Default: `false`. |
+| `global.clusterAgentToken` | The token for communication between the Node Agent and Cluster Agent. |
+| `global.clusterAgentTokenSecret.keyName` | Key of the secret that contains the token for communication between the Node Agent and Cluster Agent. |
+| `global.clusterAgentTokenSecret.secretName` | Name of the secret that contains the token for communication between the Node Agent and Cluster Agent. |
+| `global.clusterName` | Sets a unique cluster name for the deployment to scope monitoring data in the Datadog app. Must be a string of dot-separated tokens. Each token can contain lowercase letters, numbers, or hyphens. Each token must start with a lowercase letter, cannot end with a hyphen, cannot contain a dot adjacent to a hyphen, and must be fewer than 80 chars. |
+| `global.containerStrategy` | Determines whether Agents run in single or multiple containers. Values: `single` (single Agent Container, multiple processes), `optimized` (multiple Agent containers, one process per container). Default: `optimized`. |
+| `global.credentials.apiKey` | Your Datadog API key. |
+| `global.credentials.apiSecret.keyName` | Key of the secret that contains your Datadog API key. |
+| `global.credentials.apiSecret.secretName` | Name of the secret that contains your Datadog API key. |
+| `global.credentials.appKey` | Your Datadog application key. Required if the External Metrics Server is enabled. |
+| `global.credentials.appSecret.keyName` | Key of the secret that contains your Datadog application key. |
+| `global.credentials.appSecret.secretName` | Name of the secret that contains your Datadog application key. |
+| `global.criSocketPath` | Path to the container runtime socket (if different from Docker). |
+| `global.disableNonResourceRules` | If `true`, exclude NonResourceURLs from default ClusterRoles. For Google Cloud Marketplace, you must set this value to `true`. |
+| `global.dockerSocketPath` | Path to the Docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.apiSecret.secretName | SecretName is the name of the secret. |
@@ -374,3 +384,22 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 [3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-apm-hostport.yaml
 [4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-clusteragent.yaml
 [5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-tolerations.yaml
+[7]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v1alpha1.md
+[8]: https://github.com/DataDog/datadog-operator/blob/main/docs/v2alpha1_migration.md
+[9]: https://docs.datadoghq.com/containers/kubernetes/installation?tab=datadogoperator
+[10]: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#origin-detection
+[11]: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
+[12]: https://github.com/DataDog/watermarkpodautoscaler
+[13]: https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
+[14]: https://docs.datadoghq.com/containers/kubernetes/log/?tab=datadogoperator
+[15]: http://conntrack-tools.netfilter.org/ 
+[16]: https://docs.datadoghq.com/getting_started/site/
+[17]: https://docs.datadoghq.com/getting_started/tagging/
+[18]: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+[19]: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+[20]: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container
+[21]: https://github.com/kubernetes-sigs/windows-gmsa
+[22]: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+[23]: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+[24]: https://kubernetes.io/docs/tasks/configure-pod-container/create-hostprocess-pod/
+[25]: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
