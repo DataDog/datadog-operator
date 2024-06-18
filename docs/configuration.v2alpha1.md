@@ -176,25 +176,25 @@ spec:
 | `global.criSocketPath` | Path to the container runtime socket (if different from Docker). |
 | `global.disableNonResourceRules` | If `true`, exclude NonResourceURLs from default ClusterRoles. For Google Cloud Marketplace, you must set this value to `true`. |
 | `global.dockerSocketPath` | Path to the Docker runtime socket. |
-| global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
-| global.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
-| global.endpoint.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| global.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
-| global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
-| global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| global.endpoint.url | URL defines the endpoint URL. |
-| global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
-| global.fips.customFIPSConfig.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
-| global.fips.customFIPSConfig.configMap.name | Name is the name of the ConfigMap. |
-| global.fips.enabled | Enable FIPS sidecar. |
-| global.fips.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| global.fips.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
-| global.fips.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
-| global.fips.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| global.fips.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
-| global.fips.localAddress | Set the local IP address. Default: `127.0.0.1` |
-| global.fips.port | Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
-| global.fips.portRange | PortRange specifies the number of ports used. Default: 15 |
+| `global.endpoint.credentials.apiKey` | Your Datadog API key. |
+| `global.endpoint.credentials.apiSecret.keyName` | Key of the secret that contains your Datadog API key. |
+| `global.endpoint.credentials.apiSecret.secretName` | Name of the secret that contains your Datadog API key. |
+| `global.endpoint.credentials.appKey` | Your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
+| `global.endpoint.credentials.appSecret.keyName` | Key of the secret that contains your Datadog application key. |
+| `global.endpoint.credentials.appSecret.secretName` | Name of the secret that contains your Datadog application key. |
+| `global.endpoint.url` | The endpoint URL. |
+| `global.fips.customFIPSConfig.configData` | Configuration file content for the FIPS sidecar. |
+| `global.fips.customFIPSConfig.configMap.items` | For configuring the FIPS sidecar. Maps a ConfigMap data `key` to a file `path` mount. |
+| `global.fips.customFIPSConfig.configMap.name` | For configuring the FIPS sidecar. The name of the ConfigMap. |
+| `global.fips.enabled` | If `true`, enables the FIPS sidecar. |
+| `global.fips.image.jmxEnabled` | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
+| `global.fips.image.name` | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
+| `global.fips.image.pullPolicy` | The Kubernetes pull policy for the FIPS sidecar. Values: `Always`, `Never`, or `IfNotPresent`. |
+| `global.fips.image.pullSecrets` | Specifies [Docker registry credentials][22] for the FIPS sidecar.  |
+| `global.fips.image.tag` | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| `global.fips.localAddress` | Set the local IP address. Default: `127.0.0.1` |
+| `global.fips.port` | Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
+| `global.fips.portRange` | PortRange specifies the number of ports used. Default: 15 |
 | global.fips.resources.claims | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
 | global.fips.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | global.fips.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
