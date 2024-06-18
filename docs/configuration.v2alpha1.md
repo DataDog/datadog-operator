@@ -44,23 +44,23 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | `features.admissionController.agentCommunicationMode` | Corresponds to the mode used by the Datadog application libraries to communicate with the Agent. Values: `hostip`, `service`, or `socket`. |
-| features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
-| features.admissionController.agentSidecarInjection.enabled | Enabled enables Sidecar injections. Default: false |
-| features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| features.admissionController.agentSidecarInjection.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
-| features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
-| features.admissionController.agentSidecarInjection.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
-| features.admissionController.agentSidecarInjection.profiles | Profiles define the sidecar configuration override. Only one profile is supported. |
-| features.admissionController.agentSidecarInjection.provider | Provider is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
-| features.admissionController.agentSidecarInjection.registry | Registry overrides the default registry for the sidecar Agent. |
-| features.admissionController.agentSidecarInjection.selectors | Selectors define the pod selector for sidecar injection. Only one rule is supported. |
-| features.admissionController.cwsInstrumentation.enabled | Enable the CWS Instrumentation admission controller endpoint. Default: false |
-| features.admissionController.cwsInstrumentation.mode | Mode defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
+| `features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled` | If `true`, enables communication between Agent sidecars and the Cluster Agent. Default: `true`. |
+| `features.admissionController.agentSidecarInjection.enabled` | If `true`, enables Agent sidecar injections. Default: `false` |
+| `features.admissionController.agentSidecarInjection.image.jmxEnabled` | If `true`, the Agent image supports JMX. This parameter is used if `features.admissionController.agentSidecarInjection.image.name` does not correspond to a full image string. |
+| `features.admissionController.agentSidecarInjection.image.name` | Defines the image name. You can provide this as:<br/> `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `features.admissionController.agentSidecarInjection.registry`, `features.admissionController.agentSidecarInjection.image.tag`, and `features.admissionController.agentSidecarInjection.image.jmxEnabled`.<br/> `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `features.admissionController.agentSidecarInjection.registry`. In this case, `features.admissionController.agentSidecarInjection.image.tag` and `features.admissionController.agentSidecarInjection.image.jmxEnabled` are ignored.<br/> `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified like this, then `features.admissionController.agentSidecarInjection.registry`, `features.admissionController.agentSidecarInjection.image.tag`, and `features.admissionController.agentSidecarInjection.image.jmxEnabled` are ignored.<br/><br/> This value is optional. The default registry is `gcr.io/datadoghq`. |
+| `features.admissionController.agentSidecarInjection.image.pullPolicy` | The Kubernetes pull policy. Values: `Always`, `Never`, or `IfNotPresent`. |
+| `features.admissionController.agentSidecarInjection.image.pullSecrets` | Specifies [Docker registry credentials](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod). |
+| `features.admissionController.agentSidecarInjection.image.tag` | Defines the image tag to use for the Agent sidecar. This parameter is used if `features.admissionController.agentSidecarInjection.image.name` does not correspond to a full image string. |
+| `features.admissionController.agentSidecarInjection.profiles` | Defines the sidecar configuration override. Only one profile is supported. |
+| `features.admissionController.agentSidecarInjection.provider` | Adds infrastructure provider-specific configurations to the Agent sidecar. To use the feature in other environments (including local testing) omit the config. Values: `fargate`. See also: [Datadog-EKS Fargate integration](https://docs.datadoghq.com/integrations/eks_fargate) |
+| `features.admissionController.agentSidecarInjection.registry` | Overrides the default registry (`gcr.io/datadoghq`) for the sidecar Agent. |
+| `features.admissionController.agentSidecarInjection.selectors` | Defines the pod selector for sidecar injection. Only one rule is supported. |
+| `features.admissionController.cwsInstrumentation.enabled` | Enables the CWS Instrumentation admission controller endpoint. Default: `false` |
+| `features.admissionController.cwsInstrumentation.mode` | Defines the behavior of the CWS Instrumentation endpoint. Values: `init_container` or `remote_copy`. Default: `remote_copy`. |
 | `features.admissionController.enabled` | If `true`, enables the Admission Controller. Default: `true`. |
 | `features.admissionController.failurePolicy` | Determines how unrecognized and timeout errors are handled. Values: `Ignore` or `Fail`. |
 | `features.admissionController.mutateUnlabelled` | If `true`, enables config injection without the need of pod label `admission.datadoghq.com/enabled="true"`. Default: `false`. |
-| features.admissionController.registry | Registry defines an image registry for the admission controller. |
+| `features.admissionController.registry` | Defines an image registry for the admission controller. |
 | `features.admissionController.serviceName` | Corresponds to the webhook service name. |
 | `features.admissionController.webhookName` | A custom name for the `MutatingWebhookConfiguration`. Default: `datadog-webhook`. |
 | `features.apm.enabled` | If `true`, enables Application Performance Monitoring (APM). Default: `true`. |
@@ -72,9 +72,9 @@ spec:
 | `features.apm.instrumentation.libVersions` | Configures injection of specific tracing library versions with single step instrumentation. Use the format `<library>: <version>`. For example, `"java": "v1.18.0"`. |
 | `features.apm.unixDomainSocketConfig.enabled` | If `true`, enables sending traces over Unix Domain Socket (UDS). Default: `true` |
 | `features.apm.unixDomainSocketConfig.path` | If sending traces over UDS is enabled (default), defines the socket path used. |
-| features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
-| features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
-| features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
+| `features.asm.iast.enabled` | If `true`, enables Interactive Application Security Testing (IAST). Default: `false`. |
+| `features.asm.sca.enabled` | If `true`, enables Software Composition Analysis (SCA). Default: `false`. |
+| `features.asm.threats.enabled` | If `true`, enables ASM App & API Protection. Default: `false` |
 | `features.clusterChecks.enabled` | If `true`, enables cluster check scheduling in the Cluster Agent. Default: `true`. |
 | `features.clusterChecks.useClusterChecksRunners` | If `true`, enables cluster check runners to run all cluster checks. Default: `false`. |
 | `features.cspm.checkInterval` | Defines the check interval for Cloud Security Posture Management (CSPM). |
@@ -111,7 +111,7 @@ spec:
 | `features.externalMetricsServer.endpoint.credentials.appSecret.secretName` | Name of the secret that contains your Datadog application key for the External Metrics Server. If the External Metrics Server is enabled, you must set a Datadog application key for read access to your metrics. |
 | `features.externalMetricsServer.endpoint.url` | Defines the endpoint URL for the External Metrics Server. |
 | `features.externalMetricsServer.port` | Specifies the service port for the `metricsProvider` External Metrics Server. Default: `8443`. |
-| features.externalMetricsServer.registerAPIService | If `true`, registers the External Metrics endpoint as an APIService. Default: `true`. |
+| `features.externalMetricsServer.registerAPIService` | If `true`, registers the External Metrics endpoint as an APIService. Default: `true`. |
 | `features.externalMetricsServer.useDatadogMetrics` | If `true`, enables usage of the `DatadogMetrics` CRD. This allows you to scale on arbitrary Datadog metric queries. Default: `true`. |
 | `features.externalMetricsServer.wpaController` | If `true`, enables the informer and controller of the [Watermark Pod Autoscaler][12]. **Note**: The Watermark Pod Autoscaler controller needs to be installed. Default: `false`. |
 | `features.helmCheck.collectEvents` | If `true`, enables event collection in the Helm check. Requires Agent 7.36.0+ and Cluster Agent 1.20.0+. Default: `false`. |
@@ -165,7 +165,7 @@ spec:
 | `global.clusterAgentToken` | The token for communication between the Node Agent and Cluster Agent. |
 | `global.clusterAgentTokenSecret.keyName` | Key of the secret that contains the token for communication between the Node Agent and Cluster Agent. |
 | `global.clusterAgentTokenSecret.secretName` | Name of the secret that contains the token for communication between the Node Agent and Cluster Agent. |
-| `global.clusterName` | Sets a unique cluster name for the deployment to scope monitoring data in the Datadog app. Must be a string of dot-separated tokens. Each token can contain lowercase letters, numbers, or hyphens. Each token must start with a lowercase letter, cannot end with a hyphen, cannot contain a dot adjacent to a hyphen, and must be fewer than 80 chars. |
+| `global.clusterName` | Sets a unique cluster name for the deployment to scope monitoring data in Datadog. |
 | `global.containerStrategy` | Determines whether Agents run in single or multiple containers. Values: `single` (single Agent Container, multiple processes), `optimized` (multiple Agent containers, one process per container). Default: `optimized`. |
 | `global.credentials.apiKey` | Your Datadog API key. |
 | `global.credentials.apiSecret.keyName` | Key of the secret that contains your Datadog API key. |
@@ -195,39 +195,39 @@ spec:
 | `global.fips.localAddress` | Set the local IP address. Default: `127.0.0.1` |
 | `global.fips.port` | Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
 | `global.fips.portRange` | PortRange specifies the number of ports used. Default: 15 |
-| global.fips.resources.claims | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
-| global.fips.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
-| global.fips.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
-| global.fips.useHTTPS | UseHTTPS enables HTTPS. Default: false |
-| global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
-| global.kubelet.host.configMapKeyRef.key | The key to select. |
-| global.kubelet.host.configMapKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
-| global.kubelet.host.configMapKeyRef.optional | Specify whether the ConfigMap or its key must be defined |
-| global.kubelet.host.fieldRef.apiVersion | Version of the schema the FieldPath is written in terms of, defaults to "v1". |
-| global.kubelet.host.fieldRef.fieldPath | Path of the field to select in the specified API version. |
-| global.kubelet.host.resourceFieldRef.containerName | Container name: required for volumes, optional for env vars |
-| global.kubelet.host.resourceFieldRef.divisor | Specifies the output format of the exposed resources, defaults to "1" |
-| global.kubelet.host.resourceFieldRef.resource | Required: resource to select |
-| global.kubelet.host.secretKeyRef.key | The key of the secret to select from.  Must be a valid secret key. |
-| global.kubelet.host.secretKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
-| global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
-| global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
-| global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
-| global.localService.forceEnableLocalService | ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false |
-| global.localService.nameOverride | NameOverride defines the name of the internal traffic service to target the agent running on the local node. |
-| global.logLevel | LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
-| global.namespaceLabelsAsTags | Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY> |
-| global.networkPolicy.create | Create defines whether to create a NetworkPolicy for the current deployment. |
-| global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
-| global.networkPolicy.flavor | Flavor defines Which network policy to use. |
-| global.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY> |
-| global.originDetectionUnified.enabled | Enabled enables unified mechanism for origin detection. Default: false |
-| global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
-| global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
-| global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
-| global.site | Site is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com' |
-| global.tags | Tags contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
-| override | Override the default configurations of the agents |
+| `global.fips.resources.claims` | Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
+| `global.fips.resources.limits` | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| `global.fips.resources.requests` | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| `global.fips.useHTTPS` | UseHTTPS enables HTTPS. Default: false |
+| `global.kubelet.agentCAPath` | The container path where the kubelet CA certificate is stored. Defaults to `/var/run/host-kubelet-ca.crt` if `global.kubelet.hostCAPath` is set. Else, defaults to `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`. |
+| `global.kubelet.host.configMapKeyRef.key` | The key to select. |
+| `global.kubelet.host.configMapKeyRef.name` | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
+| `global.kubelet.host.configMapKeyRef.optional` | Specify whether the ConfigMap or its key must be defined |
+| `global.kubelet.host.fieldRef.apiVersion` | Version of the schema the FieldPath is written in terms of, defaults to "v1". |
+| `global.kubelet.host.fieldRef.fieldPath` | Path of the field to select in the specified API version. |
+| `global.kubelet.host.resourceFieldRef.containerName` | Container name: required for volumes, optional for env vars |
+| `global.kubelet.host.resourceFieldRef.divisor` | Specifies the output format of the exposed resources, defaults to "1" |
+| `global.kubelet.host.resourceFieldRef.resource` | Required: resource to select |
+| `global.kubelet.host.secretKeyRef.key` | The key of the secret to select from.  Must be a valid secret key. |
+| `global.kubelet.host.secretKeyRef.name` | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
+| `global.kubelet.host.secretKeyRef.optional` | Specify whether the Secret or its key must be defined |
+| `global.kubelet.hostCAPath` | Path where the kubelet CA certificate is stored. |
+| `global.kubelet.tlsVerify` | If `true`, enables kubelet TLS verification. Default: `true`. |
+| `global.localService.forceEnableLocalService` | If `true`, forces the creation of an internal traffic policy service to target the Agent running on the local node. (This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. On Kubernetes 1.22+, the feature is in beta, and the internal traffic service is created by default—so this parameter is ignored.) Default: `false`. |
+| `global.localService.nameOverride` | Name of the internal traffic service to target the Agent running on the local node. |
+| `global.logLevel` | Sets logging verbosity. Can be overridden at the container level. Values: `trace`, `debug`, `info`, `warn`, `error`, `critical`, and `off`. Default: `info`. |
+| `global.namespaceLabelsAsTags` | A mapping of Kubernetes namespace labels to Datadog tags. Each entry takes the form `<KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY>`. |
+| `global.networkPolicy.create` | If `true`, a network policy for the current deployment is created. |
+| `global.networkPolicy.dnsSelectorEndpoints` | Defines the Cilium selector of the DNS server entity. |
+| `global.networkPolicy.flavor` | Defines which flavor of network policy to use. Values: `kubernetes` or `cilium`. |
+| `global.nodeLabelsAsTags` | A mapping of Kubernetes node labels to Datadog tags. Each entry takes the form `<KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY>`. |
+| `global.originDetectionUnified.enabled` | Enabled enables unified mechanism for origin detection. Default: false |
+| `global.podAnnotationsAsTags` | A mapping of Kubernetes annotations to Datadog tags. Each entry takes the form `<KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>`. |
+| `global.podLabelsAsTags` | A mapping of Kubernetes labels to Datadog tags. Each entry takes the form `<KUBERNETES_LABEL>: <DATADOG_TAG_KEY>`. |
+| `global.registry` | The image registry to use for all Agent images. Use `gcr.io/datadoghq` for Google Artifact Registry, `public.ecr.aws/datadog` for Amazon ECR, or `docker.io/datadog` for Docker Hub. Default: `gcr.io/datadoghq`. |
+| `global.site` | Your [Datadog site][16]. Default: `datadoghq.com`. |
+| `global.tags` | A list of tags to attach to every metric, event, and service check collected. See [Getting Started with Tags][17].|
+| `override` | Override default Agent configurations. See the [Override](#override) section. |
 <br>
 
 ### Override
