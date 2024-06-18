@@ -135,7 +135,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 			testAuth := setupTestAuth(httpServer.URL)
 
 			m := mockedFields{
-				k8sClient: fake.NewClientBuilder().Build(),
+				k8sClient: fake.NewClientBuilder().WithStatusSubresource(&v1alpha1.DatadogSLO{}).Build(),
 			}
 			if tt.mockOn != nil {
 				tt.mockOn(t, &m)

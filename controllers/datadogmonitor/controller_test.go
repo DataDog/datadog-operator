@@ -451,7 +451,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 			// Set up
 			r := &Reconciler{
-				client:        fake.NewFakeClient(),
+				client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogMonitor{}).Build(),
 				datadogClient: client,
 				datadogAuth:   testAuth,
 				scheme:        s,
