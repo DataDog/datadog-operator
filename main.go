@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -22,7 +21,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	toolscache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	klog "k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -31,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -38,9 +37,10 @@ import (
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
 	"github.com/go-logr/logr"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
@@ -106,7 +106,6 @@ type options struct {
 
 	// Leader Election options
 	enableLeaderElection        bool
-	leaderElectionResourceLock  string
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
@@ -149,7 +148,6 @@ func (opts *options) Parse() {
 	// Leader Election options flags
 	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", resourcelock.ConfigMapsLeasesResourceLock, "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|leases]")
 	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
@@ -235,19 +233,21 @@ func run(opts *options) error {
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
-	mgr, err := ctrl.NewManager(restConfig, config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
-		Scheme:                     scheme,
-		MetricsBindAddress:         opts.metricsAddr,
-		HealthProbeBindAddress:     ":8081",
-		Port:                       9443,
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress:   opts.metricsAddr,
+			ExtraHandlers: debug.GetExtraMetricHandlers(),
+		}, HealthProbeBindAddress: ":8081",
+		WebhookServer:              webhook.NewServer(webhook.Options{Port: 9443}),
 		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
-		LeaderElectionResourceLock: opts.leaderElectionResourceLock,
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
-		NewCache:                   cache.BuilderWithOptions(cacheOptions()),
-	}))
+		Cache:                      cacheOptions(setupLog),
+	})
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
 
@@ -255,7 +255,6 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
-	customSetupEndpoints(opts.pprofActive, mgr)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
@@ -263,10 +262,17 @@ func run(opts *options) error {
 	}
 
 	if opts.remoteConfigEnabled {
-		err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
-		if err != nil {
-			setupErrorf(setupLog, err, "Unable to set up Remote Config service")
-		}
+		go func() {
+			// Block until this controller manager is elected leader. We presume the
+			// entire process will terminate if we lose leadership, so we don't need
+			// to handle that.
+			<-mgr.Elected()
+
+			err = remoteconfig.NewRemoteConfigUpdater(mgr.GetClient(), ctrl.Log.WithName("remote_config")).Setup(creds)
+			if err != nil {
+				setupErrorf(setupLog, err, "Unable to set up Remote Config service")
+			}
+		}()
 	}
 
 	options := controllers.SetupOptions{
@@ -323,49 +329,51 @@ func run(opts *options) error {
 // interested in the node name and the labels.
 // Note that if in the future we need to list or get pods or nodes and use other
 // fields we'll need to modify this function.
-func cacheOptions() cache.Options {
+func cacheOptions(logger logr.Logger) cache.Options {
 	return cache.Options{
-		SelectorsByObject: cache.SelectorsByObject{
-			// Store pods only if they are node agent pods.
+		DefaultNamespaces: config.GetNamespaceConfigs(logger, cache.Config{}),
+		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {
+
 				Label: labels.SelectorFromSet(map[string]string{
-					apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+					common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
 				}),
-			},
-		},
-		TransformByObject: map[client.Object]toolscache.TransformFunc{
-			// Store only the node name and the labels of the pod.
-			&corev1.Pod{}: func(obj interface{}) (interface{}, error) {
-				pod := obj.(*corev1.Pod)
 
-				newPod := &corev1.Pod{
-					TypeMeta: pod.TypeMeta,
-					ObjectMeta: v1.ObjectMeta{
-						Namespace: pod.Namespace,
-						Name:      pod.Name,
-						Labels:    pod.Labels,
-					},
-					Spec: corev1.PodSpec{
-						NodeName: pod.Spec.NodeName,
-					},
-				}
+				Namespaces: config.GetNamespaceConfigs(logger, cache.Config{}),
 
-				return newPod, nil
+				Transform: func(obj interface{}) (interface{}, error) {
+					pod := obj.(*corev1.Pod)
+					newPod := &corev1.Pod{
+						TypeMeta: pod.TypeMeta,
+						ObjectMeta: v1.ObjectMeta{
+							Namespace: pod.Namespace,
+							Name:      pod.Name,
+							Labels:    pod.Labels,
+						},
+						Spec: corev1.PodSpec{
+							NodeName: pod.Spec.NodeName,
+						},
+					}
+
+					return newPod, nil
+				},
 			},
 
 			// Store only the node name and its labels.
-			&corev1.Node{}: func(obj interface{}) (interface{}, error) {
-				node := obj.(*corev1.Node)
+			&corev1.Node{}: {
+				Transform: func(obj interface{}) (interface{}, error) {
+					node := obj.(*corev1.Node)
 
-				newNode := &corev1.Node{
-					TypeMeta: node.TypeMeta,
-					ObjectMeta: v1.ObjectMeta{
-						Name:   node.Name,
-						Labels: node.Labels,
-					},
-				}
+					newNode := &corev1.Node{
+						TypeMeta: node.TypeMeta,
+						ObjectMeta: v1.ObjectMeta{
+							Name:   node.Name,
+							Labels: node.Labels,
+						},
+					}
 
-				return newNode, nil
+					return newNode, nil
+				},
 			},
 		},
 	}
@@ -405,18 +413,6 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 	})
 	if err != nil {
 		setupErrorf(setupLog, err, "Unable to add healthchecks")
-	}
-}
-
-func customSetupEndpoints(pprofActive bool, mgr manager.Manager) {
-	if pprofActive {
-		if err := debug.RegisterEndpoint(mgr.AddMetricsExtraHandler, nil); err != nil {
-			setupErrorf(setupLog, err, "Unable to register pprof endpoint")
-		}
-	}
-
-	if err := metrics.RegisterEndpoint(mgr, mgr.AddMetricsExtraHandler); err != nil {
-		setupErrorf(setupLog, err, "Unable to register custom metrics endpoints")
 	}
 }
 

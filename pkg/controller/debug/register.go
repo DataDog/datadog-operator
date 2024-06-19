@@ -28,40 +28,13 @@ func DefaultOptions() *Options {
 	}
 }
 
-// RegisterEndpoint used to register the different debug endpoints
-func RegisterEndpoint(register func(string, http.Handler) error, options *Options) error {
-	err := register("/debug/pprof", http.HandlerFunc(pprof.Index))
-	if err != nil {
-		return err
-	}
-
-	if options == nil {
-		options = DefaultOptions()
-	}
-	if options.CmdLine {
-		err := register("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Profile {
-		err := register("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Symbol {
-		err := register("/debug/pprof/symobol", http.HandlerFunc(pprof.Symbol))
-		if err != nil {
-			return err
-		}
-	}
-	if options.Trace {
-		err := register("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+// GetExtraMetricHandlers creates debug endpoints.
+func GetExtraMetricHandlers() map[string]http.Handler {
+	handlers := make(map[string]http.Handler)
+	handlers["debug/pprof"] = http.HandlerFunc(pprof.Index)
+	handlers["/debug/pprof/cmdline"] = http.HandlerFunc(pprof.Index)
+	handlers["/debug/pprof/cmdline"] = http.HandlerFunc(pprof.Index)
+	handlers["/debug/pprof/symobol"] = http.HandlerFunc(pprof.Index)
+	handlers["/debug/pprof/trace"] = http.HandlerFunc(pprof.Index)
+	return handlers
 }

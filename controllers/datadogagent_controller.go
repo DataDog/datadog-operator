@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -199,7 +198,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if r.Options.DatadogAgentProfileEnabled {
 		builder.Watches(
-			&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}},
+			&datadoghqv1alpha1.DatadogAgentProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
 		)
 	}
@@ -207,7 +206,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
 	if r.Options.V2Enabled {
 		builder.Watches(
-			&source.Kind{Type: &corev1.Node{}},
+			&corev1.Node{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
 			ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()),
 		)
@@ -217,8 +216,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgent)
-	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handlerEnqueue)
-	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
+	builder.Watches(&rbacv1.ClusterRole{}, handlerEnqueue)
+	builder.Watches(&rbacv1.ClusterRoleBinding{}, handlerEnqueue)
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
@@ -266,7 +265,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
-func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
+func enqueueIfOwnedByDatadogAgent(ctx context.Context, obj client.Object) []reconcile.Request {
 	labels := obj.GetLabels()
 
 	if labels[kubernetes.AppKubernetesManageByLabelKey] != "datadog-operator" {
@@ -294,10 +293,12 @@ func (r *DatadogAgentReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
 }
 
 func (r *DatadogAgentReconciler) enqueueRequestsForAllDDAs() handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var requests []reconcile.Request
 
 		ddaList := datadoghqv2alpha1.DatadogAgentList{}
+		// Should we rather use passed context here?
+		// if err := r.List(ctx, &ddaList); err != nil {
 		if err := r.List(context.Background(), &ddaList); err != nil {
 			return requests
 		}

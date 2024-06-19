@@ -550,7 +550,7 @@ func Test_profilesToApply(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.profileList...).Build()
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithStatusSubresource(&v1alpha1.DatadogAgentProfile{}).WithObjects(tt.profileList...).Build()
 			logger := logf.Log.WithName("Test_profilesToApply")
 			eventBroadcaster := record.NewBroadcaster()
 			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Test_profilesToApply"})
@@ -568,6 +568,18 @@ func Test_profilesToApply(t *testing.T) {
 			require.NoError(t, err)
 
 			wantProfilesToApply := tt.wantProfilesToApply()
+
+			for i := range wantProfilesToApply {
+				// After version update need to truncate times set by fake to Seconds
+				wantProfilesToApply[i].CreationTimestamp.Time = wantProfilesToApply[i].CreationTimestamp.Time.Truncate(time.Second)
+				profilesToApply[i].CreationTimestamp.Time = profilesToApply[i].CreationTimestamp.Time.Truncate(time.Second)
+				if wantProfilesToApply[i].Status.LastUpdate != nil {
+					wantProfilesToApply[i].Status.LastUpdate.Time = wantProfilesToApply[i].Status.LastUpdate.Time.Truncate(time.Second)
+					profilesToApply[i].Status.LastUpdate.Time = profilesToApply[i].Status.LastUpdate.Time.Truncate(time.Second)
+				}
+
+				assert.Equal(t, wantProfilesToApply[i], profilesToApply[i])
+			}
 			assert.Equal(t, wantProfilesToApply, profilesToApply)
 			// assert.ElementsMatch(t, wantProfilesToApply, profilesToApply)
 			assert.Equal(t, tt.wantProfileAppliedByNode, profileAppliedByNode)

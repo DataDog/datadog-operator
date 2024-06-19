@@ -402,6 +402,8 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 			newddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled = new(bool)
 		}
 		newddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled = cfg.SystemProbe.CWS.Enabled
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.CWS = nil
 	}
 
 	// CSPM
@@ -413,6 +415,8 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 			newddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled = new(bool)
 		}
 		newddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled = cfg.SecurityAgent.CSPM.Enabled
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.CSPM = nil
 	}
 
 	// SBOM
@@ -434,6 +438,8 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled = new(bool)
 			}
 			newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled = cfg.CoreAgent.SBOM.Host.Enabled
+		} else {
+			newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host = nil
 		}
 
 		// SBOM CONTAINER IMAGE
@@ -445,8 +451,12 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled = new(bool)
 			}
 			newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled = cfg.CoreAgent.SBOM.ContainerImage.Enabled
+		} else {
+			newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage = nil
 		}
 
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.SBOM = nil
 	}
 
 	// USM
@@ -458,6 +468,8 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 			newddaStatus.RemoteConfigConfiguration.Features.USM.Enabled = new(bool)
 		}
 		newddaStatus.RemoteConfigConfiguration.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
+	} else {
+		newddaStatus.RemoteConfigConfiguration.Features.USM = nil
 	}
 
 	if !apiequality.Semantic.DeepEqual(&dda.Status, newddaStatus) {
