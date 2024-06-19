@@ -102,9 +102,9 @@ const (
 	// DatadogPodAutoscalerManualApplyMode allows the controller to only apply manual recommendations (recommendations manually validated by user in the Datadog app)
 	DatadogPodAutoscalerManualApplyMode DatadogPodAutoscalerApplyMode = "Manual"
 
-	// DatadogPodAutoscalerAllApplyNone prevent the controller to apply any recommendations. Datadog will still produce and display recommendations
+	// DatadogPodAutoscalerNoneApplyMode prevent the controller to apply any recommendations. Datadog will still produce and display recommendations
 	// but the controller will not apply them, even when they are manually validated. Similar to "DryRun" mode.
-	DatadogPodAutoscalerAllApplyNone DatadogPodAutoscalerApplyMode = "None"
+	DatadogPodAutoscalerNoneApplyMode DatadogPodAutoscalerApplyMode = "None"
 )
 
 // DatadogPodAutoscalerPolicy defines how recommendations should be applied.
@@ -124,7 +124,7 @@ type DatadogPodAutoscalerPolicy struct {
 	// Upscale defines the policy to scale up the target resource.
 	Upscale *DatadogPodAutoscalerScalingPolicy `json:"upscale,omitempty"`
 
-	// Downscale defines the policy to scale up the target resource.
+	// Downscale defines the policy to scale down the target resource.
 	Downscale *DatadogPodAutoscalerScalingPolicy `json:"downscale,omitempty"`
 }
 
@@ -181,17 +181,29 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	Rules []DatadogPodAutoscalerScalingRule `json:"rules,omitempty"`
 }
 
-// DatadogPodAutoscalerScalingRuleType is the type of the policy which could be used while making scaling decisions.
+// DatadogPodAutoscalerScalingRuleType defines how scaling rule value should be interpreted.
 // +kubebuilder:validation:Enum:=Pods;Percent
 type DatadogPodAutoscalerScalingRuleType string
 
 const (
-	// DatadogPodAutoscalerPodsScalingRuleType is a policy used to specify a change in absolute number of pods.
+	// DatadogPodAutoscalerPodsScalingRuleType specifies a change in absolute number of pods compared to the starting number of PODs.
 	DatadogPodAutoscalerPodsScalingRuleType DatadogPodAutoscalerScalingRuleType = "Pods"
 
-	// DatadogPodAutoscalerPercentScalingRuleType is a policy used to specify a relative amount of change with respect to
-	// the current number of pods.
+	// DatadogPodAutoscalerPercentScalingRuleType specifies a relative amount of change compared to the starting number of PODs.
 	DatadogPodAutoscalerPercentScalingRuleType DatadogPodAutoscalerScalingRuleType = "Percent"
+)
+
+// DatadogPodAutoscalerScalingRuleMatch
+// +kubebuilder:validation:Enum:=Always;IfScalingEvent
+type DatadogPodAutoscalerScalingRuleMatch string
+
+const (
+	// DatadogPodAutoscalerAlwaysScalingRuleMatch defines that the rule should always be considered in the calculation.
+	DatadogPodAutoscalerAlwaysScalingRuleMatch DatadogPodAutoscalerScalingRuleMatch = "Always"
+
+	// DatadogPodAutoscalerIfScalingEventRuleMatch defines that rule should only be considered if at least one scaling event occurred.
+	// It allows to define behaviors such as forbidden windows (e.g. allow 0 PODs (Value) to be created in the next 5m (PeriodSeconds) after a scaling events).
+	DatadogPodAutoscalerIfScalingEventRuleMatch DatadogPodAutoscalerScalingRuleMatch = "IfScalingEvent"
 )
 
 // DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
@@ -200,12 +212,19 @@ type DatadogPodAutoscalerScalingRule struct {
 	Type DatadogPodAutoscalerScalingRuleType `json:"type"`
 
 	// Value contains the amount of change which is permitted by the policy.
-	// It must be greater than zero
+	// Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+	// +kubebuilder:validation:Minimum=0
 	Value int32 `json:"value"`
 
 	// PeriodSeconds specifies the window of time for which the policy should hold true.
 	// PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=1800
 	PeriodSeconds int32 `json:"periodSeconds"`
+
+	// Match defines if the rule should be considered or not in the calculation.
+	// Default to Always if not set.
+	Match *DatadogPodAutoscalerScalingRuleMatch `json:"match,omitempty"`
 }
 
 // DatadogPodAutoscalerUpdateMode defines the mode of the update policy.
@@ -336,8 +355,14 @@ type DatadogPodAutoscalerHorizontalAction struct {
 	// FromReplicas is the number of replicas before the action
 	FromReplicas int32 `json:"replicas"`
 
-	// ToReplicas is the number of replicas after the action
+	// ToReplicas is the effective number of replicas after the action
 	ToReplicas int32 `json:"toReplicas"`
+
+	// RecommendedReplicas is the original number of replicas recommended by Datadog
+	RecommendedReplicas *int32 `json:"recommendedReplicas,omitempty"`
+
+	// LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+	LimitedReason *string `json:"limitedReason,omitempty"`
 }
 
 // DatadogPodAutoscalerVerticalStatus defines the status of the vertical scaling
@@ -421,6 +446,9 @@ const (
 
 	// DatadogPodAutoscalerHorizontalAbleToScaleCondition is true when horizontal scaling is working correctly.
 	DatadogPodAutoscalerHorizontalAbleToScaleCondition DatadogPodAutoscalerConditionType = "HorizontalAbleToScale"
+
+	// DatadogPodAutoscalerHorizontalScalingLimitedCondition is true when horizontal scaling is limited by constraints.
+	DatadogPodAutoscalerHorizontalScalingLimitedCondition DatadogPodAutoscalerConditionType = "HorizontalScalingLimited"
 
 	// DatadogPodAutoscalerVerticalAbleToRecommendCondition is true when we can ge vertical recommendation from Datadog.
 	DatadogPodAutoscalerVerticalAbleToRecommendCondition DatadogPodAutoscalerConditionType = "VerticalAbleToRecommend"

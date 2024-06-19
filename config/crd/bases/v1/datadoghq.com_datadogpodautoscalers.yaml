@@ -163,16 +163,24 @@ spec:
                         - None
                       type: string
                     downscale:
-                      description: Downscale defines the policy to scale up the target resource.
+                      description: Downscale defines the policy to scale down the target resource.
                       properties:
                         rules:
                           description: Rules is a list of potential scaling polices which can be used during scaling. At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
                           items:
                             description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
                             properties:
+                              match:
+                                description: Match defines if the rule should be considered or not in the calculation. Default to Always if not set.
+                                enum:
+                                  - Always
+                                  - IfScalingEvent
+                                type: string
                               periodSeconds:
                                 description: PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
                                 format: int32
+                                maximum: 1800
+                                minimum: 1
                                 type: integer
                               type:
                                 description: Type is used to specify the scaling policy.
@@ -181,8 +189,9 @@ spec:
                                   - Percent
                                 type: string
                               value:
-                                description: Value contains the amount of change which is permitted by the policy. It must be greater than zero
+                                description: Value contains the amount of change which is permitted by the policy. Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
                                 format: int32
+                                minimum: 0
                                 type: integer
                             required:
                               - periodSeconds
@@ -217,9 +226,17 @@ spec:
                           items:
                             description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
                             properties:
+                              match:
+                                description: Match defines if the rule should be considered or not in the calculation. Default to Always if not set.
+                                enum:
+                                  - Always
+                                  - IfScalingEvent
+                                type: string
                               periodSeconds:
                                 description: PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
                                 format: int32
+                                maximum: 1800
+                                minimum: 1
                                 type: integer
                               type:
                                 description: Type is used to specify the scaling policy.
@@ -228,8 +245,9 @@ spec:
                                   - Percent
                                 type: string
                               value:
-                                description: Value contains the amount of change which is permitted by the policy. It must be greater than zero
+                                description: Value contains the amount of change which is permitted by the policy. Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
                                 format: int32
+                                minimum: 0
                                 type: integer
                             required:
                               - periodSeconds
@@ -335,6 +353,13 @@ spec:
                     lastAction:
                       description: LastAction is the last successful action done by the controller
                       properties:
+                        limitedReason:
+                          description: LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+                          type: string
+                        recommendedReplicas:
+                          description: RecommendedReplicas is the original number of replicas recommended by Datadog
+                          format: int32
+                          type: integer
                         replicas:
                           description: FromReplicas is the number of replicas before the action
                           format: int32
@@ -344,7 +369,7 @@ spec:
                           format: date-time
                           type: string
                         toReplicas:
-                          description: ToReplicas is the number of replicas after the action
+                          description: ToReplicas is the effective number of replicas after the action
                           format: int32
                           type: integer
                       required:
