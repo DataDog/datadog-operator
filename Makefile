@@ -150,7 +150,7 @@ generate-manifests: $(CONTROLLER_GEN)
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/.."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
