@@ -19,4 +19,8 @@ func Deployment(deployment *v1.Deployment, override *v2alpha1.DatadogAgentCompon
 	if override.Name != nil {
 		deployment.Name = *override.Name
 	}
+
+	if override.Strategy != nil {
+		deployment.Spec.Strategy = *override.Strategy
+	}
 }

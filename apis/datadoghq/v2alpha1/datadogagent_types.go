@@ -6,6 +6,7 @@
 package v2alpha1
 
 import (
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -1190,6 +1191,10 @@ type DatadogAgentComponentOverride struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Describe how to replace existing pods with new ones.
+	// +optional
+	Strategy *v1.DeploymentStrategy `json:"strategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional

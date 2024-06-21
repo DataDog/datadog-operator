@@ -22,16 +22,23 @@ func TestDeployment(t *testing.T) {
 		},
 		Spec: v1.DeploymentSpec{
 			Replicas: apiutils.NewInt32Pointer(1),
+			Strategy: v1.DeploymentStrategy{
+				Type: "recreate",
+			},
 		},
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
 		Name:     apiutils.NewStringPointer("new-name"),
 		Replicas: apiutils.NewInt32Pointer(2),
+		Strategy: &v1.DeploymentStrategy{
+			Type: "rollingUpdate",
+		},
 	}
 
 	Deployment(&deployment, &override)
 
 	assert.Equal(t, "new-name", deployment.Name)
 	assert.Equal(t, int32(2), *deployment.Spec.Replicas)
+	assert.Equal(t, v1.DeploymentStrategyType("rollingUpdate"), deployment.Spec.Strategy.Type)
 }
