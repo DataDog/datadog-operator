@@ -145,8 +145,8 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1beta1
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1beta1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
