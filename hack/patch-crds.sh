@@ -34,4 +34,5 @@ done
 for crd in "$ROOT/$v1"/*.yaml
 do
   $YQ -i -P "$crd"
+  go run $SCRIPTS_DIR/jsonschema/openapi2jsonschema.go "$crd"
 done
