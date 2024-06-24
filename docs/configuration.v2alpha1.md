@@ -327,6 +327,10 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].customConfigurations.[key].configMap.name | Name is the name of the ConfigMap. |
 | [key].disabled | Disabled force disables a component. |
+| [key].dnsConfig.nameservers | A list of DNS name server IP addresses. This will be appended to the base nameservers generated from DNSPolicy. Duplicated nameservers will be removed. |
+| [key].dnsConfig.options | A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy. |
+| [key].dnsConfig.searches | A list of DNS search domains for host-name lookup. This will be appended to the base search paths generated from DNSPolicy. Duplicated search paths will be removed. |
+| [key].dnsPolicy | Set DNS policy for the pod. Defaults to "ClusterFirst". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'. |
 | [key].env `[]object` | Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
 | [key].extraChecksd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
 | [key].extraChecksd.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
