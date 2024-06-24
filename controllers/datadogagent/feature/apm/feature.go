@@ -23,6 +23,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -46,6 +47,8 @@ type apmFeature struct {
 	hostPortHostPort int32
 	useHostNetwork   bool
 
+	serviceAccountName string
+
 	udsEnabled      bool
 	udsHostFilepath string
 
@@ -58,6 +61,8 @@ type apmFeature struct {
 	createCiliumNetworkPolicy     bool
 
 	singleStepInstrumentation *instrumentationConfig
+
+	processCheckRunsInCoreAgent bool
 }
 
 type instrumentationConfig struct {
@@ -65,6 +70,11 @@ type instrumentationConfig struct {
 	enabledNamespaces  []string
 	disabledNamespaces []string
 	libVersions        map[string]string
+	languageDetection  *languageDetection
+}
+
+type languageDetection struct {
+	enabled bool
 }
 
 // ID returns the ID of the Feature
@@ -94,6 +104,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	f.owner = dda
 	apm := dda.Spec.Features.APM
 	if shouldEnableAPM(apm) {
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
@@ -125,6 +136,13 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 				},
 			},
 		}
+
+		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
+
+		if f.processCheckRunsInCoreAgent && f.shouldEnableLanguageDetection() {
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
+		}
+
 		if apm.SingleStepInstrumentation != nil &&
 			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
 			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
@@ -133,6 +151,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
@@ -184,6 +203,13 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 		}
 	}
 	return reqComp
+}
+
+func (f *apmFeature) shouldEnableLanguageDetection() bool {
+	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.enabled &&
+		f.singleStepInstrumentation.languageDetection != nil &&
+		f.singleStepInstrumentation.languageDetection.enabled
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -265,6 +291,12 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
+	// rbacs
+	if f.shouldEnableLanguageDetection() {
+		rbacName := getRBACResourceName(f.owner)
+		return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getLanguageDetectionRBACPolicyRules())
+	}
+
 	return nil
 }
 
@@ -280,6 +312,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			Name:  apicommon.DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
+
+		if f.shouldEnableLanguageDetection() {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDLanguageDetectionEnabled,
+				Value: "true",
+			})
+		}
 
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
 			ns, err := json.Marshal(f.singleStepInstrumentation.disabledNamespaces)
@@ -362,6 +401,16 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 		})
 	}
 	managers.Port().AddPortToContainer(agentContainerName, apmPort)
+
+	// APM SSI Language Detection
+	if f.shouldEnableLanguageDetection() {
+
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDLanguageDetectionEnabled,
+			Value: "true",
+		})
+
+	}
 
 	// uds
 	if f.udsEnabled {
