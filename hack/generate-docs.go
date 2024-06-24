@@ -65,17 +65,12 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 
 	// Write prop content
 	var generator = map[string]func(*os.File, apiextensions.CustomResourceDefinitionVersion){
-		"v1alpha1": generateContent_v1alpha1,
 		"v2alpha1": generateContent_v2alpha1,
 	}
 	generator[version](f, crd)
 
 	// Write footer
 	mustWrite(f, footer)
-}
-
-func generateContent_v1alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
-	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties)
 }
 
 func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {

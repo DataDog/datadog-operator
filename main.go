@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -124,7 +123,6 @@ type options struct {
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
-	webhookEnabled                         bool
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
@@ -158,7 +156,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
-	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
@@ -207,11 +204,6 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
-	if opts.webhookEnabled {
-		setupLog.Error(nil, "DatadogAgent v1alpha1 and the conversion webhook will be removed in v1.8.0. "+
-			"See the migration page for instructions on migrating to v2alpha1: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/")
-	}
-
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
@@ -239,7 +231,6 @@ func run(opts *options) error {
 			BindAddress:   opts.metricsAddr,
 			ExtraHandlers: debug.GetExtraMetricHandlers(),
 		}, HealthProbeBindAddress: ":8081",
-		WebhookServer:              webhook.NewServer(webhook.Options{Port: 9443}),
 		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
@@ -302,12 +293,6 @@ func run(opts *options) error {
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
-	}
-
-	if opts.webhookEnabled && opts.datadogAgentEnabled {
-		if err = (&datadoghqv2alpha1.DatadogAgent{}).SetupWebhookWithManager(mgr); err != nil {
-			return setupErrorf(setupLog, err, "unable to create webhook", "webhook", "DatadogAgent")
-		}
 	}
 
 	// +kubebuilder:scaffold:builder
