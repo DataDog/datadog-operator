@@ -10,9 +10,11 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestDeployment(t *testing.T) {
@@ -23,7 +25,15 @@ func TestDeployment(t *testing.T) {
 		Spec: v1.DeploymentSpec{
 			Replicas: apiutils.NewInt32Pointer(1),
 			Strategy: v1.DeploymentStrategy{
-				Type: "recreate",
+				Type: "RollingUpdate",
+				RollingUpdate: &v1.RollingUpdateDeployment{
+					MaxUnavailable: &intstr.IntOrString{
+						StrVal: "25%",
+					},
+					MaxSurge: &intstr.IntOrString{
+						StrVal: "25%",
+					},
+				},
 			},
 		},
 	}
@@ -32,7 +42,15 @@ func TestDeployment(t *testing.T) {
 		Name:     apiutils.NewStringPointer("new-name"),
 		Replicas: apiutils.NewInt32Pointer(2),
 		Strategy: &v1.DeploymentStrategy{
-			Type: "rollingUpdate",
+			Type: "RollingUpdate",
+			RollingUpdate: &v1.RollingUpdateDeployment{
+				MaxUnavailable: &intstr.IntOrString{
+					StrVal: "50%",
+				},
+				MaxSurge: &intstr.IntOrString{
+					StrVal: "50%",
+				},
+			},
 		},
 	}
 
@@ -40,5 +58,8 @@ func TestDeployment(t *testing.T) {
 
 	assert.Equal(t, "new-name", deployment.Name)
 	assert.Equal(t, int32(2), *deployment.Spec.Replicas)
-	assert.Equal(t, v1.DeploymentStrategyType("rollingUpdate"), deployment.Spec.Strategy.Type)
+	assert.Equal(t, v1.RollingUpdateDeploymentStrategyType, deployment.Spec.Strategy.Type)
+	assert.Equal(t, "50%", deployment.Spec.Strategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, "50%", deployment.Spec.Strategy.RollingUpdate.MaxSurge.StrVal)
+
 }

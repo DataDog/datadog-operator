@@ -1192,7 +1192,7 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Describe how to replace existing pods with new ones.
+	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
 	Strategy *v1.DeploymentStrategy `json:"strategy,omitempty"`
 
