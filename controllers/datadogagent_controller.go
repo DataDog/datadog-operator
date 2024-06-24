@@ -200,7 +200,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder.Watches(
 			&datadoghqv1alpha1.DatadogAgentProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
-		)
+		).WithEventFilter(predicate.GenerationChangedPredicate{})
 	}
 
 	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
