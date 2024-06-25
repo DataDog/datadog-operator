@@ -218,7 +218,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		updateDaemonset.Labels = mergeAnnotationsLabels(logger, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
 		// manually remove the old profile label because mergeAnnotationsLabels
 		// won't filter labels with "datadoghq.com" in the key
-		updateDaemonset.Labels = removeAnnotationLabel(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
+		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)

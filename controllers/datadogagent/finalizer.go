@@ -171,8 +171,14 @@ func (r *Reconciler) profilesCleanup() error {
 			continue
 		}
 
-		newLabels := removeAnnotationLabel(node.Labels, agentprofile.ProfileLabelKey)
-		newLabels = removeAnnotationLabel(newLabels, agentprofile.OldProfileLabelKey)
+		newLabels := map[string]string{}
+		for k, v := range node.Labels {
+			// Remove profile labels from nodes
+			if k == agentprofile.OldProfileLabelKey || k == agentprofile.ProfileLabelKey {
+				continue
+			}
+			newLabels[k] = v
+		}
 
 		patch := corev1.Node{
 			TypeMeta:   node.TypeMeta,
