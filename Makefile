@@ -49,7 +49,6 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
-CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24
 
@@ -83,7 +82,7 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
@@ -145,7 +144,7 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
@@ -328,14 +327,14 @@ bin/$(PLATFORM)/golangci-lint: Makefile
 	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
-	hack/install-operator-sdk.sh v1.23.0
+	hack/install-operator-sdk.sh v1.34.1
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
-	hack/install-operator-manifest-tools.sh 0.2.0
+	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
 	hack/install-openshift-preflight.sh 1.9.4
@@ -345,10 +344,10 @@ bin/$(PLATFORM)/openapi-gen:
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
 
 bin/$(PLATFORM)/kubebuilder:
-	./hack/install-kubebuilder.sh 3.4.0 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)
 
 bin/$(PLATFORM)/kubebuilder-tools:
-	./hack/install-kubebuilder-tools.sh 1.24.1 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help

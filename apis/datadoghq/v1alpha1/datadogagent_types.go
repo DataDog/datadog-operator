@@ -1406,11 +1406,6 @@ const (
 // DatadogAgent Deployment with Datadog Operator.
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
-// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
-// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
-// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
-// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient
 // +kubebuilder:skipversion

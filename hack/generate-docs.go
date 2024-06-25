@@ -146,7 +146,7 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 		return []parameterDoc{
 			{
 				name:        strings.Join(path, "."),
-				description: strings.ReplaceAll(prop.Description, "\n", ""),
+				description: strings.ReplaceAll(prop.Description, "\n", " "),
 			},
 		}
 	}
