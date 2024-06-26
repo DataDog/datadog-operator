@@ -49,7 +49,6 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
-CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.24
 
@@ -83,11 +82,11 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v4@v5.4.1)
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
@@ -145,12 +144,11 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1beta1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/.."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
