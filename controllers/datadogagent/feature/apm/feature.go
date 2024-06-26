@@ -139,7 +139,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
 
-		if f.processCheckRunsInCoreAgent && f.shouldEnableLanguageDetection() {
+		if !f.processCheckRunsInCoreAgent && f.shouldEnableLanguageDetection() {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 
