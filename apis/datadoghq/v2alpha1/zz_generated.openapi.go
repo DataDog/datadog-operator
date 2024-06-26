@@ -42,8 +42,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
+		"./apis/datadoghq/v2alpha1.RollingUpdate":                     schema__apis_datadoghq_v2alpha1_RollingUpdate(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
+		"./apis/datadoghq/v2alpha1.UpdateStrategy":                    schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
 }
 
@@ -1171,6 +1173,33 @@ func schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.Refere
 	}
 }
 
+func schema__apis_datadoghq_v2alpha1_RollingUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Describes how to replace existing pods with new ones.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"maxUnavailable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Defaults to 25%.",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+						},
+					},
+					"maxSurge": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The maximum number of pods that can be scheduled above the desired number of pods. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Defaults to 25%.",
+							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
 func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1223,5 +1252,32 @@ func schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.Reference
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type can be \"RollingUpdate\" or \"OnDelete\" for DaemonSets and \"Rolling Update\" \"Recreate\" for Deployments",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rollingUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the rolling update strategy of the Deployment or DaemonSet.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.RollingUpdate"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.RollingUpdate"},
 	}
 }

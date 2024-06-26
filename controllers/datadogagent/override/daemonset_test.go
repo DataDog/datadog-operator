@@ -17,16 +17,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func TestDeployment(t *testing.T) {
-	deployment := v1.Deployment{
+func TestDaemonSet(t *testing.T) {
+	daemonSet := v1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "current-name",
 		},
-		Spec: v1.DeploymentSpec{
-			Replicas: apiutils.NewInt32Pointer(1),
-			Strategy: v1.DeploymentStrategy{
-				Type: "RollingUpdate",
-				RollingUpdate: &v1.RollingUpdateDeployment{
+		Spec: v1.DaemonSetSpec{
+			UpdateStrategy: v1.DaemonSetUpdateStrategy{
+				RollingUpdate: &v1.RollingUpdateDaemonSet{
 					MaxUnavailable: &intstr.IntOrString{
 						StrVal: "25%",
 					},
@@ -39,8 +37,7 @@ func TestDeployment(t *testing.T) {
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name:     apiutils.NewStringPointer("new-name"),
-		Replicas: apiutils.NewInt32Pointer(2),
+		Name: apiutils.NewStringPointer("new-name"),
 		Strategy: &v2alpha1.UpdateStrategy{
 			Type: "RollingUpdate",
 			RollingUpdate: &v2alpha1.RollingUpdate{
@@ -54,12 +51,11 @@ func TestDeployment(t *testing.T) {
 		},
 	}
 
-	Deployment(&deployment, &override)
+	DaemonSet(&daemonSet, &override)
 
-	assert.Equal(t, "new-name", deployment.Name)
-	assert.Equal(t, int32(2), *deployment.Spec.Replicas)
-	assert.Equal(t, v1.RollingUpdateDeploymentStrategyType, deployment.Spec.Strategy.Type)
-	assert.Equal(t, "50%", deployment.Spec.Strategy.RollingUpdate.MaxUnavailable.StrVal)
-	assert.Equal(t, "50%", deployment.Spec.Strategy.RollingUpdate.MaxSurge.StrVal)
+	assert.Equal(t, "new-name", daemonSet.Name)
+	assert.Equal(t, v1.RollingUpdateDaemonSetStrategyType, daemonSet.Spec.UpdateStrategy.Type)
+	assert.Equal(t, "50%", daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, "50%", daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxSurge.StrVal)
 
 }

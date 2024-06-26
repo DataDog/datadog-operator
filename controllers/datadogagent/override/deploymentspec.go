@@ -21,6 +21,12 @@ func Deployment(deployment *v1.Deployment, override *v2alpha1.DatadogAgentCompon
 	}
 
 	if override.Strategy != nil {
-		deployment.Spec.Strategy = *override.Strategy
+		if override.Strategy.Type == "RollingUpdate" {
+			deployment.Spec.Strategy.RollingUpdate = &v1.RollingUpdateDeployment{
+				MaxUnavailable: override.Strategy.RollingUpdate.MaxUnavailable,
+				MaxSurge:       override.Strategy.RollingUpdate.MaxSurge,
+			}
+		}
+		deployment.Spec.Strategy.Type = v1.DeploymentStrategyType(override.Strategy.Type)
 	}
 }

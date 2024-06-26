@@ -6,9 +6,9 @@
 package v2alpha1
 
 import (
-	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
@@ -1194,7 +1194,7 @@ type DatadogAgentComponentOverride struct {
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
-	Strategy *v1.DeploymentStrategy `json:"strategy,omitempty"`
+	Strategy *UpdateStrategy `json:"strategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
@@ -1298,6 +1298,34 @@ const (
 	// processes in one container
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
+
+// +k8s:openapi-gen=true
+type UpdateStrategy struct {
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "Rolling Update"
+	// "Recreate" for Deployments
+	Type string `json:"type,omitempty"`
+	// Configure the rolling update strategy of the Deployment or DaemonSet.
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
+}
+
+// Describes how to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+type RollingUpdate struct {
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Absolute number is calculated from percentage by rounding down.
+	// This can not be 0 if MaxSurge is 0.
+	// Defaults to 25%.
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+
+	// The maximum number of pods that can be scheduled above the desired number of
+	// pods.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// This can not be 0 if MaxUnavailable is 0.
+	// Absolute number is calculated from percentage by rounding up.
+	// Defaults to 25%.
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
+}
 
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true
