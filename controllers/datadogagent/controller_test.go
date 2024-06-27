@@ -549,6 +549,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							NamespaceLabelsAsTags: map[string]string{
 								"label": "test",
 							},
+							NamespaceAnnotationsAsTags: map[string]string{
+								"annotation": "test",
+							},
 							CollectEvents:  apiutils.NewBoolPointer(true),
 							LeaderElection: apiutils.NewBoolPointer(true),
 						},
@@ -600,7 +603,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if !containsVolumeMounts(agentContainer.VolumeMounts, "volumeMount", "my/test/path") {
 					return errors.New("volumeMount hasn't been set correctly")
 				}
-
+				if !containsEnv(agentContainer.Env, "DD_KUBERNETES_NAMESPACE_ANNOTATIONS_AS_TAGS", "{\"annotation\":\"test\"}") {
+					return errors.New("DD_KUBERNETES_NAMESPACE_ANNOTATIONS_AS_TAGS hasn't been set correctly")
+				}
 				return nil
 			},
 		},

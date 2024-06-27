@@ -107,6 +107,7 @@ const (
 	DDLogsContainerCollectUsingFiles                     = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDLogsEnabled                                        = "DD_LOGS_ENABLED"
 	DDNamespaceLabelsAsTags                              = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
+	DDNamespaceAnnotationsAsTags                         = "DD_KUBERNETES_NAMESPACE_ANNOTATIONS_AS_TAGS"
 	DDNodeLabelsAsTags                                   = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
 	DDOrchestratorExplorerEnabled                        = "DD_ORCHESTRATOR_EXPLORER_ENABLED"
 	DDOrchestratorExplorerExtraTags                      = "DD_ORCHESTRATOR_EXPLORER_EXTRA_TAGS"

@@ -108,6 +108,8 @@ spec:
         custom-tag3: custom-tag3
       namespaceLabelsAsTags:
         custom-tag4: custom-tag4
+      namespaceAnnotationsAsTags:
+        custom-tag5: custom-tag5
       tags:
         - hostTag1
         - hostTag2
