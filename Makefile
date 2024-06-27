@@ -210,14 +210,16 @@ integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
 
 .PHONY: e2e-tests
 e2e-tests: manifests $(KUSTOMIZE) ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	KUSTOMIZE_CONFIG=config/e2e
 	cd config/e2e && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/e2e
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e.out
 
 .PHONY: e2e-tests-keep-stacks
 e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environment stacks running. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks`.
+	KUSTOMIZE_CONFIG=config/e2e
 	cd config/e2e && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/e2e
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e_keep_stacks.out -args -keep-stacks=true
 
 .PHONY: bundle
@@ -339,14 +341,14 @@ bin/$(PLATFORM)/golangci-lint: Makefile
 	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
-	hack/install-operator-sdk.sh v1.23.0
+	hack/install-operator-sdk.sh v1.34.1
 
 bin/$(PLATFORM)/go-licenses:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
-	hack/install-operator-manifest-tools.sh 0.2.0
+	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
 	hack/install-openshift-preflight.sh 1.9.4
@@ -356,10 +358,10 @@ bin/$(PLATFORM)/openapi-gen:
 	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
 
 bin/$(PLATFORM)/kubebuilder:
-	./hack/install-kubebuilder.sh 3.4.0 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)
 
 bin/$(PLATFORM)/kubebuilder-tools:
-	./hack/install-kubebuilder-tools.sh 1.24.1 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help
