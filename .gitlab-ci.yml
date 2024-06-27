@@ -187,7 +187,7 @@ preflight_redhat_image_amd64:
   script:
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - export ARCH=linux/amd64
+    - export IMG_PLATFORM=linux/amd64
     - make preflight-redhat-container
 
 
@@ -205,7 +205,7 @@ preflight_redhat_image_arm64:
   script:
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - export ARCH=linux/arm64
+    - export IMG_PLATFORM=linux/arm64
     - make preflight-redhat-container
 
 
@@ -454,7 +454,7 @@ submit_preflight_redhat_image_amd64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
     - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-    - export ARCH=linux/amd64
+    - export IMG_PLATFORM=linux/amd64
     - make preflight-redhat-container-submit
 
 submit_preflight_redhat_image_arm64:
@@ -472,7 +472,7 @@ submit_preflight_redhat_image_arm64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
     - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-    - export ARCH=linux/arm64
+    - export IMG_PLATFORM=linux/arm64
     - make preflight-redhat-container-submit
 
 publish_community_operators:
