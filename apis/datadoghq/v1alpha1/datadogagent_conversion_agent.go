@@ -80,6 +80,10 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 			getV2GlobalConfig(dst).NamespaceLabelsAsTags = src.Config.NamespaceLabelsAsTags
 		}
 
+		if src.Config.NamespaceAnnotationsAsTags != nil {
+			getV2GlobalConfig(dst).NamespaceAnnotationsAsTags = src.Config.NamespaceAnnotationsAsTags
+		}
+
 		if src.Config.Tags != nil {
 			getV2GlobalConfig(dst).Tags = append(getV2GlobalConfig(dst).Tags, src.Config.Tags...)
 		}
