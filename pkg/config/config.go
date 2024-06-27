@@ -14,8 +14,15 @@ import (
 )
 
 const (
-	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-	// which specifies the Namespace to watch.
+	// AgentWatchNamespaceEnvVar is a comma separated list of namespaces relevant to Agent controller.
+	AgentWatchNamespaceEnvVar = "AGENT_WATCH_NAMESPACE"
+	// SLOWatchNamespaceEnvVar is a comma separated list of namespaces relevant to SLO controller.
+	SLOWatchNamespaceEnvVar = "SLO_WATCH_NAMESPACE"
+	// MonitorWatchNamespaceEnvVar is a comma separated list of namespaces relevant to Monitor controller.
+	MonitorWatchNamespaceEnvVar = "MONITOR_WATCH_NAMESPACE"
+	// ProfilesWatchNamespaceEnvVar is a comma separated list of namespaces relevant to Agent Profile controller.
+	ProfilesWatchNamespaceEnvVar = "PROFILE_WATCH_NAMESPACE"
+	// WatchNamespaceEnvVar is a comma separated list of namespaces watched by all controllers unless controller specific configuration is provided.
 	// An empty value means the operator is running with cluster scope.
 	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
 	// DDAPIKeyEnvVar is the constant for the env variable DD_API_KEY which is the fallback
@@ -30,38 +37,53 @@ const (
 	// TODO consider moving DDSite here as well
 )
 
-// GetWatchNamespaces returns the Namespaces the operator should be watching for changes.
-func GetWatchNamespaces() []string {
-	ns, found := os.LookupEnv(WatchNamespaceEnvVar)
-	if !found {
-		return nil
-	}
-
-	// Add support for MultiNamespace set in WATCH_NAMESPACE (e.g ns1,ns2).
-	if strings.Contains(ns, ",") {
-		return strings.Split(ns, ",")
-	}
-
-	return []string{ns}
+// GetWatchNamespaces returns default namespace map with empty cache config.
+func GetWatchNamespaces(logger logr.Logger) map[string]cache.Config {
+	return getWatchNamespacesFromEnv(logger, WatchNamespaceEnvVar)
 }
 
-// ManagerOptionsWithNamespaces returns an updated Options with namespaces information.
-func GetNamespaceConfigs(logger logr.Logger, cacheConfig cache.Config) map[string]cache.Config {
-	namespaces := GetWatchNamespaces()
-	switch {
-	case len(namespaces) == 1:
-		logger.Info("Manager will be watching namespace", "namespace", namespaces[0])
-		return map[string]cache.Config{namespaces[0]: cacheConfig}
-	case len(namespaces) > 1:
-		// configure cluster-scoped with MultiNamespacedCacheBuilder
-		logger.Info("Manager will be watching multiple namespaces", "namespaces", namespaces)
-		// https://github.com/kubernetes-sigs/controller-runtime/commit/3e35cab1ea29145d8699259b079633a2b8cfc116
-		nsConfigs := make(map[string]cache.Config)
-		for _, ns := range namespaces {
-			nsConfigs[ns] = cacheConfig
+// GetMonitorWatchNamespaces returns namespace map for Agents with empty cache config.
+func GetAgentWatchNamespaces(logger logr.Logger) map[string]cache.Config {
+	return getWatchNamespacesFromEnv(logger, AgentWatchNamespaceEnvVar)
+}
+
+// GetMonitorWatchNamespaces returns namespace map for Monitors with empty cache config.
+func GetMonitorWatchNamespaces(logger logr.Logger) map[string]cache.Config {
+	return getWatchNamespacesFromEnv(logger, MonitorWatchNamespaceEnvVar)
+}
+
+// GetSLOWatchNamespaces returns namespace map for SLOs with empty cache config.
+func GetSLOWatchNamespaces(logger logr.Logger) map[string]cache.Config {
+	return getWatchNamespacesFromEnv(logger, SLOWatchNamespaceEnvVar)
+}
+
+// GetProfileWatchNamespaces returns namespace map for DAPs with empty cache config.
+func GetProfileWatchNamespaces(logger logr.Logger) map[string]cache.Config {
+	return getWatchNamespacesFromEnv(logger, ProfilesWatchNamespaceEnvVar)
+}
+
+func getWatchNamespacesFromEnv(logger logr.Logger, envVar string) map[string]cache.Config {
+	cacheConfig := cache.Config{}
+
+	nsEnvValue, found := os.LookupEnv(envVar)
+	if !found {
+		logger.Info("CRD specific cache namespaces config not found, will be using common config")
+		nsEnvValue, found = os.LookupEnv(WatchNamespaceEnvVar)
+		if !found {
+			logger.Info("Common namespace config not found, will be watching all namespaces")
+			return map[string]cache.Config{cache.AllNamespaces: cacheConfig}
 		}
-		return nsConfigs
 	}
-	logger.Info("Manager will watch and manage resources in all namespaces")
-	return map[string]cache.Config{cache.AllNamespaces: cacheConfig}
+
+	var namespaces []string
+	if strings.Contains(nsEnvValue, ",") {
+		namespaces = strings.Split(nsEnvValue, ",")
+	} else {
+		namespaces = []string{nsEnvValue}
+	}
+	nsConfigs := make(map[string]cache.Config)
+	for _, ns := range namespaces {
+		nsConfigs[ns] = cache.Config{}
+	}
+	return nsConfigs
 }
