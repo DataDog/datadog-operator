@@ -23,7 +23,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -61,8 +60,6 @@ type apmFeature struct {
 	createCiliumNetworkPolicy     bool
 
 	singleStepInstrumentation *instrumentationConfig
-
-	processCheckRunsInCoreAgent bool
 }
 
 type instrumentationConfig struct {
@@ -137,9 +134,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
-
-		if !f.processCheckRunsInCoreAgent && f.shouldEnableLanguageDetection() {
+		if f.shouldEnableLanguageDetection() {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 
