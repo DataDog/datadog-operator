@@ -116,14 +116,14 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 
 	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
 		if ddaSpec.Features.SBOM.Host == nil {
-			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
+			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 		}
 		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
 	}
 
 	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
 		if ddaSpec.Features.SBOM.ContainerImage == nil {
-			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 		}
 		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
 	}

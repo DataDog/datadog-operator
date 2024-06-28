@@ -444,7 +444,7 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		// SBOM HOST
 		if cfg.CoreAgent.SBOM.Host != nil {
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host == nil {
-				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
+				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 			}
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled == nil {
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled = new(bool)
@@ -457,7 +457,7 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		// SBOM CONTAINER IMAGE
 		if cfg.CoreAgent.SBOM.ContainerImage != nil {
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage == nil {
-				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 			}
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled == nil {
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled = new(bool)
