@@ -294,12 +294,12 @@ generate-openapi: bin/$(PLATFORM)/openapi-gen
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} --platform=${IMG_PLATFORM} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json
 
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit
 preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} --platform=${IMG_PLATFORM} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
 
 .PHONY: patch-crds
 patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
@@ -349,7 +349,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.4
+	hack/install-openshift-preflight.sh 1.9.9
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
