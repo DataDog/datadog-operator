@@ -156,14 +156,14 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 }
 
 func (s *kindSuite) TestKindRun() {
+	var ddaConfigPath string
+
 	// Get E2E kubernetes context and set up terratest kubectlOptions
 	cleanUpContext, err := contextConfig(s.Env().Kind.ClusterOutput.KubeConfig)
 	s.Assert().NoError(err, "Error retrieving E2E kubeconfig.")
 	defer cleanUpContext()
 
 	kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, namespaceName)
-	var ddaConfigPath string
-	s.Assert().NoError(err)
 
 	s.T().Run("Operator deploys to kind cluster", func(t *testing.T) {
 		verifyOperator(t, kubectlOptions)
