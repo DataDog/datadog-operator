@@ -98,10 +98,12 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 						Protocol:      "TCP",
 					},
 				},
-				Env:          envVars,
-				VolumeMounts: volumeMounts,
-				Command:      nil,
-				Args:         nil,
+				Env:            envVars,
+				VolumeMounts:   volumeMounts,
+				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+				Command:        nil,
+				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
@@ -115,6 +117,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
 		// },
 	}
+
 	return podSpec
 }
 
