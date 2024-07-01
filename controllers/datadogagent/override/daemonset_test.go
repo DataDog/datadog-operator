@@ -45,7 +45,7 @@ func TestDaemonSet(t *testing.T) {
 					StrVal: "50%",
 				},
 				MaxSurge: &intstr.IntOrString{
-					StrVal: "52%",
+					StrVal: "50%",
 				},
 			},
 		},
