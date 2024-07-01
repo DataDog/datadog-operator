@@ -1170,6 +1170,21 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
+	// Set DNS policy for the pod.
+	// Defaults to "ClusterFirst".
+	// Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'.
+	// DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy.
+	// To have DNS options set along with hostNetwork, you have to specify DNS policy
+	// explicitly to 'ClusterFirstWithHostNet'.
+	// +optional
+	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
+
+	// Specifies the DNS parameters of a pod.
+	// Parameters specified here will be merged to the generated DNS
+	// configuration based on DNSPolicy.
+	// +optional
+	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
+
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
 	// Selector which must match a node's labels for the pod to be scheduled on that node.
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/

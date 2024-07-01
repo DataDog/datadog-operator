@@ -147,6 +147,14 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	if override.HostPID != nil {
 		manager.PodTemplateSpec().Spec.HostPID = *override.HostPID
 	}
+
+	if override.DNSPolicy != nil {
+		manager.PodTemplateSpec().Spec.DNSPolicy = *override.DNSPolicy
+	}
+
+	if override.DNSConfig != nil {
+		manager.PodTemplateSpec().Spec.DNSConfig = override.DNSConfig
+	}
 }
 
 func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {

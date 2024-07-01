@@ -200,6 +200,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder.Watches(
 			&datadoghqv1alpha1.DatadogAgentProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
+			ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		)
 	}
 

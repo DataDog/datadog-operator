@@ -831,6 +831,87 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "override dns policy",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.DNSPolicy = v1.DNSClusterFirst
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				DNSPolicy: newDNSPolicyPointer(v1.DNSClusterFirstWithHostNet),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, v1.DNSClusterFirstWithHostNet, manager.PodTemplateSpec().Spec.DNSPolicy)
+			},
+		},
+		{
+			name: "override dns config",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.DNSConfig = &v1.PodDNSConfig{
+					Nameservers: []string{
+						"10.9.8.7",
+					},
+					Searches: []string{
+						"dns-search-1", "dns-search-2", "dns-search-3",
+					},
+					Options: []v1.PodDNSConfigOption{
+						{
+							Name:  "",
+							Value: apiutils.NewStringPointer("value-0"),
+						},
+						{
+							Name:  "",
+							Value: apiutils.NewStringPointer("value-1"),
+						},
+					},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				DNSConfig: &v1.PodDNSConfig{
+					Nameservers: []string{
+						"10.9.8.7", "10.9.8.4",
+					},
+					Searches: []string{
+						"dns-search-1", "dns-search-2",
+					},
+					Options: []v1.PodDNSConfigOption{
+						{
+							Name:  "DNSResolver1",
+							Value: apiutils.NewStringPointer("value-2"),
+						},
+						{
+							Name:  "DNSResolver2",
+							Value: apiutils.NewStringPointer("value-3"),
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedConfig := &v1.PodDNSConfig{
+					Nameservers: []string{
+						"10.9.8.7", "10.9.8.4",
+					},
+					Searches: []string{
+						"dns-search-1", "dns-search-2",
+					},
+					Options: []v1.PodDNSConfigOption{
+						{
+							Name:  "DNSResolver1",
+							Value: apiutils.NewStringPointer("value-2"),
+						},
+						{
+							Name:  "DNSResolver2",
+							Value: apiutils.NewStringPointer("value-3"),
+						},
+					},
+				}
+				assert.Equal(t, expectedConfig, manager.PodTemplateSpec().Spec.DNSConfig)
+			},
+		},
+
+		{
 			name: "add labels",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
@@ -945,4 +1026,8 @@ func assertImageConfigValues(manager *fake.PodTemplateManagers, imageOptions con
 		imageSecrets := []v1.LocalObjectReference{{Name: imageOptions.pullSecretName}}
 		assert.Equal(t, imageSecrets, manager.PodTemplateSpec().Spec.ImagePullSecrets)
 	}
+}
+
+func newDNSPolicyPointer(s v1.DNSPolicy) *v1.DNSPolicy {
+	return &s
 }

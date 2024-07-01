@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/controllers/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -158,6 +159,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// If introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
+	metrics.IntrospectionEnabled.Set(metrics.DisabledValue)
+	metrics.DAPEnabled.Set(metrics.DisabledValue)
 
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		// Get a node list for profiles and introspection
@@ -168,9 +171,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
+			metrics.IntrospectionEnabled.Set(metrics.EnabledValue)
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
+			metrics.DAPEnabled.Set(metrics.EnabledValue)
 			var profilesByNode map[string]types.NamespacedName
 			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now)
 			if err != nil {
