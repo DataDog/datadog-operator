@@ -3968,42 +3968,6 @@ spec:
                           Sets the ServiceAccount used by this component.
                           Ignored if the field CreateRbac is true.
                         type: string
-                      strategy:
-                        description: The deployment strategy to use to replace existing pods with new ones.
-                        properties:
-                          rollingUpdate:
-                            description: Configure the rolling update strategy of the Deployment or DaemonSet.
-                            properties:
-                              maxSurge:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: |-
-                                  The maximum number of pods that can be scheduled above the desired number of
-                                  pods.
-                                  Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-                                  This can not be 0 if MaxUnavailable is 0.
-                                  Absolute number is calculated from percentage by rounding up.
-                                  Defaults to 25%.
-                                x-kubernetes-int-or-string: true
-                              maxUnavailable:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: |-
-                                  The maximum number of pods that can be unavailable during the update.
-                                  Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-                                  Absolute number is calculated from percentage by rounding down.
-                                  This can not be 0 if MaxSurge is 0.
-                                  Defaults to 25%.
-                                x-kubernetes-int-or-string: true
-                            type: object
-                          type:
-                            description: |-
-                              Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "Rolling Update"
-                              "Recreate" for Deployments
-                            type: string
-                        type: object
                       tolerations:
                         description: Configure the component tolerations.
                         items:
@@ -4044,6 +4008,36 @@ spec:
                           type: object
                         type: array
                         x-kubernetes-list-type: atomic
+                      updateStrategy:
+                        description: The deployment strategy to use to replace existing pods with new ones.
+                        properties:
+                          rollingUpdate:
+                            description: Configure the rolling update strategy of the Deployment or DaemonSet.
+                            properties:
+                              maxSurge:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                description: |-
+                                  MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+                                  Kubernetes API documentation for additional details.
+                                x-kubernetes-int-or-string: true
+                              maxUnavailable:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                description: |-
+                                  The maximum number of pods that can be unavailable during the update.
+                                  Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                  Refer to the Kubernetes API documentation for additional details..
+                                x-kubernetes-int-or-string: true
+                            type: object
+                          type:
+                            description: |-
+                              Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+                              or "Recreate" for Deployments
+                            type: string
+                        type: object
                       volumes:
                         description: Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
                         items:

@@ -41,7 +41,7 @@ func TestDeployment(t *testing.T) {
 	override := v2alpha1.DatadogAgentComponentOverride{
 		Name:     apiutils.NewStringPointer("new-name"),
 		Replicas: apiutils.NewInt32Pointer(2),
-		Strategy: &v2alpha1.UpdateStrategy{
+		UpdateStrategy: &v2alpha1.UpdateStrategy{
 			Type: "RollingUpdate",
 			RollingUpdate: &v2alpha1.RollingUpdate{
 				MaxUnavailable: &intstr.IntOrString{

@@ -38,14 +38,14 @@ func TestDaemonSet(t *testing.T) {
 
 	override := v2alpha1.DatadogAgentComponentOverride{
 		Name: apiutils.NewStringPointer("new-name"),
-		Strategy: &v2alpha1.UpdateStrategy{
+		UpdateStrategy: &v2alpha1.UpdateStrategy{
 			Type: "RollingUpdate",
 			RollingUpdate: &v2alpha1.RollingUpdate{
 				MaxUnavailable: &intstr.IntOrString{
 					StrVal: "50%",
 				},
 				MaxSurge: &intstr.IntOrString{
-					StrVal: "50%",
+					StrVal: "52%",
 				},
 			},
 		},

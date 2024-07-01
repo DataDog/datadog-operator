@@ -1194,7 +1194,7 @@ type DatadogAgentComponentOverride struct {
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
-	Strategy *UpdateStrategy `json:"strategy,omitempty"`
+	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
@@ -1299,31 +1299,26 @@ const (
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
 
+// The deployment strategy to use to replace existing pods with new ones.
 // +k8s:openapi-gen=true
 type UpdateStrategy struct {
-	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "Rolling Update"
-	// "Recreate" for Deployments
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+	// or "Recreate" for Deployments
 	Type string `json:"type,omitempty"`
 	// Configure the rolling update strategy of the Deployment or DaemonSet.
 	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
 }
 
-// Describes how to replace existing pods with new ones.
+// RollingUpdate describes how to replace existing pods with new ones.
 // +k8s:openapi-gen=true
 type RollingUpdate struct {
 	// The maximum number of pods that can be unavailable during the update.
 	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-	// Absolute number is calculated from percentage by rounding down.
-	// This can not be 0 if MaxSurge is 0.
-	// Defaults to 25%.
+	// Refer to the Kubernetes API documentation for additional details..
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 
-	// The maximum number of pods that can be scheduled above the desired number of
-	// pods.
-	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-	// This can not be 0 if MaxUnavailable is 0.
-	// Absolute number is calculated from percentage by rounding up.
-	// Defaults to 25%.
+	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+	// Kubernetes API documentation for additional details.
 	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 

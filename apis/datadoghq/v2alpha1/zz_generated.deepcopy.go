@@ -633,8 +633,8 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 			(*out)[key] = val
 		}
 	}
-	if in.Strategy != nil {
-		in, out := &in.Strategy, &out.Strategy
+	if in.UpdateStrategy != nil {
+		in, out := &in.UpdateStrategy, &out.UpdateStrategy
 		*out = new(UpdateStrategy)
 		(*in).DeepCopyInto(*out)
 	}
