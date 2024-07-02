@@ -46,6 +46,7 @@ import (
 type daemonSetExpectations struct {
 	affinity           *v1.Affinity
 	containerResources map[common.AgentContainerName]v1.ResourceRequirements
+	envVars            []v1.EnvVar
 }
 
 type profilesTestScenario struct {
@@ -237,6 +238,20 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											v1.ResourceCPU: resource.MustParse("1"),
 										},
 									},
+									Env: []v1.EnvVar{
+										{
+											Name:  "one",
+											Value: "foo",
+										},
+										{
+											Name: "two",
+											ValueFrom: &v1.EnvVarSource{
+												FieldRef: &v1.ObjectFieldSelector{
+													FieldPath: apicommon.FieldPathStatusPodIP,
+												},
+											},
+										},
+									},
 								},
 							},
 						},
@@ -294,6 +309,20 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 					},
 					common.TraceAgentContainerName:   {},
 					common.ProcessAgentContainerName: {},
+				},
+				envVars: []v1.EnvVar{
+					{
+						Name:  "one",
+						Value: "foo",
+					},
+					{
+						Name: "two",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								FieldPath: apicommon.FieldPathStatusPodIP,
+							},
+						},
+					},
 				},
 			},
 		}
