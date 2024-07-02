@@ -11,6 +11,10 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
+  labels:
+    operatorframework.io/os.linux: supported
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.arm64: supported
   name: datadog-operator.v0.0.0
   namespace: placeholder
 spec:
