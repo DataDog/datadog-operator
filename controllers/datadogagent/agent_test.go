@@ -126,6 +126,24 @@ func defaultReadinessProbe() *corev1.Probe {
 	}
 }
 
+func defaultStartupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/startup",
+				Port: intstr.IntOrString{
+					IntVal: 5555,
+				},
+			},
+		},
+	}
+}
+
 func defaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{

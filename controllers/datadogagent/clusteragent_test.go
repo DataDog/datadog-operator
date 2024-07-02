@@ -61,6 +61,7 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
+				StartupProbe:   defaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),

@@ -81,13 +81,15 @@ const (
 	// DefaultHelmCheckConf default Helm Check ConfigMap name
 	DefaultHelmCheckConf string = "helm-check-config"
 
+	// DefaultAgentHealthPort default agent health port
+	DefaultAgentHealthPort int32 = 5555
+
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
 	DefaultLivenessProbePeriodSeconds       int32 = 15
 	DefaultLivenessProbeTimeoutSeconds      int32 = 5
 	DefaultLivenessProbeSuccessThreshold    int32 = 1
 	DefaultLivenessProbeFailureThreshold    int32 = 6
-	DefaultAgentHealthPort                  int32 = 5555
 	DefaultLivenessProbeHTTPPath                  = "/live"
 
 	// Readiness probe default config
@@ -97,6 +99,14 @@ const (
 	DefaultReadinessProbeSuccessThreshold    int32 = 1
 	DefaultReadinessProbeFailureThreshold    int32 = 6
 	DefaultReadinessProbeHTTPPath                  = "/ready"
+
+	// Startup probe default config
+	DefaultStartupProbeInitialDelaySeconds int32 = 15
+	DefaultStartupProbePeriodSeconds       int32 = 15
+	DefaultStartupProbeTimeoutSeconds      int32 = 5
+	DefaultStartupProbeSuccessThreshold    int32 = 1
+	DefaultStartupProbeFailureThreshold    int32 = 6
+	DefaultStartupProbeHTTPPath                  = "/startup"
 
 	// Default Image name
 	DefaultAgentImageName        string = "agent"
