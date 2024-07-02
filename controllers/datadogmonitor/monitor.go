@@ -113,10 +113,6 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetIncludeTags(*options.IncludeTags)
 	}
 
-	if options.Locked != nil {
-		o.SetLocked(*options.Locked)
-	}
-
 	if options.NewGroupDelay != nil {
 		o.SetNewGroupDelay(*options.NewGroupDelay)
 	}
@@ -151,6 +147,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 
 	if options.RenotifyOccurrences != nil {
 		o.SetRenotifyOccurrences(*options.RenotifyOccurrences)
+	}
+
+	if options.RenotifyStatuses != nil {
+		o.SetRenotifyStatuses(*&options.RenotifyStatuses)
 	}
 
 	if options.TimeoutH != nil {

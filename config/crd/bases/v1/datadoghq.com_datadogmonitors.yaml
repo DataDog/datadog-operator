@@ -94,9 +94,6 @@ spec:
                     includeTags:
                       description: A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
                       type: boolean
-                    locked:
-                      description: Whether or not the monitor is locked (only editable by creator and admins).
-                      type: boolean
                     newGroupDelay:
                       description: |-
                         Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
@@ -147,6 +144,12 @@ spec:
                       description: The number of times re-notification messages should be sent on the current status at the provided re-notification interval.
                       format: int64
                       type: integer
+                    renotifyStatuses:
+                      description: The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.
+                      items:
+                        description: MonitorRenotifyStatusType The different statuses for which renotification is supported.
+                        type: string
+                      type: array
                     requireFullWindow:
                       description: |-
                         A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly

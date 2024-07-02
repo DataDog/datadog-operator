@@ -10,6 +10,7 @@
 package v1alpha1
 
 import (
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	v1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1458,11 +1459,6 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.Locked != nil {
-		in, out := &in.Locked, &out.Locked
-		*out = new(bool)
-		**out = **in
-	}
 	if in.NewGroupDelay != nil {
 		in, out := &in.NewGroupDelay, &out.NewGroupDelay
 		*out = new(int64)
@@ -1497,6 +1493,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		in, out := &in.RenotifyOccurrences, &out.RenotifyOccurrences
 		*out = new(int64)
 		**out = **in
+	}
+	if in.RenotifyStatuses != nil {
+		in, out := &in.RenotifyStatuses, &out.RenotifyStatuses
+		*out = make([]datadogV1.MonitorRenotifyStatusType, len(*in))
+		copy(*out, *in)
 	}
 	if in.RequireFullWindow != nil {
 		in, out := &in.RequireFullWindow, &out.RequireFullWindow

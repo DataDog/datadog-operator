@@ -2244,13 +2244,6 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"locked": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Whether or not the monitor is locked (only editable by creator and admins).",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"newGroupDelay": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of monitor results. Should be a non negative integer.",
@@ -2320,6 +2313,21 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Description: "The number of times re-notification messages should be sent on the current status at the provided re-notification interval.",
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+					"renotifyStatuses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"requireFullWindow": {
