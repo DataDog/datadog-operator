@@ -35,10 +35,21 @@ import (
 //         - type: Pods|Percent
 //           value: 1
 //           periodSeconds: 60
-//   recommender:
-//     name: containerMetrics
-//     containerMetrics:
-//       cpuUtilizationTarget: 60
+//   targets:
+//     - type: Resource
+//       resource:
+//         name: cpu
+//         value:
+//           type: Absolute|Utilization
+//           absolute: 500m
+//           utilization: 80
+//     - type: ContainerResource
+//       containerResource:
+//         name: cpu
+//         value:
+//           type: Absolute|Utilization
+//           absolute: 500m
+//           utilization: 80
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -83,9 +94,11 @@ type DatadogPodAutoscalerSpec struct {
 	// +kubebuilder:default={}
 	Policy *DatadogPodAutoscalerPolicy `json:"policy,omitempty"`
 
-	// Recommender defines the recommender to use for the autoscaler and its settings.
-	// Default to the `containerMetrics` recommender.
-	Recommender *DatadogPodAutoscalerRecommender `json:"recommender,omitempty"`
+	// Targets are objectives to reach and maintain for the target resource.
+	// Default to a single target to maintain 80% POD CPU utilization.
+	// +listType=atomic
+	// +optional
+	Targets []DatadogPodAutoscalerTarget `json:"targets,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
@@ -227,31 +240,80 @@ type DatadogPodAutoscalerScalingRule struct {
 	Match *DatadogPodAutoscalerScalingRuleMatch `json:"match,omitempty"`
 }
 
-// DatadogPodAutoscalerUpdateMode defines the mode of the update policy.
-// +kubebuilder:validation:Enum:=ContainerMetrics
-type DatadogPodAutoscalerRecommenderName string
+// DatadogPodAutoscalerTargetType defines the type of the target.
+// +kubebuilder:validation:Enum:=Resource;ContainerResource
+type DatadogPodAutoscalerTargetType string
 
 const (
-	// DatadogPodAutoscalerContainerMetricsRecommender uses container resources metrics.
-	DatadogPodAutoscalerContainerMetricsRecommender DatadogPodAutoscalerRecommenderName = "ContainerMetrics"
+	// DatadogPodAutoscalerResourceTargetType allows to set POD-level resources targets.
+	DatadogPodAutoscalerResourceTargetType DatadogPodAutoscalerTargetType = "Resource"
+
+	// DatadogPodAutoscalerContainerResourceTargetType allows to set container-level resources targets.
+	DatadogPodAutoscalerContainerResourceTargetType DatadogPodAutoscalerTargetType = "ContainerResource"
 )
 
-// DatadogPodAutoscalerRecommender defines the recommender to use for the autoscaler and its settings.
-type DatadogPodAutoscalerRecommender struct {
-	// Name is the name of the recommender to use.
-	Name DatadogPodAutoscalerRecommenderName `json:"name"`
+// DatadogPodAutoscalerTarget defines the objectives to reach and maintain for the target resource.
+type DatadogPodAutoscalerTarget struct {
+	// Type sets the type of the target.
+	Type DatadogPodAutoscalerTargetType `json:"type"`
 
-	// ContainerMetrics is the settings for the ContainerMetrics recommender.
-	ContainerMetrics *DatadogPodAutoscalerContainerMetricsRecommenderSettings `json:"containerMetrics,omitempty"`
+	// Resource allows to set a POD-level resource target.
+	Resource *DatadogPodAutoscalerResourceTarget `json:"resource,omitempty"`
+
+	// ContainerResource allows to set a container-level resource target.
+	ContainerResource *DatadogPodAutoscalerContainerResourceTarget `json:"containerResource,omitempty"`
 }
 
-// DatadogPodAutoscalerContainerMetricsRecommenderSettings defines the settings for the ContainerMetrics recommender.
-type DatadogPodAutoscalerContainerMetricsRecommenderSettings struct {
-	// CPUUtilizationTarget is the target CPU utilization for the containers.
+// DatadogPodAutoscalerResourceTarget defines a POD-level resource target (for instance, CPU Utilization at 80%)
+// For POD-level targets, resources are the sum of all containers resources.
+// Utilization is computed from sum(usage) / sum(requests).
+type DatadogPodAutoscalerResourceTarget struct {
+	// Name is the name of the resource.
+	// +kubebuilder:validation:Enum:=cpu
+	Name corev1.ResourceName `json:"name"`
+
+	// Value is the value of the target.
+	Value DatadogPodAutoscalerTargetValue `json:"value"`
+}
+
+// DatadogPodAutoscalerContainerResourceTarget defines a Container level resource target (for instance, CPU Utilization for container named "foo" at 80%)
+type DatadogPodAutoscalerContainerResourceTarget struct {
+	// Name is the name of the resource.
+	// +kubebuilder:validation:Enum:=cpu
+	Name corev1.ResourceName `json:"name"`
+
+	// Value is the value of the target.
+	Value DatadogPodAutoscalerTargetValue `json:"value"`
+
+	// Container is the name of the container.
+	Container string `json:"container"`
+}
+
+// DatadogPodAutoscalerTargetValue defines the value of the target.
+type DatadogPodAutoscalerTargetValue struct {
+	// Type specifies how the value is expressed (Absolute or Utilization).
+	Type DatadogPodAutoscalerTargetValueType `json:"type"`
+
+	// Absolute defines the absolute value of the target (for instance 500 millicores).
+	Absolute *resource.Quantity `json:"absolute,omitempty"`
+
+	// Utilization defines a percentage of the target compared to requested resource
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
-	CPUUtilizationTarget *int32 `json:"cpuUtilizationTarget,omitempty"`
+	Utilization *int32 `json:"utilization,omitempty"`
 }
+
+// DatadogPodAutoscalerTargetValueType specifies the type of metric being targeted, and should be either
+// kubebuilder:validation:Enum:=Absolute;Utilization
+type DatadogPodAutoscalerTargetValueType string
+
+const (
+	// DatadogPodAutoscalerAbsoluteTargetValueType is the target type for absolute values
+	DatadogPodAutoscalerAbsoluteTargetValueType DatadogPodAutoscalerTargetValueType = "Absolute"
+
+	// DatadogPodAutoscalerUtilizationTargetValueType declares a MetricTarget is an AverageUtilization value
+	DatadogPodAutoscalerUtilizationTargetValueType DatadogPodAutoscalerTargetValueType = "Utilization"
+)
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
 type DatadogPodAutoscalerConstraints struct {
