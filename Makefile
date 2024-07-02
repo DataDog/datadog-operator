@@ -234,9 +234,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
+# Build and push the multiarch bundle image.
 .PHONY: bundle-build-push
-bundle-build-push: ## Build and load the bundle image.
-	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build-push:
+	docker buildx build --platform linux/amd64,linux/arm64 --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
