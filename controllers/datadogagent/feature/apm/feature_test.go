@@ -660,21 +660,29 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			// Assert Env Vars Added to All Containers
-			allContEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+			processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 
-			var expectedAllContEnvVars []*corev1.EnvVar
+			var expectedEnvVars []*corev1.EnvVar
 			if languageDetectionEnabled {
-				expectedAllContEnvVars = []*corev1.EnvVar{{
+				expectedEnvVars = []*corev1.EnvVar{{
 					Name:  apicommon.DDLanguageDetectionEnabled,
 					Value: "true",
 				}}
 			}
 
+			// Assert Env Vars Added to Core Agent Container
 			assert.True(
 				t,
-				apiutils.IsEqualStruct(allContEnvVars, expectedAllContEnvVars),
-				"All Agent Container ENVs \ndiff = %s", cmp.Diff(allContEnvVars, expectedAllContEnvVars),
+				apiutils.IsEqualStruct(coreAgentEnvVars, expectedEnvVars),
+				"Core Agent Container ENVs \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedEnvVars),
+			)
+
+			// Assert Env Vars Added to Process Agent Container
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(processAgentEnvVars, expectedEnvVars),
+				"Process Agent Container ENVs \ndiff = %s", cmp.Diff(processAgentEnvVars, expectedEnvVars),
 			)
 		},
 	)

@@ -400,11 +400,17 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 	// APM SSI Language Detection
 	if f.shouldEnableLanguageDetection() {
 
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		// Enable language detection in core agent
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
 
+		// Enable language detection in process agent
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDLanguageDetectionEnabled,
+			Value: "true",
+		})
 	}
 
 	// uds
