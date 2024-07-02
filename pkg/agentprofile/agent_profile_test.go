@@ -282,7 +282,7 @@ func TestOverrideFromProfile(t *testing.T) {
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: &overrideNameForExampleProfile,
 				Labels: map[string]string{
-					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "example"),
+					"agent.datadoghq.com/datadogagentprofile": "example",
 				},
 				Affinity: &v1.Affinity{
 					PodAntiAffinity: &v1.PodAntiAffinity{
@@ -352,7 +352,7 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				Labels: map[string]string{
-					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "linux"),
+					"agent.datadoghq.com/datadogagentprofile": "linux",
 				},
 			},
 		},

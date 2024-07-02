@@ -354,7 +354,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {
 			// profile is invalid or conflicts
-			logger.Error(err, "profile cannot be applied", "name", profile.Name, "namespace", profile.Namespace)
+			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 			continue
 		}
 		profileListToApply = append(profileListToApply, profile)
