@@ -1,0 +1,8 @@
+resources:
+- e2e-manager.yaml
+images:
+- name: controller
+  newName: gcr.io/datadoghq/operator
+  newTag: 1.6.0
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization

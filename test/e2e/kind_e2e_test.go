@@ -12,10 +12,12 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
@@ -27,6 +29,8 @@ import (
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/zorkian/go-datadog-api.v2"
 )
 
 type kindEnv struct {
@@ -35,6 +39,15 @@ type kindEnv struct {
 
 type kindSuite struct {
 	e2e.BaseSuite[kindEnv]
+	datadogClient *datadog.Client
+}
+
+func (suite *kindSuite) SetupSuite() {
+	apiKey, err := runner.GetProfile().SecretStore().Get(parameters.APIKey)
+	suite.Require().NoError(err)
+	appKey, err := runner.GetProfile().SecretStore().Get(parameters.APPKey)
+	suite.Require().NoError(err)
+	suite.datadogClient = datadog.NewClient(apiKey, appKey)
 }
 
 func TestKindSuite(t *testing.T) {
@@ -143,6 +156,8 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 }
 
 func (s *kindSuite) TestKindRun() {
+	var ddaConfigPath string
+
 	// Get E2E kubernetes context and set up terratest kubectlOptions
 	cleanUpContext, err := contextConfig(s.Env().Kind.ClusterOutput.KubeConfig)
 	s.Assert().NoError(err, "Error retrieving E2E kubeconfig.")
@@ -156,11 +171,24 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Minimal DDA deploys agent resources", func(t *testing.T) {
 		// Install DDA
-		ddaConfigPath, err := getAbsPath(ddaMinimalPath)
+		ddaConfigPath, err = getAbsPath(ddaMinimalPath)
 		s.Assert().NoError(err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-		defer deleteDda(t, kubectlOptions, ddaConfigPath)
-
 		verifyAgent(t, kubectlOptions)
+	})
+
+	s.T().Run("Kubelet check works", func(t *testing.T) {
+		var now time.Time
+		metricQuery := "exclude_null(avg:kubernetes.cpu.usage.total{cluster_name:operator-e2e-ci, container_id:*})"
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			now = time.Now()
+			series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
+			assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
+		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+	})
+
+	s.T().Run("Cleanup DDA", func(t *testing.T) {
+		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
 }
