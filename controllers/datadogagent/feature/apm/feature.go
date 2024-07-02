@@ -134,10 +134,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 
-		if f.shouldEnableLanguageDetection() {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
-		}
-
 		if apm.SingleStepInstrumentation != nil &&
 			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
 			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
@@ -153,6 +149,10 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 					apicommonv1.ClusterAgentContainerName,
 				},
 			}
+		}
+
+		if f.shouldEnableLanguageDetection() {
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 	}
 
