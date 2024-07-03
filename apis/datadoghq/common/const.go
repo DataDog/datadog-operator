@@ -214,6 +214,7 @@ const (
 
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	OtelCustomConfigVolumePath  = "/etc/otel-agent/otel-config.yaml"
 
 	LogDatadogVolumeName                             = "logdatadog"
 	LogDatadogVolumePath                             = "/var/log/datadog"

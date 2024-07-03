@@ -140,6 +140,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []common.Age
 			containers = append(containers, securityAgentContainer(dda))
 		case common.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
+		case common.OtelAgent:
+			containers = append(containers, otelAgentContainer(dda))
 		}
 	}
 
@@ -182,6 +184,18 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
+	}
+}
+
+func otelAgentContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(common.OtelAgent),
+		Image: agentImage(),
+		Command: []string{
+			"otel-agent", fmt.Sprintf("--config=%s", apicommon.OtelCustomConfigVolumePath),
+		},
+		Env:          envVarsForOtelAgent(dda),
+		VolumeMounts: volumeMountsForOtelAgent(),
 	}
 }
 
@@ -338,6 +352,14 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvVars(dda)...)
 }
 
+func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		// TODO: add additional env vars here
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
 func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
@@ -435,6 +457,18 @@ func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForSecurity(),
 		component.GetVolumeMountForSeccomp(),
+	}
+}
+
+func volumeMountsForOtelAgent() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		// TODO: add/remove volume mounts
+		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForAuth(true),
+		component.GetVolumeMountForConfig(),
+		component.GetVolumeMountForDogstatsdSocket(false),
+		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForProc(),
 	}
 }
 
