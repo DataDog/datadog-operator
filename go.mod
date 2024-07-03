@@ -42,6 +42,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.52.0
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.52.0
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.52.0
+	github.com/prometheus/client_golang v1.16.0
 )
 
 require (
@@ -120,7 +121,6 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
