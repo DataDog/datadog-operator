@@ -1,8 +1,12 @@
-resources:
-- e2e-manager.yaml
 images:
 - name: controller
   newName: gcr.io/datadoghq/operator
   newTag: 1.7.0
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: system
+namePrefix: datadog-operator-e2e-
+resources:
+- ../crd
+- ../rbac
+- e2e-manager.yaml
