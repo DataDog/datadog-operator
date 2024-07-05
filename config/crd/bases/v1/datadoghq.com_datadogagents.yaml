@@ -1247,6 +1247,15 @@ spec:
                             Default: true
                           type: boolean
                       type: object
+                    profiling:
+                      description: Profiling configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables Profiling.
+                            Default: ""
+                          type: string
+                      type: object
                     prometheusScrape:
                       description: PrometheusScrape configuration.
                       properties:

@@ -82,6 +82,8 @@ const (
 	defaultAdmissionASMSCAEnabled     bool = false
 	defaultAdmissionASMIASTEnabled    bool = false
 
+	defaultAdmissionProfilingEnabled string = ""
+
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
 
@@ -289,6 +291,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.ASM.IAST = &ASMIASTConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.IAST.Enabled, defaultAdmissionASMIASTEnabled)
+
+	// Profiling Feature
+	if ddaSpec.Features.Profiling == nil {
+		ddaSpec.Features.Profiling = &ProfilingFeatureConfig{}
+	}
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Profiling.Enabled, defaultAdmissionProfilingEnabled)
 
 	// CSPM (Cloud Security Posture Management) Feature
 	if ddaSpec.Features.CSPM == nil {
