@@ -144,6 +144,7 @@ spec:
 | features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
 | features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.processDiscovery.enabled | Enabled enables the Process Discovery check in the Agent. Default: true |
+| features.profiling.enabled | Enabled enables Continuous Profiler. Default: "" Valid values: "", "true", "false", "auto" |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |

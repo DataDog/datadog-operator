@@ -63,6 +63,8 @@ type DatadogFeatures struct {
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// ASM (Application Security Management) configuration.
 	ASM *ASMFeatureConfig `json:"asm,omitempty"`
+	// Continuous Profiler configuration.
+	Profiling *ProfilingFeatureConfig `json:"profiling,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
 	// CWS (Cloud Workload Security) configuration.
@@ -210,6 +212,17 @@ type ASMIASTConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ProfilingFeatureConfig contains Continuous Profiler configuration.
+// Note that this will only affect pods where the Datadog client libraries are installed or APM Single Step Instrumentation is enabled.
+type ProfilingFeatureConfig struct {
+	// Enabled enables Continuous Profiler.
+	// Default: ""
+	// Valid values: "", "true", "false", "auto"
+	// +kubebuilder:validation:Enum:=true;false;auto
+	// +optional
+	Enabled *string `json:"enabled,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
