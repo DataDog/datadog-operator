@@ -6,3 +6,4 @@ updates:
       interval: weekly
     labels:
       - dependencies
+      - qa/skip-qa
