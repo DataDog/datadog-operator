@@ -117,7 +117,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, createSucceeded, "Deployment created")
 	}
 
-	logger.Info("Creating Deployment")
+	logger.Info("BROWNBAG : I'm Creating a new Deployment")
 
 	return result, err
 }
