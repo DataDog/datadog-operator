@@ -144,7 +144,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.pprofActive, "pprof", false, "Enable pprof endpoint")
 
 	// Leader Election options flags
-	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", true,
+	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
