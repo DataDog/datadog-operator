@@ -98,7 +98,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
-	reqLogger := r.log.WithValues("datadogagent")
+	reqLogger := r.log.WithValues("datadogagent", instance.Name)
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, features)
@@ -242,7 +242,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 }
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagent")
+	reqLogger := r.log.WithValues("datadogagent", agentdeployment.Name)
 	if currentError == nil {
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
@@ -250,12 +250,12 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	}
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
-	reqLogger.Info("BROWNBAG : Now I'm comparing the status of the DatadogAgent with the new status")
+	reqLogger.Info("BROWNBAG : I'm comparing the status of the DatadogAgent with the new status")
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
+		reqLogger.Info("BROWNBAG : Now I'm updating a new status")
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
-			reqLogger.Info("BROWNBAG : Now I'm updating a new status")
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil
