@@ -43,6 +43,7 @@ const (
 	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultCSPMEnabled                bool   = false
+	defaultCSPMHostBenchmarksEnabled  bool   = true
 	defaultCWSEnabled                 bool   = false
 	defaultCWSSyscallMonitorEnabled   bool   = false
 	defaultCWSNetworkEnabled          bool   = true
@@ -295,6 +296,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.CSPM = &CSPMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.Enabled, defaultCSPMEnabled)
+
+	if *ddaSpec.Features.CSPM.Enabled {
+		if ddaSpec.Features.CSPM.HostBenchmarks == nil {
+			ddaSpec.Features.CSPM.HostBenchmarks = &CSPMHostBenchmarksConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.HostBenchmarks.Enabled, defaultCSPMHostBenchmarksEnabled)
+	}
 
 	// CWS (Cloud Workload Security) Feature
 	if ddaSpec.Features.CWS == nil {
