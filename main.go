@@ -231,7 +231,7 @@ func run(opts *options) error {
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
-		Cache:                      config.CacheOptions(setupLog, opts.datadogAgentEnabled, opts.datadogAgentProfileEnabled, opts.datadogMonitorEnabled, opts.datadogSLOEnabled),
+		Cache:                      config.CacheOptions(setupLog, opts.datadogAgentEnabled, opts.datadogMonitorEnabled, opts.datadogSLOEnabled, opts.datadogAgentProfileEnabled),
 	})
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
