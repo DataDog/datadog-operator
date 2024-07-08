@@ -27,15 +27,15 @@ import (
 )
 
 const (
-	// AgentWatchNamespaceEnvVar is a comma separated list of namespaces watched by Agent controller.
-	agentWatchNamespaceEnvVar = "AGENT_WATCH_NAMESPACE"
-	// SLOWatchNamespaceEnvVar is a comma separated list of namespaces SLO controller.
-	sloWatchNamespaceEnvVar = "SLO_WATCH_NAMESPACE"
-	// MonitorWatchNamespaceEnvVar is a comma separated list of namespaces Monitor controller.
-	monitorWatchNamespaceEnvVar = "MONITOR_WATCH_NAMESPACE"
-	// ProfilesWatchNamespaceEnvVar is a comma separated list of namespaces Agent Profile controller.
-	profileWatchNamespaceEnvVar = "PROFILE_WATCH_NAMESPACE"
-	// WatchNamespaceEnvVar is a comma separated list of namespaces watched by all controllers unless controller specific configuration is provided.
+	// AgentWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgent controller.
+	agentWatchNamespaceEnvVar = "DD_AGENT_WATCH_NAMESPACE"
+	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
+	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
+	// MonitorWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogMonitor controller.
+	monitorWatchNamespaceEnvVar = "DD_MONITOR_WATCH_NAMESPACE"
+	// ProfilesWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgentProfile controller.
+	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
+	// WatchNamespaceEnvVar is a comma-separated list of namespaces watched by all controllers, unless a controller-specific configuration is provided.
 	// An empty value means the operator is running with cluster scope.
 	watchNamespaceEnvVar = "WATCH_NAMESPACE"
 	// DDAPIKeyEnvVar is the constant for the env variable DD_API_KEY which is the fallback
