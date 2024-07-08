@@ -160,12 +160,7 @@ func getWatchNamespacesFromEnv(logger logr.Logger, envVar string) map[string]cac
 		}
 	}
 
-	var namespaces []string
-	if strings.Contains(nsEnvValue, ",") {
-		namespaces = strings.Split(nsEnvValue, ",")
-	} else {
-		namespaces = []string{nsEnvValue}
-	}
+	namespaces := strings.Split(nsEnvValue, ",")
 	nsConfigs := make(map[string]cache.Config)
 	for _, ns := range namespaces {
 		nsConfigs[strings.TrimSpace(ns)] = cache.Config{}
