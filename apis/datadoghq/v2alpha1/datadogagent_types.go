@@ -8,6 +8,7 @@ package v2alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
@@ -1184,11 +1185,30 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
+	// Set DNS policy for the pod.
+	// Defaults to "ClusterFirst".
+	// Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'.
+	// DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy.
+	// To have DNS options set along with hostNetwork, you have to specify DNS policy
+	// explicitly to 'ClusterFirstWithHostNet'.
+	// +optional
+	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
+
+	// Specifies the DNS parameters of a pod.
+	// Parameters specified here will be merged to the generated DNS
+	// configuration based on DNSPolicy.
+	// +optional
+	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
+
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
 	// Selector which must match a node's labels for the pod to be scheduled on that node.
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// The deployment strategy to use to replace existing pods with new ones.
+	// +optional
+	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
@@ -1292,6 +1312,29 @@ const (
 	// processes in one container
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
+
+// The deployment strategy to use to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+type UpdateStrategy struct {
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+	// or "Recreate" for Deployments
+	Type string `json:"type,omitempty"`
+	// Configure the rolling update strategy of the Deployment or DaemonSet.
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
+}
+
+// RollingUpdate describes how to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+type RollingUpdate struct {
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Refer to the Kubernetes API documentation for additional details..
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+
+	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+	// Kubernetes API documentation for additional details.
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
+}
 
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true

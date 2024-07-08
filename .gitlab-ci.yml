@@ -1,9 +1,10 @@
-image: registry.ddbuild.io/images/mirror/golang:1.19-bullseye
+image: registry.ddbuild.io/images/mirror/golang:1.22.4
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
   GOPATH: "$CI_PROJECT_DIR/.cache"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
+  E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
   JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
@@ -13,6 +14,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: a1d921006e35
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
 
@@ -28,7 +30,42 @@ stages:
   - image
   - test-image
   - release
+  - e2e
   - post-release
+
+.new_e2e_template:
+  stage: e2e
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+  tags: ["arch:amd64"]
+  before_script:
+    # Setup AWS Credentials
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Now all `aws` commands target the agent-qa profile
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_PUBLIC_KEY_PATH
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_PRIVATE_KEY_PATH
+    # Use S3 backend to store stack status
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+  variables:
+    E2E_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
+    E2E_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+
+.on_run_e2e:
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: always
+  - if: $CI_COMMIT_BRANCH
+    changes:
+      paths:
+        - "*.md"
+      compare_to: "refs/heads/main"
+    when: never
+  - if: $CI_COMMIT_BRANCH
+    when: manual
+  - when: never
 
 build:
   stage: build
@@ -122,6 +159,7 @@ build_operator_check_image_arm64:
     - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
+
 build_bundle_image:
   stage: image
   tags:
@@ -133,23 +171,6 @@ build_bundle_image:
   script:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-
-preflight_redhat_image_amd64:
-  stage: test-image
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: on_success
-    - when: never
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    IMG: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-  script:
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - make preflight-redhat-container
 
 
 publish_public_main:
@@ -184,39 +205,23 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
 
-# RedHat does not support multi-arch images. Use docker commands in lieu of DataDog/public-images until they do.
 publish_redhat_public_tag:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - "preflight_redhat_image_amd64"
-  tags: ["runner:docker", "size:large"]
-  image: $JOB_DOCKER_IMAGE
-  script:
-    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
-    # Docker login to pull build image
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-    # Docker login to push image to Redhat
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-
-  # Save for future use with public-images.
-  # trigger:
-  #   project: DataDog/public-images
-  #   branch: main
-  #   strategy: depend
-  # variables:
-  #   IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-  #   IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
-  #   IMG_DESTINATIONS_REGEX: ':v'
-  #   IMG_DESTINATIONS_REGEX_REPL: ':'
-  #   IMG_REGISTRIES: redhat-operator
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
+    IMG_DESTINATIONS_REGEX: ':v'
+    IMG_DESTINATIONS_REGEX_REPL: ':'
+    IMG_REGISTRIES: redhat-operator
+    IMG_SIGNING: "false"
 
 publish_public_latest:
   stage: release
@@ -233,27 +238,21 @@ publish_public_latest:
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
 
-# RedHat does not support multi-arch images. Use docker commands in lieu of DataDog/public-images until they do.
 publish_redhat_public_latest:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - "preflight_redhat_image_amd64"
-  tags: ["runner:docker", "size:large"]
-  image: $JOB_DOCKER_IMAGE
-  script:
-    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
-    # Docker login to pull build image
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
-    # Docker login to push image to Redhat
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
+    IMG_REGISTRIES: redhat-operator
+    IMG_SIGNING: "false"
 
 trigger_internal_operator_image:
   stage: release
@@ -367,8 +366,39 @@ trigger_custom_operator_check_image_staging:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
 
+trigger_e2e_operator_image:
+  stage: release
+  rules: !reference [.on_run_e2e]
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
 
-submit_preflight_redhat_public_tag:
+e2e:
+  extends: .new_e2e_template
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  needs:
+    - "trigger_e2e_operator_image"
+  rules: !reference [.on_run_e2e]
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+  script:
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
+
+
+# Preflight now supports multiarch image checks
+submit_preflight_redhat_image:
   stage: post-release
   rules:
     - if: $CI_COMMIT_TAG
@@ -385,7 +415,6 @@ submit_preflight_redhat_public_tag:
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container-submit
 
-
 publish_community_operators:
   stage: post-release
   rules:
@@ -393,7 +422,7 @@ publish_community_operators:
         when: manual
       - when: never
   needs:
-    - "submit_preflight_redhat_public_tag"
+    - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:

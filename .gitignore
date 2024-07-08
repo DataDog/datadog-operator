@@ -14,7 +14,7 @@ build/_test
 /testbin
 
 # vendor
-/vendor
+**/vendor
 
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
