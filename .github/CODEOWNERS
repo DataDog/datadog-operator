@@ -8,3 +8,11 @@
 # Documentation
 README.md             @DataDog/documentation @DataDog/container-ecosystems
 /docs/                @DataDog/documentation @DataDog/container-ecosystems
+
+
+# Features owners
+/controllers/datadogagent/feature/admissioncontroller/*    @DataDog/container-platform
+/controllers/datadogagent/feature/prometheusscrape/*       @DataDog/container-platform
+/controllers/datadogagent/feature/clusterchecks/*          @DataDog/container-platform
+/controllers/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
+/controllers/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
