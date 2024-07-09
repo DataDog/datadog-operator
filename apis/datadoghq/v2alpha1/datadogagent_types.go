@@ -450,7 +450,7 @@ type SBOMContainerImageConfig struct {
 	// +optional
 	UncompressedLayersSupport bool `json:"uncompressedLayersSupport,omitempty"`
 
-	// Enable this option to enable experimental overlayfs direct scan.
+	// Enable this option to enable experimental overlayFS direct scan.
 	// Default: false
 	// +optional
 	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`

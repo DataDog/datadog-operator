@@ -1309,7 +1309,7 @@ spec:
                               type: boolean
                             overlayFSDirectScan:
                               description: |-
-                                Enable this option to enable experimental overlayfs direct scan.
+                                Enable this option to enable experimental overlayFS direct scan.
                                 Default: false
                               type: boolean
                             uncompressedLayersSupport:
@@ -7117,7 +7117,7 @@ spec:
                                   type: boolean
                                 overlayFSDirectScan:
                                   description: |-
-                                    Enable this option to enable experimental overlayfs direct scan.
+                                    Enable this option to enable experimental overlayFS direct scan.
                                     Default: false
                                   type: boolean
                                 uncompressedLayersSupport:
