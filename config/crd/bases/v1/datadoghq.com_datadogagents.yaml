@@ -633,7 +633,7 @@ spec:
                             enabled:
                               description: |-
                                 Enabled enables host benchmarks.
-                                Default: false
+                                Default: true
                               type: boolean
                           type: object
                       type: object
@@ -6412,7 +6412,7 @@ spec:
                                 enabled:
                                   description: |-
                                     Enabled enables host benchmarks.
-                                    Default: false
+                                    Default: true
                                   type: boolean
                               type: object
                           type: object
