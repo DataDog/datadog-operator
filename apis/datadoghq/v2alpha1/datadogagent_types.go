@@ -335,7 +335,7 @@ type CSPMFeatureConfig struct {
 // +k8s:openapi-gen=true
 type CSPMHostBenchmarksConfig struct {
 	// Enabled enables host benchmarks.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

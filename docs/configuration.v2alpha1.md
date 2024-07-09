@@ -72,7 +72,7 @@ spec:
 | features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: true |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
