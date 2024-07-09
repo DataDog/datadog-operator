@@ -42,6 +42,7 @@ const (
 	defaultAPMSocketEnabled           bool   = true
 	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
+	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
 	defaultCSPMHostBenchmarksEnabled  bool   = true
 	defaultCWSEnabled                 bool   = false
@@ -268,7 +269,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
 			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
 		}
+
+		if ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection == nil {
+			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetection{}
+		}
+
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
 	}
 
 	// ASM Features
