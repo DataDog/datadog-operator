@@ -2,141 +2,188 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 
 	"golang.org/x/exp/maps"
-	corev1 "k8s.io/api/core/v1"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func Test_CacheConfig(t *testing.T) {
+type objectConfig struct {
+	configured bool
+	namespaces []string
+}
 
-	type config struct {
-		namespaceEnv string
-		crdEnabled   bool
-	}
+func Test_CacheConfig(t *testing.T) {
 
 	tests := []struct {
 		name string
 
-		defaultNamespaceEnv string
-		agentConfig         config
-		monitorConfig       config
-		sloConfig           config
-		profileConfig       config
+		watchOptions WatchOptions
+		envConfig    map[string]string
 
-		defaultNamespaces []string
-		agentNamespaces   []string
-		monitorNamespaces []string
-		sloNamespaces     []string
-		profileNamespaces []string
-		podNamespaces     []string
-		nodeNamespaces    []string
+		wantDefaultNamepsace objectConfig
+		wantObjectConfig     map[client.Object]objectConfig
 	}{
 		{
-			name:                "all envs non empty, all enabled",
-			defaultNamespaceEnv: "datadog",
-			agentConfig: config{
-				namespaceEnv: "agentNs",
-				crdEnabled:   true,
+			name: "All envs non empty, all CRDs enabled",
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogMonitorEnabled:      true,
+				DatadogSLOEnabled:          true,
+				DatadogAgentProfileEnabled: true,
 			},
-			monitorConfig: config{
-				namespaceEnv: "monitorNs, monitorNs2",
-				crdEnabled:   true,
+
+			envConfig: map[string]string{
+				watchNamespaceEnvVar:        "datadog",
+				agentWatchNamespaceEnvVar:   "agentNs",
+				monitorWatchNamespaceEnvVar: "monitorNs, monitorNs2",
+				sloWatchNamespaceEnvVar:     "  nsWithSpace ",
+				profileWatchNamespaceEnvVar: "profileNs",
 			},
-			sloConfig: config{
-				namespaceEnv: "  nsWithSpace ",
-				crdEnabled:   true,
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{"agentNs"}},
+				monitorObj: {configured: true, namespaces: []string{"monitorNs", "monitorNs2"}},
+				sloObj:     {configured: true, namespaces: []string{"nsWithSpace"}},
+				profileObj: {configured: true, namespaces: []string{"profileNs"}},
+				podObj:     {configured: true, namespaces: []string{"agentNs"}},
+				nodeObj:    {configured: true, namespaces: nil},
 			},
-			profileConfig: config{
-				namespaceEnv: "profileNs1",
-				crdEnabled:   true,
+		},
+		{
+			name: "Agent, DAP enabled; Agent, Pod use default config; DAP uses Profile namespace; Node uses nil namespace",
+
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogAgentProfileEnabled: true,
 			},
-			// Expected
-			defaultNamespaces: []string{"datadog"},
-			agentNamespaces:   []string{"agentNs"},
-			monitorNamespaces: []string{"monitorNs", "monitorNs2"},
-			sloNamespaces:     []string{"nsWithSpace"},
-			profileNamespaces: []string{"profileNs"},
-			podNamespaces:     []string{"agentNs"},
-			nodeNamespaces:    nil,
+
+			envConfig: map[string]string{
+				watchNamespaceEnvVar:        "datadog",
+				profileWatchNamespaceEnvVar: "profileNs",
+			},
+
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{"datadog"}},
+				monitorObj: {configured: false},
+				sloObj:     {configured: false},
+				profileObj: {configured: true, namespaces: []string{"profileNs"}},
+				podObj:     {configured: true, namespaces: []string{"datadog"}},
+				nodeObj:    {configured: true, namespaces: nil},
+			},
 		},
 
 		{
-			name:                "Agent uses default",
-			defaultNamespaceEnv: "datadog",
-			agentConfig: config{
-				crdEnabled: true,
-			},
-			profileConfig: config{
-				namespaceEnv: "profileNs",
-				crdEnabled:   true,
-			},
-			// Expected
-			defaultNamespaces: []string{"datadog"},
-			agentNamespaces:   []string{"datadog"},
-			monitorNamespaces: nil,
-			sloNamespaces:     nil,
-			profileNamespaces: []string{"profileNs"},
-			podNamespaces:     []string{"datadog"},
-			nodeNamespaces:    nil,
-		},
+			name: "Agent, DAP enabled; Agent, Pod use Agent namespace; DAP uses Profile namespace; Node uses nil namespace",
 
-		{
-			name:                "Profile enabled, Pod uses Agent namespace",
-			defaultNamespaceEnv: "datadog",
-			agentConfig: config{
-				namespaceEnv: "agentNs1,agentNs2",
-				crdEnabled:   true,
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogAgentProfileEnabled: true,
 			},
-			profileConfig: config{
-				namespaceEnv: "profileNs",
-				crdEnabled:   true,
+
+			envConfig: map[string]string{
+				watchNamespaceEnvVar:        "datadog",
+				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				profileWatchNamespaceEnvVar: "profileNs",
 			},
+
 			// Expected
-			defaultNamespaces: []string{"datadog"},
-			agentNamespaces:   []string{"agentNs1", "agentNs2"},
-			monitorNamespaces: nil,
-			sloNamespaces:     nil,
-			profileNamespaces: []string{"profileNs"},
-			podNamespaces:     []string{"agentNs1", "agentNs2"},
-			nodeNamespaces:    nil,
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				monitorObj: {configured: false},
+				sloObj:     {configured: false},
+				profileObj: {configured: true, namespaces: []string{"profileNs"}},
+				podObj:     {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				nodeObj:    {configured: true, namespaces: nil},
+			},
+		},
+		{
+			name: "Only Agent enabled; Other CRDs, Pods, Nodes not configured",
+
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled: true,
+			},
+
+			envConfig: map[string]string{
+				watchNamespaceEnvVar:        "datadog",
+				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				profileWatchNamespaceEnvVar: "profileNs",
+			},
+
+			// Expected
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				monitorObj: {configured: false},
+				sloObj:     {configured: false},
+				profileObj: {configured: false},
+				podObj:     {configured: false},
+				nodeObj:    {configured: false},
+			},
+		},
+		{
+			name: "DAP disabled, Introspection enabled; Node uses nil namespace; Pods, Profiles are not configured",
+
+			watchOptions: WatchOptions{
+				DatadogAgentEnabled:        true,
+				DatadogAgentProfileEnabled: false,
+				IntrospectionEnabled:       true,
+			},
+
+			envConfig: map[string]string{
+				watchNamespaceEnvVar:        "datadog",
+				agentWatchNamespaceEnvVar:   "agentNs1,agentNs2",
+				profileWatchNamespaceEnvVar: "profileNs",
+			},
+
+			// Expected
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantObjectConfig: map[client.Object]objectConfig{
+				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
+				monitorObj: {configured: false},
+				sloObj:     {configured: false},
+				profileObj: {configured: false},
+				podObj:     {configured: false},
+				nodeObj:    {configured: true, namespaces: nil},
+			},
 		},
 	}
 
 	logger := logf.Log.WithName(t.Name())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(watchNamespaceEnvVar, tt.defaultNamespaceEnv)
-			os.Setenv(agentWatchNamespaceEnvVar, tt.agentConfig.namespaceEnv)
-			os.Setenv(monitorWatchNamespaceEnvVar, tt.monitorConfig.namespaceEnv)
-			os.Setenv(sloWatchNamespaceEnvVar, tt.sloConfig.namespaceEnv)
-			os.Setenv(profileWatchNamespaceEnvVar, tt.profileConfig.namespaceEnv)
+			os.Clearenv()
+			for envVar, envVal := range tt.envConfig {
+				os.Setenv(envVar, envVal)
+			}
 
-			cacheOptions := CacheOptions(logger, tt.agentConfig.crdEnabled, tt.sloConfig.crdEnabled, tt.profileConfig.crdEnabled, tt.monitorConfig.crdEnabled)
+			cacheOptions := CacheOptions(logger, tt.watchOptions)
 
-			assert.Equal(t, tt.defaultNamespaces, maps.Keys(cacheOptions.DefaultNamespaces))
-
-			verifyResourceNamespace(t, tt.agentNamespaces, &datadoghqv2alpha1.DatadogAgent{}, cacheOptions)
-			verifyResourceNamespace(t, tt.monitorNamespaces, &datadoghqv1alpha1.DatadogMonitor{}, cacheOptions)
-			verifyResourceNamespace(t, tt.sloNamespaces, &datadoghqv1alpha1.DatadogSLO{}, cacheOptions)
-			verifyResourceNamespace(t, tt.profileNamespaces, &datadoghqv1alpha1.DatadogSLO{}, cacheOptions)
-			verifyResourceNamespace(t, tt.podNamespaces, &corev1.Pod{}, cacheOptions)
-			verifyResourceNamespace(t, tt.nodeNamespaces, &corev1.Node{}, cacheOptions)
+			assert.ElementsMatch(t, tt.wantDefaultNamepsace.namespaces, maps.Keys(cacheOptions.DefaultNamespaces))
+			for objKey, wantConfig := range tt.wantObjectConfig {
+				verifyResourceNamespace(t, objKey, wantConfig, cacheOptions)
+			}
 		})
 	}
 }
 
-func verifyResourceNamespace(t *testing.T, expectedNamespaces []string, resource client.Object, cacheOptions cache.Options) {
-	for k, v := range cacheOptions.ByObject {
-		if k.GetObjectKind() == resource.GetObjectKind() {
-			assert.Equal(t, expectedNamespaces, maps.Keys(v.Namespaces))
+func verifyResourceNamespace(t *testing.T, resource client.Object, wantConfig objectConfig, cacheOptions cache.Options) {
+	byObjectOptions, ok := cacheOptions.ByObject[resource]
+	assert.Equal(t, wantConfig.configured, ok)
+	if wantConfig.configured {
+		if wantConfig.namespaces == nil {
+			assert.Nil(t, byObjectOptions.Namespaces, "Namespaces should be nil for", reflect.TypeOf(resource).Elem())
+		} else {
+			assert.ElementsMatch(t, wantConfig.namespaces, maps.Keys(byObjectOptions.Namespaces), "Namespaces don't match for", reflect.TypeOf(resource).Elem())
 		}
 	}
 }

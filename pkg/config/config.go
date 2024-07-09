@@ -50,39 +50,56 @@ const (
 	// TODO consider moving DDSite here as well
 )
 
+var (
+	agentObj   = &datadoghqv2alpha1.DatadogAgent{}
+	monitorObj = &datadoghqv1alpha1.DatadogMonitor{}
+	sloObj     = &datadoghqv1alpha1.DatadogSLO{}
+	profileObj = &datadoghqv1alpha1.DatadogAgentProfile{}
+	podObj     = &corev1.Pod{}
+	nodeObj    = &corev1.Node{}
+)
+
+type WatchOptions struct {
+	DatadogAgentEnabled        bool
+	DatadogMonitorEnabled      bool
+	DatadogSLOEnabled          bool
+	DatadogAgentProfileEnabled bool
+	IntrospectionEnabled       bool
+}
+
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
 // Datadog CRDs and additional resources required for their reconciliation will be cached only if the respective feature is enabled.
-func CacheOptions(logger logr.Logger, datadogAgentEnabled, datadogMonitorEnabled, datadogSLOEnabled, datadogAgentProfileEnabled bool) cache.Options {
+func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	byObject := map[client.Object]cache.ByObject{}
 
-	if datadogAgentEnabled {
+	if opts.DatadogAgentEnabled {
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgent Enabled", "watching namespaces", maps.Keys(agentNamespaces))
-		byObject[&datadoghqv2alpha1.DatadogAgent{}] = cache.ByObject{
+		byObject[agentObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 		}
 	}
 
-	if datadogMonitorEnabled {
+	if opts.DatadogMonitorEnabled {
 		monitorNamespaces := getWatchNamespacesFromEnv(logger, monitorWatchNamespaceEnvVar)
 		logger.Info("DatadogMonitor Enabled", "watching namespaces", maps.Keys(monitorNamespaces))
-		byObject[&datadoghqv1alpha1.DatadogMonitor{}] = cache.ByObject{
+		byObject[monitorObj] = cache.ByObject{
 			Namespaces: monitorNamespaces,
 		}
 	}
 
-	if datadogSLOEnabled {
+	if opts.DatadogSLOEnabled {
 		sloNamespaces := getWatchNamespacesFromEnv(logger, sloWatchNamespaceEnvVar)
 		logger.Info("DatadogSLO Enabled", "watching namespaces", maps.Keys(sloNamespaces))
-		byObject[&datadoghqv1alpha1.DatadogSLO{}] = cache.ByObject{
+		byObject[sloObj] = cache.ByObject{
 			Namespaces: sloNamespaces,
 		}
 	}
 
-	if datadogAgentProfileEnabled {
+	if opts.DatadogAgentProfileEnabled {
 		agentProfileNamespaces := getWatchNamespacesFromEnv(logger, profileWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentProfile Enabled", "watching namespace", maps.Keys(agentProfileNamespaces))
-		byObject[&datadoghqv1alpha1.DatadogAgentProfile{}] = cache.ByObject{
+		byObject[profileObj] = cache.ByObject{
 			Namespaces: agentProfileNamespaces,
 		}
 
@@ -92,7 +109,7 @@ func CacheOptions(logger logr.Logger, datadogAgentEnabled, datadogMonitorEnabled
 		// rest of fields to reduce memory usage.
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", maps.Keys(agentNamespaces))
-		byObject[&corev1.Pod{}] = cache.ByObject{
+		byObject[podObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 
 			Label: labels.SelectorFromSet(map[string]string{
@@ -117,14 +134,16 @@ func CacheOptions(logger logr.Logger, datadogAgentEnabled, datadogMonitorEnabled
 				return newPod, nil
 			},
 		}
+	}
 
+	if opts.DatadogAgentProfileEnabled || opts.IntrospectionEnabled {
 		// Also for the profiles feature, we need to list the nodes, but we're only
 		// interested in the node name and the labels.
 		// Note that if in the future we need to list or get pods or nodes and use other
 		// fields we'll need to modify this function.
 		//
 		// Node being non-namespace resources shouldn't have a namespace configuration.
-		byObject[&corev1.Node{}] = cache.ByObject{
+		byObject[nodeObj] = cache.ByObject{
 			Transform: func(obj interface{}) (interface{}, error) {
 				node := obj.(*corev1.Node)
 
