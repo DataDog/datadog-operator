@@ -267,6 +267,7 @@ func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[comm
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
 			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
 				Resources: overrideForContainer.Resources,
+				Env:       overrideForContainer.Env,
 			}
 		}
 	}
