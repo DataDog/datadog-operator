@@ -69,7 +69,7 @@ stages:
 
 build:
   stage: build
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -78,16 +78,23 @@ build:
 
 unit_tests:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   before_script:
     - mkdir -p .cache
     - make install-tools
   script:
     - make test
 
+check-golang-version:
+  stage: test
+  tags: ["arch:amd64"]
+  script:
+    - make update-golang
+    - git diff --exit-code
+
 generate_code:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   before_script:
     - mkdir -p .cache
     - make install-tools
