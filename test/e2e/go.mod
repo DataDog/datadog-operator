@@ -1,12 +1,10 @@
 module github.com/DataDog/datadog-operator/e2e
 
-go 1.22
-
-toolchain go1.22.7
+go 1.22.7
 
 require (
 	github.com/DataDog/datadog-agent/test/new-e2e v0.55.2
-	github.com/DataDog/datadog-api-client-go/v2 v2.26.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
 	github.com/DataDog/datadog-operator v1.7.0
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
@@ -24,6 +22,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
+require sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3
+
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
@@ -32,7 +32,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/test/fakeintake v0.55.2 // indirect
-	github.com/DataDog/extendeddaemonset v0.9.0-rc.2 // indirect
+	github.com/DataDog/extendeddaemonset v0.10.0-rc.4 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20200805151601-30884ca2197a // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f // indirect
@@ -91,7 +91,8 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
+	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
@@ -149,7 +150,7 @@ require (
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
-	github.com/onsi/ginkgo/v2 v2.11.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.13.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/opentracing/basictracer-go v1.1.0 // indirect
@@ -212,7 +213,7 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.22.0 // indirect
-	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240401170217-c3f982113cda // indirect
 	google.golang.org/grpc v1.63.2 // indirect
@@ -222,17 +223,17 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gotest.tools/v3 v3.5.1 // indirect
 	k8s.io/api v0.28.9 // indirect
-	k8s.io/apiextensions-apiserver v0.24.2 // indirect
-	k8s.io/cli-runtime v0.28.4 // indirect
+	k8s.io/apiextensions-apiserver v0.28.9 // indirect
+	k8s.io/cli-runtime v0.28.9 // indirect
 	k8s.io/client-go v0.28.9 // indirect
-	k8s.io/component-base v0.28.4 // indirect
+	k8s.io/component-base v0.28.9 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
 	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 // indirect
 	lukechampine.com/frand v1.4.2 // indirect
-	sigs.k8s.io/controller-runtime v0.12.2 // indirect
+	sigs.k8s.io/controller-runtime v0.16.4 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
