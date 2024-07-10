@@ -207,7 +207,7 @@ spec:
 | global.localService.forceEnableLocalService | ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false |
 | global.localService.nameOverride | NameOverride defines the name of the internal traffic service to target the agent running on the local node. |
 | global.logLevel | LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
-| global.namespaceAnnotationsAsTags | Provide a mapping of Kubernetes namespace annotations to Datadog tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| global.namespaceAnnotationsAsTags | Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.namespaceLabelsAsTags | Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY> |
 | global.networkPolicy.create | Create defines whether to create a NetworkPolicy for the current deployment. |
 | global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |
