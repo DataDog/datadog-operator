@@ -366,7 +366,7 @@ func validateProfileName(profileName string) error {
 		return fmt.Errorf("Profile name cannot be empty")
 	}
 	// We add the profile name as a label value, which can be 63 characters max
-	if len(profileName) > 63 {
+	if len(profileName) > labelValueMaxLength {
 		return fmt.Errorf("Profile name must be no more than 63 characters")
 	}
 
