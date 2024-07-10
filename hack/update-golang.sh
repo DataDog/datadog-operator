@@ -39,11 +39,20 @@ echo "----------------------------------------"
 # Define new minor version
 new_minor_version=$major.$minor
 
+# Update go.work
+go_work_file="$ROOT/go.work"
+if [[ -f $go_work_file ]]; then
+    echo "Processing $go_work_file..."
+    sed -i -E "s/^go [^ ].*/go $GOVERSION/gm" "$go_work_file"
+else
+    echo "Warning: $go_work_file not found, skipping."
+fi
+
 # Update devcontainer.json
 dev_container_file="$ROOT/.devcontainer/devcontainer.json"
 if [[ -f $dev_container_file ]]; then
     echo "Processing $dev_container_file..."
-    sed -i -E "s|(mcr\.microsoft\.com/devcontainers/go:)[^\"]+|\11-$new_minor_version|" "$dev_container_file"
+    sed -i -E "s|(mcr\.microsoft\.com/devcontainers/go:)[^\"]+|\1dev-$new_minor_version|" "$dev_container_file"
 else
     echo "Warning: $dev_container_file not found, skipping."
 fi
@@ -85,3 +94,15 @@ fi
 # Run go mod tidy
 echo "Running go mod tidy..."
 go mod tidy
+
+# Update go.work
+test_go_mod_file="$ROOT/test/e2e/go.mod"
+if [[ -f $test_go_mod_file ]]; then
+    echo "Processing $test_go_mod_file..."
+    sed -i -E "s/^go [^ ].*/go $GOVERSION/gm" "$test_go_mod_file"
+else
+    echo "Warning: $test_go_mod_file not found, skipping."
+fi
+# Run go mod tidy
+echo "Running go mod tidy with $test_go_mod_file..."
+cd $ROOT/test/e2e/ && go mod tidy && cd $ROOT
