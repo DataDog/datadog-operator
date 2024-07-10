@@ -192,7 +192,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -500,7 +501,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -629,7 +631,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -753,7 +756,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -877,7 +881,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1010,7 +1015,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1134,7 +1140,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1261,7 +1268,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1377,7 +1385,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1515,7 +1524,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1661,7 +1671,8 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
-							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1680,6 +1691,143 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					CWS: &CWSFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+					},
+					NPM: &NPMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+					},
+					USM: &USMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+					},
+					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+					},
+					PrometheusScrape: &PrometheusScrapeFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HelmCheck: &HelmCheckFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+				},
+			},
+		},
+		{
+			name: "CSPM and CWS are enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					CSPM: &CSPMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+					},
+					CWS: &CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LogCollection: &LogCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+					},
+					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+					},
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+					},
+					OOMKill: &OOMKillFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+					},
+					TCPQueueLength: &TCPQueueLengthFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+					},
+					EBPFCheck: &EBPFCheckFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+						},
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
+					CSPM: &CSPMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+						HostBenchmarks: &CSPMHostBenchmarksConfig{
+							Enabled: apiutils.NewBoolPointer(defaultCSPMHostBenchmarksEnabled),
+						},
+					},
+					CWS: &CWSFeatureConfig{
+						Enabled:               apiutils.NewBoolPointer(valueTrue),
+						SyscallMonitorEnabled: apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled),
+						Network: &CWSNetworkConfig{
+							Enabled: apiutils.NewBoolPointer(defaultCWSNetworkEnabled),
+						},
+						SecurityProfiles: &CWSSecurityProfilesConfig{
+							Enabled: apiutils.NewBoolPointer(defaultCWSSecurityProfilesEnabled),
+						},
 					},
 					NPM: &NPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),

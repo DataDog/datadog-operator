@@ -94,6 +94,7 @@ const (
 	ListVerb   = "list"
 	WatchVerb  = "watch"
 	UpdateVerb = "update"
+	PatchVerb  = "patch"
 	CreateVerb = "create"
 	DeleteVerb = "delete"
 

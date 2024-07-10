@@ -383,13 +383,11 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)
 	}
 
-	if f.hostBenchmarksEnabled {
-		hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceHostBenchmarksEnabled,
-			Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
-		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
+	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
 
 	return nil
 }

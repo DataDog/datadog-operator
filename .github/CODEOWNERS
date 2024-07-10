@@ -5,6 +5,9 @@
 # All your base
 *                   @DataDog/container-integrations @DataDog/container-ecosystems
 
+# Dev Container
+/.devcontainer          @DataDog/container-ecosystems @DataDog/container-platform
+
 # Documentation
 README.md             @DataDog/documentation @DataDog/container-integrations @DataDog/container-ecosystems
 /docs/                @DataDog/documentation @DataDog/container-integrations @DataDog/container-ecosystems
