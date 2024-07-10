@@ -155,6 +155,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		StartupProbe:   apicommon.GetDefaultStartupProbe(),
 	}
 }
 

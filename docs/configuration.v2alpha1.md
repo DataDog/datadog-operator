@@ -59,6 +59,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.languageDetection.enabled | Enabled enables language detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
@@ -72,7 +73,7 @@ spec:
 | features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: true |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |

@@ -58,7 +58,7 @@ func schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.Referen
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables host benchmarks. Default: false",
+							Description: "Enabled enables host benchmarks. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
