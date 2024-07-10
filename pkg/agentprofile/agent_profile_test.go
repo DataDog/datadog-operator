@@ -50,7 +50,7 @@ func TestProfileToApply(t *testing.T) {
 			},
 			profileAppliedByNode:           map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
-			expectedErr:                    fmt.Errorf("profileAffinity must be defined"),
+			expectedErr:                    fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "empty profile, non-empty profileAppliedByNode",
@@ -77,7 +77,7 @@ func TestProfileToApply(t *testing.T) {
 					Name:      "linux",
 				},
 			},
-			expectedErr: fmt.Errorf("profileAffinity must be defined"),
+			expectedErr: fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "empty profile, , non-empty profileAppliedByNode, no nodes",
@@ -95,7 +95,7 @@ func TestProfileToApply(t *testing.T) {
 					Name:      "linux",
 				},
 			},
-			expectedErr: fmt.Errorf("profileAffinity must be defined"),
+			expectedErr: fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "non-conflicting profile, empty profileAppliedByNode",
@@ -547,5 +547,35 @@ func configWithCPURequestOverrideForCoreAgent(cpuRequest string) *v1alpha1.Confi
 				},
 			},
 		},
+	}
+}
+
+func Test_validateProfileName(t *testing.T) {
+	tests := []struct {
+		name          string
+		profileName   string
+		expectedError error
+	}{
+		{
+			name:          "empty profile name",
+			profileName:   "",
+			expectedError: fmt.Errorf("Profile name cannot be empty"),
+		},
+		{
+			name:          "valid profile name",
+			profileName:   "foo",
+			expectedError: nil,
+		},
+		{
+			name:          "profile name too long",
+			profileName:   "foo123456789012345678901234567890123456789012345678901234567890bar",
+			expectedError: fmt.Errorf("Profile name must be no more than 63 characters"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedError, validateProfileName(test.profileName))
+		})
 	}
 }

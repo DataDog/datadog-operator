@@ -29,6 +29,7 @@ const (
 	OldProfileLabelKey  = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
+	labelValueMaxLength = 63
 )
 
 // ProfileToApply validates a profile spec and returns a map that maps each
@@ -42,6 +43,14 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		logger.Error(err, "couldn't generate hash for profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 	} else {
 		profileStatus.CurrentHash = hash
+	}
+
+	if err := validateProfileName(profile.Name); err != nil {
+		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+		profileStatus.Valid = metav1.ConditionFalse
+		UpdateProfileStatus(profile, profileStatus, now)
+		return profileAppliedByNode, err
 	}
 
 	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
@@ -349,4 +358,17 @@ func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selecti
 	default:
 		return ""
 	}
+}
+
+func validateProfileName(profileName string) error {
+	// Label values can be empty but a profile's name should not be empty
+	if profileName == "" {
+		return fmt.Errorf("Profile name cannot be empty")
+	}
+	// We add the profile name as a label value, which can be 63 characters max
+	if len(profileName) > labelValueMaxLength {
+		return fmt.Errorf("Profile name must be no more than 63 characters")
+	}
+
+	return nil
 }
