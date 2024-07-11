@@ -1,0 +1,47 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+    clusterName: kind
+    kubelet:
+      tlsVerify: false
+  features:
+    logCollection:
+      enabled: true
+  override:
+    nodeAgent:
+      image:
+        name: dineshgurumurthydd/dd-otel-agent:7.56.1
+      customConfigurations:
+        otel-config.yaml:
+          configMap:
+            name: my-datadog-otel-config
+            items:
+              - key: otel-config.yaml
+                path: otel-config.yaml
+      containers:
+        agent:
+          env:
+            - name: DD_OTELCOLLECTOR_ENABLED
+              value: "true"
+        otel-agent:
+          command:
+            - /otel-agent
+            - --config=file:/etc/datadog-agent/otel-config.yaml
+          env:
+            - name: DD_LOG_LEVEL
+              value: "debug"
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
