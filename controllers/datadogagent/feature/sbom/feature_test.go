@@ -41,6 +41,11 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
+	sbomEnabledContainerImageOverlayFSEnabled := sbomEnabled.DeepCopy()
+	{
+		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
+	}
+
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
 		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: apiutils.NewBoolPointer(true)}
@@ -88,6 +93,35 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
+	}
+
+	sbomWithContainerImageOverlayFSWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDSBOMEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSBOMHostEnabled,
+				Value: "false",
+			},
+		}
+
+		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
+
+		wantEnvVars = []*corev1.EnvVar{{
+			Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
+			Value: "true",
+		}}
+		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantEnvVars))
 	}
 
 	sbomWithHostWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -254,6 +288,12 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			DDAv2:         sbomEnabledContainerImageEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageWantFunc),
+		},
+		{
+			Name:          "SBOM enabled, ContainerImage enabled, overlayFS direct scan",
+			DDAv2:         sbomEnabledContainerImageOverlayFSEnabled,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageOverlayFSWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, Host enabled",
