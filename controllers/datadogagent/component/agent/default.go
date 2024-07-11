@@ -198,6 +198,20 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:          envVarsForOtelAgent(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          "grpc",
+				ContainerPort: 4317,
+				HostPort:      4317,
+				Protocol:      corev1.ProtocolTCP,
+			},
+			{
+				Name:          "http",
+				ContainerPort: 4318,
+				HostPort:      4318,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
 	}
 }
 
