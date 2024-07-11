@@ -1782,6 +1782,13 @@ spec:
                         Valid log levels are: trace, debug, info, warn, error, critical, and off.
                         Default: 'info'
                       type: string
+                    namespaceAnnotationsAsTags:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags.
+                        <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+                      type: object
                     namespaceLabelsAsTags:
                       additionalProperties:
                         type: string
