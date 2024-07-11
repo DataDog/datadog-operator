@@ -186,6 +186,9 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
+	//
+	// In Operator 1.9 OTel Agent will be configured through a feature.
+	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
 	if f.otelAgentEnabled {
 		return feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
