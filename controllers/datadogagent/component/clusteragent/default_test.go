@@ -80,6 +80,7 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
+				StartupProbe:   defaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
@@ -183,6 +184,24 @@ func defaultReadinessProbe() *corev1.Probe {
 		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/ready",
+				Port: intstr.IntOrString{
+					IntVal: 5555,
+				},
+			},
+		},
+	}
+}
+
+func defaultStartupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/startup",
 				Port: intstr.IntOrString{
 					IntVal: 5555,
 				},

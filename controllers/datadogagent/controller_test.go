@@ -2924,8 +2924,8 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 				},
 			},
 			expectProfileLabel: map[string]string{
-				"node-1": "ns-1-profile-1",
-				"node-2": "ns-2-profile-2",
+				"node-1": "profile-1",
+				"node-2": "profile-2",
 			},
 		},
 		{
@@ -2956,7 +2956,7 @@ func Test_LabelNodesWithProfiles(t *testing.T) {
 			},
 			expectProfileLabel: map[string]string{
 				"node-1": "",
-				"node-2": "ns-2-profile-2",
+				"node-2": "profile-2",
 			},
 		},
 		{

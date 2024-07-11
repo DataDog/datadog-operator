@@ -16,6 +16,20 @@ func DaemonSet(daemonSet *v1.DaemonSet, override *v2alpha1.DatadogAgentComponent
 	if override.Name != nil && *override.Name != "" {
 		daemonSet.Name = *override.Name
 	}
+	if override.UpdateStrategy != nil {
+		if override.UpdateStrategy.RollingUpdate != nil {
+			rollingUpdate := &v1.RollingUpdateDaemonSet{}
+			if override.UpdateStrategy.RollingUpdate.MaxUnavailable != nil {
+				rollingUpdate.MaxUnavailable = override.UpdateStrategy.RollingUpdate.MaxUnavailable
+			}
+			if override.UpdateStrategy.RollingUpdate.MaxSurge != nil {
+				rollingUpdate.MaxSurge = override.UpdateStrategy.RollingUpdate.MaxSurge
+			}
+			daemonSet.Spec.UpdateStrategy.RollingUpdate = rollingUpdate
+		}
+
+		daemonSet.Spec.UpdateStrategy.Type = v1.DaemonSetUpdateStrategyType(override.UpdateStrategy.Type)
+	}
 }
 
 // ExtendedDaemonSet overrides an ExtendedDaemonSet according to the given override options
