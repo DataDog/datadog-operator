@@ -971,6 +971,11 @@ type GlobalConfig struct {
 	// +optional
 	NamespaceLabelsAsTags map[string]string `json:"namespaceLabelsAsTags,omitempty"`
 
+	// Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags.
+	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// +optional
+	NamespaceAnnotationsAsTags map[string]string `json:"namespaceAnnotationsAsTags,omitempty"`
+
 	// NetworkPolicy contains the network configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`

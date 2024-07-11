@@ -2123,6 +2123,13 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 			(*out)[key] = val
 		}
 	}
+	if in.NamespaceAnnotationsAsTags != nil {
+		in, out := &in.NamespaceAnnotationsAsTags, &out.NamespaceAnnotationsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.NodeLabelsAsTags != nil {
 		in, out := &in.NodeLabelsAsTags, &out.NodeLabelsAsTags
 		*out = make(map[string]string, len(*in))

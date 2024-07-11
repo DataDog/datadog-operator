@@ -451,10 +451,11 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 		{
 			name: "Single mapping",
 			config: datadoghqv1alpha1.NodeAgentConfig{
-				NamespaceLabelsAsTags: singleMapping,
-				NodeLabelsAsTags:      singleMapping,
-				PodLabelsAsTags:       singleMapping,
-				PodAnnotationsAsTags:  singleMapping,
+				NamespaceLabelsAsTags:      singleMapping,
+				NamespaceAnnotationsAsTags: singleMapping,
+				NodeLabelsAsTags:           singleMapping,
+				PodLabelsAsTags:            singleMapping,
+				PodAnnotationsAsTags:       singleMapping,
 			},
 			want: []v1.EnvVar{
 				{
@@ -471,6 +472,10 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 				},
 				{
 					Name:  apicommon.DDNamespaceLabelsAsTags,
+					Value: singleMappingString,
+				},
+				{
+					Name:  apicommon.DDNamespaceAnnotationsAsTags,
 					Value: singleMappingString,
 				},
 			},
@@ -478,10 +483,11 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 		{
 			name: "Multiple mappings",
 			config: datadoghqv1alpha1.NodeAgentConfig{
-				NamespaceLabelsAsTags: multipleMapping,
-				NodeLabelsAsTags:      multipleMapping,
-				PodLabelsAsTags:       multipleMapping,
-				PodAnnotationsAsTags:  multipleMapping,
+				NamespaceLabelsAsTags:      multipleMapping,
+				NamespaceAnnotationsAsTags: multipleMapping,
+				NodeLabelsAsTags:           multipleMapping,
+				PodLabelsAsTags:            multipleMapping,
+				PodAnnotationsAsTags:       multipleMapping,
 			},
 			want: []v1.EnvVar{
 				{
@@ -498,6 +504,10 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 				},
 				{
 					Name:  apicommon.DDNamespaceLabelsAsTags,
+					Value: multipleMappingString,
+				},
+				{
+					Name:  apicommon.DDNamespaceAnnotationsAsTags,
 					Value: multipleMappingString,
 				},
 			},

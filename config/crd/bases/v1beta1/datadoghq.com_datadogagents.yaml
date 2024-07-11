@@ -1298,6 +1298,11 @@ spec:
                     type: string
                   description: 'Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY>'
                   type: object
+                namespaceAnnotationsAsTags:
+                  additionalProperties:
+                    type: string
+                  description: 'Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_NAMESPACE_ANNOTATIONS>: <DATADOG_TAG_KEY>'
+                  type: object
                 networkPolicy:
                   description: NetworkPolicy contains the network configuration.
                   properties:
