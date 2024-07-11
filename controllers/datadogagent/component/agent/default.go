@@ -193,7 +193,8 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(common.OtelAgent),
 		Image: agentImage(),
 		Command: []string{
-			"otel-agent", fmt.Sprintf("--config=%s", apicommon.OtelCustomConfigVolumePath),
+			"/otel-agent",
+			fmt.Sprintf("--config=%s", apicommon.OtelCustomConfigVolumePath),
 		},
 		Env:          envVarsForOtelAgent(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
