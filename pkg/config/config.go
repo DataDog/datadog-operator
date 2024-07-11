@@ -177,7 +177,7 @@ func getWatchNamespacesFromEnv(logger logr.Logger, envVar string) map[string]cac
 		logger.Info(fmt.Sprintf("CRD-specific namespaces environmental variable %s not set, will be using common config", envVar))
 		nsEnvValue, found = os.LookupEnv(watchNamespaceEnvVar)
 		if !found {
-			logger.Info("Common namespaces environmental variable %s not set, will be watching all namespaces", watchNamespaceEnvVar)
+			logger.Info(fmt.Sprintf("Common namespaces environmental variable %s not set, will be watching all namespaces", watchNamespaceEnvVar))
 			return map[string]cache.Config{cache.AllNamespaces: cacheConfig}
 		}
 	}
