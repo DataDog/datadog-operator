@@ -107,6 +107,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		// For the profiles feature we need to list the agent pods, but we're only
 		// interested in the node name and the labels. This function removes all the
 		// rest of fields to reduce memory usage.
+		// Pods are watched in DatadogAgent namespace(s) since that's were Agent pods are running.
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgentProfile Enabled", "watching Pods in namespaces", maps.Keys(agentNamespaces))
 		byObject[podObj] = cache.ByObject{
@@ -161,7 +162,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 	}
 
 	return cache.Options{
-		DefaultNamespaces: getWatchNamespacesFromEnv(logger, watchNamespaceEnvVar),
+		// DefaultNamespaces is set to DatadogAgent CRD namespaces so all resources needed for DatadogAgent reconciliation
+		// are cached from the same namespace(s) as the DatadogAgent.
+		DefaultNamespaces: getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar),
 		ByObject:          byObject,
 	}
 }

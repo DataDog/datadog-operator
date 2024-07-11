@@ -46,7 +46,7 @@ func Test_CacheConfig(t *testing.T) {
 				profileWatchNamespaceEnvVar: "profileNs",
 			},
 
-			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs"}},
 
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:   {configured: true, namespaces: []string{"agentNs"}},
@@ -96,7 +96,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			// Expected
-			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				monitorObj: {configured: false},
@@ -107,10 +107,11 @@ func Test_CacheConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Only Agent enabled; Other CRDs, Pods, Nodes not configured",
+			name: "Only Agent enabled; Monitor enabled without namespace config. Other CRDs, Pods, Nodes not configured",
 
 			watchOptions: WatchOptions{
-				DatadogAgentEnabled: true,
+				DatadogAgentEnabled:   true,
+				DatadogMonitorEnabled: true,
 			},
 
 			envConfig: map[string]string{
@@ -120,10 +121,10 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			// Expected
-			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
-				monitorObj: {configured: false},
+				monitorObj: {configured: true, namespaces: []string{"datadog"}},
 				sloObj:     {configured: false},
 				profileObj: {configured: false},
 				podObj:     {configured: false},
@@ -146,7 +147,7 @@ func Test_CacheConfig(t *testing.T) {
 			},
 
 			// Expected
-			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"datadog"}},
+			wantDefaultNamepsace: objectConfig{configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 			wantObjectConfig: map[client.Object]objectConfig{
 				agentObj:   {configured: true, namespaces: []string{"agentNs1", "agentNs2"}},
 				monitorObj: {configured: false},
