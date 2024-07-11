@@ -1357,6 +1357,13 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 			(*out)[key] = val
 		}
 	}
+	if in.NamespaceAnnotationsAsTags != nil {
+		in, out := &in.NamespaceAnnotationsAsTags, &out.NamespaceAnnotationsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.NetworkPolicy != nil {
 		in, out := &in.NetworkPolicy, &out.NetworkPolicy
 		*out = new(NetworkPolicyConfig)
