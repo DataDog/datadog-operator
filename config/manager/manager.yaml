@@ -38,10 +38,6 @@ spec:
         args:
         - --enable-leader-election
         - --pprof
-        # DON't MERGE
-        - --otelAgentEnabled
-        # Uncomment to tests with EDS
-        # - --supportExtendedDaemonset
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
