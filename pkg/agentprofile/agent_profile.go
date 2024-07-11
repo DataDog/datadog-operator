@@ -13,9 +13,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -55,6 +57,7 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 
 	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
 		UpdateProfileStatus(profile, profileStatus, now)
@@ -65,11 +68,13 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
 		if err != nil {
 			logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 			profileStatus.Valid = metav1.ConditionFalse
 			UpdateProfileStatus(profile, profileStatus, now)
 			return profileAppliedByNode, err
 		}
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
 		profileStatus.Valid = metav1.ConditionTrue
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
 

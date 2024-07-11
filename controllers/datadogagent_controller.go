@@ -32,6 +32,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/controllers/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -200,8 +201,13 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder.Watches(
 			&datadoghqv1alpha1.DatadogAgentProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
-			ctrlbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
-		)
+			ctrlbuilder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.Funcs{
+				DeleteFunc: func(e event.DeleteEvent) bool {
+					metrics.CleanupMetricsByProfile(e.Object)
+					return true
+				},
+			}),
+			))
 	}
 
 	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
