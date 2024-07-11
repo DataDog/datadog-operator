@@ -196,6 +196,19 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags.
+	if config.NamespaceAnnotationsAsTags != nil {
+		namespaceAnnotationsAsTags, err := json.Marshal(config.NamespaceAnnotationsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDNamespaceAnnotationsAsTags,
+				Value: string(namespaceAnnotationsAsTags),
+			})
+		}
+	}
+
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Kubelet contains the kubelet configuration parameters.
 		// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
