@@ -88,6 +88,9 @@ unit_tests:
 check-golang-version:
   stage: test
   tags: ["arch:amd64"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
   script:
     - make update-golang
     - git diff --exit-code

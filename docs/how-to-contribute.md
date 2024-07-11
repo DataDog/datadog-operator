@@ -81,7 +81,7 @@ The Operator should start deploying the `agent` and `cluster-agent`.
 The Go version is defined in several files. To ensure all relevant files are updated, it is recommended to use the script `make update-golang`:
 
 1. Update the Go version in the `go.mod` file.
-2. Run the command `make update-golang`, which will patch all files that contain the Go version.
+2. Run the command `make update-golang`, which patches all files that contain the Go version.
 
 ## Tests
 
