@@ -1298,6 +1298,11 @@ spec:
                     type: string
                   description: 'Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY>'
                   type: object
+                namespaceAnnotationsAsTags:
+                  additionalProperties:
+                    type: string
+                  description: 'Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_NAMESPACE_ANNOTATIONS>: <DATADOG_TAG_KEY>'
+                  type: object
                 networkPolicy:
                   description: NetworkPolicy contains the network configuration.
                   properties:
@@ -4227,6 +4232,13 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            languageDetection:
+                              description: Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods. (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
+                              properties:
+                                enabled:
+                                  description: 'Enabled enables language detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true'
+                                  type: boolean
+                              type: object
                             libVersions:
                               additionalProperties:
                                 type: string
@@ -4807,6 +4819,12 @@ spec:
                               x-kubernetes-list-type: set
                             enabled:
                               description: 'Enable this option to activate SBOM collection. Default: false'
+                              type: boolean
+                            overlayFSDirectScan:
+                              description: 'Enable this option to enable experimental overlayFS direct scan. Default: false'
+                              type: boolean
+                            uncompressedLayersSupport:
+                              description: 'Enable this option to enable support for uncompressed layers. Default: false'
                               type: boolean
                           type: object
                         enabled:
@@ -8118,6 +8136,13 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                languageDetection:
+                                  description: Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods. (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
+                                  properties:
+                                    enabled:
+                                      description: 'Enabled enables language detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true'
+                                      type: boolean
+                                  type: object
                                 libVersions:
                                   additionalProperties:
                                     type: string

@@ -59,6 +59,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.languageDetection.enabled | Enabled enables language detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
@@ -72,7 +73,7 @@ spec:
 | features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
-| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: true |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
@@ -147,6 +148,8 @@ spec:
 | features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
 | features.sbom.containerImage.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.containerImage.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.sbom.containerImage.overlayFSDirectScan | Enable this option to enable experimental overlayFS direct scan. Default: false |
+| features.sbom.containerImage.uncompressedLayersSupport | Enable this option to enable support for uncompressed layers. Default: false |
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.host.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
@@ -206,6 +209,7 @@ spec:
 | global.localService.forceEnableLocalService | ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false |
 | global.localService.nameOverride | NameOverride defines the name of the internal traffic service to target the agent running on the local node. |
 | global.logLevel | LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
+| global.namespaceAnnotationsAsTags | Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.namespaceLabelsAsTags | Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY> |
 | global.networkPolicy.create | Create defines whether to create a NetworkPolicy for the current deployment. |
 | global.networkPolicy.dnsSelectorEndpoints | DNSSelectorEndpoints defines the cilium selector of the DNS server entity. |

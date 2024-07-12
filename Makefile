@@ -222,7 +222,7 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./apis -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -354,7 +354,7 @@ bin/$(PLATFORM)/preflight: Makefile
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)
