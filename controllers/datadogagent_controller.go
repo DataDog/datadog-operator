@@ -87,6 +87,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics,verbs=list;watch;create;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics/status,verbs=update
 
+// Configure Autoscaling product
+// (RBAC on events and pods are already existing below)
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
+// +kubebuilder:rbac:groups="",resources=*/scale,verbs=get;update
+
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get

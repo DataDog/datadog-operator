@@ -17,6 +17,8 @@ const (
 	EventCollectionIDType = "event_collection"
 	// ExternalMetricsIDType External metrics feature.
 	ExternalMetricsIDType = "external_metrics"
+	// AutoscalingIDType Autoscaling feature.
+	AutoscalingIDType = "autoscaling"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType = "ksm"
 	// LiveContainerIDType Live Container feature.
