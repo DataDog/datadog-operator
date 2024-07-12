@@ -416,12 +416,12 @@ type SBOMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
-	Host           *SBOMTypeConfig `json:"host,omitempty"`
+	ContainerImage *SBOMContainerImageConfig `json:"containerImage,omitempty"`
+	Host           *SBOMHostConfig           `json:"host,omitempty"`
 }
 
 // SBOMTypeConfig contains configuration for a SBOM collection type.
-type SBOMTypeConfig struct {
+type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
 	// +optional
@@ -431,6 +431,29 @@ type SBOMTypeConfig struct {
 	// +optional
 	// +listType=set
 	Analyzers []string `json:"analyzers,omitempty"`
+}
+
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMContainerImageConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
+
+	// Enable this option to enable support for uncompressed layers.
+	// Default: false
+	// +optional
+	UncompressedLayersSupport bool `json:"uncompressedLayersSupport,omitempty"`
+
+	// Enable this option to enable experimental overlayFS direct scan.
+	// Default: false
+	// +optional
+	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
