@@ -49,6 +49,18 @@ type Override struct {
 }
 
 type Container struct {
+	// Specify additional environment variables in the container.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify the Request and Limits of the pods.
+	// To get guaranteed QoS class, specify requests and limits equal.
+	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
+	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 

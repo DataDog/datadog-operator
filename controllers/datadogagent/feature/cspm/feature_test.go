@@ -213,6 +213,11 @@ func cspmAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
 					Value: "true",
 				})
+			} else {
+				want = append(want, &corev1.EnvVar{
+					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+					Value: "false",
+				})
 			}
 			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))

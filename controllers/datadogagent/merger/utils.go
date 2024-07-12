@@ -15,6 +15,7 @@ var AllAgentContainers = map[commonv1.AgentContainerName]struct{}{
 	commonv1.ProcessAgentContainerName:  {},
 	commonv1.SecurityAgentContainerName: {},
 	commonv1.SystemProbeContainerName:   {},
+	commonv1.OtelAgent:                  {},
 	// DCA containers
 	commonv1.ClusterAgentContainerName: {},
 	// CCR container name is equivalent to core agent container name

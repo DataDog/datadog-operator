@@ -8,6 +8,7 @@ package v2alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
@@ -153,6 +154,20 @@ type SingleStepInstrumentation struct {
 	// ex: "java": "v1.18.0"
 	// +optional
 	LibVersions map[string]string `json:"libVersions,omitempty"`
+
+	// Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods.
+	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
+	// +optional
+	LanguageDetection *LanguageDetection `json:"languageDetection,omitempty"`
+}
+
+// LanguageDetection contains the config for the language detection feature.
+type LanguageDetection struct {
+	// Enabled enables language detection to automatically detect languages of user workloads (beta).
+	// Requires SingleStepInstrumentation.Enabled to be true.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
@@ -334,7 +349,7 @@ type CSPMFeatureConfig struct {
 // +k8s:openapi-gen=true
 type CSPMHostBenchmarksConfig struct {
 	// Enabled enables host benchmarks.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -401,12 +416,12 @@ type SBOMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
-	Host           *SBOMTypeConfig `json:"host,omitempty"`
+	ContainerImage *SBOMContainerImageConfig `json:"containerImage,omitempty"`
+	Host           *SBOMHostConfig           `json:"host,omitempty"`
 }
 
 // SBOMTypeConfig contains configuration for a SBOM collection type.
-type SBOMTypeConfig struct {
+type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
 	// +optional
@@ -416,6 +431,29 @@ type SBOMTypeConfig struct {
 	// +optional
 	// +listType=set
 	Analyzers []string `json:"analyzers,omitempty"`
+}
+
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMContainerImageConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
+
+	// Enable this option to enable support for uncompressed layers.
+	// Default: false
+	// +optional
+	UncompressedLayersSupport bool `json:"uncompressedLayersSupport,omitempty"`
+
+	// Enable this option to enable experimental overlayFS direct scan.
+	// Default: false
+	// +optional
+	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -956,6 +994,11 @@ type GlobalConfig struct {
 	// +optional
 	NamespaceLabelsAsTags map[string]string `json:"namespaceLabelsAsTags,omitempty"`
 
+	// Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags.
+	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// +optional
+	NamespaceAnnotationsAsTags map[string]string `json:"namespaceAnnotationsAsTags,omitempty"`
+
 	// NetworkPolicy contains the network configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`
@@ -1191,6 +1234,10 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// The deployment strategy to use to replace existing pods with new ones.
+	// +optional
+	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty"`
+
 	// Configure the component tolerations.
 	// +optional
 	// +listType=atomic
@@ -1293,6 +1340,29 @@ const (
 	// processes in one container
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
+
+// The deployment strategy to use to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+type UpdateStrategy struct {
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+	// or "Recreate" for Deployments
+	Type string `json:"type,omitempty"`
+	// Configure the rolling update strategy of the Deployment or DaemonSet.
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
+}
+
+// RollingUpdate describes how to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+type RollingUpdate struct {
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Refer to the Kubernetes API documentation for additional details..
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+
+	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+	// Kubernetes API documentation for additional details.
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
+}
 
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true

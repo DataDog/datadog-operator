@@ -9,6 +9,8 @@ const (
 	datadogAgentSubsystem        = "datadogagent"
 	datadogAgentProfileSubsystem = "datadogagentprofile"
 
-	EnabledValue  = 1.0
-	DisabledValue = 0.0
+	TrueValue  = 1.0
+	FalseValue = 0.0
+
+	datadogAgentProfileLabelKey = "datadogagentprofile"
 )

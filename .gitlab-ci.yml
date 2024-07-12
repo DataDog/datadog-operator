@@ -173,23 +173,6 @@ build_bundle_image:
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
 
-preflight_redhat_image_amd64:
-  stage: test-image
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: on_success
-    - when: never
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    IMG: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-  script:
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - make preflight-redhat-container
-
-
 publish_public_main:
   stage: release
   rules:
@@ -222,39 +205,23 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
 
-# RedHat does not support multi-arch images. Use docker commands in lieu of DataDog/public-images until they do.
 publish_redhat_public_tag:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - "preflight_redhat_image_amd64"
-  tags: ["runner:docker", "size:large"]
-  image: $JOB_DOCKER_IMAGE
-  script:
-    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
-    # Docker login to pull build image
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-    # Docker login to push image to Redhat
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
-
-  # Save for future use with public-images.
-  # trigger:
-  #   project: DataDog/public-images
-  #   branch: main
-  #   strategy: depend
-  # variables:
-  #   IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-  #   IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
-  #   IMG_DESTINATIONS_REGEX: ':v'
-  #   IMG_DESTINATIONS_REGEX_REPL: ':'
-  #   IMG_REGISTRIES: redhat-operator
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
+    IMG_DESTINATIONS_REGEX: ':v'
+    IMG_DESTINATIONS_REGEX_REPL: ':'
+    IMG_REGISTRIES: redhat-operator
+    IMG_SIGNING: "false"
 
 publish_public_latest:
   stage: release
@@ -271,27 +238,21 @@ publish_public_latest:
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
 
-# RedHat does not support multi-arch images. Use docker commands in lieu of DataDog/public-images until they do.
 publish_redhat_public_latest:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - "preflight_redhat_image_amd64"
-  tags: ["runner:docker", "size:large"]
-  image: $JOB_DOCKER_IMAGE
-  script:
-    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
-    # Docker login to pull build image
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
-    # Docker login to push image to Redhat
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
+    IMG_REGISTRIES: redhat-operator
+    IMG_SIGNING: "false"
 
 trigger_internal_operator_image:
   stage: release
@@ -435,7 +396,9 @@ e2e:
   script:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
-submit_preflight_redhat_public_tag:
+
+# Preflight now supports multiarch image checks
+submit_preflight_redhat_image:
   stage: post-release
   rules:
     - if: $CI_COMMIT_TAG
@@ -452,7 +415,6 @@ submit_preflight_redhat_public_tag:
     - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container-submit
 
-
 publish_community_operators:
   stage: post-release
   rules:
@@ -460,7 +422,7 @@ publish_community_operators:
         when: manual
       - when: never
   needs:
-    - "submit_preflight_redhat_public_tag"
+    - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:

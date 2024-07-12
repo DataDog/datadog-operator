@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
+
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
@@ -133,13 +134,17 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 	rcService, err := service.NewService(
 		r.serviceConf.cfg,
-		r.serviceConf.apiKey,
+		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
 		[]string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)},
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
-		service.WithDatabaseFileName(filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))))
+		service.WithAPIKey(apiKey),
+		service.WithDatabaseFileName(filepath.Join(r.serviceConf.rcDatabaseDir, fmt.Sprintf("remote-config-%s.db", uuid.New()))),
+		service.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
+		service.WithConfigRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.config_root")),
+	)
 	if err != nil {
 		r.logger.Error(err, "Failed to create Remote Configuration service")
 		return err
@@ -150,7 +155,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		rcService,
 		client.WithAgent("datadog-operator", version.Version),
 		client.WithProducts(state.ProductAgentConfig),
-		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("remote_configuration.director_root")),
+		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
 	)
 	if err != nil {
@@ -175,6 +180,7 @@ func (r *RemoteConfigUpdater) configureService(apiKey, site, clusterName, direct
 	cfg := model.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 
 	cfg.SetWithoutSource("api_key", apiKey)
+	cfg.SetWithoutSource("site", site)
 	cfg.SetWithoutSource("remote_configuration.config_root", configRoot)
 	cfg.SetWithoutSource("remote_configuration.director_root", directorRoot)
 	hostname, _ := os.Hostname()
@@ -227,7 +233,13 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Error(err, "Failed to merge updates")
 		return
 	}
-	r.logger.Info("Merged", "update", mergedUpdate)
+
+	if mergedUpdate.ID == "" {
+		r.logger.Info("No configuration updates received")
+		// Continue through the function so that any existing configuration can be reset
+	} else {
+		r.logger.Info("Merged", "update", mergedUpdate)
+	}
 
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
@@ -432,7 +444,7 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		// SBOM HOST
 		if cfg.CoreAgent.SBOM.Host != nil {
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host == nil {
-				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
+				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 			}
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled == nil {
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled = new(bool)
@@ -445,7 +457,7 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		// SBOM CONTAINER IMAGE
 		if cfg.CoreAgent.SBOM.ContainerImage != nil {
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage == nil {
-				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
+				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 			}
 			if newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled == nil {
 				newddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled = new(bool)

@@ -489,6 +489,18 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            languageDetection:
+                              description: |-
+                                Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods.
+                                (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables language detection to automatically detect languages of user workloads (beta).
+                                    Requires SingleStepInstrumentation.Enabled to be true.
+                                    Default: true
+                                  type: boolean
+                              type: object
                             libVersions:
                               additionalProperties:
                                 type: string
@@ -633,7 +645,7 @@ spec:
                             enabled:
                               description: |-
                                 Enabled enables host benchmarks.
-                                Default: false
+                                Default: true
                               type: boolean
                           type: object
                       type: object
@@ -1295,6 +1307,16 @@ spec:
                                 Enable this option to activate SBOM collection.
                                 Default: false
                               type: boolean
+                            overlayFSDirectScan:
+                              description: |-
+                                Enable this option to enable experimental overlayFS direct scan.
+                                Default: false
+                              type: boolean
+                            uncompressedLayersSupport:
+                              description: |-
+                                Enable this option to enable support for uncompressed layers.
+                                Default: false
+                              type: boolean
                           type: object
                         enabled:
                           description: |-
@@ -1770,6 +1792,13 @@ spec:
                         Valid log levels are: trace, debug, info, warn, error, critical, and off.
                         Default: 'info'
                       type: string
+                    namespaceAnnotationsAsTags:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags.
+                        <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+                      type: object
                     namespaceLabelsAsTags:
                       additionalProperties:
                         type: string
@@ -4008,6 +4037,36 @@ spec:
                           type: object
                         type: array
                         x-kubernetes-list-type: atomic
+                      updateStrategy:
+                        description: The deployment strategy to use to replace existing pods with new ones.
+                        properties:
+                          rollingUpdate:
+                            description: Configure the rolling update strategy of the Deployment or DaemonSet.
+                            properties:
+                              maxSurge:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                description: |-
+                                  MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+                                  Kubernetes API documentation for additional details.
+                                x-kubernetes-int-or-string: true
+                              maxUnavailable:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                description: |-
+                                  The maximum number of pods that can be unavailable during the update.
+                                  Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                  Refer to the Kubernetes API documentation for additional details..
+                                x-kubernetes-int-or-string: true
+                            type: object
+                          type:
+                            description: |-
+                              Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+                              or "Recreate" for Deployments
+                            type: string
+                        type: object
                       volumes:
                         description: Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
                         items:
@@ -6238,6 +6297,18 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                languageDetection:
+                                  description: |-
+                                    Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods.
+                                    (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
+                                  properties:
+                                    enabled:
+                                      description: |-
+                                        Enabled enables language detection to automatically detect languages of user workloads (beta).
+                                        Requires SingleStepInstrumentation.Enabled to be true.
+                                        Default: true
+                                      type: boolean
+                                  type: object
                                 libVersions:
                                   additionalProperties:
                                     type: string
@@ -6382,7 +6453,7 @@ spec:
                                 enabled:
                                   description: |-
                                     Enabled enables host benchmarks.
-                                    Default: false
+                                    Default: true
                                   type: boolean
                               type: object
                           type: object
@@ -7042,6 +7113,16 @@ spec:
                                 enabled:
                                   description: |-
                                     Enable this option to activate SBOM collection.
+                                    Default: false
+                                  type: boolean
+                                overlayFSDirectScan:
+                                  description: |-
+                                    Enable this option to enable experimental overlayFS direct scan.
+                                    Default: false
+                                  type: boolean
+                                uncompressedLayersSupport:
+                                  description: |-
+                                    Enable this option to enable support for uncompressed layers.
                                     Default: false
                                   type: boolean
                               type: object

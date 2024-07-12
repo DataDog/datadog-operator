@@ -81,13 +81,15 @@ const (
 	// DefaultHelmCheckConf default Helm Check ConfigMap name
 	DefaultHelmCheckConf string = "helm-check-config"
 
+	// DefaultAgentHealthPort default agent health port
+	DefaultAgentHealthPort int32 = 5555
+
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
 	DefaultLivenessProbePeriodSeconds       int32 = 15
 	DefaultLivenessProbeTimeoutSeconds      int32 = 5
 	DefaultLivenessProbeSuccessThreshold    int32 = 1
 	DefaultLivenessProbeFailureThreshold    int32 = 6
-	DefaultAgentHealthPort                  int32 = 5555
 	DefaultLivenessProbeHTTPPath                  = "/live"
 
 	// Readiness probe default config
@@ -97,6 +99,14 @@ const (
 	DefaultReadinessProbeSuccessThreshold    int32 = 1
 	DefaultReadinessProbeFailureThreshold    int32 = 6
 	DefaultReadinessProbeHTTPPath                  = "/ready"
+
+	// Startup probe default config
+	DefaultStartupProbeInitialDelaySeconds int32 = 15
+	DefaultStartupProbePeriodSeconds       int32 = 15
+	DefaultStartupProbeTimeoutSeconds      int32 = 5
+	DefaultStartupProbeSuccessThreshold    int32 = 1
+	DefaultStartupProbeFailureThreshold    int32 = 6
+	DefaultStartupProbeHTTPPath                  = "/startup"
 
 	// Default Image name
 	DefaultAgentImageName        string = "agent"
@@ -125,6 +135,9 @@ const (
 const (
 	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SystemProbeAppArmorAnnotationValue = "unconfined"
+
+	AgentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
+	AgentAppArmorAnnotationValue = "unconfined"
 )
 
 // Datadog volume names and mount paths
@@ -161,6 +174,10 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
+	ContainerdDirVolumeName = "host-containerd-dir"
+	ContainerdDirVolumePath = "/var/lib/containerd"
+	ContainerdDirMountPath  = "/host/var/lib/containerd"
 
 	ApkDirVolumeName = "host-apk-dir"
 	ApkDirVolumePath = "/var/lib/apk"
@@ -214,6 +231,7 @@ const (
 
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	OtelCustomConfigVolumePath  = "/etc/datadog-agent/otel-config.yaml"
 
 	LogDatadogVolumeName                             = "logdatadog"
 	LogDatadogVolumePath                             = "/var/log/datadog"

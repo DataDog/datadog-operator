@@ -842,6 +842,16 @@ func getEnvVarsForMetadataAsTags(agentConfig *datadoghqv1alpha1.NodeAgentConfig)
 		})
 	}
 
+	if agentConfig.NamespaceAnnotationsAsTags != nil {
+		namespaceAnnotationsAsTags, err := json.Marshal(agentConfig.NamespaceAnnotationsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  apicommon.DDNamespaceAnnotationsAsTags,
+			Value: string(namespaceAnnotationsAsTags),
+		})
+	}
 	return envVars, nil
 }
 
