@@ -94,7 +94,7 @@ type DatadogMonitorOptions struct {
 	IncludeTags *bool `json:"includeTags,omitempty"`
 	// A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
 	GroupbySimpleMonitor *bool `json:"groupbySimpleMonitor,omitempty"`
-	// Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.
+	// DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.
 	// +deprecated
 	Locked *bool `json:"locked,omitempty"`
 	// Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
