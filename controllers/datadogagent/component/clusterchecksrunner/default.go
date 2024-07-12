@@ -233,6 +233,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				},
 				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+				StartupProbe:   apicommon.GetDefaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),

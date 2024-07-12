@@ -159,8 +159,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// If introspection is disabled, reconcile the agent once using the empty provider `LegacyProvider`
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
-	metrics.IntrospectionEnabled.Set(metrics.DisabledValue)
-	metrics.DAPEnabled.Set(metrics.DisabledValue)
+	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
+	metrics.DAPEnabled.Set(metrics.FalseValue)
 
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		// Get a node list for profiles and introspection
@@ -171,11 +171,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			metrics.IntrospectionEnabled.Set(metrics.EnabledValue)
+			metrics.IntrospectionEnabled.Set(metrics.TrueValue)
 		}
 
 		if r.options.DatadogAgentProfileEnabled {
-			metrics.DAPEnabled.Set(metrics.EnabledValue)
+			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
 			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now)
 			if err != nil {
@@ -354,7 +354,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {
 			// profile is invalid or conflicts
-			logger.Error(err, "profile cannot be applied", "name", profile.Name, "namespace", profile.Namespace)
+			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 			continue
 		}
 		profileListToApply = append(profileListToApply, profile)

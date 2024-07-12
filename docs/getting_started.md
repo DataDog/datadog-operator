@@ -91,6 +91,6 @@ helm delete my-datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
 [5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 [6]: https://gcr.io/datadoghq
-[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-registry.yaml
+[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
 [8]: https://gallery.ecr.aws/datadog/
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/integrations_autodiscovery.md

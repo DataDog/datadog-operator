@@ -70,56 +70,6 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
-	missingResources := &DatadogAgentProfileSpec{
-		ProfileAffinity: &ProfileAffinity{
-			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-				{
-					Key:      "foo",
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"bar"},
-				},
-			},
-		},
-		Config: &Config{
-			Override: map[ComponentName]*Override{
-				NodeAgentComponentName: {
-					Containers: map[commonv1.AgentContainerName]*Container{
-						commonv1.CoreAgentContainerName: {},
-					},
-				},
-			},
-		},
-	}
-	missingContainer := &DatadogAgentProfileSpec{
-		ProfileAffinity: &ProfileAffinity{
-			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-				{
-					Key:      "foo",
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"bar"},
-				},
-			},
-		},
-		Config: &Config{
-			Override: map[ComponentName]*Override{
-				NodeAgentComponentName: {},
-			},
-		},
-	}
-	missingComponent := &DatadogAgentProfileSpec{
-		ProfileAffinity: &ProfileAffinity{
-			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
-				{
-					Key:      "foo",
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"bar"},
-				},
-			},
-		},
-		Config: &Config{
-			Override: map[ComponentName]*Override{},
-		},
-	}
 	missingOverride := &DatadogAgentProfileSpec{
 		ProfileAffinity: &ProfileAffinity{
 			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
@@ -165,21 +115,6 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		{
 			name: "valid dap, resources specified in one container only",
 			spec: validResourceOverrideInOneContainerOnly,
-		},
-		{
-			name:    "missing resources",
-			spec:    missingResources,
-			wantErr: "at least one container resource must be defined",
-		},
-		{
-			name:    "missing container",
-			spec:    missingContainer,
-			wantErr: "node agent container must be defined",
-		},
-		{
-			name:    "missing component",
-			spec:    missingComponent,
-			wantErr: "node agent override must be defined",
 		},
 		{
 			name:    "missing override",

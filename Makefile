@@ -222,7 +222,7 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./apis -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -234,9 +234,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
+# Build and push the multiarch bundle image.
 .PHONY: bundle-build-push
-bundle-build-push: ## Build and load the bundle image.
-	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build-push:
+	docker buildx build --platform linux/amd64,linux/arm64 --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
@@ -349,11 +350,11 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.4
+	hack/install-openshift-preflight.sh 1.9.9
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)

@@ -552,13 +552,14 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
 		EnabledNamespaces:  enabledNamespaces,
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
+		LanguageDetection:  &v2alpha1.LanguageDetection{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
 	}
 	return builder
 }

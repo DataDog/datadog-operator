@@ -29,21 +29,6 @@ func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
 	if spec.Config.Override == nil {
 		return fmt.Errorf("config override must be defined")
 	}
-	if spec.Config.Override[NodeAgentComponentName] == nil {
-		return fmt.Errorf("node agent override must be defined")
-	}
-	if spec.Config.Override[NodeAgentComponentName].Containers == nil {
-		return fmt.Errorf("node agent container must be defined")
-	}
-	containsAtLeastOneContainerResourceOverride := false
-	for _, container := range spec.Config.Override[NodeAgentComponentName].Containers {
-		if container.Resources != nil {
-			containsAtLeastOneContainerResourceOverride = true
-		}
-	}
-	if !containsAtLeastOneContainerResourceOverride {
-		return fmt.Errorf("at least one container resource must be defined")
-	}
 
 	return nil
 }

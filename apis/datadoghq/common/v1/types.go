@@ -88,6 +88,8 @@ const (
 	SecurityAgentContainerName AgentContainerName = "security-agent"
 	// SystemProbeContainerName is the name of the System Probe container
 	SystemProbeContainerName AgentContainerName = "system-probe"
+	// OtelAgent is the name of the OTel container
+	OtelAgent AgentContainerName = "otel-agent"
 	// AllContainers is used internally to reference all containers in the pod
 	AllContainers AgentContainerName = "all"
 	// ClusterAgentContainerName is the name of the Cluster Agent container
