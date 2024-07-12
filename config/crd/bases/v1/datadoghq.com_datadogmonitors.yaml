@@ -95,7 +95,7 @@ spec:
                       description: A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
                       type: boolean
                     locked:
-                      description: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.
+                      description: 'DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.'
                       type: boolean
                     newGroupDelay:
                       description: |-

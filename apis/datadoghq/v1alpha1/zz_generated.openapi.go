@@ -2246,7 +2246,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					},
 					"locked": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.",
+							Description: "DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
