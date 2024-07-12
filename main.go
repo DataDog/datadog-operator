@@ -14,9 +14,6 @@ import (
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -25,8 +22,6 @@ import (
 	klog "k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -39,7 +34,6 @@ import (
 	"github.com/go-logr/logr"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
@@ -239,7 +233,13 @@ func run(opts *options) error {
 		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
-		Cache:                      cacheOptions(setupLog),
+		Cache: config.CacheOptions(setupLog, config.WatchOptions{
+			DatadogAgentEnabled:        opts.datadogAgentEnabled,
+			DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
+			DatadogSLOEnabled:          opts.datadogSLOEnabled,
+			DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
+			IntrospectionEnabled:       opts.introspectionEnabled,
+		}),
 	})
 	if err != nil {
 		return setupErrorf(setupLog, err, "Unable to start manager")
@@ -306,65 +306,6 @@ func run(opts *options) error {
 	}
 
 	return nil
-}
-
-// This function is used to configure the cache used by the manager. It is very
-// important to reduce memory usage.
-// For the profiles feature we need to list the agent pods, but we're only
-// interested in the node name and the labels. This function removes all the
-// rest of fields to reduce memory usage.
-// Also for the profiles feature, we need to list the nodes, but we're only
-// interested in the node name and the labels.
-// Note that if in the future we need to list or get pods or nodes and use other
-// fields we'll need to modify this function.
-func cacheOptions(logger logr.Logger) cache.Options {
-	return cache.Options{
-		DefaultNamespaces: config.GetNamespaceConfigs(logger, cache.Config{}),
-		ByObject: map[client.Object]cache.ByObject{
-			&corev1.Pod{}: {
-
-				Label: labels.SelectorFromSet(map[string]string{
-					common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
-				}),
-
-				Namespaces: config.GetNamespaceConfigs(logger, cache.Config{}),
-
-				Transform: func(obj interface{}) (interface{}, error) {
-					pod := obj.(*corev1.Pod)
-					newPod := &corev1.Pod{
-						TypeMeta: pod.TypeMeta,
-						ObjectMeta: v1.ObjectMeta{
-							Namespace: pod.Namespace,
-							Name:      pod.Name,
-							Labels:    pod.Labels,
-						},
-						Spec: corev1.PodSpec{
-							NodeName: pod.Spec.NodeName,
-						},
-					}
-
-					return newPod, nil
-				},
-			},
-
-			// Store only the node name and its labels.
-			&corev1.Node{}: {
-				Transform: func(obj interface{}) (interface{}, error) {
-					node := obj.(*corev1.Node)
-
-					newNode := &corev1.Node{
-						TypeMeta: node.TypeMeta,
-						ObjectMeta: v1.ObjectMeta{
-							Name:   node.Name,
-							Labels: node.Labels,
-						},
-					}
-
-					return newNode, nil
-				},
-			},
-		},
-	}
 }
 
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
