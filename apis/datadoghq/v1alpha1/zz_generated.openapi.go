@@ -3346,6 +3346,22 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"namespaceAnnotationsAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"nodeLabelsAsTags": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>",

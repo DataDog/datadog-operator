@@ -13,9 +13,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -24,9 +26,12 @@ import (
 )
 
 const (
-	ProfileLabelKey     = "agent.datadoghq.com/profile"
+	ProfileLabelKey = "agent.datadoghq.com/datadogagentprofile"
+	// OldProfileLabelKey was deprecated in operator v1.8.0
+	OldProfileLabelKey  = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
+	labelValueMaxLength = 63
 )
 
 // ProfileToApply validates a profile spec and returns a map that maps each
@@ -37,13 +42,22 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 	profileStatus := datadoghqv1alpha1.DatadogAgentProfileStatus{}
 
 	if hash, err := comparison.GenerateMD5ForSpec(profile.Spec); err != nil {
-		logger.Error(err, "couldn't generate hash for profile", "name", profile.Name, "namespace", profile.Namespace)
+		logger.Error(err, "couldn't generate hash for profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 	} else {
 		profileStatus.CurrentHash = hash
 	}
 
+	if err := validateProfileName(profile.Name); err != nil {
+		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+		profileStatus.Valid = metav1.ConditionFalse
+		UpdateProfileStatus(profile, profileStatus, now)
+		return profileAppliedByNode, err
+	}
+
 	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
-		logger.Error(err, "profile spec is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
+		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
 		UpdateProfileStatus(profile, profileStatus, now)
@@ -53,12 +67,14 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
 		if err != nil {
-			logger.Error(err, "profile selector is invalid, skipping", "name", profile.Name, "namespace", profile.Namespace)
+			logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 			profileStatus.Valid = metav1.ConditionFalse
 			UpdateProfileStatus(profile, profileStatus, now)
 			return profileAppliedByNode, err
 		}
+		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
 		profileStatus.Valid = metav1.ConditionTrue
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
 
@@ -185,7 +201,7 @@ func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affini
 
 // affinityOverrideForDefaultProfile returns the affinity override that should
 // be applied to the default profile. The default profile should be applied to
-// all nodes that don't have the agent.datadoghq.com/profile label.
+// all nodes that don't have the agent.datadoghq.com/datadogagentprofile label.
 func affinityOverrideForDefaultProfile() *v1.Affinity {
 	return &v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
@@ -256,6 +272,7 @@ func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[comm
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
 			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
 				Resources: overrideForContainer.Resources,
+				Env:       overrideForContainer.Env,
 			}
 		}
 	}
@@ -269,9 +286,7 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 	}
 
 	return map[string]string{
-		// Can't use the namespaced name because it includes "/" which is not
-		// accepted in labels.
-		ProfileLabelKey: fmt.Sprintf("%s-%s", profile.Namespace, profile.Name),
+		ProfileLabelKey: profile.Name,
 	}
 }
 
@@ -349,4 +364,17 @@ func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selecti
 	default:
 		return ""
 	}
+}
+
+func validateProfileName(profileName string) error {
+	// Label values can be empty but a profile's name should not be empty
+	if profileName == "" {
+		return fmt.Errorf("Profile name cannot be empty")
+	}
+	// We add the profile name as a label value, which can be 63 characters max
+	if len(profileName) > labelValueMaxLength {
+		return fmt.Errorf("Profile name must be no more than 63 characters")
+	}
+
+	return nil
 }
