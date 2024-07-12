@@ -2244,6 +2244,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"locked": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"newGroupDelay": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of monitor results. Should be a non negative integer.",

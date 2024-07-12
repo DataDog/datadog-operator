@@ -63,6 +63,7 @@ func Test_buildMonitor(t *testing.T) {
 				EscalationMessage:      &escalationMsg,
 				IncludeTags:            &valTrue,
 				GroupbySimpleMonitor:   &valTrue,
+				Locked:                 &valTrue,
 				NewGroupDelay:          &newGroupDelay,
 				NoDataTimeframe:        &noDataTimeframe,
 				NotificationPresetName: "show_all",
@@ -119,6 +120,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitor.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
 	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitorUR.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
+
+	assert.Equal(t, *dm.Spec.Options.Locked, monitor.Options.GetLocked(), "discrepancy found in parameter: Locked")
+	assert.Equal(t, *dm.Spec.Options.Locked, monitorUR.Options.GetLocked(), "discrepancy found in parameter: Locked")
 
 	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitor.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")
 	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitorUR.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")

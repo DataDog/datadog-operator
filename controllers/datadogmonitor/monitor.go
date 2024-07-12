@@ -113,6 +113,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetIncludeTags(*options.IncludeTags)
 	}
 
+	if options.Locked != nil {
+		o.SetLocked(*options.Locked)
+	}
+
 	if options.NewGroupDelay != nil {
 		o.SetNewGroupDelay(*options.NewGroupDelay)
 	}

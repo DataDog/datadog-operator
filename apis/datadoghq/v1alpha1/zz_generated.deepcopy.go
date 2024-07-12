@@ -1466,6 +1466,11 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Locked != nil {
+		in, out := &in.Locked, &out.Locked
+		*out = new(bool)
+		**out = **in
+	}
 	if in.NewGroupDelay != nil {
 		in, out := &in.NewGroupDelay, &out.NewGroupDelay
 		*out = new(int64)
