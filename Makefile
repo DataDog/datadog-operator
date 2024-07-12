@@ -222,7 +222,7 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./apis -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
