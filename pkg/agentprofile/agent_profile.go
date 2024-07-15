@@ -285,9 +285,19 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 		return nil
 	}
 
-	return map[string]string{
-		ProfileLabelKey: profile.Name,
+	labels := map[string]string{}
+
+	if profile.Spec.Config != nil {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+			for labelName, labelVal := range nodeAgentOverride.Labels {
+				labels[labelName] = labelVal
+			}
+		}
 	}
+
+	labels[ProfileLabelKey] = profile.Name
+
+	return labels
 }
 
 func priorityClassNameOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *string {
