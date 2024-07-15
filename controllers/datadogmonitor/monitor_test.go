@@ -34,6 +34,11 @@ func Test_buildMonitor(t *testing.T) {
 	noDataTimeframe := int64(15)
 	renotifyInterval := int64(1440)
 	renotifyOccurrences := int64(1)
+	renotifyStatuses := []datadogV1.MonitorRenotifyStatusType{
+		datadogV1.MONITORRENOTIFYSTATUSTYPE_ALERT,
+		datadogV1.MONITORRENOTIFYSTATUSTYPE_WARN,
+	}
+
 	timeoutH := int64(2)
 	critThreshold := "0.05"
 	warnThreshold := "0.02"
@@ -71,6 +76,7 @@ func Test_buildMonitor(t *testing.T) {
 				OnMissingData:       "default",
 				RenotifyOccurrences: &renotifyOccurrences,
 				RenotifyInterval:    &renotifyInterval,
+				RenotifyStatuses:    renotifyStatuses,
 				TimeoutH:            &timeoutH,
 				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
 					Critical: &critThreshold,
@@ -141,6 +147,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, *dm.Spec.Options.RenotifyOccurrences, monitor.Options.GetRenotifyOccurrences(), "discrepancy found in parameter: RenotifyOccurrences")
 	assert.Equal(t, *dm.Spec.Options.RenotifyOccurrences, monitorUR.Options.GetRenotifyOccurrences(), "discrepancy found in parameter: RenotifyOccurrences")
+
+	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitor.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
+	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitorUR.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
 
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitor.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitorUR.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
