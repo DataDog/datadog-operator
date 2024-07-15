@@ -135,6 +135,9 @@ const (
 const (
 	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SystemProbeAppArmorAnnotationValue = "unconfined"
+
+	AgentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
+	AgentAppArmorAnnotationValue = "unconfined"
 )
 
 // Datadog volume names and mount paths
@@ -171,6 +174,10 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
+	ContainerdDirVolumeName = "host-containerd-dir"
+	ContainerdDirVolumePath = "/var/lib/containerd"
+	ContainerdDirMountPath  = "/host/var/lib/containerd"
 
 	ApkDirVolumeName = "host-apk-dir"
 	ApkDirVolumePath = "/var/lib/apk"
@@ -224,6 +231,7 @@ const (
 
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	OtelCustomConfigVolumePath  = "/etc/datadog-agent/otel-config.yaml"
 
 	LogDatadogVolumeName                             = "logdatadog"
 	LogDatadogVolumePath                             = "/var/log/datadog"

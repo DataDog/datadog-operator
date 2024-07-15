@@ -43,6 +43,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.55.0-rc.10
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10
 	github.com/prometheus/client_golang v1.16.0
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 )
 
 require (
@@ -148,7 +149,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
 	golang.org/x/mod v0.15.0 // indirect
 	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect

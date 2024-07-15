@@ -4820,6 +4820,12 @@ spec:
                             enabled:
                               description: 'Enable this option to activate SBOM collection. Default: false'
                               type: boolean
+                            overlayFSDirectScan:
+                              description: 'Enable this option to enable experimental overlayFS direct scan. Default: false'
+                              type: boolean
+                            uncompressedLayersSupport:
+                              description: 'Enable this option to enable support for uncompressed layers. Default: false'
+                              type: boolean
                           type: object
                         enabled:
                           description: 'Enable this option to activate SBOM collection. Default: false'
