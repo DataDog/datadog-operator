@@ -88,7 +88,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics/status,verbs=update
 
 // Configure Autoscaling product
-// (RBAC on events and pods are already existing below)
+// (RBACs for events and pods are present below)
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
 // +kubebuilder:rbac:groups="",resources=*/scale,verbs=get;update
