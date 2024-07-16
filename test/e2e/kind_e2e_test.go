@@ -53,7 +53,7 @@ func (suite *kindSuite) SetupSuite() {
 func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
-		e2e.WithProvisioner(kindProvisioner(k8sVersion, "")),
+		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
 		e2e.WithDevMode(),
 	}
 
@@ -61,7 +61,7 @@ func TestKindSuite(t *testing.T) {
 }
 
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
-func kindProvisioner(k8sVersion string, managerFileName string) e2e.Provisioner {
+func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Provisioner {
 	return e2e.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
 		// Provision AWS environment
 		awsEnv, err := resAws.NewEnvironment(ctx)
@@ -109,10 +109,10 @@ func kindProvisioner(k8sVersion string, managerFileName string) e2e.Provisioner 
 			return err
 		}
 
-		if managerFileName == "" {
-			managerFileName = defaultMgrFileName
+		if extraKustomizeResources == nil {
+			extraKustomizeResources = []string{defaultMgrFileName}
 		}
-		updateKustomization(kustomizeDirPath, managerFileName)
+		updateKustomization(kustomizeDirPath, extraKustomizeResources)
 
 		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
 			kustomize.DirectoryArgs{

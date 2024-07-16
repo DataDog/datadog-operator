@@ -140,7 +140,8 @@ func saveKustomization(path string, kustomization *types.Kustomization) error {
 	return nil
 }
 
-func updateKustomization(kustomizeDirPath string, mgrFileName string) error {
+// updateKustomization Updates kustomization.yaml file in given kustomize directory with extra resources and image name and tag if `IMG` environment variable is set.
+func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []string) error {
 	var imgName, imgTag string
 
 	kustomizationFilePath := fmt.Sprintf("%s/kustomization.yaml", kustomizeDirPath)
@@ -150,8 +151,18 @@ func updateKustomization(kustomizeDirPath string, mgrFileName string) error {
 	}
 
 	// Update resources with target e2e-manager resource yaml
-	newResource := mgrFileName
-	k.Resources = append(k.Resources, newResource)
+	for _, res := range kustomizeResourcePaths {
+		exists := false
+		for _, r := range k.Resources {
+			if r == res {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			k.Resources = append(k.Resources, res)
+		}
+	}
 
 	// Update image
 	if os.Getenv("IMG") != "" {
