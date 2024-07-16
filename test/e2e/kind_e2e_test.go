@@ -53,7 +53,7 @@ func (suite *kindSuite) SetupSuite() {
 func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
-		e2e.WithProvisioner(kindProvisioner(k8sVersion)),
+		e2e.WithProvisioner(kindProvisioner(k8sVersion, "")),
 		e2e.WithDevMode(),
 	}
 
@@ -61,7 +61,7 @@ func TestKindSuite(t *testing.T) {
 }
 
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
-func kindProvisioner(k8sVersion string) e2e.Provisioner {
+func kindProvisioner(k8sVersion string, managerFileName string) e2e.Provisioner {
 	return e2e.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
 		// Provision AWS environment
 		awsEnv, err := resAws.NewEnvironment(ctx)
@@ -79,7 +79,8 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		}
 
 		// Create kind cluster
-		kindClusterName := ctx.Stack()
+		kindClusterName := generateKindClusterName(ctx.Stack())
+
 		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", k8sVersion), nil)
 		if err != nil {
 			return err
@@ -102,13 +103,18 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 			return err
 		}
 
-		// Deploy resources from kustomize config/default directory
+		// Deploy resources from kustomize config/e2e directory
 		kustomizeDirPath, err := filepath.Abs(mgrKustomizeDirPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = kustomize.NewDirectory(ctx, "e2e-manager",
+		if managerFileName == "" {
+			managerFileName = defaultMgrFileName
+		}
+		updateKustomization(kustomizeDirPath, managerFileName)
+
+		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
 			kustomize.DirectoryArgs{
 				Directory: pulumi.String(kustomizeDirPath),
 			},
@@ -116,6 +122,8 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		if err != nil {
 			return err
 		}
+
+		pulumi.DependsOn([]pulumi.Resource{e2eKustomize})
 
 		// Create imagePullSecret to pull E2E operator image from ECR
 		if imgPullPassword != "" {

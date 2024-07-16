@@ -6,6 +6,7 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,11 +14,18 @@ import (
 
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/yaml"
+
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 const (
 	manifestsPath       = "./manifests"
 	mgrKustomizeDirPath = "../../config/e2e"
+	defaultMgrImageName = "gcr.io/datadoghq/operator"
+	defaultMgrImgTag    = "latest"
+	defaultMgrFileName  = "e2e-manager.yaml"
 )
 
 var (
@@ -96,4 +104,72 @@ func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string)
 	if !*keepStacks {
 		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
 	}
+}
+
+func generateKindClusterName(stackName string) string {
+	if os.Getenv("CI") == "true" {
+		return fmt.Sprintf("%s-%s", stackName, os.Getenv("CI_PIPELINE_ID"))
+	}
+	return stackName
+}
+
+func loadKustomization(path string) (*types.Kustomization, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var kustomization types.Kustomization
+	if err := yaml.Unmarshal(data, &kustomization); err != nil {
+		return nil, err
+	}
+
+	return &kustomization, nil
+}
+
+func saveKustomization(path string, kustomization *types.Kustomization) error {
+	data, err := yaml.Marshal(kustomization)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateKustomization(kustomizeDirPath string, mgrFileName string) error {
+	var imgName, imgTag string
+
+	kustomizationFilePath := fmt.Sprintf("%s/kustomization.yaml", kustomizeDirPath)
+	k, err := loadKustomization(kustomizationFilePath)
+	if err != nil {
+		return err
+	}
+
+	// Update resources with target e2e-manager resource yaml
+	newResource := mgrFileName
+	k.Resources = append(k.Resources, newResource)
+
+	// Update image
+	if os.Getenv("IMG") != "" {
+		imgTag, imgName = common.SplitImageString(os.Getenv("IMG"))
+	} else {
+		imgName = defaultMgrImageName
+		imgTag = defaultMgrImgTag
+	}
+	for i, img := range k.Images {
+		if img.Name == "controller" {
+			k.Images[i].NewName = imgName
+			k.Images[i].NewTag = imgTag
+		}
+	}
+
+	if err := saveKustomization(kustomizationFilePath, k); err != nil {
+		return err
+	}
+
+	return nil
 }
