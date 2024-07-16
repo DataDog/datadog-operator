@@ -523,6 +523,18 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogpodautoscalers
+  verbs:
+  - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogpodautoscalers/status
+  verbs:
+  - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
   - datadogslos
   verbs:
   - create
@@ -743,13 +755,6 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - storageclasses
-  verbs:
-  - list
-  - watch
 - apiGroups:
   - storage.k8s.io
   resources:
