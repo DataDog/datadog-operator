@@ -99,6 +99,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=restricted,verbs=use
 
 // +kubebuilder:rbac:urls=/metrics,verbs=get
+// +kubebuilder:rbac:urls=/metrics/slis,verbs=get
 // +kubebuilder:rbac:groups="",resources=componentstatuses,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes/metrics,verbs=get
