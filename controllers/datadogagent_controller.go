@@ -105,6 +105,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=restricted,verbs=use
 
 // +kubebuilder:rbac:urls=/metrics,verbs=get
+// +kubebuilder:rbac:urls=/metrics/slis,verbs=get
 // +kubebuilder:rbac:groups="",resources=componentstatuses,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes/metrics,verbs=get
@@ -148,7 +149,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=list;watch
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch

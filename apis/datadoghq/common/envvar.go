@@ -142,6 +142,8 @@ const (
 	DDSBOMEnabled                                        = "DD_SBOM_ENABLED"
 	DDSBOMContainerImageEnabled                          = "DD_SBOM_CONTAINER_IMAGE_ENABLED"
 	DDSBOMContainerImageAnalyzers                        = "DD_SBOM_CONTAINER_IMAGE_ANALYZERS"
+	DDSBOMContainerUseMount                              = "DD_SBOM_CONTAINER_IMAGE_USE_MOUNT"
+	DDSBOMContainerOverlayFSDirectScan                   = "DD_SBOM_CONTAINER_IMAGE_OVERLAYFS_DIRECT_SCAN"
 	DDSBOMHostEnabled                                    = "DD_SBOM_HOST_ENABLED"
 	DDSBOMHostAnalyzers                                  = "DD_SBOM_HOST_ANALYZERS"
 	DDSecretBackendCommand                               = "DD_SECRET_BACKEND_COMMAND"

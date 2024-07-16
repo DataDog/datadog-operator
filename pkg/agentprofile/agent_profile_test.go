@@ -474,6 +474,96 @@ func TestPriorityClassNameOverride(t *testing.T) {
 		})
 	}
 }
+func Test_labelsOverride(t *testing.T) {
+	tests := []struct {
+		name           string
+		profile        v1alpha1.DatadogAgentProfile
+		expectedLabels map[string]string
+	}{
+		{
+			name: "default profile",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: defaultProfileName,
+				},
+			},
+			expectedLabels: nil,
+		},
+		{
+			name: "profile with no label overrides",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+			},
+		},
+		{
+			name: "profile with label overrides",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									"foo": "bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+				"foo":           "bar",
+			},
+		},
+		{
+			// ProfileLabelKey should not be overriden by a user-created profile
+			name: "profile with label overriding ProfileLabelKey",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									ProfileLabelKey: "bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedLabels, labelsOverride(&test.profile))
+		})
+	}
+}
 
 func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{

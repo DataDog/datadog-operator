@@ -8,6 +8,10 @@ rules:
   - /metrics
   verbs:
   - get
+- nonResourceURLs:
+  - /metrics/slis
+  verbs:
+  - get
 - apiGroups:
   - ""
   resources:
@@ -516,18 +520,6 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - datadoghq.com
-  resources:
-  - datadogpodautoscalers
-  verbs:
-  - '*'
-- apiGroups:
-  - datadoghq.com
-  resources:
-  - datadogpodautoscalers/status
-  verbs:
-  - '*'
 - apiGroups:
   - datadoghq.com
   resources:
