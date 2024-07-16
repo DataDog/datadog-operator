@@ -62,7 +62,7 @@ spec:
                                 env:
                                   description: |-
                                     Specify additional environment variables in the container.
-                                    See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
+                                    See also: https://docs.datadoghq.com/agent/guide/environment-variables/
                                   items:
                                     description: EnvVar represents an environment variable present in a Container.
                                     properties:
@@ -229,6 +229,11 @@ spec:
                             description: |-
                               Configure the basic configurations for an Agent container
                               Valid Agent container names are: `agent`
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels provide labels that are added to the Datadog Agent pods.
                             type: object
                           priorityClassName:
                             description: |-
