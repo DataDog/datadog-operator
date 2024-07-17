@@ -6,8 +6,10 @@
 package rbac
 
 // Consts used to setup Rbac config
-// API Groups
 const (
+	Wildcard = "*"
+
+	// API Groups
 	CoreAPIGroup             = ""
 	ExtensionsAPIGroup       = "extensions"
 	OpenShiftQuotaAPIGroup   = "quota.openshift.io"
@@ -55,6 +57,8 @@ const (
 	HorizontalPodAutoscalersRecource    = "horizontalpodautoscalers"
 	DatadogMetricsResource              = "datadogmetrics"
 	DatadogMetricsStatusResource        = "datadogmetrics/status"
+	DatadogPodAutoscalersResource       = "datadogpodautoscalers"
+	DatadogPodAutoscalersStatusResource = "datadogpodautoscalers/status"
 	WpaResource                         = "watermarkpodautoscalers"
 	MutatingConfigResource              = "mutatingwebhookconfigurations"
 	ValidatingConfigResource            = "validatingwebhookconfigurations"

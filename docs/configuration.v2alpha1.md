@@ -66,6 +66,7 @@ spec:
 | features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
+| features.autoscaling.workload.enabled | Enabled enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |

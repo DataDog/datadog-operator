@@ -83,12 +83,17 @@ func (ct *ComponentTest) WithWantFunc(f func(testing.TB, feature.PodTemplateMana
 
 // Run use to run the Feature test suite.
 func (suite FeatureTestSuite) Run(t *testing.T, buildFunc feature.BuildFunc) {
+	t.Helper()
+
 	for _, test := range suite {
-		runTest(t, test, buildFunc)
+		t.Run(test.Name, func(tt *testing.T) {
+			runTest(tt, test)
+		})
 	}
 }
 
-func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
+func runTest(t *testing.T, tt FeatureTest) {
+	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(tt.Name)
 

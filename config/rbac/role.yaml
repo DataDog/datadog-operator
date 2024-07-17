@@ -15,6 +15,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - '*/scale'
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - ""
+  resources:
   - componentstatuses
   verbs:
   - get
@@ -513,6 +520,18 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogpodautoscalers
+  verbs:
+  - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogpodautoscalers/status
+  verbs:
+  - '*'
 - apiGroups:
   - datadoghq.com
   resources:

@@ -8,12 +8,10 @@ package datadogagent
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -42,10 +40,6 @@ import (
 const (
 	defaultRuntimeDir string = "/var/run"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // getTokenSecretName returns the token secret name
 func getAuthTokenSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {

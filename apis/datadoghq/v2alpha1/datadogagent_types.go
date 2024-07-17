@@ -92,6 +92,8 @@ type DatadogFeatures struct {
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
 	// ExternalMetricsServer configuration.
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
+	// Autoscaling configuration.
+	Autoscaling *AutoscalingFeatureConfig `json:"autoscaling,omitempty"`
 	// ClusterChecks configuration.
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
@@ -787,6 +789,20 @@ type ExternalMetricsServerFeatureConfig struct {
 	// URL Default: "https://app.datadoghq.com".
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
+}
+
+// AutoscalingFeatureConfig contains the Autoscaling product configuration.
+type AutoscalingFeatureConfig struct {
+	// Workload contains the configuration for the workload autoscaling product.
+	Workload *WorkloadAutoscalingFeatureConfig `json:"workload,omitempty"`
+}
+
+// WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
+type WorkloadAutoscalingFeatureConfig struct {
+	// Enabled enables the workload autoscaling product.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.
