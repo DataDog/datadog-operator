@@ -79,7 +79,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 		}
 
 		// Create kind cluster
-		kindClusterName := generateKindClusterName(ctx.Stack())
+		kindClusterName := ctx.Stack()
 
 		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", k8sVersion), nil)
 		if err != nil {

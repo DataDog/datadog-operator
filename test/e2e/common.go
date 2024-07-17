@@ -106,13 +106,6 @@ func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string)
 	}
 }
 
-func generateKindClusterName(stackName string) string {
-	if os.Getenv("CI") == "true" {
-		return fmt.Sprintf("%s-%s", stackName, os.Getenv("CI_PIPELINE_ID"))
-	}
-	return stackName
-}
-
 func loadKustomization(path string) (*types.Kustomization, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -166,7 +159,7 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 
 	// Update image
 	if os.Getenv("IMG") != "" {
-		imgTag, imgName = common.SplitImageString(os.Getenv("IMG"))
+		imgName, imgTag = common.SplitImageString(os.Getenv("IMG"))
 	} else {
 		imgName = defaultMgrImageName
 		imgTag = defaultMgrImgTag
