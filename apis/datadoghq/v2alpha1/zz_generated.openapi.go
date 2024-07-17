@@ -654,9 +654,37 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 							Format:      "",
 						},
 					},
+					"unbundleEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnbundleEvents enables collection of Kubernetes events as individual events. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectedEventTypes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default to: [ {\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]}, {\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]}, {\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]} ]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v2alpha1.EventTypes"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.EventTypes"},
 	}
 }
 

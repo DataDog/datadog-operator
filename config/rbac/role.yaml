@@ -15,13 +15,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - '*/scale'
-  verbs:
-  - get
-  - update
-- apiGroups:
-  - ""
-  resources:
   - componentstatuses
   verbs:
   - get
@@ -195,6 +188,13 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - '*'
+  resources:
+  - '*/scale'
+  verbs:
+  - get
+  - update
 - apiGroups:
   - admissionregistration.k8s.io
   resources:

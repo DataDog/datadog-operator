@@ -866,6 +866,38 @@ spec:
                             CollectKubernetesEvents enables Kubernetes event collection.
                             Default: true
                           type: boolean
+                        collectedEventTypes:
+                          description: |-
+                            CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
+                            Default to:
+                            [
+                            {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
+                            {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},
+                            {"kind":"CronJob","reasons":["SawCompletedJob"]}
+                            ]
+                          items:
+                            description: EventTypes defines the kind and reasons of events to collect.
+                            properties:
+                              kind:
+                                description: 'Kind is the kind of event to collect. (ex: Pod, Node, CronJob)'
+                                type: string
+                              reasons:
+                                description: 'Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)'
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                              - kind
+                              - reasons
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        unbundleEvents:
+                          description: |-
+                            UnbundleEvents enables collection of Kubernetes events as individual events.
+                            Default: false
+                          type: boolean
                       type: object
                     externalMetricsServer:
                       description: ExternalMetricsServer configuration.
@@ -6686,6 +6718,38 @@ spec:
                               description: |-
                                 CollectKubernetesEvents enables Kubernetes event collection.
                                 Default: true
+                              type: boolean
+                            collectedEventTypes:
+                              description: |-
+                                CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
+                                Default to:
+                                [
+                                {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
+                                {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},
+                                {"kind":"CronJob","reasons":["SawCompletedJob"]}
+                                ]
+                              items:
+                                description: EventTypes defines the kind and reasons of events to collect.
+                                properties:
+                                  kind:
+                                    description: 'Kind is the kind of event to collect. (ex: Pod, Node, CronJob)'
+                                    type: string
+                                  reasons:
+                                    description: 'Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)'
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                required:
+                                  - kind
+                                  - reasons
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            unbundleEvents:
+                              description: |-
+                                UnbundleEvents enables collection of Kubernetes events as individual events.
+                                Default: false
                               type: boolean
                           type: object
                         externalMetricsServer:
