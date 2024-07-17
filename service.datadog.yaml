@@ -1,4 +1,4 @@
-schema-version: v2.2
+schema-version: v2
 dd-service: datadog-operator
 team: container-ecosystems
 contacts:
