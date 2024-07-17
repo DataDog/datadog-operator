@@ -588,7 +588,7 @@ type EventCollectionFeatureConfig struct {
 	UnbundleEvents *bool `json:"unbundleEvents,omitempty"`
 
 	// CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
-	// Default to:
+	// Default:
 	// [
 	// {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
 	// {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},

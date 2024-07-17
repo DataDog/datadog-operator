@@ -668,7 +668,7 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default to: [ {\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]}, {\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]}, {\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]} ]",
+							Description: "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]}, {\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]}, {\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]} ]",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
