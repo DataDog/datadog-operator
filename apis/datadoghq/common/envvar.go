@@ -82,6 +82,7 @@ const (
 	DDExternalMetricsProviderPort                        = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDExternalMetricsProviderUseDatadogMetric            = "DD_EXTERNAL_METRICS_PROVIDER_USE_DATADOGMETRIC_CRD"
 	DDExternalMetricsProviderWPAController               = "DD_EXTERNAL_METRICS_PROVIDER_WPA_CONTROLLER"
+	DDAutoscalingWorkloadEnabled                         = "DD_AUTOSCALING_WORKLOAD_ENABLED"
 	DDExtraConfigProviders                               = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners                                     = "DD_EXTRA_LISTENERS"
 	DDFIPSEnabled                                        = "DD_FIPS_ENABLED"
