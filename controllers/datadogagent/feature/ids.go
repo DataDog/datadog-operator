@@ -27,6 +27,8 @@ const (
 	LiveProcessIDType = "live_process"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
+	// KubernetesAPIServerIDType Kube APIServer feature.
+	KubernetesAPIServerIDType = "kubernetes_apiserver"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.

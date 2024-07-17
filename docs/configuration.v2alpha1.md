@@ -94,6 +94,8 @@ spec:
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
+| features.eventCollection.collectedEventTypes | CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ] |
+| features.eventCollection.unbundleEvents | UnbundleEvents enables collection of Kubernetes events as individual events. Default: false |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |

@@ -35,6 +35,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/apm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/asm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/autoscaling"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
@@ -91,7 +92,8 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
+) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,
 		client:       client,

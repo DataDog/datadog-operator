@@ -91,7 +91,7 @@ type DatadogAgentReconciler struct {
 // (RBACs for events and pods are present below)
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
-// +kubebuilder:rbac:groups="",resources=*/scale,verbs=get;update
+// +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete

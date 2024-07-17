@@ -581,6 +581,32 @@ type EventCollectionFeatureConfig struct {
 	// CollectKubernetesEvents enables Kubernetes event collection.
 	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
+
+	// UnbundleEvents enables collection of Kubernetes events as individual events.
+	// Default: false
+	// +optional
+	UnbundleEvents *bool `json:"unbundleEvents,omitempty"`
+
+	// CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
+	// Default:
+	// [
+	// {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
+	// {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},
+	// {"kind":"CronJob","reasons":["SawCompletedJob"]}
+	// ]
+	// +optional
+	// +listType=atomic
+	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+}
+
+// EventTypes defines the kind and reasons of events to collect.
+type EventTypes struct {
+	// Kind is the kind of event to collect. (ex: Pod, Node, CronJob)
+	Kind string `json:"kind"`
+
+	// Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)
+	// +listType=atomic
+	Reasons []string `json:"reasons"`
 }
 
 // OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
