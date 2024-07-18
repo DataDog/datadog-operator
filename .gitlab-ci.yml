@@ -32,6 +32,7 @@ stages:
   - release
   - e2e
   - post-release
+  - deploy
 
 .new_e2e_template:
   stage: e2e
@@ -293,7 +294,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -312,7 +313,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -458,3 +459,22 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+
+
+deploy_nightly_image:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
+      when: on_success
+    - when: never
+  needs:
+    - trigger_internal_operator_nightly_image
+    - trigger_internal_operator_check_nightly_image
+  trigger:
+    project: DataDog/k8s-datadog-agent-ops
+    branch: main
+    strategy: depend
+  variables:
+    OPERATOR_NIGHTLY: true
+    ENVIRONMENTS: "alpha,experimental,staging"
+    CHART: "datadog-operator"
