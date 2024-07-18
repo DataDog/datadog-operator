@@ -1,3 +1,4 @@
+---
 schema-version: v2
 dd-service: datadog-operator
 team: container-ecosystems
@@ -12,31 +13,25 @@ links:
     url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2446754987/Runbooks
   - name: datadog-operator
     type: repo
-    provider: github
     url: https://github.com/DataDog/datadog-operator
   - name: deployment
     type: repo
-    provider: github
     url: https://github.com/DataDog/k8s-datadog-agent-ops
   - name: internal-chart
     type: repo
-    provider: github
     url: https://github.com/DataDog/k8s-resources/tree/master/k8s/datadog-operator
   - name: internal-image
     type: repo
-    provider: github
     url: https://github.com/DataDog/images/tree/master/datadog-operator
   - name: On Call documentation
     type: doc
-    provider: confluence
     url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2445645960/On+Call
 tags:
   - app:datadog-operator
   - service:datadog-operator
   - team:container-ecosystems
 integrations:
-  pagerduty:
-    service-url: https://datadog.pagerduty.com/service-directory/PFZC0QZ
+  pagerduty: https://datadog.pagerduty.com/service-directory/PFZC0QZ
 extensions:
   datadoghq.com/sdp:
     conductor:
