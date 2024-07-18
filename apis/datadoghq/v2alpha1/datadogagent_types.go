@@ -92,6 +92,8 @@ type DatadogFeatures struct {
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
 	// ExternalMetricsServer configuration.
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
+	// Autoscaling configuration.
+	Autoscaling *AutoscalingFeatureConfig `json:"autoscaling,omitempty"`
 	// ClusterChecks configuration.
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
@@ -416,12 +418,12 @@ type SBOMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
-	Host           *SBOMTypeConfig `json:"host,omitempty"`
+	ContainerImage *SBOMContainerImageConfig `json:"containerImage,omitempty"`
+	Host           *SBOMHostConfig           `json:"host,omitempty"`
 }
 
 // SBOMTypeConfig contains configuration for a SBOM collection type.
-type SBOMTypeConfig struct {
+type SBOMHostConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
 	// +optional
@@ -431,6 +433,29 @@ type SBOMTypeConfig struct {
 	// +optional
 	// +listType=set
 	Analyzers []string `json:"analyzers,omitempty"`
+}
+
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMContainerImageConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
+
+	// Enable this option to enable support for uncompressed layers.
+	// Default: false
+	// +optional
+	UncompressedLayersSupport bool `json:"uncompressedLayersSupport,omitempty"`
+
+	// Enable this option to enable experimental overlayFS direct scan.
+	// Default: false
+	// +optional
+	OverlayFSDirectScan bool `json:"overlayFSDirectScan,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -556,6 +581,32 @@ type EventCollectionFeatureConfig struct {
 	// CollectKubernetesEvents enables Kubernetes event collection.
 	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
+
+	// UnbundleEvents enables collection of Kubernetes events as individual events.
+	// Default: false
+	// +optional
+	UnbundleEvents *bool `json:"unbundleEvents,omitempty"`
+
+	// CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
+	// Default:
+	// [
+	// {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
+	// {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},
+	// {"kind":"CronJob","reasons":["SawCompletedJob"]}
+	// ]
+	// +optional
+	// +listType=atomic
+	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+}
+
+// EventTypes defines the kind and reasons of events to collect.
+type EventTypes struct {
+	// Kind is the kind of event to collect. (ex: Pod, Node, CronJob)
+	Kind string `json:"kind"`
+
+	// Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)
+	// +listType=atomic
+	Reasons []string `json:"reasons"`
 }
 
 // OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
@@ -764,6 +815,20 @@ type ExternalMetricsServerFeatureConfig struct {
 	// URL Default: "https://app.datadoghq.com".
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
+}
+
+// AutoscalingFeatureConfig contains the Autoscaling product configuration.
+type AutoscalingFeatureConfig struct {
+	// Workload contains the configuration for the workload autoscaling product.
+	Workload *WorkloadAutoscalingFeatureConfig `json:"workload,omitempty"`
+}
+
+// WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
+type WorkloadAutoscalingFeatureConfig struct {
+	// Enabled enables the workload autoscaling product.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.

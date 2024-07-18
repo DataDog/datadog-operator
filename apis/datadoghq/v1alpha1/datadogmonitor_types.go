@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -93,7 +94,8 @@ type DatadogMonitorOptions struct {
 	IncludeTags *bool `json:"includeTags,omitempty"`
 	// A Boolean indicating whether the log alert monitor triggers a single alert or multiple alerts when any group breaches a threshold.
 	GroupbySimpleMonitor *bool `json:"groupbySimpleMonitor,omitempty"`
-	// Whether or not the monitor is locked (only editable by creator and admins).
+	// DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.
+	// +deprecated
 	Locked *bool `json:"locked,omitempty"`
 	// Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
 	// monitor results. Should be a non negative integer.
@@ -125,6 +127,8 @@ type DatadogMonitorOptions struct {
 	RenotifyInterval *int64 `json:"renotifyInterval,omitempty"`
 	// The number of times re-notification messages should be sent on the current status at the provided re-notification interval.
 	RenotifyOccurrences *int64 `json:"renotifyOccurrences,omitempty"`
+	// The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.
+	RenotifyStatuses []datadogV1.MonitorRenotifyStatusType `json:"renotifyStatuses,omitempty"`
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
 	RequireFullWindow *bool `json:"requireFullWindow,omitempty"`

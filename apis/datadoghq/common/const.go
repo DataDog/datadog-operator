@@ -72,6 +72,8 @@ const (
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
 	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
 	DefaultOrchestratorExplorerConf string = "orchestrator-explorer-config"
+	// DefaultKubeAPIServerConf default Kubernetes APIServer ConfigMap name
+	DefaultKubeAPIServerConf string = "kube-apiserver-config"
 	// DefaultSystemProbeSocketPath default System Probe socket path
 	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
 	// DefaultCSPMConf default CSPM ConfigMap name
@@ -135,6 +137,9 @@ const (
 const (
 	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SystemProbeAppArmorAnnotationValue = "unconfined"
+
+	AgentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
+	AgentAppArmorAnnotationValue = "unconfined"
 )
 
 // Datadog volume names and mount paths
@@ -171,6 +176,10 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
+	ContainerdDirVolumeName = "host-containerd-dir"
+	ContainerdDirVolumePath = "/var/lib/containerd"
+	ContainerdDirMountPath  = "/host/var/lib/containerd"
 
 	ApkDirVolumeName = "host-apk-dir"
 	ApkDirVolumePath = "/var/lib/apk"
@@ -224,6 +233,7 @@ const (
 
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+	OtelCustomConfigVolumePath  = "/etc/datadog-agent/otel-config.yaml"
 
 	LogDatadogVolumeName                             = "logdatadog"
 	LogDatadogVolumePath                             = "/var/log/datadog"
@@ -293,7 +303,8 @@ const (
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
 	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
-	HelmCheckConfigVolumeName = "helm-check-config"
+	HelmCheckConfigVolumeName                = "helm-check-config"
+	KubernetesAPIServerCheckConfigVolumeName = "kubernetes-apiserver-check-config"
 
 	FIPSProxyCustomConfigVolumeName = "fips-proxy-cfg"
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"

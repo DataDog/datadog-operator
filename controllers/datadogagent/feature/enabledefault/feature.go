@@ -53,6 +53,7 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		dF.logger = options.Logger
+		dF.otelAgentEnabled = options.OtelAgentEnabled
 	}
 
 	return dF
@@ -68,6 +69,7 @@ type defaultFeature struct {
 	clusterChecksRunner     clusterChecksRunnerConfig
 	logger                  logr.Logger
 	disableNonResourceRules bool
+	otelAgentEnabled        bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -184,14 +186,32 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{
-			IsRequired: &trueValue,
-		},
-		Agent: feature.RequiredComponent{
-			IsRequired: &trueValue,
-		},
+	//
+	// In Operator 1.9 OTel Agent will be configured through a feature.
+	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
+	if f.otelAgentEnabled {
+		return feature.RequiredComponents{
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: &trueValue,
+			},
+			Agent: feature.RequiredComponent{
+				IsRequired: &trueValue,
+				Containers: []commonv1.AgentContainerName{
+					commonv1.OtelAgent,
+				},
+			},
+		}
+	} else {
+		return feature.RequiredComponents{
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: &trueValue,
+			},
+			Agent: feature.RequiredComponent{
+				IsRequired: &trueValue,
+			},
+		}
 	}
+
 }
 
 func (f *defaultFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {

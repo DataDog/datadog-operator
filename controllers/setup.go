@@ -46,6 +46,7 @@ type SetupOptions struct {
 	IntrospectionEnabled            bool
 	DatadogAgentProfileEnabled      bool
 	ProcessChecksInCoreAgentEnabled bool
+	OtelAgentEnabled                bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -153,6 +154,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 			IntrospectionEnabled:            options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled:      options.DatadogAgentProfileEnabled,
 			ProcessChecksInCoreAgentEnabled: options.ProcessChecksInCoreAgentEnabled,
+			OtelAgentEnabled:                options.OtelAgentEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

@@ -141,7 +141,6 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 }
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-
 	// pointerdir volume mount
 	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, agentContainerName)

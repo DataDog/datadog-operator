@@ -218,10 +218,9 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 	return builder
 }
 
-//sidecar Injection
-
+// sidecar Injection
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
-	//builder.initAdmissionController()
+	// builder.initAdmissionController()
 	builder.initSidecarInjection()
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
 	if enabled {
@@ -387,6 +386,14 @@ func (builder *DatadogAgentBuilder) initEventCollection() {
 func (builder *DatadogAgentBuilder) WithEventCollectionKubernetesEvents(enabled bool) *DatadogAgentBuilder {
 	builder.initEventCollection()
 	builder.datadogAgent.Spec.Features.EventCollection.CollectKubernetesEvents = apiutils.NewBoolPointer(enabled)
+
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bool, eventTypes []v2alpha1.EventTypes) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.UnbundleEvents = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Features.EventCollection.CollectedEventTypes = eventTypes
 
 	return builder
 }
@@ -577,7 +584,6 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 		},
 	}
 	return builder
-
 }
 
 // OTLP

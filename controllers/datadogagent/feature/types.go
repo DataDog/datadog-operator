@@ -157,6 +157,7 @@ type Options struct {
 	Logger logr.Logger
 
 	ProcessChecksInCoreAgentEnabled bool
+	OtelAgentEnabled                bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.
