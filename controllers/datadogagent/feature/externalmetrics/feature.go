@@ -234,6 +234,26 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		return fmt.Errorf("error adding external metrics provider service to store: %w", err)
 	}
 
+	// Credential secret
+	if len(f.keySecret) != 0 {
+		for idx, s := range f.keySecret {
+			if len(s.data) != 0 {
+				if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
+					return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
+				}
+			}
+		}
+	}
+
+	// RBACs
+	rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
+	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.useWPA)); err != nil {
+		return fmt.Errorf("error adding external metrics provider dca clusterrole and clusterrolebinding to store: %w", err)
+	}
+	if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
+		return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
+	}
+
 	if f.registerAPIService {
 		// apiservice
 		apiServiceSpec := apiregistrationv1.APIServiceSpec{
@@ -252,27 +272,9 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 			return fmt.Errorf("error adding external metrics provider apiservice to store: %w", err)
 		}
 
-		// credential secret
-		if len(f.keySecret) != 0 {
-			for idx, s := range f.keySecret {
-				if len(s.data) != 0 {
-					if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
-						return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
-					}
-				}
-			}
-		}
-
-		// rbac
-		rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
-		if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.useWPA)); err != nil {
-			return fmt.Errorf("error adding external metrics provider dca clusterrole and clusterrolebinding to store: %w", err)
-		}
+		// RBAC
 		if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, managers.Store().GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
 			return fmt.Errorf("error adding external metrics provider external metrics reader clusterrole and clusterrolebinding to store: %w", err)
-		}
-		if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
-			return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
 		}
 	}
 

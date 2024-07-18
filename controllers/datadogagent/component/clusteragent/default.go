@@ -7,6 +7,7 @@ package clusteragent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -49,6 +50,7 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 		component.GetVolumeForConfd(),
 		component.GetVolumeForLogs(),
 		component.GetVolumeForCertificates(),
+		component.GetVolumeForAuth(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -65,6 +67,7 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 		component.GetVolumeMountForConfd(),
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForCertificates(),
+		component.GetVolumeMountForAuth(false),
 		component.GetVolumeMountForTmp(),
 	}
 
@@ -102,6 +105,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				VolumeMounts:   volumeMounts,
 				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+				StartupProbe:   apicommon.GetDefaultStartupProbe(),
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
@@ -158,6 +162,10 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,
 			Value: component.DefaultAgentInstallType,
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: filepath.Join(apicommon.AuthVolumePath, "token"),
 		},
 	}
 

@@ -2637,7 +2637,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					},
 					"locked": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Whether or not the monitor is locked (only editable by creator and admins).",
+							Description: "DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2711,6 +2711,21 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 							Description: "The number of times re-notification messages should be sent on the current status at the provided re-notification interval.",
 							Type:        []string{"integer"},
 							Format:      "int64",
+						},
+					},
+					"renotifyStatuses": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"requireFullWindow": {
@@ -3716,6 +3731,22 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 					"namespaceLabelsAsTags": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"namespaceAnnotationsAsTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide a mapping of Kubernetes Namespace Annotations to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,

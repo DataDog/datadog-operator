@@ -17,7 +17,7 @@ import (
 
 const (
 	manifestsPath       = "./manifests"
-	mgrKustomizeDirPath = "../../config/default"
+	mgrKustomizeDirPath = "../../config/e2e"
 )
 
 var (

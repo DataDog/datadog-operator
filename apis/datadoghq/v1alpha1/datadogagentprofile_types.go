@@ -36,6 +36,7 @@ type Config struct {
 type Override struct {
 	// Configure the basic configurations for an Agent container
 	// Valid Agent container names are: `agent`
+	// +optional
 	Containers map[commonv1.AgentContainerName]*Container `json:"containers,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and
@@ -46,9 +47,25 @@ type Override struct {
 	// default.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+
+	// Labels provide labels that are added to the Datadog Agent pods.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type Container struct {
+	// Specify additional environment variables in the container.
+	// See also: https://docs.datadoghq.com/agent/guide/environment-variables/
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify the Request and Limits of the pods.
+	// To get guaranteed QoS class, specify requests and limits equal.
+	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
+	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 

@@ -7,6 +7,7 @@ resources:
 - bases/v1/datadoghq.com_datadogmonitors.yaml
 - bases/v1/datadoghq.com_datadogslos.yaml
 - bases/v1/datadoghq.com_datadogagentprofiles.yaml
+- bases/v1/datadoghq.com_datadogpodautoscalers.yaml
 - bases/datadoghq.com_datadogdashboards.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
@@ -17,6 +18,7 @@ resources:
 #- patches/webhook_in_datadogmetrics.yaml
 #- patches/webhook_in_datadogmonitors.yaml
 #- patches/webhook_in_datadogagentprofiles.yaml
+#- patches/webhook_in_datadogpodautoscalers.yaml
 #- patches/webhook_in_datadogdashboards.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
@@ -26,6 +28,7 @@ resources:
 #- patches/cainjection_in_datadogmetrics.yaml
 #- patches/cainjection_in_datadogmonitors.yaml
 #- patches/cainjection_in_datadogagentprofiles.yaml
+#- patches/cainjection_in_datadogpodautoscalers.yaml
 #- patches/cainjection_in_datadogdashboards.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 

@@ -39,26 +39,27 @@ require (
 )
 
 require (
-	github.com/DataDog/datadog-agent/pkg/config/model v0.52.0
-	github.com/DataDog/datadog-agent/pkg/config/remote v0.52.0
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.52.0
+	github.com/DataDog/datadog-agent/pkg/config/model v0.55.0-rc.10
+	github.com/DataDog/datadog-agent/pkg/config/remote v0.55.0-rc.10
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10
 	github.com/prometheus/client_golang v1.16.0
+	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 )
 
 require (
-	github.com/DataDog/datadog-agent/pkg/proto v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/backoff v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/cache v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/grpc v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/http v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/log v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.52.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/uuid v0.52.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/cache v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/grpc v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/http v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/log v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.55.0-rc.10 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/uuid v0.55.0-rc.10 // indirect
 	github.com/DataDog/datadog-go/v5 v5.1.1 // indirect
 	github.com/DataDog/go-libddwaf v1.0.0 // indirect
 	github.com/DataDog/go-tuf v1.1.0-0.5.2 // indirect
 	github.com/DataDog/gostackparse v0.5.0 // indirect
-	github.com/DataDog/viper v1.13.0 // indirect
+	github.com/DataDog/viper v1.13.5 // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.5.1 // indirect
@@ -110,6 +111,7 @@ require (
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nwaples/rardecode v1.1.0 // indirect
@@ -147,16 +149,15 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
-	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
-	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/mod v0.15.0 // indirect
+	golang.org/x/net v0.24.0 // indirect
 	golang.org/x/oauth2 v0.11.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/term v0.18.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.16.1 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d // indirect

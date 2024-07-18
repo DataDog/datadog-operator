@@ -67,6 +67,14 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
+  domain: com
+  group: datadoghq
+  kind: DatadogPodAutoscaler
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
   controller: true
   domain: com
   group: datadoghq

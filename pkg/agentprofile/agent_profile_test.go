@@ -50,7 +50,7 @@ func TestProfileToApply(t *testing.T) {
 			},
 			profileAppliedByNode:           map[string]types.NamespacedName{},
 			expectedProfilesAppliedPerNode: map[string]types.NamespacedName{},
-			expectedErr:                    fmt.Errorf("profileAffinity must be defined"),
+			expectedErr:                    fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "empty profile, non-empty profileAppliedByNode",
@@ -77,7 +77,7 @@ func TestProfileToApply(t *testing.T) {
 					Name:      "linux",
 				},
 			},
-			expectedErr: fmt.Errorf("profileAffinity must be defined"),
+			expectedErr: fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "empty profile, , non-empty profileAppliedByNode, no nodes",
@@ -95,7 +95,7 @@ func TestProfileToApply(t *testing.T) {
 					Name:      "linux",
 				},
 			},
-			expectedErr: fmt.Errorf("profileAffinity must be defined"),
+			expectedErr: fmt.Errorf("Profile name cannot be empty"),
 		},
 		{
 			name:    "non-conflicting profile, empty profileAppliedByNode",
@@ -282,7 +282,7 @@ func TestOverrideFromProfile(t *testing.T) {
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: &overrideNameForExampleProfile,
 				Labels: map[string]string{
-					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "example"),
+					"agent.datadoghq.com/datadogagentprofile": "example",
 				},
 				Affinity: &v1.Affinity{
 					PodAntiAffinity: &v1.PodAntiAffinity{
@@ -352,7 +352,7 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				Labels: map[string]string{
-					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "linux"),
+					"agent.datadoghq.com/datadogagentprofile": "linux",
 				},
 			},
 		},
@@ -474,6 +474,96 @@ func TestPriorityClassNameOverride(t *testing.T) {
 		})
 	}
 }
+func Test_labelsOverride(t *testing.T) {
+	tests := []struct {
+		name           string
+		profile        v1alpha1.DatadogAgentProfile
+		expectedLabels map[string]string
+	}{
+		{
+			name: "default profile",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: defaultProfileName,
+				},
+			},
+			expectedLabels: nil,
+		},
+		{
+			name: "profile with no label overrides",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+			},
+		},
+		{
+			name: "profile with label overrides",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									"foo": "bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+				"foo":           "bar",
+			},
+		},
+		{
+			// ProfileLabelKey should not be overriden by a user-created profile
+			name: "profile with label overriding ProfileLabelKey",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Labels: map[string]string{
+									ProfileLabelKey: "bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedLabels, labelsOverride(&test.profile))
+		})
+	}
+}
 
 func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
@@ -547,5 +637,35 @@ func configWithCPURequestOverrideForCoreAgent(cpuRequest string) *v1alpha1.Confi
 				},
 			},
 		},
+	}
+}
+
+func Test_validateProfileName(t *testing.T) {
+	tests := []struct {
+		name          string
+		profileName   string
+		expectedError error
+	}{
+		{
+			name:          "empty profile name",
+			profileName:   "",
+			expectedError: fmt.Errorf("Profile name cannot be empty"),
+		},
+		{
+			name:          "valid profile name",
+			profileName:   "foo",
+			expectedError: nil,
+		},
+		{
+			name:          "profile name too long",
+			profileName:   "foo123456789012345678901234567890123456789012345678901234567890bar",
+			expectedError: fmt.Errorf("Profile name must be no more than 63 characters"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedError, validateProfileName(test.profileName))
+		})
 	}
 }

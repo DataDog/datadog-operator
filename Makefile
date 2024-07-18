@@ -144,7 +144,7 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." paths="./controllers/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
@@ -210,19 +210,19 @@ integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
 
 .PHONY: e2e-tests
 e2e-tests: manifests $(KUSTOMIZE) ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
-	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit remove resource manager.yaml && $(ROOT)/$(KUSTOMIZE) edit add resource e2e-manager.yaml && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)
+	cd config/e2e && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/e2e
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e.out
 
 .PHONY: e2e-tests-keep-stacks
 e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environment stacks running. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks`.
-	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit remove resource manager.yaml && $(ROOT)/$(KUSTOMIZE) edit add resource e2e-manager.yaml && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)
+	cd config/e2e && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/e2e
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e_keep_stacks.out -args -keep-stacks=true
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./apis -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -234,9 +234,10 @@ bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests #
 bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
+# Build and push the multiarch bundle image.
 .PHONY: bundle-build-push
-bundle-build-push: ## Build and load the bundle image.
-	docker buildx build --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build-push:
+	docker buildx build --platform linux/amd64,linux/arm64 --push -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
@@ -349,11 +350,11 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.4
+	hack/install-openshift-preflight.sh 1.9.9
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)

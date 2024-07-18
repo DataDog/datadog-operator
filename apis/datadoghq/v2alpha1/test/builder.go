@@ -218,10 +218,9 @@ func (builder *DatadogAgentBuilder) WithAdmissionControllerRegistry(name string)
 	return builder
 }
 
-//sidecar Injection
-
+// sidecar Injection
 func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *DatadogAgentBuilder {
-	//builder.initAdmissionController()
+	// builder.initAdmissionController()
 	builder.initSidecarInjection()
 	builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Enabled = apiutils.NewBoolPointer(enabled)
 	if enabled {
@@ -391,6 +390,14 @@ func (builder *DatadogAgentBuilder) WithEventCollectionKubernetesEvents(enabled 
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithEventCollectionUnbundleEvents(enabled bool, eventTypes []v2alpha1.EventTypes) *DatadogAgentBuilder {
+	builder.initEventCollection()
+	builder.datadogAgent.Spec.Features.EventCollection.UnbundleEvents = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Features.EventCollection.CollectedEventTypes = eventTypes
+
+	return builder
+}
+
 // Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
@@ -552,13 +559,14 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
 		EnabledNamespaces:  enabledNamespaces,
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
+		LanguageDetection:  &v2alpha1.LanguageDetection{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
 	}
 	return builder
 }
@@ -576,7 +584,6 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 		},
 	}
 	return builder
-
 }
 
 // OTLP

@@ -165,15 +165,19 @@ func (r *Reconciler) profilesCleanup() error {
 	}
 
 	for _, node := range nodeList.Items {
-		if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; !profileLabelExists {
+		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
+		if !profileLabelExists && !oldProfileLabelExists {
 			continue
 		}
 
-		newLabels := make(map[string]string, len(node.Labels)-1)
-		for label, value := range node.Labels {
-			if label != agentprofile.ProfileLabelKey {
-				newLabels[label] = value
+		newLabels := map[string]string{}
+		for k, v := range node.Labels {
+			// Remove profile labels from nodes
+			if k == agentprofile.OldProfileLabelKey || k == agentprofile.ProfileLabelKey {
+				continue
 			}
+			newLabels[k] = v
 		}
 
 		patch := corev1.Node{

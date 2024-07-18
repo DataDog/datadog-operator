@@ -58,9 +58,11 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
 					{Name: "tmp", ReadOnly: false, MountPath: "/tmp"},
 					{Name: "certificates", ReadOnly: false, MountPath: "/etc/datadog-agent/certificates"},
+					{Name: "datadog-agent-auth", MountPath: "/etc/datadog-agent/auth"},
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
+				StartupProbe:   defaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
@@ -110,6 +112,12 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
+			{
+				Name: "datadog-agent-auth",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 		},
 		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
 		// SecurityContext: &corev1.PodSecurityContext{
@@ -142,6 +150,10 @@ func clusterAgentPodSpectWithConfd(configDirSpec *datadoghqv1alpha1.ConfigDirSpe
 
 func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
+		{
+			Name:  "DD_AUTH_TOKEN_FILE_PATH",
+			Value: "/etc/datadog-agent/auth/token",
+		},
 		{
 			Name: "DD_POD_NAME",
 			ValueFrom: &corev1.EnvVarSource{

@@ -153,6 +153,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetRenotifyOccurrences(*options.RenotifyOccurrences)
 	}
 
+	if options.RenotifyStatuses != nil {
+		o.SetRenotifyStatuses(options.RenotifyStatuses)
+	}
+
 	if options.TimeoutH != nil {
 		o.SetTimeoutH(*options.TimeoutH)
 	}

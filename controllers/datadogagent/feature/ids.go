@@ -17,6 +17,8 @@ const (
 	EventCollectionIDType = "event_collection"
 	// ExternalMetricsIDType External metrics feature.
 	ExternalMetricsIDType = "external_metrics"
+	// AutoscalingIDType Autoscaling feature.
+	AutoscalingIDType = "autoscaling"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType = "ksm"
 	// LiveContainerIDType Live Container feature.
@@ -25,6 +27,8 @@ const (
 	LiveProcessIDType = "live_process"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
+	// KubernetesAPIServerIDType Kube APIServer feature.
+	KubernetesAPIServerIDType = "kubernetes_apiserver"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.
