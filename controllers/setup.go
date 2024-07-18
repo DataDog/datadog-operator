@@ -16,7 +16,10 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
+
+	// NOTE: online clientpkg does not have what I need, may cause problems later
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
@@ -27,10 +30,11 @@ import (
 )
 
 const (
-	agentControllerName   = "DatadogAgent"
-	monitorControllerName = "DatadogMonitor"
-	sloControllerName     = "DatadogSLO"
-	profileControllerName = "DatadogAgentProfile"
+	agentControllerName     = "DatadogAgent"
+	monitorControllerName   = "DatadogMonitor"
+	sloControllerName       = "DatadogSLO"
+	profileControllerName   = "DatadogAgentProfile"
+	dashboardControllerName = "DatadogDashboard"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -46,6 +50,7 @@ type SetupOptions struct {
 	IntrospectionEnabled            bool
 	DatadogAgentProfileEnabled      bool
 	ProcessChecksInCoreAgentEnabled bool
+	DatadogDashboardEnabled         bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -177,6 +182,26 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Log:         ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogDashboardEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", dashboardControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogDashboardClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+	return (&DatadogDashboardReconciler{
+		Client:      mgr.GetClient(),
+		DDClient:    ddClient,
+		VersionInfo: vInfo,
+		Log:         ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
+		Scheme:      mgr.GetScheme(),
+		Recorder:    mgr.GetEventRecorderFor(dashboardControllerName),
 	}).SetupWithManager(mgr)
 }
 

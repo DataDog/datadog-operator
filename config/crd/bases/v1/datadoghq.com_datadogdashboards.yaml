@@ -1,0 +1,325 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: datadogdashboards.datadoghq.com
+spec:
+  group: datadoghq.com
+  names:
+    kind: DatadogDashboard
+    listKind: DatadogDashboardList
+    plural: datadogdashboards
+    shortNames:
+      - dddashboard
+    singular: datadogdashboard
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .status.id
+          name: id
+          type: string
+        - jsonPath: .status.syncStatus
+          name: sync status
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: age
+          type: date
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: DatadogDashboard is the Schema for the datadogdashboards API
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: DatadogDashboardSpec defines the desired state of DatadogDashboard
+              properties:
+                description:
+                  description: Description of the dashboard.
+                  type: string
+                layout_type:
+                  description: Layout type of the dashboard.
+                  type: string
+                notify_list:
+                  description: List of handles of users to notify when changes are made to this dashboard.
+                  items:
+                    type: string
+                  type: array
+                reflow_type:
+                  description: |-
+                    Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
+                    If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
+                    widgets should not have layouts.
+                  type: string
+                tags:
+                  description: List of team names representing ownership of a dashboard.
+                  items:
+                    type: string
+                  type: array
+                template_variable_presets:
+                  description: Array of template variables saved views.
+                  items:
+                    description: DashboardTemplateVariablePreset Template variables saved views.
+                    properties:
+                      name:
+                        description: The name of the variable.
+                        type: string
+                      template_variables:
+                        description: List of variables.
+                        items:
+                          description: DashboardTemplateVariablePresetValue Template variables saved views.
+                          properties:
+                            name:
+                              description: The name of the variable.
+                              type: string
+                            value:
+                              description: |-
+                                (deprecated) The value of the template variable within the saved view. Cannot be used in conjunction with `values`.
+                                Deprecated
+                              type: string
+                            values:
+                              description: One or many template variable values within the saved view, which will be unioned together using `OR` if more than one is specified. Cannot be used in conjunction with `value`.
+                              items:
+                                type: string
+                              type: array
+                          type: object
+                        type: array
+                    type: object
+                  type: array
+                template_variables:
+                  description: List of template variables for this dashboard.
+                  items:
+                    description: DashboardTemplateVariable Template variable.
+                    properties:
+                      available_values:
+                        description: The list of values that the template variable drop-down is limited to.
+                        properties:
+                          isSet:
+                            type: boolean
+                          value:
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      default:
+                        description: |-
+                          (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
+                          Deprecated
+                        properties:
+                          isSet:
+                            type: boolean
+                          value:
+                            type: string
+                        type: object
+                      defaults:
+                        description: One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
+                        items:
+                          type: string
+                        type: array
+                      name:
+                        description: The name of the variable.
+                        type: string
+                      prefix:
+                        description: The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
+                        properties:
+                          isSet:
+                            type: boolean
+                          value:
+                            type: string
+                        type: object
+                    required:
+                      - name
+                    type: object
+                  type: array
+                title:
+                  description: Title of the dashboard.
+                  type: string
+                widgets:
+                  description: List of widgets to display on the dashboard.
+                  items:
+                    description: |-
+                      Widget Information about widget.
+
+
+                      **Note**: The `layout` property is required for widgets in dashboards with `free` `layout_type`.
+
+
+                      	For the **new dashboard layout**, the `layout` property depends on the `reflow_type` of the dashboard.
+                      	- If `reflow_type` is `fixed`, `layout` is required.
+                      	- If `reflow_type` is `auto`, `layout` should not be set.
+                    properties:
+                      definition:
+                        description: '[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).'
+                        type: object
+                      id:
+                        description: ID of the widget.
+                        format: int64
+                        type: integer
+                      layout:
+                        description: The layout for a widget on a `free` or **new dashboard layout** dashboard.
+                        properties:
+                          height:
+                            description: The height of the widget. Should be a non-negative integer.
+                            format: int64
+                            type: integer
+                          is_column_break:
+                            description: |-
+                              Whether the widget should be the first one on the second column in high density or not.
+                              **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.
+                            type: boolean
+                          width:
+                            description: The width of the widget. Should be a non-negative integer.
+                            format: int64
+                            type: integer
+                          x:
+                            description: The position of the widget on the x (horizontal) axis. Should be a non-negative integer.
+                            format: int64
+                            type: integer
+                          "y":
+                            description: The position of the widget on the y (vertical) axis. Should be a non-negative integer.
+                            format: int64
+                            type: integer
+                        required:
+                          - height
+                          - width
+                          - x
+                          - "y"
+                        type: object
+                    required:
+                      - definition
+                    type: object
+                  type: array
+              required:
+                - layout_type
+                - title
+                - widgets
+              type: object
+            status:
+              description: DatadogDashboardStatus defines the observed state of DatadogDashboard
+              properties:
+                conditions:
+                  description: Conditions represents the latest available observations of the state of a DatadogSLO.
+                  items:
+                    description: |-
+                      Condition contains details for one aspect of the current state of this API Resource.
+                      ---
+                      This struct is intended for direct use as an array at the field path .status.conditions.  For example,
+
+
+                      	type FooStatus struct{
+                      	    // Represents the observations of a foo's current state.
+                      	    // Known .status.conditions.type are: "Available", "Progressing", and "Degraded"
+                      	    // +patchMergeKey=type
+                      	    // +patchStrategy=merge
+                      	    // +listType=map
+                      	    // +listMapKey=type
+                      	    Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
+
+                      	    // other fields
+                      	}
+                    properties:
+                      lastTransitionTime:
+                        description: |-
+                          lastTransitionTime is the last time the condition transitioned from one status to another.
+                          This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                        format: date-time
+                        type: string
+                      message:
+                        description: |-
+                          message is a human readable message indicating details about the transition.
+                          This may be an empty string.
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        description: |-
+                          observedGeneration represents the .metadata.generation that the condition was set based upon.
+                          For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                          with respect to the current state of the instance.
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        description: |-
+                          reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                          Producers of specific condition types may define expected values and meanings for this field,
+                          and whether the values are considered a guaranteed API.
+                          The value should be a CamelCase string.
+                          This field may not be empty.
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                        type: string
+                      type:
+                        description: |-
+                          type of condition in CamelCase or in foo.example.com/CamelCase.
+                          ---
+                          Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
+                          useful (see .node.status.conditions), the ability to deconflict is important.
+                          The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    type: object
+                  type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
+                created:
+                  description: Created is the time the SLO was created.
+                  format: date-time
+                  type: string
+                creator:
+                  description: Creator is the identity of the SLO creator.
+                  type: string
+                currentHash:
+                  description: |-
+                    CurrentHash tracks the hash of the current DatadogSLOSpec to know
+                    if the Spec has changed and needs an update.
+                  type: string
+                dashboardLastForceSyncTime:
+                  description: DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource
+                  format: date-time
+                  type: string
+                id:
+                  description: ID is the SLO ID generated in Datadog.
+                  type: string
+                syncStatus:
+                  description: SyncStatus shows the health of syncing the SLO state to Datadog.
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

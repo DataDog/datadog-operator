@@ -58,3 +58,17 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return nil
 }
+
+// func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// 	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Log, r.Recorder)
+
+// 	builder := ctrl.NewControllerManagedBy(mgr).
+// 		For(&v1alpha1.DatadogSLO{}).
+// 		WithEventFilter(predicate.GenerationChangedPredicate{})
+
+// 	err := builder.Complete(r)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }

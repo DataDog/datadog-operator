@@ -128,6 +128,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	processChecksInCoreAgentEnabled        bool
+	datadogDashboardEnabled                bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -161,6 +162,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
+	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -289,12 +291,20 @@ func run(opts *options) error {
 		IntrospectionEnabled:            opts.introspectionEnabled,
 		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
 		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
+		DatadogDashboardEnabled:         opts.datadogDashboardEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
+	// if err = (&datadoghqcontrollers.DatadogDashboardReconciler{
+	// 	Client: mgr.GetClient(),
+	// 	Scheme: mgr.GetScheme(),
+	// }).SetupWithManager(mgr); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", "DatadogDashboard")
+	// 	os.Exit(1)
+	// }
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
