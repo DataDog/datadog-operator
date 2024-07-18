@@ -1,6 +1,6 @@
 # How to contribute
 
-# Testing the Operator for development
+## Testing the Operator for development
 
 The recommended way to test the Operator is by creating a [kind](https://kind.sigs.k8s.io/) cluster.
 
@@ -76,6 +76,12 @@ kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/datadog-agent-minimum
 
 The Operator should start deploying the `agent` and `cluster-agent`.
 
+## Golang version update
+
+The Go version is defined in several files. To ensure all relevant files are updated, it is recommended to use the script `make update-golang`:
+
+1. Update the Go version in the `go.mod` file.
+2. Run the command `make update-golang`, which patches all files that contain the Go version.
 
 ## Tests
 
