@@ -54,5 +54,9 @@ extensions:
           # Test branch
           branch: "celene/conductor_testing_branch"
           slack: "celene-conductor-test"
+          parent_environments:
+            - "staging"
           options:
             disable_failure_notifications: true
+          workflows:
+            - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
