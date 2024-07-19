@@ -49,3 +49,10 @@ extensions:
           branch: "main"
           schedule: "10 3 * * SUN-THU"
           # workflows:
+        - name: "conductor-test"
+          ci_pipeline: "//fake_placeholder:fake_placeholder"
+          # Test branch
+          branch: "celene/conductor_testing_branch"
+          slack: "celene-conductor-test"
+          options:
+            disable_failure_notifications: true
