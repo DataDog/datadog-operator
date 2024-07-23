@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
@@ -73,12 +74,13 @@ func buildThreshold(sloSpec v1alpha1.DatadogSLOSpec) []datadogV1.SLOThreshold {
 
 	var warningThreshold *float64
 	if sloSpec.WarningThreshold != nil {
-		approxFloat := sloSpec.WarningThreshold.AsApproximateFloat64()
-		warningThreshold = &approxFloat
+		convertedFloat, _ := strconv.ParseFloat(sloSpec.WarningThreshold.AsDec().String(), 64)
+		warningThreshold = &convertedFloat
 	}
 
+	convertedFloat, _ := strconv.ParseFloat(sloSpec.TargetThreshold.AsDec().String(), 64)
 	threshold := datadogV1.SLOThreshold{
-		Target:    sloSpec.TargetThreshold.AsApproximateFloat64(),
+		Target:    convertedFloat,
 		Timeframe: *timeframe,
 		Warning:   warningThreshold,
 	}
