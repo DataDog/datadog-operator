@@ -157,15 +157,15 @@ type SingleStepInstrumentation struct {
 	// +optional
 	LibVersions map[string]string `json:"libVersions,omitempty"`
 
-	// Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods.
+	// LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
 	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
 	// +optional
-	LanguageDetection *LanguageDetection `json:"languageDetection,omitempty"`
+	LanguageDetection *LanguageDetectionConfig `json:"languageDetection,omitempty"`
 }
 
-// LanguageDetection contains the config for the language detection feature.
-type LanguageDetection struct {
-	// Enabled enables language detection to automatically detect languages of user workloads (beta).
+// LanguageDetectionConfig contains the config for Language Detection.
+type LanguageDetectionConfig struct {
+	// Enabled enables Language Detection to automatically detect languages of user workloads (beta).
 	// Requires SingleStepInstrumentation.Enabled to be true.
 	// Default: true
 	// +optional

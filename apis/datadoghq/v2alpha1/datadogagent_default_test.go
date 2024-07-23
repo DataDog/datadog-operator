@@ -193,7 +193,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -502,7 +502,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -632,7 +632,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -757,7 +757,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -882,7 +882,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1016,7 +1016,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1141,7 +1141,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1269,7 +1269,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1386,7 +1386,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1525,7 +1525,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1672,7 +1672,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
@@ -1800,7 +1800,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						SingleStepInstrumentation: &SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetection{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
 					ASM: &ASMFeatureConfig{
