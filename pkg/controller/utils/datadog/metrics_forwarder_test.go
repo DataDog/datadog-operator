@@ -16,7 +16,7 @@ import (
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	testV2 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
+	test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -151,7 +151,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
-func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
+func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 	apiKey := "foundAPIKey"
 
 	encAPIKey := "ENC[APIKey]"
@@ -177,7 +177,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Credentials: &datadoghqv2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
@@ -192,7 +192,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Credentials: &datadoghqv2alpha1.DatadogCredentials{
 						APISecret: &commonv1.SecretConfig{
 							SecretName: "datadog-creds-api",
@@ -222,7 +222,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Credentials: &datadoghqv2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
@@ -248,7 +248,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Credentials: &datadoghqv2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
@@ -275,7 +275,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
 			},
 			wantErr: true,
 		},
@@ -291,17 +291,17 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
 			}
-			apiKey, err := mf.getCredentialsV2(tt.args.dda)
+			apiKey, err := mf.getCredentials(tt.args.dda)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.getCredentialsV2() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if apiKey != tt.wantAPIKey {
-				t.Errorf("metricsForwarder.getCredentialsV2() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
+				t.Errorf("metricsForwarder.getCredentials() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
 			}
 			if tt.wantFunc != nil {
 				if err := tt.wantFunc(mf, d); err != nil {
-					t.Errorf("metricsForwarder.getCredentialsV2() wantFunc validation error: %v", err)
+					t.Errorf("metricsForwarder.getCredentials() wantFunc validation error: %v", err)
 				}
 			}
 		})
@@ -654,7 +654,7 @@ func Test_metricsForwarder_getSecretsFromCache(t *testing.T) {
 	}
 }
 
-func Test_getbaseURLV2(t *testing.T) {
+func Test_getbaseURL(t *testing.T) {
 	euSite := "datadoghq.eu"
 
 	type args struct {
@@ -668,14 +668,14 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Get default baseURL",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", nil),
+				dda: test.NewDatadogAgent("foo", "bar", nil),
 			},
 			want: "https://api.datadoghq.com",
 		},
 		{
 			name: "Compute baseURL from site when passing Site",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Site: &euSite,
 				}),
 			},
@@ -684,7 +684,7 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Compute baseURL from endpoint.URL when Site is not defined",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Endpoint: &datadoghqv2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
@@ -695,7 +695,7 @@ func Test_getbaseURLV2(t *testing.T) {
 		{
 			name: "Test that DDUrl takes precedence over Site",
 			args: args{
-				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Site: &euSite,
 					Endpoint: &datadoghqv2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
@@ -707,7 +707,7 @@ func Test_getbaseURLV2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getbaseURLV2(tt.args.dda); got != tt.want {
+			if got := getbaseURL(tt.args.dda); got != tt.want {
 				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
 			}
 		})
