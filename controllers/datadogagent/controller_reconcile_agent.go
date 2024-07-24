@@ -284,25 +284,40 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
 
 		newLabels := map[string]string{}
-		for k, v := range node.Labels {
-			// If the profile uses the old profile label key, it should be removed
-			if k != agentprofile.OldProfileLabelKey {
-				newLabels[k] = v
-			}
-		}
 
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
 		if isDefaultProfile && profileLabelExists {
-			delete(newLabels, agentprofile.ProfileLabelKey)
+			for k, v := range node.Labels {
+				if k != agentprofile.ProfileLabelKey {
+					newLabels[k] = v
+				}
+			}
 		}
 
 		// If the profile is not the default one and the label does not exist in
 		// the node, it should be added.
 		if !isDefaultProfile && !profileLabelExists {
+			for k, v := range node.Labels {
+				newLabels[k] = v
+			}
 			newLabels[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
+		}
+
+		// Remove old profile label key if it is present
+		if oldProfileLabelExists {
+			if len(newLabels) > 0 {
+				delete(newLabels, agentprofile.OldProfileLabelKey)
+			} else {
+				for k, v := range node.Labels {
+					if k != agentprofile.OldProfileLabelKey {
+						newLabels[k] = v
+					}
+				}
+			}
 		}
 
 		if len(newLabels) == 0 {
