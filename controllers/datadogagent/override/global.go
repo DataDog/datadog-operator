@@ -312,5 +312,17 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
+	// Configure checks tag cardinality if provided
+	if componentName == v2alpha1.NodeAgentComponentName {
+		if config.ChecksCardinality != nil {
+			// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
+			// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDChecksTagCardinality,
+				Value: *config.ChecksCardinality,
+			})
+		}
+	}
+
 	return manager.PodTemplateSpec()
 }
