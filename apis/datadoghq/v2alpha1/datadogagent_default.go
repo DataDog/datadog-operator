@@ -271,7 +271,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 
 		if ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection == nil {
-			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetection{}
+			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetectionConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
