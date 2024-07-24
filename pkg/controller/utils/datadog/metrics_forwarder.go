@@ -17,7 +17,6 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -95,7 +94,6 @@ type metricsForwarder struct {
 	datadogClient       *api.Client
 	k8sClient           client.Client
 
-	v2Enabled    bool
 	platformInfo *kubernetes.PlatformInfo
 	apiKey       string
 	clusterName  string
@@ -128,12 +126,11 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, kind schema.ObjectKind, v2Enabled bool, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, kind schema.ObjectKind, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
 		monitoredObjectKind: kind.GroupVersionKind().Kind,
 		k8sClient:           k8sClient,
-		v2Enabled:           v2Enabled,
 		platformInfo:        platforminfo,
 		namespacedName:      getNamespacedName(obj),
 		retryInterval:       defaultMetricsRetryInterval,
@@ -269,42 +266,11 @@ func (mf *metricsForwarder) setupV2() error {
 	return nil
 }
 
-func (mf *metricsForwarder) setup() error {
-	// get dda
-	dda, err := mf.getDatadogAgent()
-	if err != nil {
-		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials,  will retry later...")
-		return err
-	}
-
-	mf.baseURL = getbaseURL(dda)
-	mf.logger.Info("Got Datadog Site", "site", mf.baseURL)
-
-	mf.clusterName = dda.Spec.ClusterName
-	mf.labels = dda.GetLabels()
-
-	mf.dsStatus = append(mf.dsStatus, dda.Status.Agent)
-	mf.dcaStatus = dda.Status.ClusterAgent
-	mf.ccrStatus = dda.Status.ClusterChecksRunner
-
-	// set apiKey
-	apiKey, err := mf.getCredentials(dda)
-	if err != nil {
-		return err
-	}
-	mf.apiKey = apiKey
-	return nil
-}
-
 // connectToDatadogAPI ensures the connection to the Datadog API is valid
 // implements wait.ConditionFunc and never returns error to keep retrying
 func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 	var err error
-	if mf.v2Enabled {
-		err = mf.setupV2()
-	} else {
-		err = mf.setup()
-	}
+	err = mf.setupV2()
 
 	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
@@ -325,11 +291,7 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 // related to Datadog metrics forwarding by calling updateStatusIfNeeded
 func (mf *metricsForwarder) forwardMetrics() error {
 	var err error
-	if mf.v2Enabled {
-		err = mf.setupV2()
-	} else {
-		err = mf.setup()
-	}
+	err = mf.setupV2()
 
 	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
@@ -595,14 +557,6 @@ func (mf *metricsForwarder) initGlobalTags() {
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
-func (mf *metricsForwarder) getDatadogAgent() (*v1alpha1.DatadogAgent, error) {
-	dda := &v1alpha1.DatadogAgent{}
-	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, dda)
-
-	return dda, err
-}
-
-// getDatadogAgent retrieves the DatadogAgent using Get client method
 func (mf *metricsForwarder) getDatadogAgentV2() (*v2alpha1.DatadogAgent, error) {
 	dda := &v2alpha1.DatadogAgent{}
 	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, dda)
@@ -625,43 +579,6 @@ func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
 		_, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
-		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if apiKey == "" {
-		return "", ErrEmptyAPIKey
-	}
-
-	return mf.resolveSecretsIfNeeded(apiKey)
-}
-
-// getCredentials returns the Datadog API Key and App Key, it returns an error if one key is missing
-func (mf *metricsForwarder) getCredentials(dda *v1alpha1.DatadogAgent) (string, error) {
-	apiKey, err := mf.getCredsFromDatadogAgent(dda)
-	if err != nil {
-		if errors.Is(err, ErrEmptyAPIKey) {
-			// Fallback to the operator config in this case
-			mf.logger.Info("API key isn't defined in the Custom Resource, getting credentials from the operator config")
-			var creds config.Creds
-			creds, err = mf.credsManager.GetCredentials()
-			return creds.APIKey, err
-		}
-	}
-
-	return apiKey, err
-}
-
-func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *v1alpha1.DatadogAgent) (string, error) {
-	var err error
-	apiKey := ""
-
-	if dda.Spec.Credentials.APIKey != "" {
-		apiKey = dda.Spec.Credentials.APIKey
-	} else {
-		_, secretName, secretKeyName := v1alpha1.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, v1alpha1.GetDefaultCredentialsSecretName(dda))
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
 			return "", err
@@ -838,15 +755,6 @@ func (mf *metricsForwarder) isErrChanFull() bool {
 // isEventChanFull returs if the eventChan is full
 func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
-}
-
-func getbaseURL(dda *v1alpha1.DatadogAgent) string {
-	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
-		return *dda.Spec.Agent.Config.DDUrl
-	} else if dda.Spec.Site != "" {
-		return fmt.Sprintf("https://api.%s", dda.Spec.Site)
-	}
-	return defaultbaseURL
 }
 
 func getbaseURLV2(dda *v2alpha1.DatadogAgent) string {
