@@ -235,15 +235,15 @@ func (mf *metricsForwarder) setStatus(newStatus *ConditionCommon) {
 	mf.status = newStatus
 }
 
-func (mf *metricsForwarder) setupV2() error {
+func (mf *metricsForwarder) setup() error {
 	// get dda
-	dda, err := mf.getDatadogAgentV2()
+	dda, err := mf.getDatadogAgent()
 	if err != nil {
 		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials,  will retry later...")
 		return err
 	}
 
-	mf.baseURL = getbaseURLV2(dda)
+	mf.baseURL = getbaseURL(dda)
 	mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
 
 	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
@@ -258,7 +258,7 @@ func (mf *metricsForwarder) setupV2() error {
 	mf.ccrStatus = status.ClusterChecksRunner
 
 	// set apiKey
-	apiKey, err := mf.getCredentialsV2(dda)
+	apiKey, err := mf.getCredentials(dda)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (mf *metricsForwarder) setupV2() error {
 // implements wait.ConditionFunc and never returns error to keep retrying
 func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 	var err error
-	err = mf.setupV2()
+	err = mf.setup()
 
 	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
@@ -291,7 +291,7 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 // related to Datadog metrics forwarding by calling updateStatusIfNeeded
 func (mf *metricsForwarder) forwardMetrics() error {
 	var err error
-	err = mf.setupV2()
+	err = mf.setup()
 
 	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
@@ -557,15 +557,15 @@ func (mf *metricsForwarder) initGlobalTags() {
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
-func (mf *metricsForwarder) getDatadogAgentV2() (*v2alpha1.DatadogAgent, error) {
+func (mf *metricsForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	dda := &v2alpha1.DatadogAgent{}
 	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, dda)
 
 	return dda, err
 }
 
-// getCredentialsV2 retrieves the api key configured in the DatadogAgent
-func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string, error) {
+// getCredentials retrieves the api key configured in the DatadogAgent
+func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, error) {
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
 		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
@@ -757,7 +757,7 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
 }
 
-func getbaseURLV2(dda *v2alpha1.DatadogAgent) string {
+func getbaseURL(dda *v2alpha1.DatadogAgent) string {
 	if dda.Spec.Global != nil && dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
 		return *dda.Spec.Global.Endpoint.URL
 	} else if dda.Spec.Global != nil && dda.Spec.Global.Site != nil && *dda.Spec.Global.Site != "" {
