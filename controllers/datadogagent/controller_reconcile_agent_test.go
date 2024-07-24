@@ -10,6 +10,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -18,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -1531,6 +1533,205 @@ func Test_removeStaleStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			removeStaleStatus(tt.ddaStatus, tt.dsName)
 			assert.Equal(t, tt.wantStatus, tt.ddaStatus)
+		})
+	}
+}
+
+func Test_labelNodesWithProfiles(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	ctx := context.Background()
+
+	testCases := []struct {
+		name           string
+		description    string
+		profilesByNode map[string]types.NamespacedName
+		nodes          []client.Object
+		wantNodeLabels map[string]map[string]string
+	}{
+		{
+			name:        "label multiple profile nodes and default node",
+			description: "node-1 and node-2 should be labeled with profile name, node-default should stay nil",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1": "1",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": nil,
+			},
+		},
+		{
+			name:        "label multiple profile nodes, default node has profile label",
+			description: "node-1 and node-2 should be labeled with profile name, profile label should be removed from node-default",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1": "1",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							agentprofile.ProfileLabelKey: "profile-1",
+							"foo":                        "bar",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name:        "remove old profile label",
+			description: "old profile label should be removed from node-2 and node-default",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1": "1",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							agentprofile.OldProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							agentprofile.ProfileLabelKey:    "profile-1",
+							agentprofile.OldProfileLabelKey: "profile-2",
+							"foo":                           "bar",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.nodes...).Build()
+
+			r := &Reconciler{
+				client: fakeClient,
+			}
+
+			err := r.labelNodesWithProfiles(ctx, tt.profilesByNode)
+			assert.NoError(t, err)
+
+			nodeList := &corev1.NodeList{}
+			err = fakeClient.List(ctx, nodeList)
+			assert.NoError(t, err)
+			assert.Len(t, nodeList.Items, len(tt.wantNodeLabels))
+
+			for _, node := range nodeList.Items {
+				expectedNodeLabels, ok := tt.wantNodeLabels[node.Name]
+				assert.True(t, ok)
+				assert.Equal(t, expectedNodeLabels, node.Labels)
+			}
 		})
 	}
 }
