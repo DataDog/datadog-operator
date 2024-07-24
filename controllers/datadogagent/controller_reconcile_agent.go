@@ -284,12 +284,16 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
+		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
 
 		newLabels := map[string]string{}
-		for k, v := range node.Labels {
-			// If the profile uses the old profile label key, it should be removed
-			if k != agentprofile.OldProfileLabelKey {
-				newLabels[k] = v
+
+		// Remove old profile label key if it is present
+		if oldProfileLabelExists {
+			for k, v := range node.Labels {
+				if k != agentprofile.OldProfileLabelKey {
+					newLabels[k] = v
+				}
 			}
 		}
 
