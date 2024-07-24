@@ -770,11 +770,18 @@ func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *Da
 	return builder
 }
 
-// Global OriginDetectionUnified
+// Global Registry
 
 func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Registry = apiutils.NewStringPointer(registry)
 
+	return builder
+}
+
+// Global ChecksCardinality
+
+func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ChecksCardinality = apiutils.NewStringPointer(cardinality)
 	return builder
 }
 
