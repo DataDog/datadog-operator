@@ -57,12 +57,12 @@ spec:
                 layoutType:
                   description: Layout type of the dashboard.
                   type: string
-                notify_list:
+                notifyList:
                   description: List of handles of users to notify when changes are made to this dashboard.
                   items:
                     type: string
                   type: array
-                reflow_type:
+                reflowType:
                   description: |-
                     Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
                     If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
@@ -73,7 +73,7 @@ spec:
                   items:
                     type: string
                   type: array
-                template_variable_presets:
+                templateVariablePresets:
                   description: Array of template variables saved views.
                   items:
                     description: DashboardTemplateVariablePreset Template variables saved views.
@@ -103,7 +103,7 @@ spec:
                         type: array
                     type: object
                   type: array
-                template_variables:
+                templateVariables:
                   description: List of template variables for this dashboard.
                   items:
                     description: DashboardTemplateVariable Template variable.
@@ -144,8 +144,6 @@ spec:
                           value:
                             type: string
                         type: object
-                    required:
-                      - name
                     type: object
                   type: array
                 title:
