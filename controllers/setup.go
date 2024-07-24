@@ -72,10 +72,11 @@ type ExtendedDaemonsetOptions struct {
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
-	agentControllerName:   startDatadogAgent,
-	monitorControllerName: startDatadogMonitor,
-	sloControllerName:     startDatadogSLO,
-	profileControllerName: startDatadogAgentProfiles,
+	agentControllerName:     startDatadogAgent,
+	monitorControllerName:   startDatadogMonitor,
+	sloControllerName:       startDatadogSLO,
+	profileControllerName:   startDatadogAgentProfiles,
+	dashboardControllerName: startDatadogDashboard,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -108,6 +109,8 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
+		// NOTE: remove this log
+		logger.Info("about to start controller...")
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
@@ -193,6 +196,7 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, vInfo *versi
 		return nil
 	}
 
+	logger.Info("Test logging pt 2")
 	ddClient, err := datadogclient.InitDatadogDashboardClient(logger, options.Creds)
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)

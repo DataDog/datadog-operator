@@ -42,7 +42,6 @@ func buildDashboard(logger logr.Logger, crd *v1alpha1.DatadogDashboard) *datadog
 	dashboard.SetTags(crd.Spec.Tags)
 
 	return dashboard
-
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
@@ -90,7 +89,7 @@ func deleteDashboard(auth context.Context, client *datadogV1.DashboardsApi, dash
 	if _, _, err := client.DeleteDashboard(auth, dashboardID); err != nil {
 		return translateClientError(err, "error deleting Dashboard")
 	}
-	
+
 	return nil
 }
 

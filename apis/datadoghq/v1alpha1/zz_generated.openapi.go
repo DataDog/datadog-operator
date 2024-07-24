@@ -2108,10 +2108,9 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							Format:      "",
 						},
 					},
-					"layout_type": {
+					"layoutType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Layout type of the dashboard.",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2184,7 +2183,6 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 					"title": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Title of the dashboard.",
-							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2204,7 +2202,6 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"layout_type", "title", "widgets"},
 			},
 		},
 		Dependencies: []string{

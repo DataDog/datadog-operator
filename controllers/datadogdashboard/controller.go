@@ -182,7 +182,6 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboa
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
-	// No need to validate monitor
 	if _, err := updateDashboard(logger, r.datadogAuth, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
@@ -223,9 +222,8 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
 	// NOTE: dashboard doesn't have a get creator
-	// creator := createdDashboard.Get
 	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
-
+	// NOTE: add creator here
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.ID = createdDashboard.GetId()
 	// status.Creator = creator.GetEmail
@@ -258,11 +256,9 @@ func (r *Reconciler) delete(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 }
 
 func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
-	// NOTE: SLO has an option to disable tags, why?
-
 	tags := instance.Spec.Tags
-	tagsToAdd := utils.GetTagsToAdd(instance.Spec.Tags)
-
+	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
+	tagsToAdd := []string{}
 	if len(tagsToAdd) > 0 {
 		tags = append(tags, tagsToAdd...)
 		instance.Spec.Tags = tags
@@ -277,6 +273,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.Da
 
 	return false, nil
 }
+
 func updateErrStatus(status *v1alpha1.DatadogDashboardStatus, now metav1.Time, syncStatus v1alpha1.DatadogDashboardSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus

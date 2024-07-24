@@ -27,7 +27,10 @@ func IsValidDatadogDashboard(spec *DatadogDashboardSpec) error {
 		errs = append(errs, fmt.Errorf("spec.LayoutType must be one of the values: %s or %s", DASHBOARDLAYOUTTYPE_FREE, DASHBOARDLAYOUTTYPE_ORDERED))
 	}
 
-	
+	if spec.LayoutType != DASHBOARDLAYOUTTYPE_ORDERED && spec.ReflowType != nil {
+		errs = append(errs, fmt.Errorf("spec.ReflowType should only be set if layout type is 'ordered'"))
+	}
+
 	// if spec.Type == "" {
 	// 	errs = append(errs, fmt.Errorf("spec.Type must be defined"))
 	// }

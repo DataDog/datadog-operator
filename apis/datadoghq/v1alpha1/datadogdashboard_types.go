@@ -17,23 +17,23 @@ type DatadogDashboardSpec struct {
 	// Description of the dashboard.
 	Description string `json:"description,omitempty"`
 	// Layout type of the dashboard.
-	LayoutType DashboardLayoutType `json:"layout_type"`
+	LayoutType DashboardLayoutType `json:"layoutType,omitempty"`
 	// List of handles of users to notify when changes are made to this dashboard.
-	NotifyList []string `json:"notify_list,omitempty"`
+	NotifyList []string `json:"notifyList,omitempty"`
 	// Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
 	// If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
 	// widgets should not have layouts.
-	ReflowType *datadogV1.DashboardReflowType `json:"reflow_type,omitempty"`
+	ReflowType *datadogV1.DashboardReflowType `json:"reflowType,omitempty"`
 	// List of team names representing ownership of a dashboard.
 	Tags []string `json:"tags,omitempty"`
 	// Array of template variables saved views.
-	TemplateVariablePresets []DashboardTemplateVariablePreset `json:"template_variable_presets,omitempty"`
+	TemplateVariablePresets []DashboardTemplateVariablePreset `json:"templateVariablePresets,omitempty"`
 	// List of template variables for this dashboard.
-	TemplateVariables []DashboardTemplateVariable `json:"template_variables,omitempty"`
+	TemplateVariables []DashboardTemplateVariable `json:"templateVariables,omitempty"`
 	// Title of the dashboard.
-	Title string `json:"title"`
+	Title string `json:"title,omitempty"`
 	// List of widgets to display on the dashboard.
-	Widgets []Widget `json:"widgets"`
+	Widgets []Widget `json:"widgets,omitempty"`
 }
 
 // NOTE: Possibly move this since it doesn't fit the structure
@@ -47,10 +47,10 @@ const (
 	DASHBOARDLAYOUTTYPE_FREE    DashboardLayoutType = "free"
 )
 
-var allowedDashboardLayoutTypeEnumValues = []DashboardLayoutType{
-	DASHBOARDLAYOUTTYPE_ORDERED,
-	DASHBOARDLAYOUTTYPE_FREE,
-}
+// var allowedDashboardLayoutTypeEnumValues = []DashboardLayoutType{
+// 	DASHBOARDLAYOUTTYPE_ORDERED,
+// 	DASHBOARDLAYOUTTYPE_FREE,
+// }
 
 func (t DashboardLayoutType) isValid() bool {
 	switch t {
@@ -147,7 +147,7 @@ type DashboardTemplateVariable struct {
 	// One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
 	Defaults []string `json:"defaults,omitempty"`
 	// The name of the variable.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	// The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
 	Prefix NullableString `json:"prefix,omitempty"`
 }

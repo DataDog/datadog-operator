@@ -54,7 +54,7 @@ spec:
                 description:
                   description: Description of the dashboard.
                   type: string
-                layout_type:
+                layoutType:
                   description: Layout type of the dashboard.
                   type: string
                 notify_list:
@@ -206,10 +206,6 @@ spec:
                       - definition
                     type: object
                   type: array
-              required:
-                - layout_type
-                - title
-                - widgets
               type: object
             status:
               description: DatadogDashboardStatus defines the observed state of DatadogDashboard
