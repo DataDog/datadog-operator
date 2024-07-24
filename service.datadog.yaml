@@ -48,7 +48,8 @@ extensions:
             - "staging"
           branch: "main"
           schedule: "10 3 * * SUN-THU"
-          # workflows:
+          workflows:
+            - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
         - name: "conductor-test"
           ci_pipeline: "//fake_placeholder:fake_placeholder"
           # Test branch

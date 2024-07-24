@@ -294,7 +294,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -313,7 +313,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -461,10 +461,11 @@ publish_community_operators:
     - make publish-community-bundles
 
 
-deploy_nightly_image:
+# On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
+publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   needs:
@@ -474,7 +475,15 @@ deploy_nightly_image:
     project: DataDog/k8s-datadog-agent-ops
     branch: main
     strategy: depend
+    forward:
+      pipeline_variables: true
   variables:
-    OPERATOR_NIGHTLY: true
-    ENVIRONMENTS: "alpha,experimental,staging"
+    OPERATOR_NIGHTLY: "true"
+    SKIP_PLAN_CHECK: "true"
+    ENVIRONMENTS: "experimental"
     CHART: "datadog-operator"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    BAZEL_TARGET: $BAZEL_TARGET
+    DDR: $DDR
+    TARGET_ENV: $TARGET_ENV
+    DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
