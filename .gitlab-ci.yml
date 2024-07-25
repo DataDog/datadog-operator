@@ -465,7 +465,7 @@ publish_community_operators:
 publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   needs:
@@ -486,4 +486,5 @@ publish_nightly_workflow:
     BAZEL_TARGET: $BAZEL_TARGET
     DDR: $DDR
     TARGET_ENV: $TARGET_ENV
+    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
