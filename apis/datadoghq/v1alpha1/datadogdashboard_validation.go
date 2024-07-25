@@ -31,17 +31,5 @@ func IsValidDatadogDashboard(spec *DatadogDashboardSpec) error {
 		errs = append(errs, fmt.Errorf("spec.ReflowType should only be set if layout type is 'ordered'"))
 	}
 
-	// if spec.Type == "" {
-	// 	errs = append(errs, fmt.Errorf("spec.Type must be defined"))
-	// }
-
-	// if spec.Name == "" {
-	// 	errs = append(errs, fmt.Errorf("spec.Name must be defined"))
-	// }
-
-	// if spec.Message == "" {
-	// 	errs = append(errs, fmt.Errorf("spec.Message must be defined"))
-	// }
-
 	return utilserrors.NewAggregate(errs)
 }
