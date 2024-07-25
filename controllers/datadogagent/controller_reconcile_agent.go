@@ -283,40 +283,40 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			return err
 		}
 
-		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
-		_, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]
-
 		newLabels := map[string]string{}
+		labelsToRemove := map[string]bool{}
+		labelsToAddOrChange := map[string]string{}
 
 		// If the profile is the default one and the label exists in the node,
 		// it should be removed.
-		if isDefaultProfile && profileLabelExists {
-			for k, v := range node.Labels {
-				if k != agentprofile.ProfileLabelKey {
-					newLabels[k] = v
-				}
+		if isDefaultProfile {
+			if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
+				labelsToRemove[agentprofile.ProfileLabelKey] = true
 			}
-		}
-
-		// If the profile is not the default one and the label does not exist in
-		// the node, it should be added.
-		if !isDefaultProfile && !profileLabelExists {
-			for k, v := range node.Labels {
-				newLabels[k] = v
+		} else {
+			// If the profile is not the default one and the label does not exist in
+			// the node, it should be added. If the label value is outdated, it
+			// should be updated.
+			if profileLabelValue, _ := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
 			}
-			newLabels[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
 		}
 
 		// Remove old profile label key if it is present
-		if oldProfileLabelExists {
-			if len(newLabels) > 0 {
-				delete(newLabels, agentprofile.OldProfileLabelKey)
-			} else {
-				for k, v := range node.Labels {
-					if k != agentprofile.OldProfileLabelKey {
-						newLabels[k] = v
-					}
+		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {
+			labelsToRemove[agentprofile.OldProfileLabelKey] = true
+		}
+
+		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
+			for k, v := range node.Labels {
+				if _, ok := labelsToRemove[k]; ok {
+					continue
 				}
+				newLabels[k] = v
+			}
+
+			for k, v := range labelsToAddOrChange {
+				newLabels[k] = v
 			}
 		}
 

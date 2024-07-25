@@ -1709,6 +1709,236 @@ func Test_labelNodesWithProfiles(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "outdated label value",
+			description: "profile label value should be replaced with the profile-1",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1":                          "1",
+							agentprofile.ProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							agentprofile.OldProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							agentprofile.ProfileLabelKey:    "profile-1",
+							agentprofile.OldProfileLabelKey: "profile-2",
+							"foo":                           "bar",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name:        "no changes",
+			description: "no changes needed",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1":                          "1",
+							agentprofile.ProfileLabelKey: "profile-1",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							agentprofile.ProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name:        "labels to remove only",
+			description: "node-1 old profile label key and node-default profile label key should be removed",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1":                             "1",
+							agentprofile.ProfileLabelKey:    "profile-1",
+							agentprofile.OldProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-2",
+						Labels: map[string]string{
+							agentprofile.ProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							"foo":                        "bar",
+							agentprofile.ProfileLabelKey: "profile-2",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name:        "labels to add/change only",
+			description: "node-1 profile label key should be changed and node-2 profile label key should be added",
+			profilesByNode: map[string]types.NamespacedName{
+				"node-1": {
+					Namespace: "foo",
+					Name:      "profile-1",
+				},
+				"node-2": {
+					Namespace: "foo",
+					Name:      "profile-2",
+				},
+				"node-default": {
+					Namespace: "",
+					Name:      "default",
+				},
+			},
+			nodes: []client.Object{
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-1",
+						Labels: map[string]string{
+							"1":                          "1",
+							agentprofile.ProfileLabelKey: "profile-2",
+						},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "node-2",
+						Labels: map[string]string{},
+					},
+				},
+				&corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "node-default",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			wantNodeLabels: map[string]map[string]string{
+				"node-1": {
+					agentprofile.ProfileLabelKey: "profile-1",
+					"1":                          "1",
+				},
+				"node-2": {
+					agentprofile.ProfileLabelKey: "profile-2",
+				},
+				"node-default": {
+					"foo": "bar",
+				},
+			},
+		},
 	}
 
 	for _, tt := range testCases {
