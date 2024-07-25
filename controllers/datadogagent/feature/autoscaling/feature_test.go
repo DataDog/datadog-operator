@@ -36,19 +36,19 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 autoscaling disabled",
-			DDAv2:         newV2Agent(false, true),
+			DDA:           newAgent(false, true),
 			WantConfigure: false,
 		},
 		{
 			Name:                 "v2alpha1 autoscaling enabeld",
-			DDAv2:                newV2Agent(true, true),
+			DDA:                  newAgent(true, true),
 			WantConfigure:        true,
 			ClusterAgent:         testDCAResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                      "v2alpha1 autoscaling enabeld but admission disabled",
-			DDAv2:                     newV2Agent(true, false),
+			DDA:                       newAgent(true, false),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
 		},
@@ -57,7 +57,7 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
-func newV2Agent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
+func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",

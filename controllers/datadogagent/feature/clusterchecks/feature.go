@@ -8,7 +8,6 @@ package clusterchecks
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -79,36 +78,6 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	}
 
 	return reqComp
-}
-
-func (f *clusterChecksFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	clusterChecksEnabled := false
-
-	if dda != nil && dda.Spec.ClusterAgent.Config != nil {
-		clusterChecksEnabled = apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled)
-		f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
-	}
-
-	if clusterChecksEnabled {
-		f.owner = dda
-
-		if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
-			if flavor == v1alpha1.NetworkPolicyFlavorCilium {
-				f.createCiliumNetworkPolicy = true
-			} else {
-				f.createKubernetesNetworkPolicy = true
-			}
-		}
-
-		return feature.RequiredComponents{
-			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
-		}
-	}
-
-	return feature.RequiredComponents{
-		ClusterChecksRunner: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(false)},
-	}
 }
 
 func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {

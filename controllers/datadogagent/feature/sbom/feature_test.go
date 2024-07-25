@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -274,30 +275,30 @@ func Test_sbomFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "SBOM not enabled",
-			DDAv2:         sbomDisabled.DeepCopy(),
+			DDA:           sbomDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "SBOM enabled",
-			DDAv2:         sbomEnabled,
+			DDA:           sbomEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomNodeAgentWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, ContainerImage enabled",
-			DDAv2:         sbomEnabledContainerImageEnabled,
+			DDA:           sbomEnabledContainerImageEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, ContainerImage enabled, overlayFS direct scan",
-			DDAv2:         sbomEnabledContainerImageOverlayFSEnabled,
+			DDA:           sbomEnabledContainerImageOverlayFSEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageOverlayFSWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, Host enabled",
-			DDAv2:         sbomEnabledHostEnabled,
+			DDA:           sbomEnabledHostEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithHostWantFunc),
 		},

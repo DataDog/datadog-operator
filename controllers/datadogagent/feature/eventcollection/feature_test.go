@@ -14,13 +14,13 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,15 +28,15 @@ import (
 func Test_eventCollectionFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name: "v2alpha1 Event Collection not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Event Collection not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithEventCollectionKubernetesEvents(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 Event Collection enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Event Collection enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),
@@ -44,8 +44,8 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(eventCollectionClusterAgentWantFunc),
 		},
 		{
-			Name: "v2alpha1 Unbundle event enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Unbundle event enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				WithEventCollectionUnbundleEvents(true, []v2alpha1.EventTypes{

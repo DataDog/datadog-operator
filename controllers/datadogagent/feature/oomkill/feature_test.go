@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
@@ -24,22 +23,7 @@ import (
 )
 
 func Test_oomKillFeature_Configure(t *testing.T) {
-	ddav1OOMKillDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				SystemProbe: &v1alpha1.SystemProbeSpec{
-					EnableOOMKill: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-
-	ddav1OOMKillEnabled := ddav1OOMKillDisabled.DeepCopy()
-	{
-		ddav1OOMKillEnabled.Spec.Agent.SystemProbe.EnableOOMKill = apiutils.NewBoolPointer(true)
-	}
-
-	ddav2OOMKillDisabled := v2alpha1.DatadogAgent{
+	ddaOOMKillDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				OOMKill: &v2alpha1.OOMKillFeatureConfig{
@@ -48,9 +32,9 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2OOMKillEnabled := ddav2OOMKillDisabled.DeepCopy()
+	ddaOOMKillEnabled := ddaOOMKillDisabled.DeepCopy()
 	{
-		ddav2OOMKillEnabled.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(true)
+		ddaOOMKillEnabled.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	oomKillAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -163,31 +147,14 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name:          "v1alpha1 oom kill not enabled",
-			DDAv1:         ddav1OOMKillDisabled.DeepCopy(),
+			Name:          "oom kill not enabled",
+			DDA:           ddaOOMKillDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 oom kill enabled",
-			DDAv1:         ddav1OOMKillEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(oomKillAgentNodeWantFunc),
-		},
-		///////////////////////////
-		// v2alpha1.DatadogAgent //
-		///////////////////////////
-		{
-			Name:          "v2alpha1 oom kill not enabled",
-			DDAv2:         ddav2OOMKillDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v2alpha1 oom kill enabled",
-			DDAv2:         ddav2OOMKillEnabled,
+			Name:          "oom kill enabled",
+			DDA:           ddaOOMKillEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(oomKillAgentNodeWantFunc),
 		},

@@ -706,7 +706,7 @@ func TestStore_DeleteAll(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			k8sClient := fake.NewClientBuilder().
-				WithScheme(testutils.TestScheme(true)).
+				WithScheme(testutils.TestScheme()).
 				WithObjects(test.existingObjects...).
 				Build()
 

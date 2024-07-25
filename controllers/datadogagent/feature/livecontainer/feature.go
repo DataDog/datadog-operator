@@ -8,7 +8,6 @@ package livecontainer
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -62,23 +61,6 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: reqContainers,
-			},
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *liveContainerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.Process != nil && *dda.Spec.Agent.Process.Enabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-				},
 			},
 		}
 	}

@@ -20,7 +20,7 @@ import (
 )
 
 // TestScheme return a runtime.Scheme for testing purposes
-func TestScheme(isV2 bool) *runtime.Scheme {
+func TestScheme() *runtime.Scheme {
 	s := scheme.Scheme
 	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentProfile{})
@@ -39,12 +39,7 @@ func TestScheme(isV2 bool) *runtime.Scheme {
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
-
-	if isV2 {
-		s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	} else {
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgent{})
-	}
+	s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
 
 	return s
 }
