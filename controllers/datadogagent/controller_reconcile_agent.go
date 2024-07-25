@@ -321,7 +321,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 		}
 
 		if len(newLabels) == 0 {
-			return nil
+			continue
 		}
 
 		patch := corev1.Node{
