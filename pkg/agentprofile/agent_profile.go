@@ -190,13 +190,24 @@ func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affini
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{
-					MatchExpressions: profile.Spec.ProfileAffinity.ProfileNodeAffinity,
+					MatchExpressions: append(profile.Spec.ProfileAffinity.ProfileNodeAffinity, profileLabelKeyNSR(profile.Name)),
 				},
 			},
 		},
 	}
 
 	return affinity
+}
+
+// profileLabelKeyNSR returns the NodeSelectorRequirement for a profile to be
+// applied to nodes with the following label:
+// agent.datadoghq.com/datadogagentprofile:<profile-name>
+func profileLabelKeyNSR(profileName string) v1.NodeSelectorRequirement {
+	return v1.NodeSelectorRequirement{
+		Key:      ProfileLabelKey,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{profileName},
+	}
 }
 
 // affinityOverrideForDefaultProfile returns the affinity override that should

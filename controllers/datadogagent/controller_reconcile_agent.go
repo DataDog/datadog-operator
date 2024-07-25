@@ -324,13 +324,10 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			continue
 		}
 
-		patch := corev1.Node{
-			TypeMeta:   node.TypeMeta,
-			ObjectMeta: node.ObjectMeta,
-		}
-		patch.Labels = newLabels
+		modifiedNode := node.DeepCopy()
+		modifiedNode.Labels = newLabels
 
-		err := r.client.Patch(ctx, &patch, client.MergeFrom(node))
+		err := r.client.Patch(ctx, modifiedNode, client.MergeFrom(node))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
