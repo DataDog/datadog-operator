@@ -157,13 +157,10 @@ func (r *Reconciler) profilesCleanup() error {
 			newLabels[k] = v
 		}
 
-		patch := corev1.Node{
-			TypeMeta:   node.TypeMeta,
-			ObjectMeta: node.ObjectMeta,
-		}
-		patch.Labels = newLabels
+		modifiedNode := node.DeepCopy()
+		modifiedNode.Labels = newLabels
 
-		err := r.client.Patch(context.TODO(), &patch, client.MergeFrom(&node))
+		err := r.client.Patch(context.TODO(), modifiedNode, client.MergeFrom(&node))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
