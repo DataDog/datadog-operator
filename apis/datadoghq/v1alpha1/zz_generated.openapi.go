@@ -984,7 +984,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 				Description: "DashboardTemplateVariable Template variable.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"available_values": {
+					"availableValues": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The list of values that the template variable drop-down is limited to.",
 							Default:     map[string]interface{}{},
@@ -999,6 +999,11 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 						},
 					},
 					"defaults": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.",
 							Type:        []string{"array"},
@@ -1051,7 +1056,15 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.
 							Format:      "",
 						},
 					},
-					"template_variables": {
+					"templateVariables": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "List of variables.",
 							Type:        []string{"array"},
@@ -1066,6 +1079,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.
 						},
 					},
 				},
+				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{
@@ -1095,6 +1109,11 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref co
 						},
 					},
 					"values": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "One or many template variable values within the saved view, which will be unioned together using `OR` if more than one is specified. Cannot be used in conjunction with `value`.",
 							Type:        []string{"array"},
@@ -1110,6 +1129,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref co
 						},
 					},
 				},
+				Required: []string{"name"},
 			},
 		},
 	}
@@ -2115,7 +2135,12 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							Format:      "",
 						},
 					},
-					"notify_list": {
+					"notifyList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "List of handles of users to notify when changes are made to this dashboard.",
 							Type:        []string{"array"},
@@ -2130,7 +2155,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 					},
-					"reflow_type": {
+					"reflowType": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
 							Type:        []string{"string"},
@@ -2138,6 +2163,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 						},
 					},
 					"tags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "List of team names representing ownership of a dashboard.",
 							Type:        []string{"array"},
@@ -2152,7 +2182,15 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 					},
-					"template_variable_presets": {
+					"templateVariablePresets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Array of template variables saved views.",
 							Type:        []string{"array"},
@@ -2166,7 +2204,15 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 					},
-					"template_variables": {
+					"templateVariables": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "List of template variables for this dashboard.",
 							Type:        []string{"array"},
@@ -2188,6 +2234,14 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 						},
 					},
 					"widgets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"id",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "List of widgets to display on the dashboard.",
 							Type:        []string{"array"},
@@ -4027,7 +4081,7 @@ func schema__apis_datadoghq_v1alpha1_NullableList(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "NullableList struct to hold nullable list value. NOTE: cast this to the nullable anything type later",
+				Description: "NullableList struct to hold nullable list value.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"value": {
@@ -4060,7 +4114,7 @@ func schema__apis_datadoghq_v1alpha1_NullableString(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "NOTE: had to uppercase to deal with \"tagged but not exported\" error (paraphrasing) NullableString is a struct to hold a nullable string value.",
+				Description: "NullableString is a struct to hold a nullable string value.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"value": {
@@ -4860,7 +4914,7 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 						},
 					},
 				},
-				Required: []string{"definition"},
+				Required: []string{"definition", "id"},
 			},
 		},
 		Dependencies: []string{
@@ -4894,7 +4948,7 @@ func schema__apis_datadoghq_v1alpha1_WidgetLayout(ref common.ReferenceCallback) 
 							Format:      "int64",
 						},
 					},
-					"is_column_break": {
+					"isColumnBreak": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether the widget should be the first one on the second column in high density or not. **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.",
 							Type:        []string{"boolean"},

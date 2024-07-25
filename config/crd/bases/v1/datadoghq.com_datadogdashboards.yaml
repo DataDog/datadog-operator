@@ -62,6 +62,7 @@ spec:
                   items:
                     type: string
                   type: array
+                  x-kubernetes-list-type: set
                 reflowType:
                   description: |-
                     Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
@@ -73,6 +74,7 @@ spec:
                   items:
                     type: string
                   type: array
+                  x-kubernetes-list-type: set
                 templateVariablePresets:
                   description: Array of template variables saved views.
                   items:
@@ -81,7 +83,7 @@ spec:
                       name:
                         description: The name of the variable.
                         type: string
-                      template_variables:
+                      templateVariables:
                         description: List of variables.
                         items:
                           description: DashboardTemplateVariablePresetValue Template variables saved views.
@@ -99,16 +101,27 @@ spec:
                               items:
                                 type: string
                               type: array
+                              x-kubernetes-list-type: set
+                          required:
+                            - name
                           type: object
                         type: array
+                        x-kubernetes-list-map-keys:
+                          - name
+                        x-kubernetes-list-type: map
+                    required:
+                      - name
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - name
+                  x-kubernetes-list-type: map
                 templateVariables:
                   description: List of template variables for this dashboard.
                   items:
                     description: DashboardTemplateVariable Template variable.
                     properties:
-                      available_values:
+                      availableValues:
                         description: The list of values that the template variable drop-down is limited to.
                         properties:
                           isSet:
@@ -133,6 +146,7 @@ spec:
                         items:
                           type: string
                         type: array
+                        x-kubernetes-list-type: set
                       name:
                         description: The name of the variable.
                         type: string
@@ -144,8 +158,13 @@ spec:
                           value:
                             type: string
                         type: object
+                    required:
+                      - name
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - name
+                  x-kubernetes-list-type: map
                 title:
                   description: Title of the dashboard.
                   type: string
@@ -177,7 +196,7 @@ spec:
                             description: The height of the widget. Should be a non-negative integer.
                             format: int64
                             type: integer
-                          is_column_break:
+                          isColumnBreak:
                             description: |-
                               Whether the widget should be the first one on the second column in high density or not.
                               **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.
@@ -202,8 +221,12 @@ spec:
                         type: object
                     required:
                       - definition
+                      - id
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - id
+                  x-kubernetes-list-type: map
               type: object
             status:
               description: DatadogDashboardStatus defines the observed state of DatadogDashboard

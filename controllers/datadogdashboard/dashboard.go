@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -21,31 +22,29 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// NOTE: normalize all the names crd/ddb/dashboard/etc
-// NOTE: double check that I don't need request struct
 // Dashboard
-func buildDashboard(logger logr.Logger, crd *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
+func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
 	// create a dashboard
-	layoutType := datadogV1.DashboardLayoutType(crd.Spec.LayoutType)
+	layoutType := datadogV1.DashboardLayoutType(ddb.Spec.LayoutType)
 	widgets := &[]datadogV1.Widget{}
 
 	// NOTE: for now, pass in empty widgetlist
-	dashboard := datadogV1.NewDashboard(layoutType, crd.Spec.Title, *widgets)
+	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, *widgets)
 
-	// fmu: why is this bracketed tho in SLOs?
-	if crd.Spec.Description != "" {
-		dashboard.SetDescription(crd.Spec.Description)
+	if ddb.Spec.Description != "" {
+		dashboard.SetDescription(ddb.Spec.Description)
 	} else {
 		dashboard.SetDescriptionNil()
 	}
-	// NOTE: sort tags like in monitors?
-	dashboard.SetTags(crd.Spec.Tags)
+
+	tags := ddb.Spec.Tags
+	sort.Strings(tags)
+	dashboard.SetTags(tags)
 
 	return dashboard
 }
 
 func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboardID string) (datadogV1.Dashboard, error) {
-	// NOTE: no optional params like monitors/SLOs
 	dashboard, _, err := client.GetDashboard(auth, dashboardID)
 	if err != nil {
 		return datadogV1.Dashboard{}, translateClientError(err, "error creating Dashboard")
@@ -53,18 +52,6 @@ func getDashboard(auth context.Context, client *datadogV1.DashboardsApi, dashboa
 	return dashboard, nil
 }
 
-// no validation fo dashboards
-// func validateDashboard(auth context.Context, logger logr.Logger, client *datadogV1.DashboardsApi, dm *datadoghqv1alpha1.DatadogMonitor) error {
-// 	// m, _ := buildMonitor(logger, dm)
-// 	// if _, _, err := client.ValidateMonitor(auth, *m); err != nil {
-// 	// 	return translateClientError(err, "error validating monitor")
-// 	// }
-// 	client
-// 	// return nil
-// 	return nil
-// }
-
-// NOTE: remove logger after finishing debugging
 func createDashboard(logger logr.Logger, auth context.Context, client *datadogV1.DashboardsApi, ddb *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
 	db := buildDashboard(logger, ddb)
 	dbCreated, _, err := client.CreateDashboard(auth, *db)

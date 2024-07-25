@@ -30,11 +30,10 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	datadogDashboardKind    = "DatadogDashboard"
-	// NOTE: double check this, figure out finalizers
+	defaultRequeuePeriod      = 60 * time.Second
+	defaultErrRequeuePeriod   = 5 * time.Second
+	defaultForceSyncPeriod    = 60 * time.Minute
+	datadogDashboardKind      = "DatadogDashboard"
 	datadogDashboardFinalizer = "finalizer.dashboard.datadoghq.com"
 )
 
@@ -59,12 +58,10 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboard
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	// NOTE: different in monitors/SLOs
 	return r.internalReconcile(ctx, request)
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	// NOTE: ig this is just for logging, version time used for that
 	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
 	logger.Info("Reconciling Datadog Dashboard", "version", r.versionInfo.String())
 	now := metav1.NewTime(time.Now())
@@ -74,7 +71,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	var result ctrl.Result
 	var err error
 
-	// fmu: also updates instance
 	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -83,7 +79,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	// NOTE: add finalizer stuff, understand this...
 	final := finalizer.NewFinalizer(
 		logger,
 		r.client,
@@ -98,7 +93,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 
-	// NOTE: flesh out what a valid dashboard is, in progress! :)
 	if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
 		logger.Error(err, "invalid Dashboard")
 
@@ -106,7 +100,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
-	// NOTE: figure out what this does, gets a hash for Spec, error if ?
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
@@ -118,22 +111,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	shouldCreate := false
 	shouldUpdate := false
 
-	// fmu: when there is no status set, no dashboard has been deployed
 	if instance.Status.ID == "" {
 		shouldCreate = true
 	} else {
 		if instanceSpecHash != statusSpecHash {
-			// NOTE: add log that the manifest has changed like in Monitor ,
+			logger.Info("DatadogDashboard manifest has changed")
 			shouldUpdate = true
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			// fmu: not needed for first if because, status change = dashboard exists????
-			// fmu: so the controller manages controllee objects. I need to know more details about how it all works
 			_, err := r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting Dashboard", "Dashboard ID", instance.Status.ID)
-				// NOTE: this may lead to a problem, unsure if the no space "UpdatingSLO" (equivalent "GettingDashboard") is typed somewhere
 				updateErrStatus(status, now, v1alpha1.DatadoggDashboardSyncStatusGetError, "GettingDashboard", err)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
@@ -175,9 +164,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
 
-// NOTE: move now to elsewhere?
 func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
-	// NOTE: taken from monitors. SlOS doesn't set status syncstatusgeterror. Right approach?
+	// NOTE: taken from monitors. SlOS doesn't set status syncstatusgeterror. Add that.
 	return getDashboard(r.datadogAuth, r.datadogClient, instance.Status.ID)
 }
 
@@ -192,7 +180,6 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	// NOTE: understand this condition stuff
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingDashboard", "DatadogDashboard Update")
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.CurrentHash = hash
@@ -203,8 +190,6 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 }
 
 func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
-	// NOTE: for some reason, in the SLOs, this is the only logger that has a v level of 1 every other log is unspecified, opposite in Monitors
-	// fmu: makes sense, perhaps this is more important... mm come back to this
 	logger.V(1).Info("Dashboard ID is not set; creating Dashboard in Datadog")
 
 	// Create Dashboard in Datadog
@@ -221,14 +206,12 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 
 	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
-	// NOTE: dashboard doesn't have a get creator
+	// NOTE: dashboard doesn't have a get creator get creator method
 	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
-	// NOTE: add creator here
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.ID = createdDashboard.GetId()
-	// status.Creator = creator.GetEmail
 	status.Created = &createdTime
-	// NOTE: is there a need for a kubernetes primary field like in monitors
+	// NOTE: is there a need for a kubernetes primary field like in monitors (which is not in SLOS)
 	status.LastForceSyncTime = &createdTime
 	status.CurrentHash = hash
 
@@ -239,7 +222,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	return nil
 }
 
-// NOTE: does this name have to be something that isn't just delete/
 func (r *Reconciler) delete(logger logr.Logger, instance *v1alpha1.DatadogDashboard) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		if datadogID != "" {
@@ -295,7 +277,6 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1
 }
 
 // buildEventInfo creates a new EventInfo instance.
-// NOTE: understand why name doesn't need a type declaration but everything else does (prob automatic)
 func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInfo {
 	return utils.BuildEventInfo(name, ns, datadogDashboardKind, eventType)
 }
