@@ -109,7 +109,6 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
-		// NOTE: remove this log
 		logger.Info("about to start controller...")
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)

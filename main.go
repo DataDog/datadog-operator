@@ -301,13 +301,6 @@ func run(opts *options) error {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	// if err = (&datadoghqcontrollers.DatadogDashboardReconciler{
-	// 	Client: mgr.GetClient(),
-	// 	Scheme: mgr.GetScheme(),
-	// }).SetupWithManager(mgr); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", "DatadogDashboard")
-	// 	os.Exit(1)
-	// }
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
