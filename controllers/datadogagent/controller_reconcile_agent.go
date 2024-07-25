@@ -297,7 +297,7 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			// If the profile is not the default one and the label does not exist in
 			// the node, it should be added. If the label value is outdated, it
 			// should be updated.
-			if profileLabelValue, _ := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+			if profileLabelValue := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
 				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
 			}
 		}
