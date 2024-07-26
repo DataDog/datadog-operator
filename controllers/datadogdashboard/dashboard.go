@@ -45,14 +45,13 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 		dbTemplateVariablePresets := []datadogV1.DashboardTemplateVariablePreset{}
 		for _, variablePreset := range ddb.Spec.TemplateVariablePresets {
 			dbTemplateVariablePreset := datadogV1.DashboardTemplateVariablePreset{}
-			// Name is required
+			// Note: Name is required. It can't be nil.
 			dbTemplateVariablePreset.SetName(*variablePreset.Name)
 			dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
 			for _, presetValue := range variablePreset.TemplateVariables {
 				dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
 				// Name is required
 				dbTemplateVariablePresetValue.SetName(*presetValue.Name)
-				// NOTE: is it possible to assign nil here anyways?
 				if presetValue.Values != nil {
 					dbTemplateVariablePresetValue.SetValues(presetValue.Values)
 				}
@@ -73,13 +72,10 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 			if dbTemplateVariable.Defaults != nil {
 				dbTemplateVariable.SetDefaults(templateVariable.Defaults)
 			}
-			// NOTE: Unsure about this nullableList behavior
 			if templateVariable.AvailableValues.Value != nil {
-				// availableValues := datadog.NullableList[string]{}
-				// availableValues.Set(dbTemplateVariable.AvailableValues.Get())
 				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues.Value)
 			}
-			// NOTE: since we can just set nullableString/List like so, perhaps change types to just make it a string?
+			// NOTE: since we can just set nullableString/List like so, perhaps change types to just make it a regular string/list?
 			if templateVariable.Prefix.Value != nil {
 				dbTemplateVariable.SetPrefix(*templateVariable.Prefix.Value)
 			}
