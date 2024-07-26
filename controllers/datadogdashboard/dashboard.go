@@ -37,6 +37,58 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 		dashboard.SetDescriptionNil()
 	}
 
+	if ddb.Spec.ReflowType != nil {
+		dashboard.SetReflowType(*ddb.Spec.ReflowType)
+	}
+
+	if ddb.Spec.TemplateVariablePresets != nil {
+		dbTemplateVariablePresets := []datadogV1.DashboardTemplateVariablePreset{}
+		for _, variablePreset := range ddb.Spec.TemplateVariablePresets {
+			dbTemplateVariablePreset := datadogV1.DashboardTemplateVariablePreset{}
+			// Name is required
+			dbTemplateVariablePreset.SetName(*variablePreset.Name)
+			dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
+			for _, presetValue := range variablePreset.TemplateVariables {
+				dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
+				// Name is required
+				dbTemplateVariablePresetValue.SetName(*presetValue.Name)
+				// NOTE: is it possible to assign nil here anyways?
+				if presetValue.Values != nil {
+					dbTemplateVariablePresetValue.SetValues(presetValue.Values)
+				}
+				dbTemplateVariablePresetValues = append(dbTemplateVariablePresetValues, dbTemplateVariablePresetValue)
+			}
+			dbTemplateVariablePreset.SetTemplateVariables(dbTemplateVariablePresetValues)
+			dbTemplateVariablePresets = append(dbTemplateVariablePresets, dbTemplateVariablePreset)
+		}
+		dashboard.SetTemplateVariablePresets(dbTemplateVariablePresets)
+	}
+
+	if ddb.Spec.TemplateVariables != nil {
+		dbTemplateVariables := []datadogV1.DashboardTemplateVariable{}
+		for _, templateVariable := range ddb.Spec.TemplateVariables {
+			dbTemplateVariable := datadogV1.DashboardTemplateVariable{}
+			dbTemplateVariable.SetName(templateVariable.Name)
+
+			if dbTemplateVariable.Defaults != nil {
+				dbTemplateVariable.SetDefaults(templateVariable.Defaults)
+			}
+			// NOTE: Unsure about this nullableList behavior
+			if templateVariable.AvailableValues.Value != nil {
+				// availableValues := datadog.NullableList[string]{}
+				// availableValues.Set(dbTemplateVariable.AvailableValues.Get())
+				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues.Value)
+			}
+			// NOTE: since we can just set nullableString/List like so, perhaps change types to just make it a string?
+			if templateVariable.Prefix.Value != nil {
+				dbTemplateVariable.SetPrefix(*templateVariable.Prefix.Value)
+			}
+			dbTemplateVariables = append(dbTemplateVariables, dbTemplateVariable)
+
+		}
+		dashboard.SetTemplateVariables(dbTemplateVariables)
+	}
+
 	tags := ddb.Spec.Tags
 	sort.Strings(tags)
 	dashboard.SetTags(tags)

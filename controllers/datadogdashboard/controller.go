@@ -32,7 +32,7 @@ import (
 const (
 	defaultRequeuePeriod      = 60 * time.Second
 	defaultErrRequeuePeriod   = 5 * time.Second
-	defaultForceSyncPeriod    = 60 * time.Minute
+	defaultForceSyncPeriod    = 30 * time.Second
 	datadogDashboardKind      = "DatadogDashboard"
 	datadogDashboardFinalizer = "finalizer.dashboard.datadoghq.com"
 )

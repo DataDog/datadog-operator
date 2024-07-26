@@ -53,11 +53,6 @@ const (
 	DASHBOARDLAYOUTTYPE_FREE    DashboardLayoutType = "free"
 )
 
-// var allowedDashboardLayoutTypeEnumValues = []DashboardLayoutType{
-// 	DASHBOARDLAYOUTTYPE_ORDERED,
-// 	DASHBOARDLAYOUTTYPE_FREE,
-// }
-
 func (t DashboardLayoutType) isValid() bool {
 	switch t {
 	case DASHBOARDLAYOUTTYPE_ORDERED, DASHBOARDLAYOUTTYPE_FREE:

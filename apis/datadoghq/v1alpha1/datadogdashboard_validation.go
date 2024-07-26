@@ -8,6 +8,7 @@ package v1alpha1
 import (
 	"fmt"
 
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
@@ -29,6 +30,10 @@ func IsValidDatadogDashboard(spec *DatadogDashboardSpec) error {
 
 	if spec.LayoutType != DASHBOARDLAYOUTTYPE_ORDERED && spec.ReflowType != nil {
 		errs = append(errs, fmt.Errorf("spec.ReflowType should only be set if layout type is 'ordered'"))
+	}
+
+	if spec.ReflowType != nil && !spec.ReflowType.IsValid() {
+		errs = append(errs, fmt.Errorf("spec.ReflowType must be one of the values: %s or %s", datadogV1.DASHBOARDREFLOWTYPE_AUTO, datadogV1.DASHBOARDREFLOWTYPE_FIXED))
 	}
 
 	return utilserrors.NewAggregate(errs)
