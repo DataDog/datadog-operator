@@ -27,11 +27,11 @@ func Test_buildThreshold(t *testing.T) {
 			mockSpec: v1alpha1.DatadogSLOSpec{
 				Name:            "test",
 				Timeframe:       "7d",
-				TargetThreshold: resource.MustParse("99.9"),
+				TargetThreshold: resource.MustParse("99990m"),
 			},
 			expectedResult: []datadogV1.SLOThreshold{
 				{
-					Target:    99.9,
+					Target:    99.99,
 					Timeframe: datadogV1.SLOTimeframe("7d"),
 				},
 			},
@@ -41,14 +41,14 @@ func Test_buildThreshold(t *testing.T) {
 			mockSpec: v1alpha1.DatadogSLOSpec{
 				Name:             "test",
 				Timeframe:        "30d",
-				TargetThreshold:  resource.MustParse("99.9"),
-				WarningThreshold: ptrResourceQuantity(resource.MustParse("95.9")),
+				TargetThreshold:  resource.MustParse("99.999"),
+				WarningThreshold: ptrResourceQuantity(resource.MustParse("95.010001")),
 			},
 			expectedResult: []datadogV1.SLOThreshold{
 				{
-					Target:    99.9,
+					Target:    99.999,
 					Timeframe: datadogV1.SLOTimeframe("30d"),
-					Warning:   float64Ptr(95.9),
+					Warning:   float64Ptr(95.010001),
 				},
 			},
 		},
