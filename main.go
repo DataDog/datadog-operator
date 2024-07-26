@@ -204,7 +204,13 @@ func run(opts *options) error {
 		setupLog.Info("Starting datadog profiler")
 		if err := profiler.Start(
 			profiler.WithVersion(version.Version),
-			profiler.WithProfileTypes(profiler.CPUProfile, profiler.HeapProfile),
+			profiler.WithProfileTypes(
+				profiler.CPUProfile,
+				profiler.HeapProfile,
+				profiler.BlockProfile,
+				profiler.MutexProfile,
+				profiler.GoroutineProfile,
+			),
 		); err != nil {
 			return setupErrorf(setupLog, err, "unable to start datadog profiler")
 		}
