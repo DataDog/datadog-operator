@@ -149,8 +149,9 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	if err != nil {
 		return err
 	}
-
+	f.logger.V(2).Info("eventCollectionFeature.ManageDependencies")
 	if f.configMapName != "" {
+		f.logger.V(2).Info("Creating ConfigMap for event collection")
 		// creating ConfigMap for event collection if required
 		cm, err := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, f.unbundleEvents, f.unbundleEventTypes)
 		if err != nil {
@@ -168,7 +169,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 			annotations := object.MergeAnnotationsLabels(f.logger, cm.Annotations, map[string]string{f.cmAnnotationKey: f.cmAnnotationValue}, "*")
 			cm.SetAnnotations(annotations)
 		}
-
+		f.logger.V(2).Info("Creating ConfigMap for create")
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 			return err
 		}
