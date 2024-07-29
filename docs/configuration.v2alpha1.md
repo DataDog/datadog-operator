@@ -156,6 +156,10 @@ spec:
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.host.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.secretsBackend.args | Args defines the list of arguments to pass to the command (space-separated strings). |
+| features.secretsBackend.command | Command defines the secret backend command to use If the command value is "/readsecret_multiple_providers.sh", and enableGlobalPermissions is enabled below, the agents will have permissions to get secret objects across the cluster. Read more about "/readsecret_multiple_providers.sh": https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers |
+| features.secretsBackend.enableGlobalPermissions | EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all secrets when `command` is set to `"/readsecret_multiple_providers.sh"`. Default: false |
+| features.secretsBackend.timeout | Timeout defines the command timeout in seconds Default: 30 |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
