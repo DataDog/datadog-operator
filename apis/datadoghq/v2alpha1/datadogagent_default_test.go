@@ -271,6 +271,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -355,6 +358,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -454,6 +460,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -579,6 +588,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -710,6 +722,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -834,6 +849,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -961,6 +979,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -1094,6 +1115,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -1222,6 +1246,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -1346,6 +1373,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -1478,6 +1508,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -1604,6 +1637,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
+					},
 				},
 			},
 		},
@@ -1635,6 +1671,7 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks:           &ClusterChecksFeatureConfig{},
 					PrometheusScrape:        &PrometheusScrapeFeatureConfig{},
 					HelmCheck:               &HelmCheckFeatureConfig{},
+					SecretsBackend:          &SecretsBackendFeatureConfig{},
 				},
 			},
 			want: &DatadogAgentSpec{
@@ -1749,6 +1786,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
@@ -1887,6 +1927,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					HelmCheck: &HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+					SecretsBackend: &SecretsBackendFeatureConfig{
+						Command: apiutils.NewStringPointer(defaultSecretsBackendCommand),
 					},
 				},
 			},
