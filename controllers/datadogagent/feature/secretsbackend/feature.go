@@ -6,14 +6,12 @@
 package secretsbackend
 
 import (
-	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -67,22 +65,21 @@ func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 		if v2alpha1.IsClusterChecksEnabled(dda) && v2alpha1.IsCCREnabled(dda) {
 			f.serviceAccountNameClusterChecksRunner = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 		}
-
 	}
 
+	// Require node Agent by default to manage dependencies
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
-			},
 		},
-		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.ClusterAgentContainerName,
+	}
+	// If node Agent is disabled, require cluster Agent
+	if apiutils.BoolValue(dda.Spec.Override[v2alpha1.NodeAgentComponentName].Disabled) {
+		reqComp = feature.RequiredComponents{
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
 			},
-		},
+		}
 	}
 
 	return reqComp
@@ -122,10 +119,12 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 // It should do nothing if the feature doesn't need to configure it.
 func (f *secretsBackendFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSecretBackendCommand,
-		Value: f.command,
-	})
+	if f.command != "" {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendCommand,
+			Value: f.command,
+		})
+	}
 
 	if f.args != "" {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -155,10 +154,12 @@ func (f *secretsBackendFeature) ManageSingleContainerNodeAgent(managers feature.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *secretsBackendFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSecretBackendCommand,
-		Value: f.command,
-	})
+	if f.command != "" {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendCommand,
+			Value: f.command,
+		})
+	}
 
 	if f.args != "" {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -170,14 +171,36 @@ func (f *secretsBackendFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	if f.timeout != 0 {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendTimeout,
-			Value: fmt.Sprintf("%d", f.timeout),
+			Value: strconv.FormatInt(int64(f.timeout), 10),
 		})
 	}
+
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *secretsBackendFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+	if f.command != "" {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendCommand,
+			Value: f.command,
+		})
+	}
+
+	if f.args != "" {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendArguments,
+			Value: f.args,
+		})
+	}
+
+	if f.timeout != 0 {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendTimeout,
+			Value: strconv.FormatInt(int64(f.timeout), 10),
+		})
+	}
+
 	return nil
 }
