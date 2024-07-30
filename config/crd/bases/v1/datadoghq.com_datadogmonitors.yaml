@@ -126,6 +126,7 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     notifyNoData:
                       description: A Boolean indicating whether this monitor notifies when data stops reporting.
                       type: boolean
@@ -153,6 +154,7 @@ spec:
                         description: MonitorRenotifyStatusType The different statuses for which renotification is supported.
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     requireFullWindow:
                       description: |-
                         A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
