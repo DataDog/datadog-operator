@@ -1101,11 +1101,25 @@ type DatadogCredentials struct {
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
 }
 
+// SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature
+// +k8s:openapi-gen=true
+type SecretsBackendRolesConfig struct {
+	// Namespace defines the namespace in which the secrets reside.
+	// +required
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Secrets defines the list of secrets for which a role should be created.
+	// +required
+	// +listType=set
+	Secrets []string `json:"secrets,omitempty"`
+}
+
 // SecretsBackendFeatureConfig provides configuration for the secret backend.
+// +k8s:openapi-gen=true
 type SecretsBackendFeatureConfig struct {
 	// Command defines the secret backend command to use
-	// If the command value is "/readsecret_multiple_providers.sh", and enableGlobalPermissions is enabled below, the agents will have permissions to get secret objects across the cluster.
-	// Read more about "/readsecret_multiple_providers.sh": https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
+	// Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
+	// Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
 	Command *string `json:"command,omitempty"`
 
 	// Args defines the list of arguments to pass to the command (space-separated strings).
@@ -1117,10 +1131,15 @@ type SecretsBackendFeatureConfig struct {
 	// +optional
 	Timeout *int32 `json:"timeout,omitempty"`
 
-	// EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all secrets when `command` is set to `"/readsecret_multiple_providers.sh"`.
+	// EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
 	// Default: false
 	// +optional
 	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
+
+	// Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
+	// +optional
+	// +listType=atomic
+	Roles []*SecretsBackendRolesConfig `json:"roles,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.

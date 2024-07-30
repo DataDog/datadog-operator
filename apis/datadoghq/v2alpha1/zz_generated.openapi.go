@@ -44,6 +44,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
 		"./apis/datadoghq/v2alpha1.RollingUpdate":                     schema__apis_datadoghq_v2alpha1_RollingUpdate(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
+		"./apis/datadoghq/v2alpha1.SecretsBackendFeatureConfig":       schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig":         schema__apis_datadoghq_v2alpha1_SecretsBackendRolesConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 		"./apis/datadoghq/v2alpha1.UpdateStrategy":                    schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
@@ -1265,6 +1267,107 @@ func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback)
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretsBackendFeatureConfig provides configuration for the secret backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"command": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Command defines the secret backend command to use Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Args defines the list of arguments to pass to the command (space-separated strings).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout defines the command timeout in seconds Default: 30",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"enableGlobalPermissions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"roles": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_SecretsBackendRolesConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace defines the namespace in which the secrets reside.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secrets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Secrets defines the list of secrets for which a role should be created.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
