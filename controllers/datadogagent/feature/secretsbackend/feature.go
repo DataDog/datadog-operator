@@ -31,6 +31,11 @@ func buildSecretsBackendFeature(options *feature.Options) feature.Feature {
 	return secretsBackendFeat
 }
 
+type secretsBackendRole struct {
+	namespace   string
+	secretsList []string
+}
+
 type secretsBackendFeature struct {
 	serviceAccountNameAgent               string
 	serviceAccountNameClusterAgent        string
@@ -39,6 +44,7 @@ type secretsBackendFeature struct {
 	args                                  string
 	timeout                               int32
 	enableGlobalPermissions               bool
+	roles                                 []secretsBackendRole
 	owner                                 metav1.Object
 }
 
@@ -59,6 +65,18 @@ func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 			f.timeout = *secretsBackend.Timeout
 		}
 		f.enableGlobalPermissions = apiutils.BoolValue(secretsBackend.EnableGlobalPermissions)
+
+		if secretsBackend.Roles != nil {
+			// Disable global permissions if roles are specified
+			f.enableGlobalPermissions = false
+			for _, role := range secretsBackend.Roles {
+				f.roles = append(f.roles, secretsBackendRole{
+					namespace:   apiutils.StringValue(role.Namespace),
+					secretsList: role.Secrets,
+				})
+			}
+		}
+
 		f.serviceAccountNameAgent = v2alpha1.GetAgentServiceAccount(dda)
 		f.serviceAccountNameClusterAgent = v2alpha1.GetClusterAgentServiceAccount(dda)
 
@@ -93,9 +111,9 @@ func (f *secretsBackendFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	rbacName := getSecretsBackendRBACResourceName(f.owner)
 
 	if f.enableGlobalPermissions {
+		rbacName := getGlobalPermSecretsBackendRBACResourceName(f.owner)
 		// Adding RBAC to node Agents
 		if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameAgent, secretsBackendGlobalRBACPolicyRules); err != nil {
 			return err
@@ -110,6 +128,30 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 			return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameClusterChecksRunner, secretsBackendGlobalRBACPolicyRules)
 		}
 
+	}
+
+	if len(f.roles) > 0 {
+		for _, role := range f.roles {
+			ns := role.namespace
+			rbacName := getNamespaceSecretReaderRBACResourceName(f.owner, ns)
+			policyRule := getSecretsRolesPermissions(role)
+			targetSaNamespace := f.owner.GetNamespace()
+			// Adding RBAC to node Agents
+			if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameAgent, policyRule, targetSaNamespace); err != nil {
+				return err
+			}
+			// Adding RBAC to cluster Agent
+			if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameClusterAgent, policyRule, targetSaNamespace); err != nil {
+				return err
+			}
+			// Adding RBAC to cluster checks runners
+			// f.serviceAccountNameClusterChecksRunner is empty if CCRs are not enabled
+			if f.serviceAccountNameClusterChecksRunner != "" {
+				if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameClusterChecksRunner, policyRule, targetSaNamespace); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil

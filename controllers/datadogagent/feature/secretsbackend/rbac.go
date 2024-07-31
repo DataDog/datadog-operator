@@ -6,8 +6,11 @@
 package secretsbackend
 
 import (
+	"fmt"
+
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var secretsBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
@@ -18,15 +21,24 @@ var secretsBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
 	},
 }
 
-// to do : func to return policy rules based on dda
-func getGlobalSecretsPermissions() []rbacv1.PolicyRule {
-	rbacRules := []rbacv1.PolicyRule{
+// getGlobalPermSecretsBackendRBACResourceName return the RBAC resources name associated to the ClusterRole/ClusterRoleBinding to read secrets
+func getGlobalPermSecretsBackendRBACResourceName(owner metav1.Object) string {
+	return fmt.Sprintf("%s-%s-%s", owner.GetNamespace(), owner.GetName(), secretsBackendRBACSuffix)
+}
+
+// getNamespaceSecretReaderRBACResourceName return the RBAC resources name to the Role/RoleBinding to read secrets from a namespace
+func getNamespaceSecretReaderRBACResourceName(owner metav1.Object, namespace string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), secretsReader, namespace)
+}
+
+// getSecretsRolesPermissions returns policy rules to allow Datadog agents to get defined secrets
+func getSecretsRolesPermissions(role secretsBackendRole) []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.SecretsResource},
-			Verbs:     []string{rbac.GetVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.SecretsResource},
+			ResourceNames: role.secretsList,
+			Verbs:         []string{rbac.GetVerb},
 		},
 	}
-
-	return rbacRules
 }

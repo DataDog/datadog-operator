@@ -1312,7 +1312,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.",
+							Description: "Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in `WATCH_NAMESPACE` / `DD_AGENT_WATCH_NAMESPACE`. Read more about [TO DO: LINK TO GUIDE USING SECRETS BACKEND WITH OPERATOR]",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
