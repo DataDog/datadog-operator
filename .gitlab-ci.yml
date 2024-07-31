@@ -56,7 +56,7 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 16Gi
 
 .on_run_e2e:
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
     when: always
   - if: $CI_COMMIT_BRANCH
     changes:
