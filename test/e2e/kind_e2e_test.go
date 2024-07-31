@@ -86,7 +86,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		kindCluster, err := localKubernetes.NewKindCluster(*awsEnv.CommonEnvironment, vm, awsEnv.CommonNamer.ResourceName("kind"), kindClusterName, k8sVersion, pulumi.DeleteBeforeReplace(true))
+		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, awsEnv.CommonNamer().ResourceName("kind"), kindClusterName, k8sVersion, pulumi.DeleteBeforeReplace(true))
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 
 		// Create imagePullSecret to pull E2E operator image from ECR
 		if imgPullPassword != "" {
-			_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespaceName, pulumi.Provider(kindKubeProvider))
+			_, err = agent.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
 			if err != nil {
 				return err
 			}
