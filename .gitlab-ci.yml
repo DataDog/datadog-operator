@@ -32,6 +32,7 @@ stages:
   - release
   - e2e
   - post-release
+  - deploy
 
 .new_e2e_template:
   stage: e2e
@@ -63,7 +64,8 @@ stages:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
-  - if: $CI_COMMIT_BRANCH
+  # Temporarily disable on Conductor-triggered jobs
+  - if: '$DDR != "true"'
     when: manual
   - when: never
 
@@ -79,6 +81,10 @@ build:
 unit_tests:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -88,6 +94,10 @@ unit_tests:
 generate_code:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -176,7 +186,7 @@ build_bundle_image:
 publish_public_main:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
     - when: never
   trigger:
@@ -293,7 +303,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -312,7 +322,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -458,3 +468,33 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+
+
+# On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
+publish_nightly_workflow:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
+      when: on_success
+    - when: never
+  needs:
+    - trigger_internal_operator_nightly_image
+    - trigger_internal_operator_check_nightly_image
+  trigger:
+    project: DataDog/k8s-datadog-agent-ops
+    branch: main
+    strategy: depend
+    forward:
+      pipeline_variables: true
+  variables:
+    OPERATOR_NIGHTLY: "true"
+    SKIP_PLAN_CHECK: "true"
+    ENVIRONMENTS: "experimental"
+    CHART: "datadog-operator"
+    OPTION_AUTOMATIC_ROLLOUT: "true"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    BAZEL_TARGET: $BAZEL_TARGET
+    DDR: $DDR
+    TARGET_ENV: $TARGET_ENV
+    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
+    DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID

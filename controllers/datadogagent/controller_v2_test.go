@@ -384,7 +384,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 						Enabled: false,
 					},
 					SupportCilium: false,
-					V2Enabled:     true,
 				},
 			}
 
@@ -508,7 +507,6 @@ func Test_Introspection(t *testing.T) {
 						Enabled: false,
 					},
 					SupportCilium:        false,
-					V2Enabled:            true,
 					IntrospectionEnabled: true,
 				},
 			}

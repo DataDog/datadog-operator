@@ -1,4 +1,5 @@
-schema-version: v2.2
+---
+schema-version: v2
 dd-service: datadog-operator
 team: container-ecosystems
 contacts:
@@ -12,35 +13,29 @@ links:
     url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2446754987/Runbooks
   - name: datadog-operator
     type: repo
-    provider: github
     url: https://github.com/DataDog/datadog-operator
   - name: deployment
     type: repo
-    provider: github
     url: https://github.com/DataDog/k8s-datadog-agent-ops
   - name: internal-chart
     type: repo
-    provider: github
     url: https://github.com/DataDog/k8s-resources/tree/master/k8s/datadog-operator
   - name: internal-image
     type: repo
-    provider: github
     url: https://github.com/DataDog/images/tree/master/datadog-operator
   - name: On Call documentation
     type: doc
-    provider: confluence
     url: https://datadoghq.atlassian.net/wiki/spaces/ContEco/pages/2445645960/On+Call
 tags:
   - app:datadog-operator
   - service:datadog-operator
   - team:container-ecosystems
 integrations:
-  pagerduty:
-    service-url: https://datadog.pagerduty.com/service-directory/PFZC0QZ
+  pagerduty: https://datadog.pagerduty.com/service-directory/PFZC0QZ
 extensions:
   datadoghq.com/sdp:
     conductor:
-      slack: "container-ecosystems"
+      slack: "datadog-operator"
       options:
         rollout_strategy: "installation"
       targets:
@@ -52,5 +47,15 @@ extensions:
           parent_environments: 
             - "staging"
           branch: "main"
-          schedule: "10 3 * * SUN-THU"
-          # workflows:
+          schedule: "30 23 * * SUN-THU"
+          workflows:
+            - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
+          options:
+            disable_failure_notifications: true
+        - name: "conductor-test"
+          ci_pipeline: "//fake_placeholder:fake_placeholder"
+          # Test branch
+          branch: "celene/conductor_testing_branch"
+          slack: "celene-conductor-test"
+          options:
+            disable_failure_notifications: true

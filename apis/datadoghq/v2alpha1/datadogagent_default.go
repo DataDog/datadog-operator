@@ -271,7 +271,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 
 		if ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection == nil {
-			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetection{}
+			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetectionConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
@@ -402,6 +402,22 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.EventCollection = &EventCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EventCollection.CollectKubernetesEvents, defaultCollectKubernetesEvents)
+	if apiutils.BoolValue(ddaSpec.Features.EventCollection.UnbundleEvents) && ddaSpec.Features.EventCollection.CollectedEventTypes == nil {
+		ddaSpec.Features.EventCollection.CollectedEventTypes = []EventTypes{
+			{
+				Kind:    "Pod",
+				Reasons: []string{"Failed", "BackOff", "Unhealthy", "FailedScheduling", "FailedMount", "FailedAttachVolume"},
+			},
+			{
+				Kind:    "Node",
+				Reasons: []string{"TerminatingEvictedPod", "NodeNotReady", "Rebooted", "HostPortConflict"},
+			},
+			{
+				Kind:    "CronJob",
+				Reasons: []string{"SawCompletedJob"},
+			},
+		}
+	}
 
 	// OrchestratorExplorer check Feature
 	if ddaSpec.Features.OrchestratorExplorer == nil {
