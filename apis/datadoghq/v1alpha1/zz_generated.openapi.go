@@ -4926,10 +4926,19 @@ func schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
+				Description: "Interface --> NOTE: this didn't have tags. How would I even assign it? WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
 				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"timeseries": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
+						},
+					},
+				},
 			},
 		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"},
 	}
 }
 
