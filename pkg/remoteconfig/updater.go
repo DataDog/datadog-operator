@@ -36,6 +36,7 @@ const (
 	defaultSite           = "datadoghq.com"
 	pollInterval          = 10 * time.Second
 	remoteConfigUrlPrefix = "https://config."
+	crdRcProduct          = "ORCHESTRATOR_K8S_CRD"
 )
 
 type RemoteConfigUpdater struct {
@@ -59,11 +60,12 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID            string                       `json:"id,omitempty"`
-	Name          string                       `json:"name,omitempty"`
-	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
-	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
-	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+	ID            string                        `json:"id,omitempty"`
+	Name          string                        `json:"name,omitempty"`
+	CoreAgent     *CoreAgentFeaturesConfig      `json:"config,omitempty"`
+	SystemProbe   *SystemProbeFeaturesConfig    `json:"system_probe,omitempty"`
+	SecurityAgent *SecurityAgentFeaturesConfig  `json:"security_agent,omitempty"`
+	CRDs          *CustomResourceDefinitionURLs `json:"crds,omitempty"`
 }
 
 type CoreAgentFeaturesConfig struct {
@@ -90,6 +92,11 @@ type FeatureEnabledConfig struct {
 type agentConfigOrder struct {
 	Order         []string `json:"order"`
 	InternalOrder []string `json:"internal_order"`
+}
+
+// CustomResourceDefinitionURLs defines model for CustomResourceDefinitionURLs.
+type CustomResourceDefinitionURLs struct {
+	Crds *[]string `json:"crds,omitempty"`
 }
 
 // TODO replace
@@ -171,6 +178,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.logger.Info("Remote Configuration client started")
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
+	// TODO: Make const
+	rcClient.Subscribe(crdRcProduct, r.agentConfigUpdateCallback)
 
 	return nil
 }
@@ -266,6 +275,7 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 	// Unmarshal configs and config order
 	var order agentConfigOrder
 	configByID := make(map[string]DatadogAgentRemoteConfig)
+	crds := []string{}
 	for configPath, c := range updates {
 		if c.Metadata.ID == "configuration_order" {
 			if err := json.Unmarshal(c.Config, &order); err != nil {
@@ -273,6 +283,14 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
 			}
+		} else if c.Metadata.Product == crdRcProduct {
+			fmt.Printf("help")
+			rcCRDs := CustomResourceDefinitionURLs{}
+			err := json.Unmarshal(c.Config, &rcCRDs)
+			if err != nil {
+				return DatadogAgentRemoteConfig{}, err
+			}
+			crds = append(crds, *rcCRDs.Crds...)
 		} else {
 			var configData DatadogAgentRemoteConfig
 			if err := json.Unmarshal(c.Config, &configData); err != nil {
@@ -294,6 +312,11 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 			mergeConfigs(&finalConfig, &config)
 		}
 	}
+
+	// Cleanup CRD duplicates and add to final config
+	crds = removeDuplicateStr(crds)
+	finalConfig.CRDs.Crds = &crds
+
 	return finalConfig, nil
 }
 
@@ -484,6 +507,12 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		newddaStatus.RemoteConfigConfiguration.Features.USM = nil
 	}
 
+	// Orchestrator Explorer
+	if cfg.CRDs != nil && len(*cfg.CRDs.Crds) > 0 {
+		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = append(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources, *cfg.CRDs.Crds...)
+		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = removeDuplicateStr(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources)
+	}
+
 	if !apiequality.Semantic.DeepEqual(&dda.Status, newddaStatus) {
 		ddaUpdate := dda.DeepCopy()
 		ddaUpdate.Status = *newddaStatus
@@ -520,4 +549,16 @@ func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *Remot
 		kubeClient: client,
 		logger:     logger,
 	}
+}
+
+func removeDuplicateStr(s []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, item := range s {
+		if _, value := keys[item]; !value {
+			keys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }

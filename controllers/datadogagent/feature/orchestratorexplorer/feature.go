@@ -76,6 +76,10 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	mergeConfigs(&dda.Spec, &dda.Status)
+
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
@@ -126,6 +130,24 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	}
 
 	return reqComp
+}
+
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.Enabled == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.OrchestratorExplorer == nil {
+		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
+	}
+
+	if ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources != nil {
+		ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
+	}
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
