@@ -104,6 +104,7 @@
     "inamedparam",
     "nakedret",
     "gomoddirectives",
+    "dupword",
   ]
 
 [issues]

@@ -32,6 +32,7 @@ stages:
   - release
   - e2e
   - post-release
+  - deploy
 
 .new_e2e_template:
   stage: e2e
@@ -293,7 +294,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -312,7 +313,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -458,3 +459,31 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+
+
+# On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
+publish_nightly_workflow:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
+      when: on_success
+    - when: never
+  needs:
+    - trigger_internal_operator_nightly_image
+    - trigger_internal_operator_check_nightly_image
+  trigger:
+    project: DataDog/k8s-datadog-agent-ops
+    branch: main
+    strategy: depend
+    forward:
+      pipeline_variables: true
+  variables:
+    OPERATOR_NIGHTLY: "true"
+    SKIP_PLAN_CHECK: "true"
+    ENVIRONMENTS: "experimental"
+    CHART: "datadog-operator"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    BAZEL_TARGET: $BAZEL_TARGET
+    DDR: $DDR
+    TARGET_ENV: $TARGET_ENV
+    DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID

@@ -566,7 +566,7 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		EnabledNamespaces:  enabledNamespaces,
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
-		LanguageDetection:  &v2alpha1.LanguageDetection{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
+		LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
 	}
 	return builder
 }
