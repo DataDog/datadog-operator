@@ -64,6 +64,8 @@ stages:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: never
   # Temporarily disable on Conductor-triggered jobs
   - if: '$DDR != "true"'
     when: manual
