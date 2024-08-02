@@ -284,7 +284,6 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
 			}
 		} else if c.Metadata.Product == crdRcProduct {
-			fmt.Printf("help")
 			rcCRDs := CustomResourceDefinitionURLs{}
 			err := json.Unmarshal(c.Config, &rcCRDs)
 			if err != nil {
