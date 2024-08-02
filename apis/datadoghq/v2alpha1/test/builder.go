@@ -717,6 +717,48 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
+// Secrets Backend
+
+func (builder *DatadogAgentBuilder) initSecretsBackendFeature() {
+	if builder.datadogAgent.Spec.Features.SecretsBackend == nil {
+		builder.datadogAgent.Spec.Features.SecretsBackend = &v2alpha1.SecretsBackendFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithSecretsBackendCommand(command string) *DatadogAgentBuilder {
+	builder.initSecretsBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretsBackend.Command = apiutils.NewStringPointer(command)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSecretsBackendArgs(args string) *DatadogAgentBuilder {
+	builder.initSecretsBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretsBackend.Args = apiutils.NewStringPointer(args)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSecretsBackendTimeout(timeout int32) *DatadogAgentBuilder {
+	builder.initSecretsBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretsBackend.Timeout = apiutils.NewInt32Pointer(timeout)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSecretsBackendEnabledGlobalPermissions(enabled bool) *DatadogAgentBuilder {
+	builder.initSecretsBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretsBackend.EnableGlobalPermissions = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithSecretsBackendRoles(roles []v2alpha1.SecretsBackendRolesConfig) *DatadogAgentBuilder {
+	builder.initSecretsBackendFeature()
+	var r []*v2alpha1.SecretsBackendRolesConfig
+	for _, role := range roles {
+		r = append(r, &role)
+	}
+	builder.datadogAgent.Spec.Features.SecretsBackend.Roles = r
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {

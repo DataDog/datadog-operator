@@ -6,6 +6,6 @@
 package secretsbackend
 
 const (
-	secretsBackendRBACSuffix = "secrets-backend"
-	secretsReader            = "secret-reader"
+	secretsBackendRBACSuffix string = "secrets-backend"
+	secretsReader            string = "secret-reader"
 )

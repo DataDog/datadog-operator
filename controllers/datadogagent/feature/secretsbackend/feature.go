@@ -9,13 +9,16 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -92,11 +95,14 @@ func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 		},
 	}
 	// If node Agent is disabled, require cluster Agent
-	if apiutils.BoolValue(dda.Spec.Override[v2alpha1.NodeAgentComponentName].Disabled) {
-		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-			},
+
+	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if apiutils.BoolValue(nodeAgent.Disabled) {
+			reqComp = feature.RequiredComponents{
+				ClusterAgent: feature.RequiredComponent{
+					IsRequired: apiutils.NewBoolPointer(true),
+				},
+			}
 		}
 	}
 
@@ -114,18 +120,24 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 
 	if f.enableGlobalPermissions {
 		rbacName := getGlobalPermSecretsBackendRBACResourceName(f.owner)
+		roleRef := rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     kubernetes.ClusterRolesKind,
+			Name:     rbacName,
+		}
 		// Adding RBAC to node Agents
 		if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameAgent, secretsBackendGlobalRBACPolicyRules); err != nil {
 			return err
 		}
-		// Adding RBAC to cluster Agent
-		if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameClusterAgent, secretsBackendGlobalRBACPolicyRules); err != nil {
+
+		// Adding ClusterRoleBinding to cluster Agent
+		if err := managers.RBACManager().AddClusterRoleBinding(f.owner.GetNamespace(), rbacName, f.serviceAccountNameClusterAgent, roleRef); err != nil {
 			return err
 		}
-		// Adding RBAC to cluster checks runners
+		// Adding ClusterRoleBinding to cluster checks runners
 		// f.serviceAccountNameClusterChecksRunner is empty if CCRs are not enabled
 		if f.serviceAccountNameClusterChecksRunner != "" {
-			return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameClusterChecksRunner, secretsBackendGlobalRBACPolicyRules)
+			return managers.RBACManager().AddClusterRoleBinding(f.owner.GetNamespace(), rbacName, f.serviceAccountNameClusterChecksRunner, roleRef)
 		}
 
 	}
@@ -162,21 +174,21 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 func (f *secretsBackendFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 
 	if f.command != "" {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendCommand,
 			Value: f.command,
 		})
 	}
 
 	if f.args != "" {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendArguments,
 			Value: f.args,
 		})
 	}
 
 	if f.timeout != 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendTimeout,
 			Value: strconv.FormatInt(int64(f.timeout), 10),
 		})
@@ -224,21 +236,21 @@ func (f *secretsBackendFeature) ManageNodeAgent(managers feature.PodTemplateMana
 // It should do nothing if the feature doesn't need to configure it.
 func (f *secretsBackendFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.command != "" {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendCommand,
 			Value: f.command,
 		})
 	}
 
 	if f.args != "" {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendArguments,
 			Value: f.args,
 		})
 	}
 
 	if f.timeout != 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendTimeout,
 			Value: strconv.FormatInt(int64(f.timeout), 10),
 		})
