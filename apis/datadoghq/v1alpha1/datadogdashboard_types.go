@@ -236,7 +236,7 @@ type TimeseriesWidgetDefinition struct {
 	// Size of the title.
 	TitleSize *string `json:"titleSize,omitempty"`
 	// Type of the timeseries widget.
-	Type datadogV1.TimeseriesWidgetDefinitionType `json:"type"`
+	Type datadogV1.TimeseriesWidgetDefinitionType `json:"type,omitempty"`
 	// Axis controls for the widget.
 	Yaxis *WidgetAxis `json:"yaxis,omitempty"`
 }
@@ -270,6 +270,7 @@ type WidgetEvent struct {
 // +k8s:openapi-gen=true
 type WidgetDefinition struct {
 	TimeseriesWidgetDefinition *TimeseriesWidgetDefinition `json:"timeseries,omitempty"`
+	QueryValueWidgetDefinition *QueryValueWidgetDefinition `json:"queryValue,omitempty"`
 }
 
 // WidgetMarker Markers allow you to add visual conditional formatting for your graphs.
@@ -672,6 +673,76 @@ type WidgetFormulaStyle struct {
 	Palette *string `json:"palette,omitempty"`
 	// Index specifying which color to use within the palette.
 	PaletteIndex *int64 `json:"paletteIndex,omitempty"`
+}
+
+// QueryValueWidgetDefinition Query values display the current value of a given metric, APM, or log query.
+type QueryValueWidgetDefinition struct {
+	// Whether to use auto-scaling or not.
+	Autoscale *bool `json:"autoscale,omitempty"`
+	// List of custom links.
+	CustomLinks []WidgetCustomLink `json:"customLinks,omitempty"`
+	// Display a unit of your choice on the widget.
+	CustomUnit *string `json:"customUnit,omitempty"`
+	// Number of decimals to show. If not defined, the widget uses the raw value.
+	Precision *int64 `json:"precision,omitempty"`
+	// Widget definition.
+	Requests []QueryValueWidgetRequest `json:"requests"`
+	// How to align the text on the widget.
+	TextAlign *datadogV1.WidgetTextAlign `json:"textAlign,omitempty"`
+	// Time setting for the widget.
+	Time *WidgetTime `json:"time,omitempty"`
+	// Set a timeseries on the widget background.
+	TimeseriesBackground *TimeseriesBackground `json:"timeseriesBackground,omitempty"`
+	// Title of your widget.
+	Title *string `json:"title,omitempty"`
+	// How to align the text on the widget.
+	TitleAlign *datadogV1.WidgetTextAlign `json:"titleAlign,omitempty"`
+	// Size of the title.
+	TitleSize *string `json:"titleSize,omitempty"`
+	// Type of the query value widget.
+	Type datadogV1.QueryValueWidgetDefinitionType `json:"type"`
+}
+
+// TimeseriesBackground Set a timeseries on the widget background.
+type TimeseriesBackground struct {
+	// Timeseries is made using an area or bars.
+	Type datadogV1.TimeseriesBackgroundType `json:"type"`
+	// Axis controls for the widget.
+	Yaxis *WidgetAxis `json:"yaxis,omitempty"`
+}
+
+// QueryValueWidgetRequest Updated query value widget.
+type QueryValueWidgetRequest struct {
+	// Aggregator used for the request.
+	Aggregator *datadogV1.WidgetAggregator `json:"aggregator,omitempty"`
+	// The log query.
+	ApmQuery *LogQueryDefinition `json:"apmQuery,omitempty"`
+	// The log query.
+	AuditQuery *LogQueryDefinition `json:"auditQuery,omitempty"`
+	// List of conditional formats.
+	ConditionalFormats []WidgetConditionalFormat `json:"conditionalFormats,omitempty"`
+	// The log query.
+	EventQuery *LogQueryDefinition `json:"eventQuery,omitempty"`
+	// List of formulas that operate on queries.
+	Formulas []WidgetFormula `json:"formulas,omitempty"`
+	// The log query.
+	LogQuery *LogQueryDefinition `json:"logQuery,omitempty"`
+	// The log query.
+	NetworkQuery *LogQueryDefinition `json:"networkQuery,omitempty"`
+	// The process query to use in the widget.
+	ProcessQuery *ProcessQueryDefinition `json:"processQuery,omitempty"`
+	// The log query.
+	ProfileMetricsQuery *LogQueryDefinition `json:"profileMetricsQuery,omitempty"`
+	// TODO.
+	Q *string `json:"q,omitempty"`
+	// List of queries that can be returned directly or used in formulas.
+	Queries []FormulaAndFunctionQueryDefinition `json:"queries,omitempty"`
+	// Timeseries, scalar, or event list response. Event list response formats are supported by Geomap widgets.
+	ResponseFormat *datadogV1.FormulaAndFunctionResponseFormat `json:"responseFormat,omitempty"`
+	// The log query.
+	RumQuery *LogQueryDefinition `json:"rumQuery,omitempty"`
+	// The log query.
+	SecurityQuery *LogQueryDefinition `json:"securityQuery,omitempty"`
 }
 
 // DatadogDashboardList contains a list of DatadogDashboard

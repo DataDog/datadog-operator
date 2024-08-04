@@ -27,10 +27,10 @@ import (
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
 	// create a dashboard
 	layoutType := datadogV1.DashboardLayoutType(ddb.Spec.LayoutType)
-	widgets := []datadogV1.Widget{}
+	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
 
 	// NOTE: for now, pass in empty widgetlist
-	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, widgets)
+	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, dbWidgets)
 
 	if ddb.Spec.Description != "" {
 		dashboard.SetDescription(ddb.Spec.Description)
@@ -86,26 +86,7 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 		dashboard.SetTemplateVariables(dbTemplateVariables)
 	}
 
-	logger.Info("about to go through widgets")
-	// create Widgets
-	for _, widget := range ddb.Spec.Widgets {
-		logger.Info("GOING THROUGH WIDGETS")
-		dbWidget := datadogV1.Widget{}
-		if widget.Id != nil {
-			dbWidget.SetId(*widget.Id)
-		}
-		if widget.Definition.TimeseriesWidgetDefinition != nil {
-			logger.Info("FIGURED OUT THAT THIS IS TIMESERIES")
-			timeSeriesDefinition := buildTimeSeries(logger, widget.Definition.TimeseriesWidgetDefinition)
-			definition := datadogV1.WidgetDefinition{
-				TimeseriesWidgetDefinition: timeSeriesDefinition,
-			}
-			dbWidget.SetDefinition(definition)
-		}
-
-		widgets = append(widgets, dbWidget)
-	}
-	dashboard.SetWidgets(widgets)
+	dashboard.SetWidgets(dbWidgets)
 
 	tags := ddb.Spec.Tags
 	sort.Strings(tags)
@@ -166,6 +147,149 @@ func translateClientError(err error, msg string) error {
 	}
 
 	return fmt.Errorf(msg+": %w", err)
+}
+
+func buildWidgets(logger logr.Logger, widgets []v1alpha1.Widget) []datadogV1.Widget {
+	dbWidgets := []datadogV1.Widget{}
+	for _, widget := range widgets {
+		dbWidget := datadogV1.Widget{}
+		if widget.Id != nil {
+			dbWidget.SetId(*widget.Id)
+		}
+		if widget.Definition.TimeseriesWidgetDefinition != nil {
+			timeSeriesDefinition := buildTimeSeries(logger, widget.Definition.TimeseriesWidgetDefinition)
+			definition := datadogV1.WidgetDefinition{
+				TimeseriesWidgetDefinition: timeSeriesDefinition,
+			}
+			dbWidget.SetDefinition(definition)
+		}
+		if widget.Definition.QueryValueWidgetDefinition != nil {
+			queryValueDefinition := buildQueryValue(logger, widget.Definition.QueryValueWidgetDefinition)
+			definition := datadogV1.WidgetDefinition{
+				QueryValueWidgetDefinition: queryValueDefinition,
+			}
+			dbWidget.SetDefinition(definition)
+		}
+
+		dbWidgets = append(dbWidgets, dbWidget)
+	}
+	return dbWidgets
+}
+
+func buildQueryValue(logger logr.Logger, qv *v1alpha1.QueryValueWidgetDefinition) *datadogV1.QueryValueWidgetDefinition {
+	dbQueryValue := datadogV1.QueryValueWidgetDefinition{}
+	if qv.Autoscale != nil {
+		dbQueryValue.SetAutoscale(*qv.Autoscale)
+	}
+	if qv.CustomLinks != nil {
+		dbLinks := convertCustomLinks(qv.CustomLinks)
+		dbQueryValue.SetCustomLinks(dbLinks)
+	}
+	if qv.CustomUnit != nil {
+		dbQueryValue.SetCustomUnit(*qv.CustomUnit)
+	}
+	if qv.Precision != nil {
+		dbQueryValue.SetPrecision(*qv.Precision)
+	}
+	if qv.Requests != nil {
+		dbRequests := convertQvRequests(qv.Requests)
+		dbQueryValue.SetRequests(dbRequests)
+	}
+	if qv.TextAlign != nil {
+		dbQueryValue.SetTextAlign(*qv.TextAlign)
+	}
+	if qv.Time != nil {
+		dbTime := convertWidgetTime(*qv.Time)
+		dbQueryValue.SetTime(dbTime)
+	}
+	if qv.TimeseriesBackground != nil {
+		dbTsBg := convertTsBackground(qv.TimeseriesBackground)
+		dbQueryValue.SetTimeseriesBackground(*dbTsBg)
+	}
+	if qv.Title != nil {
+		dbQueryValue.SetTitle(*qv.Title)
+	}
+	if qv.TitleAlign != nil {
+		dbQueryValue.SetTitleAlign(*qv.TitleAlign)
+	}
+	if qv.Type != "" {
+		dbQueryValue.SetType(qv.Type)
+	}
+	return &dbQueryValue
+}
+
+func convertTsBackground(bg *v1alpha1.TimeseriesBackground) *datadogV1.TimeseriesBackground {
+	dbBg := datadogV1.TimeseriesBackground{}
+	if bg.Type != "" {
+		dbBg.SetType(bg.Type)
+	}
+	if bg.Yaxis != nil {
+		dbYaxis := convertWidgetAxis(*bg.Yaxis)
+		dbBg.SetYaxis(dbYaxis)
+	}
+	return &dbBg
+}
+func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.QueryValueWidgetRequest {
+	dbRequests := []datadogV1.QueryValueWidgetRequest{}
+	for _, request := range requests {
+		dbRequest := datadogV1.QueryValueWidgetRequest{}
+		if request.ApmQuery != nil {
+			dbLogDef := convertLogDefinition(request.ApmQuery)
+			dbRequest.SetApmQuery(*dbLogDef)
+		}
+		if request.AuditQuery != nil {
+			dbLogDef := convertLogDefinition(request.AuditQuery)
+			dbRequest.SetAuditQuery(*dbLogDef)
+		}
+		if request.EventQuery != nil {
+			dbLogDef := convertLogDefinition(request.EventQuery)
+			dbRequest.SetEventQuery(*dbLogDef)
+		}
+		if request.LogQuery != nil {
+			dbLogDef := convertLogDefinition(request.LogQuery)
+			dbRequest.SetLogQuery(*dbLogDef)
+		}
+		if request.NetworkQuery != nil {
+			dbLogDef := convertLogDefinition(request.NetworkQuery)
+			dbRequest.SetNetworkQuery(*dbLogDef)
+		}
+		if request.ProfileMetricsQuery != nil {
+			dbLogDef := convertLogDefinition(request.ProfileMetricsQuery)
+			dbRequest.SetProfileMetricsQuery(*dbLogDef)
+		}
+		if request.RumQuery != nil {
+			dbLogDef := convertLogDefinition(request.RumQuery)
+			dbRequest.SetRumQuery(*dbLogDef)
+		}
+		if request.SecurityQuery != nil {
+			dbLogDef := convertLogDefinition(request.SecurityQuery)
+			dbRequest.SetSecurityQuery(*dbLogDef)
+		}
+		if request.RumQuery != nil {
+			dbLogDef := convertLogDefinition(request.RumQuery)
+			dbRequest.SetRumQuery(*dbLogDef)
+		}
+		if request.ProcessQuery != nil {
+			dbProcessQuery := convertProcessQuery(*request.ProcessQuery)
+			dbRequest.SetProcessQuery(dbProcessQuery)
+		}
+		if request.Formulas != nil {
+			dbFormulas := convertFormulas(request.Formulas)
+			dbRequest.SetFormulas(dbFormulas)
+		}
+		if request.Q != nil {
+			dbRequest.SetQ(*request.Q)
+		}
+		if request.Queries != nil {
+			dbQueries := convertFormulaQueries(request.Queries)
+			dbRequest.SetQueries(dbQueries)
+		}
+		if request.ResponseFormat != nil {
+			dbRequest.SetResponseFormat(*request.ResponseFormat)
+		}
+		dbRequests = append(dbRequests, dbRequest)
+	}
+	return dbRequests
 }
 
 func buildTimeSeries(logger logr.Logger, ts *v1alpha1.TimeseriesWidgetDefinition) *datadogV1.TimeseriesWidgetDefinition {

@@ -4934,11 +4934,16 @@ func schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref common.ReferenceCallba
 							Ref: ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
 						},
 					},
+					"queryValue": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"},
+			"./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition", "./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"},
 	}
 }
 
