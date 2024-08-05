@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
@@ -24,22 +23,8 @@ import (
 )
 
 func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
-	ddav1TCPQLDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				SystemProbe: &v1alpha1.SystemProbeSpec{
-					EnableTCPQueueLength: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
 
-	ddav1TCPQLEnabled := ddav1TCPQLDisabled.DeepCopy()
-	{
-		ddav1TCPQLEnabled.Spec.Agent.SystemProbe.EnableTCPQueueLength = apiutils.NewBoolPointer(true)
-	}
-
-	ddav2TCPQLDisabled := v2alpha1.DatadogAgent{
+	ddaTCPQLDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
@@ -48,9 +33,9 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2TCPQLEnabled := ddav2TCPQLDisabled.DeepCopy()
+	ddaTCPQLEnabled := ddaTCPQLDisabled.DeepCopy()
 	{
-		ddav2TCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = apiutils.NewBoolPointer(true)
+		ddaTCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	tcpQueueLengthAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -163,31 +148,14 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name:          "v1alpha1 tcp queue length not enabled",
-			DDAv1:         ddav1TCPQLDisabled.DeepCopy(),
+			Name:          "tcp queue length not enabled",
+			DDA:           ddaTCPQLDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 tcp queue length enabled",
-			DDAv1:         ddav1TCPQLEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(tcpQueueLengthAgentNodeWantFunc),
-		},
-		///////////////////////////
-		// v2alpha1.DatadogAgent //
-		///////////////////////////
-		{
-			Name:          "v2alpha1 tcp queue length not enabled",
-			DDAv2:         ddav2TCPQLDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v2alpha1 tcp queue length enabled",
-			DDAv2:         ddav2TCPQLEnabled,
+			Name:          "tcp queue length enabled",
+			DDA:           ddaTCPQLEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(tcpQueueLengthAgentNodeWantFunc),
 		},

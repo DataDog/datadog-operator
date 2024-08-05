@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
@@ -23,29 +22,8 @@ import (
 )
 
 func Test_usmFeature_Configure(t *testing.T) {
-	ddav1USMDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				SystemProbe: &v1alpha1.SystemProbeSpec{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
 
-	ddav1USMEnabled := ddav1USMDisabled.DeepCopy()
-	{
-		ddav1USMEnabled.Spec.Agent.SystemProbe.Enabled = apiutils.NewBoolPointer(true)
-		ddav1USMEnabled.Spec.Agent.SystemProbe.Env = append(
-			ddav1USMEnabled.Spec.Agent.SystemProbe.Env,
-			corev1.EnvVar{
-				Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
-				Value: "true",
-			},
-		)
-	}
-
-	ddav2USMDisabled := v2alpha1.DatadogAgent{
+	ddaUSMDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				USM: &v2alpha1.USMFeatureConfig{
@@ -54,9 +32,9 @@ func Test_usmFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2USMEnabled := ddav2USMDisabled.DeepCopy()
+	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
 	{
-		ddav2USMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
+		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -177,31 +155,14 @@ func Test_usmFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name:          "v1alpha1 USM not enabled",
-			DDAv1:         ddav1USMDisabled.DeepCopy(),
+			Name:          "USM not enabled",
+			DDA:           ddaUSMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 USM enabled",
-			DDAv1:         ddav1USMEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
-		},
-		// ///////////////////////////
-		// // v2alpha1.DatadogAgent //
-		// ///////////////////////////
-		{
-			Name:          "v2alpha1 USM not enabled",
-			DDAv2:         ddav2USMDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v2alpha1 USM enabled",
-			DDAv2:         ddav2USMEnabled,
+			Name:          "USM enabled",
+			DDA:           ddaUSMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},

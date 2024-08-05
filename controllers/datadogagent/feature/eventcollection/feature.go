@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/go-logr/logr"
@@ -86,43 +85,6 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *eventCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	config := dda.Spec.Agent.Config
-	dcaConfig := dda.Spec.ClusterAgent.Config
-
-	if *config.LeaderElection {
-		// cluster agent
-		if dcaConfig != nil && apiutils.BoolValue(dcaConfig.CollectEvents) {
-			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-			f.rbacSuffix = common.ClusterAgentSuffix
-
-			reqComp = feature.RequiredComponents{
-				ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			}
-			return reqComp
-		}
-
-		// node agent
-		if apiutils.BoolValue(config.CollectEvents) {
-			f.serviceAccountName = v1alpha1.GetAgentServiceAccount(dda)
-			f.rbacSuffix = common.NodeAgentSuffix
-
-			reqComp = feature.RequiredComponents{
-				Agent: feature.RequiredComponent{
-					IsRequired: apiutils.NewBoolPointer(true),
-					Containers: []apicommonv1.AgentContainerName{
-						apicommonv1.CoreAgentContainerName,
-					},
-				},
-			}
 		}
 	}
 

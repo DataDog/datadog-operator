@@ -10,35 +10,20 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
-	ddav1NPMDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				NetworkMonitoring: &v1alpha1.NetworkMonitoringConfig{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-
-	ddav1NPMEnabled := ddav1NPMDisabled.DeepCopy()
-	{
-		ddav1NPMEnabled.Spec.Features.NetworkMonitoring.Enabled = apiutils.NewBoolPointer(true)
-	}
-
-	ddav2NPMDisabled := v2alpha1.DatadogAgent{
+	ddaNPMDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
@@ -47,12 +32,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2NPMEnabled := ddav2NPMDisabled.DeepCopy()
-	ddav2NPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
+	ddaNPMEnabled := ddaNPMDisabled.DeepCopy()
+	ddaNPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
 
-	ddav2NPMEnabledConfig := ddav2NPMEnabled.DeepCopy()
-	ddav2NPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
-	ddav2NPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+	ddaNPMEnabledConfig := ddaNPMEnabled.DeepCopy()
+	ddaNPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
+	ddaNPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
 
 	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -219,37 +204,20 @@ func Test_npmFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name:          "v1alpha1 NPM not enabled",
-			DDAv1:         ddav1NPMDisabled.DeepCopy(),
+			Name:          "NPM not enabled",
+			DDA:           ddaNPMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 NPM enabled",
-			DDAv1:         ddav1NPMEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
-		},
-		// ///////////////////////////
-		// // v2alpha1.DatadogAgent //
-		// ///////////////////////////
-		{
-			Name:          "v2alpha1 NPM not enabled",
-			DDAv2:         ddav2NPMDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v2alpha1 NPM enabled",
-			DDAv2:         ddav2NPMEnabled,
+			Name:          "NPM enabled",
+			DDA:           ddaNPMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 		{
-			Name:          "v2alpha1 NPM enabled, conntrack disable, dnsstat enabled",
-			DDAv2:         ddav2NPMEnabledConfig,
+			Name:          "NPM enabled, conntrack disable, dnsstat enabled",
+			DDA:           ddaNPMEnabledConfig,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmFeatureEnvVarWantFunc),
 		},
