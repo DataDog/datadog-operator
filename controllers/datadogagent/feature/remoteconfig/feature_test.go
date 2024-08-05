@@ -13,23 +13,20 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_rcFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v2Alpha1.DatadogAgent
-		//////////////////////////
 		{
-			Name: "v2alpha1 RC not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "RC not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithRemoteConfigEnabled(false).
 				Build(),
 			WantConfigure: true,
@@ -37,8 +34,8 @@ func Test_rcFeature_Configure(t *testing.T) {
 			ClusterAgent:  rcClusterAgentNodeWantFunc(false),
 		},
 		{
-			Name: "v2alpha1 RC enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "RC enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithRemoteConfigEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -46,8 +43,8 @@ func Test_rcFeature_Configure(t *testing.T) {
 			ClusterAgent:  rcClusterAgentNodeWantFunc(true),
 		},
 		{
-			Name: "v2alpha1 RC default (no datadogagent_default.go)",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "RC default (no datadogagent_default.go)",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         rcAgentNodeWantFunc(false),

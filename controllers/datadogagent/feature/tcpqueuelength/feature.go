@@ -11,7 +11,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -47,18 +46,6 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 		return
 	}
 	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.SystemProbe != nil && apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},

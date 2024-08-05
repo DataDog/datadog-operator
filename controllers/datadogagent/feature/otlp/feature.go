@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/go-logr/logr"
@@ -92,49 +91,6 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
 	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
-
-	if f.grpcEnabled || f.httpEnabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				},
-			},
-		}
-		// if using APM, require the Trace Agent too.
-		if f.usingAPM {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	otlp := dda.Spec.Agent.OTLP
-	f.owner = dda
-	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
-		f.grpcEnabled = true
-	}
-	if otlp.Receiver.Protocols.GRPC.Endpoint != nil {
-		f.grpcEndpoint = *otlp.Receiver.Protocols.GRPC.Endpoint
-	}
-
-	if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.Enabled) {
-		f.httpEnabled = true
-	}
-	if otlp.Receiver.Protocols.HTTP.Endpoint != nil {
-		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
-	}
-
-	f.usingAPM = apiutils.BoolValue(dda.Spec.Agent.Apm.Enabled)
-
-	if dda.Spec.Agent.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-	}
-	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{

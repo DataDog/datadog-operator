@@ -11,7 +11,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -212,64 +211,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		}
 	}
 
-}
-
-func (f *defaultFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	/*
-		trueValue := true
-		f.owner = dda
-		f.namespace = dda.GetNamespace()
-
-		required := feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-		}
-
-		f.clusterAgent.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-		f.agent.serviceAccountName = v1alpha1.GetAgentServiceAccount(dda)
-		f.clusterChecksRunner.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
-
-		// get info about credential
-		// If API key, app key _and_ token don't need a new secret, then don't create one.
-		if dda.Spec.Credentials != nil &&
-			(!v1alpha1.CheckAPIKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAPIKeyEnvVar) ||
-				!v1alpha1.CheckAppKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAppKeyEnvVar)) {
-			f.credentialsInfo.secretCreation.createSecret = true
-			f.credentialsInfo.secretCreation.name = v1alpha1.GetDefaultCredentialsSecretName(dda)
-
-			creds := dda.Spec.Credentials
-			if creds.APIKey != "" {
-				f.credentialsInfo.secretCreation.data[apicommon.DefaultAPIKeyKey] = creds.APIKey
-			}
-			if creds.AppKey != "" {
-				f.credentialsInfo.secretCreation.data[apicommon.DefaultAPPKeyKey] = creds.AppKey
-			}
-
-			// TOKEN management
-			f.dcaTokenInfo.secretCreation.createSecret = true
-			f.dcaTokenInfo.secretCreation.name = v1alpha1.GetDefaultCredentialsSecretName(dda)
-			f.dcaTokenInfo.token.SecretName = f.dcaTokenInfo.secretCreation.name
-			f.dcaTokenInfo.token.SecretKey = apicommon.DefaultTokenKey
-			if creds.Token != "" {
-				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = creds.Token
-			} else if apiutils.BoolValue(dda.Spec.ClusterAgent.Enabled) {
-				defaultedToken := v1alpha1.DefaultedClusterAgentToken(&dda.Status)
-				if defaultedToken != "" {
-					f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = defaultedToken
-				}
-			}
-		}
-	*/
-	// to not apply this feature on v1alpha1
-	// Else it break unittest in `controller_test.go` because the `store` modified the dependency resources with an additional labels.
-	// which make the comparison failing.
-	required := feature.RequiredComponents{}
-
-	return required
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

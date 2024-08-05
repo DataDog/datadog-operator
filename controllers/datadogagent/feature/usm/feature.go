@@ -9,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -47,35 +46,6 @@ func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	usmConfig := dda.Spec.Features.USM
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SystemProbeContainerName,
-				},
-			},
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.SystemProbe == nil {
-		return reqComp
-	}
-
-	enabledEnvVarIsSet := false
-	for _, envVar := range dda.Spec.Agent.SystemProbe.Env {
-		if envVar.Name == apicommon.DDSystemProbeServiceMonitoringEnabled && envVar.Value == "true" {
-			enabledEnvVarIsSet = true
-		}
-	}
-
-	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.Enabled && enabledEnvVarIsSet {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
