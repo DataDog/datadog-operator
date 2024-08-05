@@ -11,6 +11,7 @@ package e2e
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/zorkian/go-datadog-api.v2"
+	"github.com/zorkian/go-datadog-api"
 )
 
 type kindEnv struct {
@@ -80,7 +81,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 		}
 
 		// Create kind cluster
-		kindClusterName := ctx.Stack()
+		kindClusterName := strings.ReplaceAll(ctx.Stack(), ".", "-")
 
 		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", k8sVersion), nil)
 		if err != nil {
@@ -154,6 +155,21 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
+		// Create datadog cluster name configMap
+		// TODO: remove this when NewAgentWithOperator is available in test-infra-definitions
+		_, err = corev1.NewConfigMap(ctx, "datadog-cluster-name", &corev1.ConfigMapArgs{
+			Metadata: metav1.ObjectMetaArgs{
+				Namespace: pulumi.String(namespaceName),
+				Name:      pulumi.String("datadog-cluster-name"),
+			},
+			Data: pulumi.StringMap{
+				"DD_CLUSTER_NAME": pulumi.String(kindClusterName),
+			},
+		}, pulumi.Provider(kindKubeProvider))
+		if err != nil {
+			return err
+		}
+
 		return nil
 
 	}, runner.ConfigMap{
@@ -193,7 +209,7 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		var now time.Time
-		metricQuery := "exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:operator-e2e-ci, container_id:*})"
+		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.kubelet.container.log_filesystem.used_bytes{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			now = time.Now()
