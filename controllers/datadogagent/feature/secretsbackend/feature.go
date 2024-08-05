@@ -18,7 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 func init() {
@@ -121,8 +121,8 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 	if f.enableGlobalPermissions {
 		rbacName := getGlobalPermSecretsBackendRBACResourceName(f.owner)
 		roleRef := rbacv1.RoleRef{
-			APIGroup: rbacv1.GroupName,
-			Kind:     kubernetes.ClusterRolesKind,
+			APIGroup: rbac.RbacAPIGroup,
+			Kind:     rbac.ClusterRoleKind,
 			Name:     rbacName,
 		}
 		// Adding RBAC to node Agents
@@ -149,8 +149,8 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 			policyRule := getSecretsRolesPermissions(role)
 			targetSaNamespace := f.owner.GetNamespace()
 			roleRef := rbacv1.RoleRef{
-				APIGroup: rbacv1.GroupName,
-				Kind:     kubernetes.RolesKind,
+				APIGroup: rbac.RbacAPIGroup,
+				Kind:     rbac.RoleKind,
 				Name:     rbacName,
 			}
 			// Adding RBAC to node Agents

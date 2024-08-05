@@ -254,7 +254,7 @@ func testGlobalPermissionsRBACResources(t testing.TB, store dependencies.StoreCl
 
 	expectedRoleRef := rbacv1.RoleRef{
 		APIGroup: rbacv1.GroupName,
-		Kind:     kubernetes.ClusterRolesKind,
+		Kind:     rbac.ClusterRoleKind,
 		Name:     rbacName,
 	}
 
@@ -292,7 +292,7 @@ func testRolesPermissionsRBACResources(t testing.TB, store dependencies.StoreCli
 		}
 		expectedRoleRef := rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
-			Kind:     kubernetes.RolesKind,
+			Kind:     rbac.RoleKind,
 			Name:     rbacName,
 		}
 
