@@ -11,7 +11,7 @@ spec:
       appSecret:
         secretName: datadog-secret
         keyName: app-key
-    clusterName: operator-e2e-ci
+    clusterName: operator-e2e-ci # TODO: use unique cluster names when we update E2E to use new NewDDAWithOperator method from test-infra-definitions
     kubelet:
       tlsVerify: false
   features:

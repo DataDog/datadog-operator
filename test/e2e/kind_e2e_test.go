@@ -193,7 +193,7 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		var now time.Time
-		metricQuery := "exclude_null(avg:kubernetes.cpu.usage.total{cluster_name:operator-e2e-ci, container_id:*})"
+		metricQuery := "exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:operator-e2e-ci, container_id:*})"
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			now = time.Now()
