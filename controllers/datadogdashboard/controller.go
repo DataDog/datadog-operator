@@ -24,17 +24,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/controllers/finalizer"
 	"github.com/DataDog/datadog-operator/controllers/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 const (
-	defaultRequeuePeriod      = 60 * time.Second
-	defaultErrRequeuePeriod   = 5 * time.Second
-	defaultForceSyncPeriod    = 60 * time.Minute
-	datadogDashboardKind      = "DatadogDashboard"
-	datadogDashboardFinalizer = "finalizer.dashboard.datadoghq.com"
+	defaultRequeuePeriod    = 60 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
+	defaultForceSyncPeriod  = 60 * time.Minute
+	datadogDashboardKind    = "DatadogDashboard"
 )
 
 type Reconciler struct {
@@ -79,14 +77,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	final := finalizer.NewFinalizer(
-		logger,
-		r.client,
-		r.delete(logger, instance),
-		defaultRequeuePeriod,
-		defaultErrRequeuePeriod,
-	)
-	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogDashboardFinalizer); ctrutils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -120,7 +111,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err := r.get(instance)
+			_, err = r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting Dashboard", "Dashboard ID", instance.Status.ID)
 				updateErrStatus(status, now, v1alpha1.DatadoggDashboardSyncStatusGetError, "GettingDashboard", err)
@@ -136,14 +127,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	if shouldCreate || shouldUpdate {
 		// Check that required tags are present
-		tagsUpdated, err := r.checkRequiredTags(logger, instance)
-		if err != nil {
-			result.RequeueAfter = defaultErrRequeuePeriod
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		} else if tagsUpdated {
-			// A reconcile is triggered by the update
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		}
+		// tagsUpdated, err := r.checkRequiredTags(logger, instance)
+		// if err != nil {
+		// 	result.RequeueAfter = defaultErrRequeuePeriod
+		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
+		// } else if tagsUpdated {
+		// 	// A reconcile is triggered by the update
+		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
+		// }
 
 		if shouldCreate {
 			err = r.create(logger, instance, status, now, instanceSpecHash)
@@ -203,58 +194,45 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
 		return err
 	}
+	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
+	r.recordEvent(instance, event)
 
-	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
-	// NOTE: dashboard doesn't have a get creator get creator method
-	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
-	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
+	// Add static information to status
 	status.ID = createdDashboard.GetId()
+	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
+	// NOTE: dashboard doesn't have a creator field
+	status.Creator = createdDashboard.GetAuthorHandle()
 	status.Created = &createdTime
-	// NOTE: is there a need for a kubernetes primary field like in monitors (which is not in SLOS)
+	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.LastForceSyncTime = &createdTime
 	status.CurrentHash = hash
 
+	// Set condition and status
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
 	logger.Info("created a new DatadogDashboard", "dashboard ID", status.ID)
-	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
-	r.recordEvent(instance, event)
 
 	return nil
 }
 
-func (r *Reconciler) delete(logger logr.Logger, instance *v1alpha1.DatadogDashboard) finalizer.ResourceDeleteFunc {
-	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		if datadogID != "" {
-			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-			if err := deleteDashboard(r.datadogAuth, r.datadogClient, datadogID); err != nil {
-				logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
-				return err
-			}
-			logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
-		}
-		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
-		return nil
-	}
-}
+// NOTE: commented out for now since 'generated:kubernetes' is not allowed as a tag in the dashboards API
+// func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
+// 	tags := instance.Spec.Tags
+// 	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
+// 	tagsToAdd := []string{}
+// 	if len(tagsToAdd) > 0 {
+// 		tags = append(tags, tagsToAdd...)
+// 		instance.Spec.Tags = tags
+// 		err := r.client.Update(context.TODO(), instance)
+// 		if err != nil {
+// 			logger.Error(err, "failed to update DatadogDashboard with required tags")
+// 			return false, err
+// 		}
+// 		logger.Info("Added required tags", "Dashboard ID", instance.Status.ID)
+// 		return true, nil
+// 	}
 
-func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
-	tags := instance.Spec.Tags
-	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
-	tagsToAdd := []string{}
-	if len(tagsToAdd) > 0 {
-		tags = append(tags, tagsToAdd...)
-		instance.Spec.Tags = tags
-		err := r.client.Update(context.TODO(), instance)
-		if err != nil {
-			logger.Error(err, "failed to update DatadogDashboard with required tags")
-			return false, err
-		}
-		logger.Info("Added required tags", "Dashboard ID", instance.Status.ID)
-		return true, nil
-	}
-
-	return false, nil
-}
+// 	return false, nil
+// }
 
 func updateErrStatus(status *v1alpha1.DatadogDashboardStatus, now metav1.Time, syncStatus v1alpha1.DatadogDashboardSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)

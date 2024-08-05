@@ -2157,7 +2157,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 					},
 					"reflowType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
+							Description: "Reflow type for a new dashboard layout dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4889,7 +4889,7 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Widget Information about widget.\n\n**Note**: The `layout` property is required for widgets in dashboards with `free` `layout_type`.\n\n\tFor the **new dashboard layout**, the `layout` property depends on the `reflow_type` of the dashboard.\n\t- If `reflow_type` is `fixed`, `layout` is required.\n\t- If `reflow_type` is `auto`, `layout` should not be set.",
+				Description: "Widget Information about widget.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"definition": {
@@ -4908,7 +4908,7 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 					},
 					"layout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The layout for a widget on a `free` or **new dashboard layout** dashboard.",
+							Description: "The layout for a widget on a `free` or new dashboard layout dashboard.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetLayout"),
 						},
@@ -4951,7 +4951,7 @@ func schema__apis_datadoghq_v1alpha1_WidgetLayout(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "WidgetLayout The layout for a widget on a `free` or **new dashboard layout** dashboard.",
+				Description: "WidgetLayout The layout for a widget on a `free` or new dashboard layout dashboard.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"height": {
@@ -4964,7 +4964,7 @@ func schema__apis_datadoghq_v1alpha1_WidgetLayout(ref common.ReferenceCallback) 
 					},
 					"isColumnBreak": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Whether the widget should be the first one on the second column in high density or not. **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.",
+							Description: "Whether the widget should be the first one on the second column in high density or not.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

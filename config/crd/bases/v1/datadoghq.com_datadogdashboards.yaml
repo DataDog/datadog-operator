@@ -65,7 +65,7 @@ spec:
                   x-kubernetes-list-type: set
                 reflowType:
                   description: |-
-                    Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
+                    Reflow type for a new dashboard layout dashboard. Set this only when layout type is 'ordered'.
                     If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
                     widgets should not have layouts.
                   type: string
@@ -171,16 +171,7 @@ spec:
                 widgets:
                   description: List of widgets to display on the dashboard.
                   items:
-                    description: |-
-                      Widget Information about widget.
-
-
-                      **Note**: The `layout` property is required for widgets in dashboards with `free` `layout_type`.
-
-
-                      	For the **new dashboard layout**, the `layout` property depends on the `reflow_type` of the dashboard.
-                      	- If `reflow_type` is `fixed`, `layout` is required.
-                      	- If `reflow_type` is `auto`, `layout` should not be set.
+                    description: Widget Information about widget.
                     properties:
                       definition:
                         description: '[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).'
@@ -2696,16 +2687,14 @@ spec:
                         format: int64
                         type: integer
                       layout:
-                        description: The layout for a widget on a `free` or **new dashboard layout** dashboard.
+                        description: The layout for a widget on a `free` or new dashboard layout dashboard.
                         properties:
                           height:
                             description: The height of the widget. Should be a non-negative integer.
                             format: int64
                             type: integer
                           isColumnBreak:
-                            description: |-
-                              Whether the widget should be the first one on the second column in high density or not.
-                              **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.
+                            description: Whether the widget should be the first one on the second column in high density or not.
                             type: boolean
                           width:
                             description: The width of the widget. Should be a non-negative integer.
