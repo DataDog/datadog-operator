@@ -5,13 +5,13 @@ go 1.22
 toolchain go1.22.4
 
 require (
-	github.com/DataDog/datadog-api-client-go/v2 v2.19.0
+	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
 	github.com/DataDog/extendeddaemonset v0.10.0-rc.4
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.2.4
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.5.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5

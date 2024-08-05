@@ -33,6 +33,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec":                 schema__apis_datadoghq_v1alpha1_DSDUnixDomainSocketSpec(ref),
 		"./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema__apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
+		"./apis/datadoghq/v1alpha1.DashboardTemplateVariable":               schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
+		"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset":         schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
+		"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":    schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgent":                            schema__apis_datadoghq_v1alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentCondition":                   schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentProfile":                     schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref),
@@ -43,6 +46,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentStatus":                      schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref),
 		"./apis/datadoghq/v1alpha1.DatadogCredentials":                      schema__apis_datadoghq_v1alpha1_DatadogCredentials(ref),
+		"./apis/datadoghq/v1alpha1.DatadogDashboard":                        schema__apis_datadoghq_v1alpha1_DatadogDashboard(ref),
+		"./apis/datadoghq/v1alpha1.DatadogDashboardSpec":                    schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
+		"./apis/datadoghq/v1alpha1.DatadogDashboardStatus":                  schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
 		"./apis/datadoghq/v1alpha1.DatadogFeatures":                         schema__apis_datadoghq_v1alpha1_DatadogFeatures(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMetric":                           schema__apis_datadoghq_v1alpha1_DatadogMetric(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
@@ -68,6 +74,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.LogCollectionConfig":                     schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref),
 		"./apis/datadoghq/v1alpha1.NetworkPolicySpec":                       schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref),
 		"./apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
+		"./apis/datadoghq/v1alpha1.NullableList":                            schema__apis_datadoghq_v1alpha1_NullableList(ref),
+		"./apis/datadoghq/v1alpha1.NullableString":                          schema__apis_datadoghq_v1alpha1_NullableString(ref),
 		"./apis/datadoghq/v1alpha1.OTLPGRPCSpec":                            schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPHTTPSpec":                            schema__apis_datadoghq_v1alpha1_OTLPHTTPSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPProtocolsSpec":                       schema__apis_datadoghq_v1alpha1_OTLPProtocolsSpec(ref),
@@ -81,6 +89,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.SecuritySpec":                            schema__apis_datadoghq_v1alpha1_SecuritySpec(ref),
 		"./apis/datadoghq/v1alpha1.SyscallMonitorSpec":                      schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref),
 		"./apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
+		"./apis/datadoghq/v1alpha1.Widget":                                  schema__apis_datadoghq_v1alpha1_Widget(ref),
+		"./apis/datadoghq/v1alpha1.WidgetDefinition":                        schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref),
+		"./apis/datadoghq/v1alpha1.WidgetLayout":                            schema__apis_datadoghq_v1alpha1_WidgetLayout(ref),
 	}
 }
 
@@ -963,6 +974,164 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.Refer
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration", "k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DashboardTemplateVariable Template variable.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"availableValues": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The list of values that the template variable drop-down is limited to.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.NullableList"),
+						},
+					},
+					"default": {
+						SchemaProps: spec.SchemaProps{
+							Description: "(deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`. Deprecated",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+						},
+					},
+					"defaults": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the variable.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"prefix": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.NullableList", "./apis/datadoghq/v1alpha1.NullableString"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DashboardTemplateVariablePreset Template variables saved views.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the variable.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"templateVariables": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "List of variables.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DashboardTemplateVariablePresetValue Template variables saved views.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The name of the variable.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "(deprecated) The value of the template variable within the saved view. Cannot be used in conjunction with `values`. Deprecated",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"values": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "One or many template variable values within the saved view, which will be unioned together using `OR` if more than one is specified. Cannot be used in conjunction with `value`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
 	}
 }
 
@@ -1895,6 +2064,279 @@ func schema__apis_datadoghq_v1alpha1_DatadogCredentials(ref common.ReferenceCall
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.SecretConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogDashboard(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogDashboard is the Schema for the datadogdashboards API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogDashboardSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogDashboardStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogDashboardSpec", "./apis/datadoghq/v1alpha1.DatadogDashboardStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogDashboardSpec defines the desired state of DatadogDashboard",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description of the dashboard.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"layoutType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Layout type of the dashboard.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"notifyList": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "List of handles of users to notify when changes are made to this dashboard.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"reflowType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Reflow type for a new dashboard layout dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "List of team names representing ownership of a dashboard.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"templateVariablePresets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Array of template variables saved views.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset"),
+									},
+								},
+							},
+						},
+					},
+					"templateVariables": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "List of template variables for this dashboard.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariable"),
+									},
+								},
+							},
+						},
+					},
+					"title": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Title of the dashboard.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"widgets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"id",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "List of widgets to display on the dashboard.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.Widget"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DashboardTemplateVariable", "./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset", "./apis/datadoghq/v1alpha1.Widget"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogDashboardStatus defines the observed state of DatadogDashboard",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the state of a DatadogSLO.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the SLO ID generated in Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"creator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Creator is the identity of the SLO creator.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"created": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Created is the time the SLO was created.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"syncStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncStatus shows the health of syncing the SLO state to Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash tracks the hash of the current DatadogSLOSpec to know if the Spec has changed and needs an update.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dashboardLastForceSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -3635,6 +4077,64 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 	}
 }
 
+func schema__apis_datadoghq_v1alpha1_NullableList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NullableList struct to hold nullable list value.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"isSet": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_NullableString(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NullableString is a struct to hold a nullable string value.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"isSet": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4382,5 +4882,106 @@ func schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v1alpha1.CustomConfigSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Widget Information about widget.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"definition": {
+						SchemaProps: spec.SchemaProps{
+							Description: "[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetDefinition"),
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID of the widget.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"layout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The layout for a widget on a `free` or new dashboard layout dashboard.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetLayout"),
+						},
+					},
+				},
+				Required: []string{"definition", "id"},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.WidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_WidgetLayout(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "WidgetLayout The layout for a widget on a `free` or new dashboard layout dashboard.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"height": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The height of the widget. Should be a non-negative integer.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"isColumnBreak": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether the widget should be the first one on the second column in high density or not.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"width": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The width of the widget. Should be a non-negative integer.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"x": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The position of the widget on the x (horizontal) axis. Should be a non-negative integer.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"y": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The position of the widget on the y (vertical) axis. Should be a non-negative integer.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"height", "width", "x", "y"},
+			},
+		},
 	}
 }
