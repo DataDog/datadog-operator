@@ -18,7 +18,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -156,47 +155,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 	}
 
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	apm := dda.Spec.Agent.Apm
-	if apiutils.BoolValue(apm.Enabled) {
-		f.hostPortEnabled = true
-		f.hostPortHostPort = *apm.HostPort
-		f.useHostNetwork = v1alpha1.IsHostNetworkEnabled(dda)
-		if apiutils.BoolValue(apm.UnixDomainSocket.Enabled) {
-			f.udsEnabled = true
-			if apm.UnixDomainSocket.HostFilepath != nil {
-				f.udsHostFilepath = *apm.UnixDomainSocket.HostFilepath
-			}
-		}
-
-		if dda.Spec.Agent.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-		}
-		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-
-		if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
-			if flavor == v1alpha1.NetworkPolicyFlavorCilium {
-				f.createCiliumNetworkPolicy = true
-			} else {
-				f.createKubernetesNetworkPolicy = true
-			}
-		}
-
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.TraceAgentContainerName,
-				},
-			},
-		}
-	}
 	return reqComp
 }
 

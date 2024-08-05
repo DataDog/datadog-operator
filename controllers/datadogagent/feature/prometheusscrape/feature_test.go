@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -38,15 +39,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 
 	tests := test.FeatureTestSuite{
 		{
-			Name: "v2alpha1 Prometheus scrape not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Prometheus scrape not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 Prometheus scrape enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Prometheus scrape enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -82,8 +83,8 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "v2alpha1 Prometheus scrape service endpoints enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Prometheus scrape service endpoints enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeServiceEndpoints(true).
 				Build(),
@@ -120,8 +121,8 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "v2alpha1 Prometheus scrape additional configs",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "Prometheus scrape additional configs",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeAdditionalConfigs(yamlConfigs).
 				Build(),
@@ -166,8 +167,8 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name: "v2alpha1 version specified",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "version specified",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeVersion(1).
 				Build(),

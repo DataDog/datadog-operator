@@ -71,7 +71,7 @@ func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Manage Cluster Agent service account name env variable",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithName("datadog").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),

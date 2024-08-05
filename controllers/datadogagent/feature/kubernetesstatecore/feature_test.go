@@ -11,7 +11,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -35,42 +34,24 @@ instances:
 
 func Test_ksmFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v1Alpha1.DatadogAgent
-		//////////////////////////
 		{
-			Name:          "v1alpha1 ksm-core not enabled",
-			DDAv1:         newV1Agent(false, false),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v1alpha1 ksm-core enabled",
-			DDAv1:         newV1Agent(true, false),
-			WantConfigure: true,
-			ClusterAgent:  ksmClusterAgentWantFunc(false),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
-		},
-		//////////////////////////
-		// v2Alpha1.DatadogAgent
-		//////////////////////////
-		{
-			Name: "v2alpha1 ksm-core not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 ksm-core not enabled with single agent container",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core not enabled with single agent container",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(false).
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -78,8 +59,8 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled with single agent container",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core enabled with single agent container",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -88,8 +69,8 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentSingleAgentWantFunc),
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled, custom config",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core enabled, custom config",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				Build(),
@@ -98,8 +79,8 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name: "v2alpha1 ksm-core enabled, custom config with single agent container",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "ksm-core enabled, custom config with single agent container",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				WithSingleContainerStrategy(true).
@@ -111,24 +92,6 @@ func Test_ksmFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildKSMFeature)
-}
-
-func newV1Agent(enableKSM bool, hasCustomConfig bool) *v1alpha1.DatadogAgent {
-	ddaV1 := &v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &v1alpha1.KubeStateMetricsCore{
-					Enabled: apiutils.NewBoolPointer(enableKSM),
-				},
-			},
-		},
-	}
-	if hasCustomConfig {
-		ddaV1.Spec.Features.KubeStateMetricsCore.Conf = &v1alpha1.CustomConfigSpec{
-			ConfigData: apiutils.NewStringPointer(customData),
-		}
-	}
-	return ddaV1
 }
 
 func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {

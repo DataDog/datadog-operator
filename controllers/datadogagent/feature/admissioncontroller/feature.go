@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
@@ -197,28 +196,6 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 		}
 
-	}
-	return reqComp
-}
-
-func (f *admissionControllerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-
-	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.AdmissionController != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.AdmissionController.Enabled) {
-		ac := dda.Spec.ClusterAgent.Config.AdmissionController
-		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
-		f.serviceName = *ac.ServiceName
-		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
-			f.agentCommunicationMode = *ac.AgentCommunicationMode
-		}
-		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-		}
-		f.webhookName = apicommon.DefaultAdmissionControllerWebhookName
-		f.cwsInstrumentationEnabled = v2alpha1.DefaultAdmissionControllerCWSInstrumentationEnabled
-		f.cwsInstrumentationMode = v2alpha1.DefaultAdmissionControllerCWSInstrumentationMode
 	}
 	return reqComp
 }

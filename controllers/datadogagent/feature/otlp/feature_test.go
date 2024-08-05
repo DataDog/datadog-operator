@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -25,12 +24,9 @@ import (
 
 func TestOTLPFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v1Alpha1.DatadogAgent
-		//////////////////////////
 		{
-			Name: "v1alpha1 gRPC and HTTP enabled, APM",
-			DDAv1: newV1Agent(Settings{
+			Name: "gRPC and HTTP enabled, APM",
+			DDA: newAgent(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 				EnabledHTTP:  true,
@@ -67,100 +63,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "v1alpha1 gRPC enabled, APM",
-			DDAv1: newV1Agent(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
-				APM:          true,
-			}),
-			WantConfigure: true,
-			Agent: testExpected(Expected{
-				EnvVars: []*corev1.EnvVar{
-					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
-						Value: "0.0.0.0:4317",
-					},
-				},
-				CheckTraceAgent: true,
-				Ports: []*corev1.ContainerPort{
-					{
-						Name:          apicommon.OTLPGRPCPortName,
-						ContainerPort: 4317,
-						HostPort:      4317,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-			}),
-		},
-		{
-			Name: "v1alpha1 HTTP enabled, no APM",
-			DDAv1: newV1Agent(Settings{
-				EnabledHTTP:  true,
-				EndpointHTTP: "localhost:4318",
-			}),
-			WantConfigure: true,
-			Agent: testExpected(Expected{
-				EnvVars: []*corev1.EnvVar{
-					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
-						Value: "localhost:4318",
-					},
-				},
-				Ports: []*corev1.ContainerPort{
-					{
-						Name:          apicommon.OTLPHTTPPortName,
-						ContainerPort: 4318,
-						HostPort:      4318,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-			}),
-		},
-
-		//////////////////////////
-		// v2Alpha1.DatadogAgent
-		//////////////////////////
-		{
-			Name: "v2alpha1 gRPC and HTTP enabled, APM",
-			DDAv2: newV2Agent(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
-				EnabledHTTP:  true,
-				EndpointHTTP: "0.0.0.0:4318",
-				APM:          true,
-			}),
-			WantConfigure: true,
-			Agent: testExpected(Expected{
-				EnvVars: []*corev1.EnvVar{
-					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
-						Value: "0.0.0.0:4317",
-					},
-					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
-						Value: "0.0.0.0:4318",
-					},
-				},
-				CheckTraceAgent: true,
-				Ports: []*corev1.ContainerPort{
-					{
-						Name:          apicommon.OTLPGRPCPortName,
-						ContainerPort: 4317,
-						HostPort:      4317,
-						Protocol:      corev1.ProtocolTCP,
-					},
-					{
-						Name:          apicommon.OTLPHTTPPortName,
-						ContainerPort: 4318,
-						HostPort:      4318,
-						Protocol:      corev1.ProtocolTCP,
-					},
-				},
-			}),
-		},
-		{
-			Name: "[single container] v2alpha1 gRPC and HTTP enabled, APM",
-			DDAv2: newV2AgentSingleContainer(Settings{
+			Name: "[single container] gRPC and HTTP enabled, APM",
+			DDA: newAgentSingleContainer(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 				EnabledHTTP:  true,
@@ -197,8 +101,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "v2alpha1 gRPC enabled, no APM",
-			DDAv2: newV2Agent(Settings{
+			Name: "gRPC enabled, no APM",
+			DDA: newAgent(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 			}),
@@ -221,8 +125,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "[single container] v2alpha1 gRPC enabled, no APM",
-			DDAv2: newV2AgentSingleContainer(Settings{
+			Name: "[single container] gRPC enabled, no APM",
+			DDA: newAgentSingleContainer(Settings{
 				EnabledGRPC:  true,
 				EndpointGRPC: "0.0.0.0:4317",
 			}),
@@ -245,8 +149,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "v2alpha1 HTTP enabled, APM",
-			DDAv2: newV2Agent(Settings{
+			Name: "HTTP enabled, APM",
+			DDA: newAgent(Settings{
 				EnabledHTTP:  true,
 				EndpointHTTP: "somehostname:4318",
 				APM:          true,
@@ -271,8 +175,8 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
-			Name: "[single container] v2alpha1 HTTP enabled, APM",
-			DDAv2: newV2AgentSingleContainer(Settings{
+			Name: "[single container] HTTP enabled, APM",
+			DDA: newAgentSingleContainer(Settings{
 				EnabledHTTP:  true,
 				EndpointHTTP: "somehostname:4318",
 				APM:          true,
@@ -310,29 +214,7 @@ type Settings struct {
 	APM bool
 }
 
-func newV1Agent(set Settings) *v1alpha1.DatadogAgent {
-	return &v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				OTLP: &v1alpha1.OTLPSpec{Receiver: v1alpha1.OTLPReceiverSpec{Protocols: v1alpha1.OTLPProtocolsSpec{
-					GRPC: &v1alpha1.OTLPGRPCSpec{
-						Enabled:  &set.EnabledGRPC,
-						Endpoint: &set.EndpointGRPC,
-					},
-					HTTP: &v1alpha1.OTLPHTTPSpec{
-						Enabled:  &set.EnabledHTTP,
-						Endpoint: &set.EndpointHTTP,
-					},
-				}}},
-				Apm: &v1alpha1.APMSpec{
-					Enabled: apiutils.NewBoolPointer(set.APM),
-				},
-			},
-		},
-	}
-}
-
-func newV2Agent(set Settings) *v2alpha1.DatadogAgent {
+func newAgent(set Settings) *v2alpha1.DatadogAgent {
 	return v2alpha1test.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
@@ -340,7 +222,7 @@ func newV2Agent(set Settings) *v2alpha1.DatadogAgent {
 		Build()
 }
 
-func newV2AgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
+func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
 	return v2alpha1test.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
