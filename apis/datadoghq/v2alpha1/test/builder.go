@@ -752,8 +752,8 @@ func (builder *DatadogAgentBuilder) WithSecretsBackendEnabledGlobalPermissions(e
 func (builder *DatadogAgentBuilder) WithSecretsBackendRoles(roles []v2alpha1.SecretsBackendRolesConfig) *DatadogAgentBuilder {
 	builder.initSecretsBackendFeature()
 	var r []*v2alpha1.SecretsBackendRolesConfig
-	for _, role := range roles {
-		r = append(r, &role)
+	for i := range roles {
+		r = append(r, &roles[i])
 	}
 	builder.datadogAgent.Spec.Features.SecretsBackend.Roles = r
 	return builder
