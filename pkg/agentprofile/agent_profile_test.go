@@ -320,6 +320,11 @@ func TestOverrideFromProfile(t *testing.T) {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"linux"},
 										},
+										{
+											Key:      ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{"linux"},
+										},
 									},
 								},
 							},
@@ -396,7 +401,7 @@ func TestDaemonSetName(t *testing.T) {
 	}
 }
 
-func TestPriorityClassNameOverride(t *testing.T) {
+func Test_priorityClassNameOverride(t *testing.T) {
 	tests := []struct {
 		name                  string
 		profile               v1alpha1.DatadogAgentProfile
@@ -474,6 +479,7 @@ func TestPriorityClassNameOverride(t *testing.T) {
 		})
 	}
 }
+
 func Test_labelsOverride(t *testing.T) {
 	tests := []struct {
 		name           string

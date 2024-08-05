@@ -35,7 +35,7 @@ integrations:
 extensions:
   datadoghq.com/sdp:
     conductor:
-      slack: "container-ecosystems"
+      slack: "datadog-operator"
       options:
         rollout_strategy: "installation"
       targets:
@@ -47,9 +47,11 @@ extensions:
           parent_environments: 
             - "staging"
           branch: "main"
-          schedule: "10 3 * * SUN-THU"
+          schedule: "30 23 * * SUN-THU"
           workflows:
             - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
+          options:
+            disable_failure_notifications: true
         - name: "conductor-test"
           ci_pipeline: "//fake_placeholder:fake_placeholder"
           # Test branch

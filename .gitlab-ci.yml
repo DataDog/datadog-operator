@@ -64,7 +64,8 @@ stages:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
-  - if: $CI_COMMIT_BRANCH
+  # Temporarily disable on Conductor-triggered jobs
+  - if: '$DDR != "true"'
     when: manual
   - when: never
 
@@ -80,6 +81,10 @@ build:
 unit_tests:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -89,6 +94,10 @@ unit_tests:
 generate_code:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -177,7 +186,7 @@ build_bundle_image:
 publish_public_main:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
     - when: never
   trigger:
@@ -294,7 +303,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -313,7 +322,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -465,7 +474,7 @@ publish_community_operators:
 publish_nightly_workflow:
   stage: deploy
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main" && $TARGET_ENV == "nightly-build"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   needs:
@@ -482,8 +491,10 @@ publish_nightly_workflow:
     SKIP_PLAN_CHECK: "true"
     ENVIRONMENTS: "experimental"
     CHART: "datadog-operator"
+    OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
     BAZEL_TARGET: $BAZEL_TARGET
     DDR: $DDR
     TARGET_ENV: $TARGET_ENV
+    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
