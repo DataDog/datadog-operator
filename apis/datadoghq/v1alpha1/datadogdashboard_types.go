@@ -15,32 +15,39 @@ import (
 // +k8s:openapi-gen=true
 type DatadogDashboardSpec struct {
 	// Description of the dashboard.
+	// +optional
 	Description string `json:"description,omitempty"`
 	// Layout type of the dashboard.
 	LayoutType DashboardLayoutType `json:"layoutType,omitempty"`
 	// List of handles of users to notify when changes are made to this dashboard.
 	// +listType=set
+	// +optional
 	NotifyList []string `json:"notifyList,omitempty"`
-	// Reflow type for a **new dashboard layout** dashboard. Set this only when layout type is 'ordered'.
+	// Reflow type for a new dashboard layout dashboard. Set this only when layout type is 'ordered'.
 	// If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
 	// widgets should not have layouts.
+	// +optional
 	ReflowType *datadogV1.DashboardReflowType `json:"reflowType,omitempty"`
 	// List of team names representing ownership of a dashboard.
 	// +listType=set
+	// +optional
 	Tags []string `json:"tags,omitempty"`
 	// Array of template variables saved views.
 	// +listType=map
 	// +listMapKey=name
+	// +optional
 	TemplateVariablePresets []DashboardTemplateVariablePreset `json:"templateVariablePresets,omitempty"`
 	// List of template variables for this dashboard.
 	// +listType=map
 	// +listMapKey=name
+	// +optional
 	TemplateVariables []DashboardTemplateVariable `json:"templateVariables,omitempty"`
 	// Title of the dashboard.
 	Title string `json:"title,omitempty"`
 	// List of widgets to display on the dashboard.
 	// +listType=map
 	// +listMapKey=id
+	// +optional
 	Widgets []Widget `json:"widgets,omitempty"`
 }
 
@@ -49,13 +56,13 @@ type DashboardLayoutType string
 
 // List of DashboardLayoutType.
 const (
-	DASHBOARDLAYOUTTYPE_ORDERED DashboardLayoutType = "ordered"
-	DASHBOARDLAYOUTTYPE_FREE    DashboardLayoutType = "free"
+	DashboardLayoutTypeOrdered DashboardLayoutType = "ordered"
+	DashboardLayoutTypeFree    DashboardLayoutType = "free"
 )
 
 func (t DashboardLayoutType) isValid() bool {
 	switch t {
-	case DASHBOARDLAYOUTTYPE_ORDERED, DASHBOARDLAYOUTTYPE_FREE:
+	case DashboardLayoutTypeOrdered, DashboardLayoutTypeFree:
 		return true
 	default:
 		return false
@@ -172,30 +179,22 @@ type NullableList struct {
 }
 
 // Widget Information about widget.
-//
-// **Note**: The `layout` property is required for widgets in dashboards with `free` `layout_type`.
-//
-//	For the **new dashboard layout**, the `layout` property depends on the `reflow_type` of the dashboard.
-//	- If `reflow_type` is `fixed`, `layout` is required.
-//	- If `reflow_type` is `auto`, `layout` should not be set.
-//
 // +k8s:openapi-gen=true
 type Widget struct {
 	// [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).
 	Definition WidgetDefinition `json:"definition"`
 	// ID of the widget.
 	Id *int64 `json:"id"`
-	// The layout for a widget on a `free` or **new dashboard layout** dashboard.
+	// The layout for a widget on a `free` or new dashboard layout dashboard.
 	Layout WidgetLayout `json:"layout,omitempty"`
 }
 
-// WidgetLayout The layout for a widget on a `free` or **new dashboard layout** dashboard.
+// WidgetLayout The layout for a widget on a `free` or new dashboard layout dashboard.
 // +k8s:openapi-gen=true
 type WidgetLayout struct {
 	// The height of the widget. Should be a non-negative integer.
 	Height int64 `json:"height"`
 	// Whether the widget should be the first one on the second column in high density or not.
-	// **Note**: Only for the **new dashboard layout** and only one widget in the dashboard should have this property set to `true`.
 	IsColumnBreak *bool `json:"isColumnBreak,omitempty"`
 	// The width of the widget. Should be a non-negative integer.
 	Width int64 `json:"width"`

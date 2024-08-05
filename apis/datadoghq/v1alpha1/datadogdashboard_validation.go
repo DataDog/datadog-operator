@@ -12,7 +12,7 @@ import (
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-// IsValidDatadogMonitor use to check if a DatadogMonitorSpec is valid by checking
+// IsValidDatadogDashboard use to check if a DatadogDashboardSpec is valid by checking
 // that the required fields are defined
 func IsValidDatadogDashboard(spec *DatadogDashboardSpec) error {
 	var errs []error
@@ -25,10 +25,10 @@ func IsValidDatadogDashboard(spec *DatadogDashboardSpec) error {
 	}
 
 	if spec.LayoutType != "" && !spec.LayoutType.isValid() {
-		errs = append(errs, fmt.Errorf("spec.LayoutType must be one of the values: %s or %s", DASHBOARDLAYOUTTYPE_FREE, DASHBOARDLAYOUTTYPE_ORDERED))
+		errs = append(errs, fmt.Errorf("spec.LayoutType must be one of the values: %s or %s", DashboardLayoutTypeFree, DashboardLayoutTypeOrdered))
 	}
 
-	if spec.LayoutType != DASHBOARDLAYOUTTYPE_ORDERED && spec.ReflowType != nil {
+	if spec.LayoutType != DashboardLayoutTypeOrdered && spec.ReflowType != nil {
 		errs = append(errs, fmt.Errorf("spec.ReflowType should only be set if layout type is 'ordered'"))
 	}
 

@@ -136,14 +136,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	if shouldCreate || shouldUpdate {
 		// Check that required tags are present
-		tagsUpdated, err := r.checkRequiredTags(logger, instance)
-		if err != nil {
-			result.RequeueAfter = defaultErrRequeuePeriod
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		} else if tagsUpdated {
-			// A reconcile is triggered by the update
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		}
+		// tagsUpdated, err := r.checkRequiredTags(logger, instance)
+		// if err != nil {
+		// 	result.RequeueAfter = defaultErrRequeuePeriod
+		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
+		// } else if tagsUpdated {
+		// 	// A reconcile is triggered by the update
+		// 	return r.updateStatusIfNeeded(logger, instance, status, result)
+		// }
 
 		if shouldCreate {
 			err = r.create(logger, instance, status, now, instanceSpecHash)
@@ -203,21 +203,22 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
 		return err
 	}
+	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
+	r.recordEvent(instance, event)
 
-	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
-	// NOTE: dashboard doesn't have a get creator get creator method
-	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
-	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
+	// Add static information to status
 	status.ID = createdDashboard.GetId()
+	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
+	// NOTE: dashboard doesn't have a creator field
+	status.Creator = createdDashboard.GetAuthorHandle()
 	status.Created = &createdTime
-	// NOTE: is there a need for a kubernetes primary field like in monitors (which is not in SLOS)
+	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK
 	status.LastForceSyncTime = &createdTime
 	status.CurrentHash = hash
 
+	// Set condition and status
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingDashboard", "DatadogDashboard Created")
 	logger.Info("created a new DatadogDashboard", "dashboard ID", status.ID)
-	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
-	r.recordEvent(instance, event)
 
 	return nil
 }
@@ -237,24 +238,25 @@ func (r *Reconciler) delete(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	}
 }
 
-func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
-	tags := instance.Spec.Tags
-	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
-	tagsToAdd := []string{}
-	if len(tagsToAdd) > 0 {
-		tags = append(tags, tagsToAdd...)
-		instance.Spec.Tags = tags
-		err := r.client.Update(context.TODO(), instance)
-		if err != nil {
-			logger.Error(err, "failed to update DatadogDashboard with required tags")
-			return false, err
-		}
-		logger.Info("Added required tags", "Dashboard ID", instance.Status.ID)
-		return true, nil
-	}
+// NOTE: commented out for now since 'generated:kubernetes' is not allowed as a tag in the dashboards API
+// func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogDashboard) (bool, error) {
+// 	tags := instance.Spec.Tags
+// 	// TagsToAdd is an empty string for now because "generated" tag keys are not allowed in the Dashboards API
+// 	tagsToAdd := []string{}
+// 	if len(tagsToAdd) > 0 {
+// 		tags = append(tags, tagsToAdd...)
+// 		instance.Spec.Tags = tags
+// 		err := r.client.Update(context.TODO(), instance)
+// 		if err != nil {
+// 			logger.Error(err, "failed to update DatadogDashboard with required tags")
+// 			return false, err
+// 		}
+// 		logger.Info("Added required tags", "Dashboard ID", instance.Status.ID)
+// 		return true, nil
+// 	}
 
-	return false, nil
-}
+// 	return false, nil
+// }
 
 func updateErrStatus(status *v1alpha1.DatadogDashboardStatus, now metav1.Time, syncStatus v1alpha1.DatadogDashboardSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
