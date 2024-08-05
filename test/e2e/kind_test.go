@@ -191,18 +191,33 @@ func (s *kindSuite) TestKindRun() {
 		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 	})
 
-	s.T().Run("Kubernetes State Core check works", func(t *testing.T) {
-		var now time.Time
-		metricQuery := "exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:operator-e2e-ci})"
+	s.T().Run("KSM Check Works (cluster check)", func(t *testing.T) {
+		clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			LabelSelector: "agent.datadoghq.com/component=cluster-agent",
+		})
+		s.Assert().NoError(err)
 
-		s.EventuallyWithTf(func(c *assert.CollectT) {
-			now = time.Now()
-			series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
-			assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
-		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+		for _, pod := range clusterAgentPods {
+			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
+			s.Assert().NoError(err)
+
+			// Extract JSON from agent collector status output
+			re := regexp.MustCompile(`(\{.*\})`)
+			match := re.FindStringSubmatch(output)
+			s.Assert().Greater(len(match), 0)
+			jsonString := match[0]
+
+			var jsonObject map[string]interface{}
+
+			// Parse collector JSON
+			err = json.Unmarshal([]byte(jsonString), &jsonObject)
+			s.Assert().NoError(err)
+
+			verifyKSMCheck(s, jsonObject)
+		}
 	})
 
-	s.T().Run("Cluster Checks Runner works", func(t *testing.T) {
+	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
 		ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 			LabelSelector: "agent.datadoghq.com/component=cluster-checks-runner",
 		})
@@ -212,41 +227,54 @@ func (s *kindSuite) TestKindRun() {
 			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
 			s.Assert().NoError(err)
 
-			// Use regular expression to extract JSON part
+			// Extract JSON from agent collector status output
 			re := regexp.MustCompile(`(\{.*\})`)
 			match := re.FindStringSubmatch(output)
 			s.Assert().Greater(len(match), 0)
 			jsonString := match[0]
 
-			// Variable to hold the parsed JSON object
 			var jsonObject map[string]interface{}
 
-			// Parse the JSON object
+			// Parse collector JSON
 			err = json.Unmarshal([]byte(jsonString), &jsonObject)
 			s.Assert().NoError(err)
-			var runningChecks map[string]interface{}
-			runningChecks = jsonObject["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
-			if ksmCheck, found := runningChecks["kubernetes_state_core"].(map[string]interface{}); found {
-				for _, instance := range ksmCheck {
-					s.Assert().EqualValues("kubernetes_state_core", instance.(map[string]interface{})["CheckName"].(string))
 
-					lastError, exists := instance.(map[string]interface{})["LastError"].(string)
-					s.Assert().True(exists)
-					s.Assert().Empty(lastError)
+			verifyKSMCheck(s, jsonObject)
 
-					totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
-					s.Assert().True(exists)
-					s.Assert().Zero(totalErrors)
-
-					totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
-					s.Assert().True(exists)
-					s.Assert().Greater(totalMetricSamples, float64(0))
-				}
-			}
 		}
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
+}
+
+func verifyKSMCheck(s *kindSuite, checkJson map[string]interface{}) {
+	var runningChecks map[string]interface{}
+	runningChecks = checkJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+	if ksmCheck, found := runningChecks["kubernetes_state_core"].(map[string]interface{}); found {
+		for _, instance := range ksmCheck {
+			s.Assert().EqualValues("kubernetes_state_core", instance.(map[string]interface{})["CheckName"].(string))
+
+			lastError, exists := instance.(map[string]interface{})["LastError"].(string)
+			s.Assert().True(exists)
+			s.Assert().Empty(lastError)
+
+			totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
+			s.Assert().True(exists)
+			s.Assert().Zero(totalErrors)
+
+			totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
+			s.Assert().True(exists)
+			s.Assert().Greater(totalMetricSamples, float64(0))
+		}
+	}
+	s.EventuallyWithTf(func(c *assert.CollectT) {
+		var now time.Time
+		metricQuery := "exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:operator-e2e-ci, kube_container_name:*})"
+
+		series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
+		s.Assert().NoError(err)
+		assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
+	}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 }
