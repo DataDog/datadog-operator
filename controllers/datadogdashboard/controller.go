@@ -24,17 +24,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/controllers/finalizer"
 	"github.com/DataDog/datadog-operator/controllers/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 const (
-	defaultRequeuePeriod      = 60 * time.Second
-	defaultErrRequeuePeriod   = 5 * time.Second
-	defaultForceSyncPeriod    = 60 * time.Minute
-	datadogDashboardKind      = "DatadogDashboard"
-	datadogDashboardFinalizer = "finalizer.dashboard.datadoghq.com"
+	defaultRequeuePeriod    = 60 * time.Second
+	defaultErrRequeuePeriod = 5 * time.Second
+	defaultForceSyncPeriod  = 60 * time.Minute
+	datadogDashboardKind    = "DatadogDashboard"
 )
 
 type Reconciler struct {
@@ -79,14 +77,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		return ctrl.Result{}, err
 	}
 
-	final := finalizer.NewFinalizer(
-		logger,
-		r.client,
-		r.delete(logger, instance),
-		defaultRequeuePeriod,
-		defaultErrRequeuePeriod,
-	)
-	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogDashboardFinalizer); ctrutils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -120,7 +111,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get Dashboard to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			_, err := r.get(instance)
+			_, err = r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting Dashboard", "Dashboard ID", instance.Status.ID)
 				updateErrStatus(status, now, v1alpha1.DatadoggDashboardSyncStatusGetError, "GettingDashboard", err)
@@ -221,21 +212,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	logger.Info("created a new DatadogDashboard", "dashboard ID", status.ID)
 
 	return nil
-}
-
-func (r *Reconciler) delete(logger logr.Logger, instance *v1alpha1.DatadogDashboard) finalizer.ResourceDeleteFunc {
-	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		if datadogID != "" {
-			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-			if err := deleteDashboard(r.datadogAuth, r.datadogClient, datadogID); err != nil {
-				logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
-				return err
-			}
-			logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
-		}
-		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
-		return nil
-	}
 }
 
 // NOTE: commented out for now since 'generated:kubernetes' is not allowed as a tag in the dashboards API
