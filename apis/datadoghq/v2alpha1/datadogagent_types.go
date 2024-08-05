@@ -1137,8 +1137,9 @@ type SecretsBackendFeatureConfig struct {
 	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
 
 	// Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
-	// They are defined as a list of namespace/secrets. Each defined namespace needs to be present in `WATCH_NAMESPACE` / `DD_AGENT_WATCH_NAMESPACE`.
-	// Read more about [TO DO: LINK TO GUIDE USING SECRETS BACKEND WITH OPERATOR]
+	// They are defined as a list of namespace/secrets.
+	// Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` / `DD_AGENT_WATCH_NAMESPACE`.
+	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent
 	// +optional
 	// +listType=atomic
 	Roles []*SecretsBackendRolesConfig `json:"roles,omitempty"`

@@ -148,18 +148,23 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 			rbacName := getNamespaceSecretReaderRBACResourceName(f.owner, ns)
 			policyRule := getSecretsRolesPermissions(role)
 			targetSaNamespace := f.owner.GetNamespace()
+			roleRef := rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     kubernetes.RolesKind,
+				Name:     rbacName,
+			}
 			// Adding RBAC to node Agents
 			if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameAgent, policyRule, targetSaNamespace); err != nil {
 				return err
 			}
 			// Adding RBAC to cluster Agent
-			if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameClusterAgent, policyRule, targetSaNamespace); err != nil {
+			if err := managers.RBACManager().AddRoleBinding(ns, rbacName, targetSaNamespace, f.serviceAccountNameClusterAgent, roleRef); err != nil {
 				return err
 			}
 			// Adding RBAC to cluster checks runners
 			// f.serviceAccountNameClusterChecksRunner is empty if CCRs are not enabled
 			if f.serviceAccountNameClusterChecksRunner != "" {
-				if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountNameClusterChecksRunner, policyRule, targetSaNamespace); err != nil {
+				if err := managers.RBACManager().AddRoleBinding(ns, rbacName, targetSaNamespace, f.serviceAccountNameClusterChecksRunner, roleRef); err != nil {
 					return err
 				}
 			}

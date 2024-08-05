@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 const (
@@ -79,6 +80,19 @@ var expectedSecretsBackendEnvs = []*corev1.EnvVar{
 	{
 		Name:  apicommon.DDSecretBackendTimeout,
 		Value: strconv.FormatInt(int64(timeout), 10),
+	},
+}
+
+var expectedSubjects = []rbacv1.Subject{
+	{
+		Kind:      "ServiceAccount",
+		Name:      ddaName + "-" + apicommon.DefaultAgentResourceSuffix,
+		Namespace: ddaNamespace,
+	},
+	{
+		Kind:      "ServiceAccount",
+		Name:      ddaName + "-" + apicommon.DefaultClusterAgentResourceSuffix,
+		Namespace: ddaNamespace,
 	},
 }
 
@@ -142,7 +156,32 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 					WithSecretsBackendEnabledGlobalPermissions(true).
 					Build()),
 			WantConfigure:        true,
-			WantDependenciesFunc: testRBACResources,
+			WantDependenciesFunc: testGlobalPermissionsRBACResources,
+		},
+		// Roles permissions
+		{
+			Name: "v2alpha1 roles permissions",
+			DDAv2: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				v2alpha1test.NewDatadogAgentBuilder().
+					WithSecretsBackendRoles(roles).
+					Build()),
+			WantConfigure:        true,
+			WantDependenciesFunc: testRolesPermissionsRBACResources,
+		},
+		// Global RBAC and roles permissions
+		{
+			Name: "v2alpha1 enabled global permissions & roles permissions",
+			DDAv2: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				v2alpha1test.NewDatadogAgentBuilder().
+					WithSecretsBackendEnabledGlobalPermissions(true).
+					WithSecretsBackendRoles(roles).
+					Build()),
+			WantConfigure:        true,
+			WantDependenciesFunc: testEnabledGlobalAndRolesPermissionsRBACResources,
 		},
 	}
 
@@ -197,7 +236,7 @@ func addNameNamespaceToDDA(name string, namespace string, dda *v2alpha1.DatadogA
 	return dda
 }
 
-func testRBACResources(t testing.TB, store dependencies.StoreClient) {
+func testGlobalPermissionsRBACResources(t testing.TB, store dependencies.StoreClient) {
 	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretsBackendRBACSuffix)
 	crObj, found := store.Get(kubernetes.ClusterRolesKind, "", rbacName)
 
@@ -209,11 +248,10 @@ func testRBACResources(t testing.TB, store dependencies.StoreClient) {
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(cr.Rules, secretsBackendGlobalRBACPolicyRules),
-			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, ""),
+			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, secretsBackendGlobalRBACPolicyRules),
 		)
 	}
 
-	// Validate ClusterRoleBinding roleRef name
 	expectedRoleRef := rbacv1.RoleRef{
 		APIGroup: rbacv1.GroupName,
 		Kind:     kubernetes.ClusterRolesKind,
@@ -225,10 +263,82 @@ func testRBACResources(t testing.TB, store dependencies.StoreClient) {
 		t.Error("Should have created ClusterRoleBinding")
 	} else {
 		crb := crbObj.(*rbacv1.ClusterRoleBinding)
+		// Validate ClusterRoleBinding roleRef name
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(crb.RoleRef, expectedRoleRef),
 			"ClusterRoleBinding Role Ref \ndiff = %s", cmp.Diff(crb.RoleRef, expectedRoleRef),
 		)
+		// Validate ClusterRoleBinding subjects
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(crb.Subjects, expectedSubjects),
+			"ClusterRoleBinding Subjects \ndiff = %s", cmp.Diff(crb.Subjects, expectedSubjects),
+		)
 	}
+}
+
+func testRolesPermissionsRBACResources(t testing.TB, store dependencies.StoreClient) {
+	for _, role := range roles {
+		secretNs := *role.Namespace
+		rbacName := fmt.Sprintf("%s-%s-%s-%s", ddaNamespace, ddaName, secretsReader, secretNs)
+		expectedRules := []rbacv1.PolicyRule{
+			{
+				APIGroups:     []string{rbac.CoreAPIGroup},
+				Resources:     []string{rbac.SecretsResource},
+				ResourceNames: role.Secrets,
+				Verbs:         []string{rbac.GetVerb},
+			},
+		}
+		expectedRoleRef := rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     kubernetes.RolesKind,
+			Name:     rbacName,
+		}
+
+		// Validate Role policy rules
+		rObj, found := store.Get(kubernetes.RolesKind, secretNs, rbacName)
+		if !found {
+			t.Error("Should have created Role")
+		} else {
+			r := rObj.(*rbacv1.Role)
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(r.Rules, expectedRules),
+				"Role Policy Rules \n diff = %s", cmp.Diff(r.Rules, expectedRules),
+			)
+		}
+
+		rbObj, found := store.Get(kubernetes.RoleBindingKind, secretNs, rbacName)
+		if !found {
+			t.Error("Should have created RoleBinding")
+		} else {
+			rb := rbObj.(*rbacv1.RoleBinding)
+			// Validate RoleBinding roleRef name
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(rb.RoleRef, expectedRoleRef),
+				"RoleBinding Role Ref \ndiff = %s", cmp.Diff(rb.RoleRef, expectedRoleRef),
+			)
+			// Validate RoleBinding Subjects
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(rb.Subjects, expectedSubjects),
+				"RoleBinding Subjects \ndiff = %s", cmp.Diff(rb.Subjects, expectedSubjects),
+			)
+		}
+	}
+}
+
+func testEnabledGlobalAndRolesPermissionsRBACResources(t testing.TB, store dependencies.StoreClient) {
+	// Assert ClusterRole is not created (if defined, roles take precedence over enabled global permissions)
+	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretsBackendRBACSuffix)
+	crObj, _ := store.Get(kubernetes.ClusterRolesKind, "", rbacName)
+	assert.Nil(
+		t,
+		crObj,
+		"Should NOT have created ClusterRole",
+	)
+	// Assert roles are created
+	testRolesPermissionsRBACResources(t, store)
 }
