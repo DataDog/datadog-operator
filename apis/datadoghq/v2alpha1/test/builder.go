@@ -781,7 +781,7 @@ func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentB
 // Global ChecksCardinality
 
 func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.ChecksCardinality = apiutils.NewStringPointer(cardinality)
+	builder.datadogAgent.Spec.Global.ChecksTagCardinality = apiutils.NewStringPointer(cardinality)
 	return builder
 }
 

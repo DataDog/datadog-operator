@@ -1461,8 +1461,8 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(FIPSConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ChecksCardinality != nil {
-		in, out := &in.ChecksCardinality, &out.ChecksCardinality
+	if in.ChecksTagCardinality != nil {
+		in, out := &in.ChecksTagCardinality, &out.ChecksTagCardinality
 		*out = new(string)
 		**out = **in
 	}
