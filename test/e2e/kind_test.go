@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"regexp"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
+	"github.com/DataDog/test-infra-definitions/common/utils"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
@@ -32,6 +34,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
+	"github.com/zorkian/go-datadog-api"
 	"gopkg.in/zorkian/go-datadog-api.v2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -56,7 +59,7 @@ func (suite *kindSuite) SetupSuite() {
 func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
-		e2e.WithProvisioner(kindProvisioner(k8sVersion)),
+		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
 		e2e.WithDevMode(),
 	}
 
@@ -64,7 +67,7 @@ func TestKindSuite(t *testing.T) {
 }
 
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
-func kindProvisioner(k8sVersion string) e2e.Provisioner {
+func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Provisioner {
 	return e2e.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
 		// Provision AWS environment
 		awsEnv, err := resAws.NewEnvironment(ctx)
@@ -82,13 +85,19 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		}
 
 		// Create kind cluster
-		kindClusterName := ctx.Stack()
+		kindClusterName := strings.ReplaceAll(ctx.Stack(), ".", "-")
+
 		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", k8sVersion), nil)
 		if err != nil {
 			return err
 		}
 
-		kindCluster, err := localKubernetes.NewKindCluster(*awsEnv.CommonEnvironment, vm, awsEnv.CommonNamer.ResourceName("kind"), kindClusterName, k8sVersion, pulumi.DeleteBeforeReplace(true))
+		installEcrCredsHelperCmd, err := ec2.InstallECRCredentialsHelper(awsEnv, vm)
+		if err != nil {
+			return err
+		}
+
+		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, awsEnv.CommonNamer().ResourceName("kind"), kindClusterName, k8sVersion, utils.PulumiDependsOn(installEcrCredsHelperCmd))
 		if err != nil {
 			return err
 		}
@@ -105,13 +114,18 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 			return err
 		}
 
-		// Deploy resources from kustomize config/default directory
+		// Deploy resources from kustomize config/e2e directory
 		kustomizeDirPath, err := filepath.Abs(mgrKustomizeDirPath)
 		if err != nil {
 			return err
 		}
 
-		_, err = kustomize.NewDirectory(ctx, "e2e-manager",
+		if extraKustomizeResources == nil {
+			extraKustomizeResources = []string{defaultMgrFileName}
+		}
+		updateKustomization(kustomizeDirPath, extraKustomizeResources)
+
+		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
 			kustomize.DirectoryArgs{
 				Directory: pulumi.String(kustomizeDirPath),
 			},
@@ -120,9 +134,11 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 			return err
 		}
 
+		pulumi.DependsOn([]pulumi.Resource{e2eKustomize})
+
 		// Create imagePullSecret to pull E2E operator image from ECR
 		if imgPullPassword != "" {
-			_, err = agent.NewImagePullSecret(*awsEnv.CommonEnvironment, namespaceName, pulumi.Provider(kindKubeProvider))
+			_, err = agent.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
 			if err != nil {
 				return err
 			}
@@ -137,6 +153,21 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 			StringData: pulumi.StringMap{
 				"api-key": awsEnv.CommonEnvironment.AgentAPIKey(),
 				"app-key": awsEnv.CommonEnvironment.AgentAPPKey(),
+			},
+		}, pulumi.Provider(kindKubeProvider))
+		if err != nil {
+			return err
+		}
+
+		// Create datadog cluster name configMap
+		// TODO: remove this when NewAgentWithOperator is available in test-infra-definitions
+		_, err = corev1.NewConfigMap(ctx, "datadog-cluster-name", &corev1.ConfigMapArgs{
+			Metadata: metav1.ObjectMetaArgs{
+				Namespace: pulumi.String(namespaceName),
+				Name:      pulumi.String("datadog-cluster-name"),
+			},
+			Data: pulumi.StringMap{
+				"DD_CLUSTER_NAME": pulumi.String(kindClusterName),
 			},
 		}, pulumi.Provider(kindKubeProvider))
 		if err != nil {
@@ -182,7 +213,7 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		var now time.Time
-		metricQuery := "exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:operator-e2e-ci, container_id:*})"
+		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			now = time.Now()
