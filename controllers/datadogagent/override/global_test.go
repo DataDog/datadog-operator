@@ -116,6 +116,20 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantVolumes:      emptyVolumes,
 			want:             assertAll,
 		},
+		{
+			name:                           "Checks tag cardinality set to orchestrator",
+			singleContainerStrategyEnabled: false,
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithChecksTagCardinality("orchestrator").
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
+				Name:  apicommon.DDChecksTagCardinality,
+				Value: "orchestrator",
+			}),
+			wantVolumeMounts: emptyVolumeMounts,
+			wantVolumes:      emptyVolumes,
+			want:             assertAll,
+		},
 	}
 
 	for _, tt := range tests {
