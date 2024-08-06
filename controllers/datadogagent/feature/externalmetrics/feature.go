@@ -11,7 +11,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -139,78 +138,6 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	}
 
 	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *externalMetricsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	// f.owner = dda
-	// if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics != nil {
-	// 	em := dda.Spec.ClusterAgent.Config.ExternalMetrics
-
-	// 	if em != nil && apiutils.BoolValue(em.Enabled) {
-	// 		f.useWPA = em.WpaController
-	// 		f.useDDM = em.UseDatadogMetrics
-	// 		f.port = *em.Port
-	// 		if em.Endpoint != nil {
-	// 			f.url = *em.Endpoint
-	// 		}
-	// 		if em.Credentials != nil {
-	// 			if em.Credentials != nil {
-	// 				f.keySecret = make(map[string]secret)
-	// 				if !v1alpha1.CheckAPIKeySufficiency(em.Credentials, apicommon.DDExternalMetricsProviderAPIKey) ||
-	// 				!v1alpha1.CheckAppKeySufficiency(em.Credentials, apicommon.DDExternalMetricsProviderAppKey) {
-	// 					// neither secrets nor the external metrics api/app key env vars are defined,
-	// 					// so store key data to create secret later
-	// 					for keyType, keyData := range v1alpha1.GetKeysFromCredentials(em.Credentials) {
-	// 						f.keySecret[keyType] = secret{
-	// 							data: keyData,
-	// 						}
-	// 					}
-	// 				}
-	// 				if v1alpha1.CheckAPIKeySufficiency(em.Credentials, apicommon.DDExternalMetricsProviderAPIKey) {
-	// 					// api key secret exists; store secret name and key instead
-	// 					if isSet, secretName, secretKey := v1alpha1.GetAPIKeySecret(em.Credentials, componentdca.GetDefaultExternalMetricSecretName(f.owner)); isSet {
-	// 						f.keySecret[apicommon.DefaultAPIKeyKey] = secret{
-	// 							name: secretName,
-	// 							key: secretKey,
-	// 						}
-	// 					}
-	// 				}
-	// 				if v1alpha1.CheckAppKeySufficiency(em.Credentials, apicommon.DDExternalMetricsProviderAppKey) {
-	// 					// app key secret exists; store secret name and key instead
-	// 					if isSet, secretName, secretKey := v1alpha1.GetAppKeySecret(em.Credentials, componentdca.GetDefaultExternalMetricSecretName(f.owner)); isSet {
-	// 						f.keySecret[apicommon.DefaultAPPKeyKey] = secret{
-	// 							name: secretName,
-	// 							key: secretKey,
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-
-	// 		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-
-	// if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
-	// 	if flavor == v1alpha1.NetworkPolicyFlavorCilium {
-	// 		f.createCiliumNetworkPolicy = true
-	// 	} else {
-	// 		f.createKubernetesNetworkPolicy = true
-	// 	}
-	// }
-
-	// 		reqComp = feature.RequiredComponents{
-	// 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-	// 		}
-	// 	}
-	// }
-
-	// return reqComp
-
-	// do not apply this feature on v1alpha1
-	// it breaks the unittests in `controller_test.go` because the `store` modifies
-	// the dependency resources with additional labels which make the comparison fail
-
-	return feature.RequiredComponents{}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

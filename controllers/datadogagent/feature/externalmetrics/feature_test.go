@@ -29,17 +29,8 @@ const (
 )
 
 func TestExternalMetricsFeature(t *testing.T) {
-	// secretV1 := v1alpha1.DatadogCredentials{
-	// 	APISecret: &apicommonv1.SecretConfig{
-	// 		SecretName: secretName,
-	// 		KeyName: apiKeyName,
-	// 	},
-	// 	APPSecret: &apicommonv1.SecretConfig{
-	// 		SecretName: secretName,
-	// 		KeyName: appKeyName,
-	// 	},
-	// }
-	secretV2 := v2alpha1.DatadogCredentials{
+
+	secret := v2alpha1.DatadogCredentials{
 		APIKey: apiutils.NewStringPointer("12345"),
 		APISecret: &apicommonv1.SecretConfig{
 			SecretName: secretName,
@@ -49,74 +40,38 @@ func TestExternalMetricsFeature(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v1Alpha1.DatadogAgent
-		//////////////////////////
-		// {
-		// 	Name:          "v1alpha1 external metrics not enabled",
-		// 	DDAv1:         newV1Agent(false, false, false, v1alpha1.DatadogCredentials{}),
-		// 	WantConfigure: false,
-		// },
-		// {
-		// 	Name:          "v1alpha1 external metrics enabled",
-		// 	DDAv1:         newV1Agent(true, true, false, v1alpha1.DatadogCredentials{}),
-		// 	WantConfigure: true,
-		// 	ClusterAgent:  testDCAResources(true, false, false),
-		// },
-		// {
-		// 	Name:          "v1alpha1 external metrics enabled, wpa controller enabled",
-		// 	DDAv1:         newV1Agent(true, true, true, v1alpha1.DatadogCredentials{}),
-		// 	WantConfigure: true,
-		// 	ClusterAgent:  testDCAResources(true, true, false),
-		// },
-		// {
-		// 	Name:          "v1alpha1 external metrics enabled, ddm disabled",
-		// 	DDAv1:         newV1Agent(true, false, false, v1alpha1.DatadogCredentials{}),
-		// 	WantConfigure: true,
-		// 	ClusterAgent:  testDCAResources(false, false, false),
-		// },
-		// {
-		// 	Name:          "v1alpha1 external metrics enabled, keys set",
-		// 	DDAv1:         newV1Agent(true, true, false, secretV1),
-		// 	WantConfigure: true,
-		// 	ClusterAgent:  testDCAResources(true, false, true),
-		// },
-
-		//////////////////////////
-		// v2Alpha1.DatadogAgent
-		//////////////////////////
 		{
-			Name:          "v2alpha1 external metrics not enabled",
-			DDAv2:         newV2Agent(false, true, false, false, v2alpha1.DatadogCredentials{}),
+			Name:          "external metrics not enabled",
+			DDA:           newAgent(false, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled",
-			DDAv2:         newV2Agent(true, true, true, false, v2alpha1.DatadogCredentials{}),
+			Name:          "external metrics enabled",
+			DDA:           newAgent(true, true, true, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, false),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, wpa controller enabled",
-			DDAv2:         newV2Agent(true, true, true, true, v2alpha1.DatadogCredentials{}),
+			Name:          "external metrics enabled, wpa controller enabled",
+			DDA:           newAgent(true, true, true, true, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, true, false),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, ddm disabled",
-			DDAv2:         newV2Agent(true, true, false, false, v2alpha1.DatadogCredentials{}),
+			Name:          "external metrics enabled, ddm disabled",
+			DDA:           newAgent(true, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(false, false, false),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, secrets set",
-			DDAv2:         newV2Agent(true, true, true, false, secretV2),
+			Name:          "external metrics enabled, secrets set",
+			DDA:           newAgent(true, true, true, false, secret),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, true),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, secrets set, registerAPIService enabled",
-			DDAv2:         newV2Agent(true, true, true, false, secretV2),
+			Name:          "external metrics enabled, secrets set, registerAPIService enabled",
+			DDA:           newAgent(true, true, true, false, secret),
 			WantConfigure: true,
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
@@ -130,8 +85,8 @@ func TestExternalMetricsFeature(t *testing.T) {
 			ClusterAgent: testDCAResources(true, false, true),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, secrets set, registerAPIService disabled",
-			DDAv2:         newV2Agent(true, false, true, false, secretV2),
+			Name:          "external metrics enabled, secrets set, registerAPIService disabled",
+			DDA:           newAgent(true, false, true, false, secret),
 			WantConfigure: true,
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
@@ -149,25 +104,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 	tests.Run(t, buildExternalMetricsFeature)
 }
 
-// func newV1Agent(enabled, useDDM, wpaController bool, secret v1alpha1.DatadogCredentials) *v1alpha1.DatadogAgent {
-// 	return &v1alpha1.DatadogAgent{
-// 		Spec: v1alpha1.DatadogAgentSpec{
-// 			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
-// 				Config: &v1alpha1.ClusterAgentConfig{
-// 					ExternalMetrics: &v1alpha1.ExternalMetricsConfig{
-// 						Enabled:  apiutils.NewBoolPointer(enabled),
-// 						WpaController: wpaController,
-// 						UseDatadogMetrics: useDDM,
-// 						Port: apiutils.NewInt32Pointer(8443),
-// 						Credentials: &secret,
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// }
-
-func newV2Agent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
+func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{

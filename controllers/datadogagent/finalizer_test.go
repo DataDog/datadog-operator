@@ -150,7 +150,7 @@ func Test_handleFinalizer(t *testing.T) {
 }
 
 func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
-	s := agenttestutils.TestScheme(true)
+	s := agenttestutils.TestScheme()
 
 	fakeClient := fake.NewClientBuilder().WithObjects(initialKubeObjects...).WithScheme(s).Build()
 

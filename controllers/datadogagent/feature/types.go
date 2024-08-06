@@ -8,7 +8,6 @@ package feature
 import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
@@ -129,9 +128,6 @@ type Feature interface {
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
 	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
-	// ConfigureV1 use to configure the internal of a Feature from v1alpha1.DatadogAgent
-	// It should return `true` if the feature is enabled, else `false`.
-	ConfigureV1(dda *v1alpha1.DatadogAgent) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
 	ManageDependencies(managers ResourceManagers, components RequiredComponents) error
