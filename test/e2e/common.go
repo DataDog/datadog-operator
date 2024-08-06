@@ -6,9 +6,11 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -179,4 +181,24 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 	}
 
 	return nil
+}
+
+func parseCollectorJson(collectorOutput string) map[string]interface{} {
+	var jsonString string
+	var jsonObject map[string]interface{}
+
+	re := regexp.MustCompile(`(\{.*\})`)
+	match := re.FindStringSubmatch(collectorOutput)
+	if len(match) > 0 {
+		jsonString = match[0]
+	} else {
+		return map[string]interface{}{}
+	}
+
+	// Parse collector JSON
+	err := json.Unmarshal([]byte(jsonString), &jsonObject)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+	return jsonObject
 }

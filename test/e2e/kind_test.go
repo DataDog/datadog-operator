@@ -10,10 +10,8 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -250,19 +248,7 @@ func (s *kindSuite) TestKindRun() {
 			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
 			s.Assert().NoError(err)
 
-			// Extract JSON from agent collector status output
-			re := regexp.MustCompile(`(\{.*\})`)
-			match := re.FindStringSubmatch(output)
-			s.Assert().Greater(len(match), 0)
-			jsonString := match[0]
-
-			var jsonObject map[string]interface{}
-
-			// Parse collector JSON
-			err = json.Unmarshal([]byte(jsonString), &jsonObject)
-			s.Assert().NoError(err)
-
-			verifyKSMCheck(s, jsonObject)
+			verifyKSMCheck(s, output)
 		}
 	})
 
@@ -276,19 +262,7 @@ func (s *kindSuite) TestKindRun() {
 			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
 			s.Assert().NoError(err)
 
-			// Extract JSON from agent collector status output
-			re := regexp.MustCompile(`(\{.*\})`)
-			match := re.FindStringSubmatch(output)
-			s.Assert().Greater(len(match), 0)
-			jsonString := match[0]
-
-			var jsonObject map[string]interface{}
-
-			// Parse collector JSON
-			err = json.Unmarshal([]byte(jsonString), &jsonObject)
-			s.Assert().NoError(err)
-
-			verifyKSMCheck(s, jsonObject)
+			verifyKSMCheck(s, output)
 
 		}
 	})
@@ -298,9 +272,12 @@ func (s *kindSuite) TestKindRun() {
 	})
 }
 
-func verifyKSMCheck(s *kindSuite, checkJson map[string]interface{}) {
+func verifyKSMCheck(s *kindSuite, collectorOutput string) {
 	var runningChecks map[string]interface{}
-	runningChecks = checkJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+
+	checksJson := parseCollectorJson(collectorOutput)
+
+	runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
 	if ksmCheck, found := runningChecks["kubernetes_state_core"].(map[string]interface{}); found {
 		for _, instance := range ksmCheck {
 			s.Assert().EqualValues("kubernetes_state_core", instance.(map[string]interface{})["CheckName"].(string))
@@ -319,7 +296,7 @@ func verifyKSMCheck(s *kindSuite, checkJson map[string]interface{}) {
 		}
 	}
 	s.EventuallyWithTf(func(c *assert.CollectT) {
-		metricQuery := "exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:operator-e2e-ci, kube_container_name:*})"
+		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:%s, kube_container_name:*})", s.Env().Kind.ClusterName)
 
 		resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
 		assert.Truef(c, len(resp.Series) > 0, "expected metric series to not be empty: %s", err)
