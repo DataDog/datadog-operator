@@ -9,11 +9,12 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/test-infra-definitions/common/utils"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
@@ -34,8 +37,6 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/stretchr/testify/assert"
-	"github.com/zorkian/go-datadog-api"
-	"gopkg.in/zorkian/go-datadog-api.v2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,7 +46,12 @@ type kindEnv struct {
 
 type kindSuite struct {
 	e2e.BaseSuite[kindEnv]
-	datadogClient *datadog.Client
+	datadogClient
+}
+
+type datadogClient struct {
+	ctx        context.Context
+	metricsApi *datadogV1.MetricsApi
 }
 
 func (suite *kindSuite) SetupSuite() {
@@ -53,7 +59,21 @@ func (suite *kindSuite) SetupSuite() {
 	suite.Require().NoError(err)
 	appKey, err := runner.GetProfile().SecretStore().Get(parameters.APPKey)
 	suite.Require().NoError(err)
-	suite.datadogClient = datadog.NewClient(apiKey, appKey)
+	suite.datadogClient.ctx = context.WithValue(
+		context.Background(),
+		datadog.ContextAPIKeys,
+		map[string]datadog.APIKey{
+			"apiKeyAuth": {
+				Key: apiKey,
+			},
+			"appKeyAuth": {
+				Key: appKey,
+			},
+		},
+	)
+	configuration := datadog.NewConfiguration()
+	client := datadog.NewAPIClient(configuration)
+	suite.metricsApi = datadogV1.NewMetricsApi(client)
 }
 
 func TestKindSuite(t *testing.T) {
@@ -212,19 +232,17 @@ func (s *kindSuite) TestKindRun() {
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
-		var now time.Time
 		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			now = time.Now()
-			series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
-			assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
+			resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+			assert.Truef(c, len(resp.Series) > 0, "expected metric series to not be empty: %s", err)
 		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 	})
 
 	s.T().Run("KSM Check Works (cluster check)", func(t *testing.T) {
 		clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-			LabelSelector: "agent.datadoghq.com/component=cluster-agent",
+			LabelSelector: clusterAgentSelector,
 		})
 		s.Assert().NoError(err)
 
@@ -250,7 +268,7 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
 		ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-			LabelSelector: "agent.datadoghq.com/component=cluster-checks-runner",
+			LabelSelector: clusterCheckRunnerSelector,
 		})
 		s.Assert().NoError(err)
 
@@ -301,11 +319,10 @@ func verifyKSMCheck(s *kindSuite, checkJson map[string]interface{}) {
 		}
 	}
 	s.EventuallyWithTf(func(c *assert.CollectT) {
-		var now time.Time
 		metricQuery := "exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:operator-e2e-ci, kube_container_name:*})"
 
-		series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
-		s.Assert().NoError(err)
-		assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
+		resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+		assert.Truef(c, len(resp.Series) > 0, "expected metric series to not be empty: %s", err)
+
 	}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 }

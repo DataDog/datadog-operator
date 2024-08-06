@@ -21,11 +21,14 @@ import (
 )
 
 const (
-	manifestsPath       = "./manifests"
-	mgrKustomizeDirPath = "../../config/e2e"
-	defaultMgrImageName = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag    = "latest"
-	defaultMgrFileName  = "e2e-manager.yaml"
+	manifestsPath              = "./manifests"
+	mgrKustomizeDirPath        = "../../config/e2e"
+	defaultMgrImageName        = "gcr.io/datadoghq/operator"
+	defaultMgrImgTag           = "latest"
+	defaultMgrFileName         = "e2e-manager.yaml"
+	nodeAgentSelector          = "agent.datadoghq.com/component=agent"
+	clusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
+	clusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
 )
 
 var (
@@ -81,9 +84,9 @@ func verifyAgent(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
 	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
 	nodes := k8s.GetNodes(t, kubectlOptions)
 
-	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), "agent.datadoghq.com/component=agent")
-	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-agent")
-	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-checks-runner")
+	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), nodeAgentSelector)
+	verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector)
+	verifyNumPodsForSelector(t, kubectlOptions, 1, clusterCheckRunnerSelector)
 }
 
 func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
