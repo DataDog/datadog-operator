@@ -4,14 +4,13 @@ go 1.22.0
 
 require (
 	github.com/DataDog/datadog-agent/test/new-e2e v0.55.2
+	github.com/DataDog/datadog-api-client-go/v2 v2.26.0
 	github.com/DataDog/datadog-operator v1.7.0
 	github.com/DataDog/test-infra-definitions v0.0.0-20240731091741-3c7d2dc2d3dd
 	github.com/gruntwork-io/terratest v0.46.13
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.13.1
 	github.com/pulumi/pulumi/sdk/v3 v3.126.0
 	github.com/stretchr/testify v1.9.0
-	github.com/zorkian/go-datadog-api v2.30.0+incompatible
-	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 	k8s.io/apimachinery v0.28.9
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3
 	sigs.k8s.io/yaml v1.3.0
@@ -25,7 +24,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/test/fakeintake v0.55.2 // indirect
-	github.com/DataDog/datadog-api-client-go/v2 v2.26.0 // indirect
 	github.com/DataDog/extendeddaemonset v0.9.0-rc.2 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20200805151601-30884ca2197a // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
