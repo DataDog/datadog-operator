@@ -73,7 +73,7 @@ func (suite *kindSuite) SetupSuite() {
 	)
 	configuration := datadog.NewConfiguration()
 	client := datadog.NewAPIClient(configuration)
-	suite.metricsApi = datadogV1.NewMetricsApi(client)
+	suite.datadogClient.metricsApi = datadogV1.NewMetricsApi(client)
 }
 
 func TestKindSuite(t *testing.T) {
