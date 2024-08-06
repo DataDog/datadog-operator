@@ -100,6 +100,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
+	// SecretsBackend configuration.
+	SecretsBackend *SecretsBackendFeatureConfig `json:"secretsBackend,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -1099,13 +1101,48 @@ type DatadogCredentials struct {
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
 }
 
-// SecretBackendConfig provides configuration for the secret backend.
-type SecretBackendConfig struct {
+// SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature
+// +k8s:openapi-gen=true
+type SecretsBackendRolesConfig struct {
+	// Namespace defines the namespace in which the secrets reside.
+	// +required
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Secrets defines the list of secrets for which a role should be created.
+	// +required
+	// +listType=set
+	Secrets []string `json:"secrets,omitempty"`
+}
+
+// SecretsBackendFeatureConfig provides configuration for the secret backend.
+// +k8s:openapi-gen=true
+type SecretsBackendFeatureConfig struct {
 	// Command defines the secret backend command to use
+	// Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
+	// Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
 	Command *string `json:"command,omitempty"`
 
-	// Args defines the list of arguments to pass to the command
-	Args []string `json:"args,omitempty"`
+	// Args defines the list of arguments to pass to the command (space-separated strings).
+	// +optional
+	Args *string `json:"args,omitempty"`
+
+	// Timeout defines the command timeout in seconds
+	// Default: 30
+	// +optional
+	Timeout *int32 `json:"timeout,omitempty"`
+
+	// EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
+	// Default: false
+	// +optional
+	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
+
+	// Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
+	// They are defined as a list of namespace/secrets.
+	// Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` / `DD_AGENT_WATCH_NAMESPACE`.
+	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent
+	// +optional
+	// +listType=atomic
+	Roles []*SecretsBackendRolesConfig `json:"roles,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.

@@ -67,4 +67,6 @@ const (
 	HelmCheckIDType = "helm_check"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
+	// Secrets feature
+	SecretsBackendIDType = "secrets_backend"
 )

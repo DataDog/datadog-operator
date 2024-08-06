@@ -110,6 +110,8 @@ const (
 	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
 
+	defaultSecretsBackendCommand string = ""
+
 	defaultFIPSEnabled      bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
 	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
@@ -514,4 +516,10 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if *ddaSpec.Features.HelmCheck.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.CollectEvents, defaultHelmCheckCollectEvents)
 	}
+
+	// Secrets backend Feature
+	if ddaSpec.Features.SecretsBackend == nil {
+		ddaSpec.Features.SecretsBackend = &SecretsBackendFeatureConfig{}
+	}
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.SecretsBackend.Command, defaultSecretsBackendCommand)
 }
