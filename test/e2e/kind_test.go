@@ -79,6 +79,7 @@ func TestKindSuite(t *testing.T) {
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
 		e2e.WithDevMode(),
+		e2e.WithSkipDeleteOnFailure(),
 	}
 
 	e2e.Run[kindEnv](t, &kindSuite{}, e2eParams...)
