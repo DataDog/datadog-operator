@@ -16,15 +16,13 @@ spec:
   features:
     clusterChecks:
       enabled: true
-      useClusterChecksRunners: false
-    logCollection:
-      enabled: true
+      useClusterChecksRunners: true
     liveContainerCollection:
+      enabled: true
+    logCollection:
       enabled: true
   override:
     nodeAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
       containers:
         agent:
           env:
@@ -37,8 +35,6 @@ spec:
               name: datadog-cluster-name
               key: DD_CLUSTER_NAME
     clusterAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
       env:
         - name: DD_CLUSTER_NAME
           valueFrom:
@@ -47,7 +43,7 @@ spec:
               key: DD_CLUSTER_NAME
     clusterChecksRunner:
       labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
+        agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
       env:
         - name: DD_CLUSTER_NAME
           valueFrom:

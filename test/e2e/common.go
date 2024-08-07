@@ -82,13 +82,10 @@ func verifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
 	verifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
 }
 
-func verifyAgent(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
+func verifyAgentPods(t *testing.T, kubectlOptions *k8s.KubectlOptions, selector string) {
 	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
 	nodes := k8s.GetNodes(t, kubectlOptions)
-
-	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), nodeAgentSelector)
-	verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector)
-	verifyNumPodsForSelector(t, kubectlOptions, 1, clusterCheckRunnerSelector)
+	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), selector)
 }
 
 func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {

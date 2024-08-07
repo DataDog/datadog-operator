@@ -227,61 +227,89 @@ func (s *kindSuite) TestKindRun() {
 		ddaConfigPath, err = getAbsPath(ddaMinimalPath)
 		s.Assert().NoError(err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-		verifyAgent(t, kubectlOptions)
+		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-minimum")
+		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector)
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
+		agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+		})
+		s.Assert().NoError(err)
+
+		for _, pod := range agentPods {
+			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
+			s.Assert().NoError(err)
+
+			verifyCheck(s, output, "kubelet")
+		}
+
 		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
-			assert.Truef(c, len(resp.Series) > 0, "expected metric series to not be empty: %s", err)
-		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+			resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().Add(-time.Minute*5).Unix(), time.Now().Add(time.Minute*5).Unix(), metricQuery)
+			assert.Truef(c, len(resp.Series) > 0, "expected metric series for query `%s` to not be empty: %s", metricQuery, err)
+		}, 240*time.Second, 15*time.Second, fmt.Sprintf("metric series has not changed to not empty with query %s", metricQuery))
 	})
 
 	s.T().Run("KSM Check Works (cluster check)", func(t *testing.T) {
 		clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-			LabelSelector: clusterAgentSelector,
+			LabelSelector: clusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
 		})
 		s.Assert().NoError(err)
 
 		for _, pod := range clusterAgentPods {
+			k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
 			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
 			s.Assert().NoError(err)
 
-			verifyKSMCheck(s, output)
+			verifyCheck(s, output, "kubernetes_state_core")
+
+			s.EventuallyWithTf(func(c *assert.CollectT) {
+				verifyKSMCheck(s)
+			}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 		}
 	})
 
 	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
-		ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-			LabelSelector: clusterCheckRunnerSelector,
-		})
+		// Update DDA
+		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		s.Assert().NoError(err)
+		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
 
-		for _, ccr := range ccrPods {
-			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: clusterCheckRunnerSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled",
+			})
 			s.Assert().NoError(err)
 
-			verifyKSMCheck(s, output)
+			for _, ccr := range ccrPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, ccr.Name, 9, 15*time.Second)
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
+				s.Assert().NoError(err)
 
-		}
+				verifyCheck(s, output, "kubernetes_state_core")
+			}
+		}, 240*time.Second, 15*time.Second, "kubernetes_state_core check could not be validated")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyKSMCheck(s)
+		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
 }
-
-func verifyKSMCheck(s *kindSuite, collectorOutput string) {
+func verifyCheck(s *kindSuite, collectorOutput string, checkName string) {
 	var runningChecks map[string]interface{}
 
 	checksJson := parseCollectorJson(collectorOutput)
 
 	runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
-	if ksmCheck, found := runningChecks["kubernetes_state_core"].(map[string]interface{}); found {
-		for _, instance := range ksmCheck {
-			s.Assert().EqualValues("kubernetes_state_core", instance.(map[string]interface{})["CheckName"].(string))
+	if check, found := runningChecks[checkName].(map[string]interface{}); found {
+		for _, instance := range check {
+			s.Assert().EqualValues(checkName, instance.(map[string]interface{})["CheckName"].(string))
 
 			lastError, exists := instance.(map[string]interface{})["LastError"].(string)
 			s.Assert().True(exists)
@@ -295,12 +323,14 @@ func verifyKSMCheck(s *kindSuite, collectorOutput string) {
 			s.Assert().True(exists)
 			s.Assert().Greater(totalMetricSamples, float64(0))
 		}
+	} else {
+		s.Assert().True(found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
 	}
-	s.EventuallyWithTf(func(c *assert.CollectT) {
-		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:%s, kube_container_name:*})", s.Env().Kind.ClusterName)
+}
 
-		resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
-		assert.Truef(c, len(resp.Series) > 0, "expected metric series to not be empty: %s", err)
+func verifyKSMCheck(s *kindSuite) {
+	metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:%s, kube_container_name:*})", s.Env().Kind.ClusterName)
 
-	}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+	s.Assert().True(len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }
