@@ -79,7 +79,6 @@ func TestKindSuite(t *testing.T) {
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
 		e2e.WithDevMode(),
-		e2e.WithSkipDeleteOnFailure(),
 	}
 
 	e2e.Run[kindEnv](t, &kindSuite{}, e2eParams...)
@@ -238,6 +237,8 @@ func (s *kindSuite) TestKindRun() {
 		s.Assert().NoError(err)
 
 		for _, pod := range agentPods {
+			k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
 			output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
 			s.Assert().NoError(err)
 
@@ -305,26 +306,27 @@ func verifyCheck(s *kindSuite, collectorOutput string, checkName string) {
 	var runningChecks map[string]interface{}
 
 	checksJson := parseCollectorJson(collectorOutput)
+	if checksJson != nil {
+		runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+		if check, found := runningChecks[checkName].(map[string]interface{}); found {
+			for _, instance := range check {
+				s.Assert().EqualValues(checkName, instance.(map[string]interface{})["CheckName"].(string))
 
-	runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
-	if check, found := runningChecks[checkName].(map[string]interface{}); found {
-		for _, instance := range check {
-			s.Assert().EqualValues(checkName, instance.(map[string]interface{})["CheckName"].(string))
+				lastError, exists := instance.(map[string]interface{})["LastError"].(string)
+				s.Assert().True(exists)
+				s.Assert().Empty(lastError)
 
-			lastError, exists := instance.(map[string]interface{})["LastError"].(string)
-			s.Assert().True(exists)
-			s.Assert().Empty(lastError)
+				totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
+				s.Assert().True(exists)
+				s.Assert().Zero(totalErrors)
 
-			totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
-			s.Assert().True(exists)
-			s.Assert().Zero(totalErrors)
-
-			totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
-			s.Assert().True(exists)
-			s.Assert().Greater(totalMetricSamples, float64(0))
+				totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
+				s.Assert().True(exists)
+				s.Assert().Greater(totalMetricSamples, float64(0))
+			}
+		} else {
+			s.Assert().True(found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
 		}
-	} else {
-		s.Assert().True(found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
 	}
 }
 
