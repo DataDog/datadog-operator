@@ -156,15 +156,15 @@ func buildWidgets(logger logr.Logger, widgets []v1alpha1.Widget) []datadogV1.Wid
 		if widget.Id != nil {
 			dbWidget.SetId(*widget.Id)
 		}
-		if widget.Definition.TimeseriesWidgetDefinition != nil {
-			timeSeriesDefinition := buildTimeSeries(logger, widget.Definition.TimeseriesWidgetDefinition)
+		if widget.TimeseriesWidgetDefinition != nil {
+			timeSeriesDefinition := buildTimeSeries(logger, widget.TimeseriesWidgetDefinition)
 			definition := datadogV1.WidgetDefinition{
 				TimeseriesWidgetDefinition: timeSeriesDefinition,
 			}
 			dbWidget.SetDefinition(definition)
 		}
-		if widget.Definition.QueryValueWidgetDefinition != nil {
-			queryValueDefinition := buildQueryValue(logger, widget.Definition.QueryValueWidgetDefinition)
+		if widget.QueryValueWidgetDefinition != nil {
+			queryValueDefinition := buildQueryValue(logger, widget.QueryValueWidgetDefinition)
 			definition := datadogV1.WidgetDefinition{
 				QueryValueWidgetDefinition: queryValueDefinition,
 			}

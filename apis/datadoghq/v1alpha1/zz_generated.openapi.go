@@ -90,7 +90,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.SyscallMonitorSpec":                      schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref),
 		"./apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
 		"./apis/datadoghq/v1alpha1.Widget":                                  schema__apis_datadoghq_v1alpha1_Widget(ref),
-		"./apis/datadoghq/v1alpha1.WidgetDefinition":                        schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref),
 		"./apis/datadoghq/v1alpha1.WidgetLayout":                            schema__apis_datadoghq_v1alpha1_WidgetLayout(ref),
 	}
 }
@@ -4892,11 +4891,14 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 				Description: "Widget Information about widget.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"definition": {
+					"timeseries": {
 						SchemaProps: spec.SchemaProps{
-							Description: "[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetDefinition"),
+							Ref: ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
+						},
+					},
+					"queryValue": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition"),
 						},
 					},
 					"id": {
@@ -4914,36 +4916,11 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 						},
 					},
 				},
-				Required: []string{"definition", "id"},
+				Required: []string{"id"},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.WidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Interface --> NOTE: this didn't have tags. How would I even assign it? WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"timeseries": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
-						},
-					},
-					"queryValue": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition", "./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"},
+			"./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition", "./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
 	}
 }
 

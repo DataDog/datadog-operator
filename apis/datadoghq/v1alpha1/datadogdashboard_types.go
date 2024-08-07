@@ -182,8 +182,8 @@ type NullableList struct {
 // Widget Information about widget.
 // +k8s:openapi-gen=true
 type Widget struct {
-	// [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).
-	Definition WidgetDefinition `json:"definition"`
+	TimeseriesWidgetDefinition *TimeseriesWidgetDefinition `json:"timeseries,omitempty"`
+	QueryValueWidgetDefinition *QueryValueWidgetDefinition `json:"queryValue,omitempty"`
 	// ID of the widget.
 	Id *int64 `json:"id"`
 	// The layout for a widget on a `free` or new dashboard layout dashboard.
@@ -261,15 +261,6 @@ type WidgetEvent struct {
 	Q string `json:"q"`
 	// The execution method for multi-value filters.
 	TagsExecution *string `json:"tagsExecution,omitempty"`
-}
-
-// Interface -->
-// NOTE: this didn't have tags. How would I even assign it?
-// WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).
-// +k8s:openapi-gen=true
-type WidgetDefinition struct {
-	TimeseriesWidgetDefinition *TimeseriesWidgetDefinition `json:"timeseries,omitempty"`
-	QueryValueWidgetDefinition *QueryValueWidgetDefinition `json:"queryValue,omitempty"`
 }
 
 // WidgetMarker Markers allow you to add visual conditional formatting for your graphs.
