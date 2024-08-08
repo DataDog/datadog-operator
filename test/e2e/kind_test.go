@@ -247,11 +247,13 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubelet")
 			}
+		}, 240*time.Second, 15*time.Second, fmt.Sprintf("kubelet check not yet running on agent pod"))
 
+		s.EventuallyWithTf(func(c *assert.CollectT) {
 			resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().Add(-time.Minute*5).Unix(), time.Now().Add(time.Minute*5).Unix(), metricQuery)
 
 			assert.Truef(c, len(resp.Series) > 0, "expected metric series for query `%s` to not be empty: %s", metricQuery, err)
-		}, 240*time.Second, 15*time.Second, fmt.Sprintf("metric series has not changed to not empty with query %s", metricQuery))
+		}, 600*time.Second, 30*time.Second, fmt.Sprintf("metric series has not changed to not empty with query %s", metricQuery))
 	})
 
 	s.T().Run("KSM Check Works (cluster check)", func(t *testing.T) {
@@ -270,6 +272,10 @@ func (s *kindSuite) TestKindRun() {
 				verifyKSMCheck(s, c)
 			}
 		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyKSMCheck(s, c)
+		}, 240*time.Second, 15*time.Second, "kubernetes_state_core metric series has not changed to not empty")
 	})
 
 	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
@@ -290,13 +296,15 @@ func (s *kindSuite) TestKindRun() {
 				assert.NoError(c, err)
 
 				verifyCheck(c, output, "kubernetes_state_core")
-				verifyKSMCheck(s, c)
 			}
 		}, 240*time.Second, 15*time.Second, "kubernetes_state_core check could not be validated")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyKSMCheck(s, c)
+		}, 240*time.Second, 15*time.Second, "kubernetes_state_core metric series has not changed to not empty")
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
-		time.Sleep(time.Minute * 30)
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
 }
