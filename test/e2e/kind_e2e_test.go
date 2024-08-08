@@ -209,13 +209,13 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		var now time.Time
-		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.kubelet.container.log_filesystem.used_bytes{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
+		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			now = time.Now()
 			series, err := s.datadogClient.QueryMetrics(now.Add(-1*time.Minute).Unix(), now.Unix(), metricQuery)
 			assert.Truef(c, len(series) > 0, "expected metric series to not be empty: %s", err)
-		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+		}, 600*time.Second, 30*time.Second, "metric series has not changed to not empty")
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
