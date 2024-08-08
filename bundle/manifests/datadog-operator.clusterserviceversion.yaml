@@ -449,8 +449,7 @@ spec:
               resources:
                 - validatingwebhookconfigurations
               verbs:
-                - list
-                - watch
+                - '*'
             - apiGroups:
                 - apiregistration.k8s.io
               resources:

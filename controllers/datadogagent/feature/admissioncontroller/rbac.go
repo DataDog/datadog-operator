@@ -14,6 +14,25 @@ import (
 
 func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled bool, cwsInstrumentationMode string) []rbacv1.PolicyRule {
 	clusterPolicyRules := []rbacv1.PolicyRule{
+		// ValidatingWebhooksConfigs
+		{
+			APIGroups: []string{rbac.AdmissionAPIGroup},
+			Resources: []string{rbac.ValidatingConfigResource},
+			Verbs: []string{
+				rbac.CreateVerb,
+			},
+		},
+		{
+			APIGroups:     []string{rbac.AdmissionAPIGroup},
+			Resources:     []string{rbac.ValidatingConfigResource},
+			ResourceNames: []string{webhookName},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.UpdateVerb,
+			},
+		},
 		// MutatingWebhooksConfigs
 		{
 			APIGroups: []string{rbac.AdmissionAPIGroup},
