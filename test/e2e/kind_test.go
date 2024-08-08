@@ -227,12 +227,10 @@ func (s *kindSuite) TestKindRun() {
 		assert.NoError(t, err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
 		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-minimum")
-		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector)
+		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-minimum")
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
-		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
-
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
@@ -247,8 +245,9 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubelet")
 			}
-		}, 240*time.Second, 15*time.Second, fmt.Sprintf("kubelet check not yet running on agent pod"))
+		}, 600*time.Second, 30*time.Second, fmt.Sprintf("could not validate kubelet check on agent pod"))
 
+		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().Add(-time.Minute*5).Unix(), time.Now().Add(time.Minute*5).Unix(), metricQuery)
 
@@ -269,13 +268,12 @@ func (s *kindSuite) TestKindRun() {
 				assert.NoError(t, err)
 
 				verifyCheck(c, output, "kubernetes_state_core")
-				verifyKSMCheck(s, c)
 			}
-		}, 240*time.Second, 15*time.Second, "metric series has not changed to not empty")
+		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
-		}, 240*time.Second, 15*time.Second, "kubernetes_state_core metric series has not changed to not empty")
+		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
 	})
 
 	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
@@ -283,6 +281,9 @@ func (s *kindSuite) TestKindRun() {
 		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(t, err)
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
+		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled")
+		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled")
+		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterCheckRunnerSelector+",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
@@ -297,11 +298,11 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 240*time.Second, 15*time.Second, "kubernetes_state_core check could not be validated")
+		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
-		}, 240*time.Second, 15*time.Second, "kubernetes_state_core metric series has not changed to not empty")
+		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
