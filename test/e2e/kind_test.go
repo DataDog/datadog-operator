@@ -296,6 +296,7 @@ func (s *kindSuite) TestKindRun() {
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
+		time.Sleep(time.Minute * 30)
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
 }
