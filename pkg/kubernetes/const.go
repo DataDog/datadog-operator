@@ -34,6 +34,8 @@ const (
 	RolesKind = "roles"
 	// RoleBindingKind RoleBinding resource kind
 	RoleBindingKind = "rolebindings"
+	// ValidatingWebhookConfigurationsKind ValidatingWebhookConfigurations resource kind
+	ValidatingWebhookConfigurationsKind = "validatingwebhookconfigurations"
 	// MutatingWebhookConfigurationsKind MutatingWebhookConfigurations resource kind
 	MutatingWebhookConfigurationsKind = "mutatingwebhookconfigurations"
 	// APIServiceKind APIService resource kind
@@ -64,6 +66,7 @@ func getResourcesKind(withCiliumResources, withPodSecurityPolicy bool) []ObjectK
 		ClusterRoleBindingKind,
 		RolesKind,
 		RoleBindingKind,
+		ValidatingWebhookConfigurationsKind,
 		MutatingWebhookConfigurationsKind,
 		APIServiceKind,
 		SecretsKind,

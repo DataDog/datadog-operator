@@ -30,6 +30,8 @@ func ObjectListFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Objec
 		return &rbacv1.RoleList{}
 	case RoleBindingKind:
 		return &rbacv1.RoleBindingList{}
+	case ValidatingWebhookConfigurationsKind:
+		return &admissionregistrationv1.ValidatingWebhookConfigurationList{}
 	case MutatingWebhookConfigurationsKind:
 		return &admissionregistrationv1.MutatingWebhookConfigurationList{}
 	case APIServiceKind:
