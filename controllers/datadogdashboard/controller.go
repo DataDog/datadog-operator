@@ -40,16 +40,19 @@ type Reconciler struct {
 	datadogClient *datadogV1.DashboardsApi
 	datadogAuth   context.Context
 	versionInfo   *version.Info
+	scheme        *runtime.Scheme
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, versionInfo *version.Info, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+// NOTE: monitor returns nil as apart of (*Reconciler, Error) return
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
 		versionInfo:   versionInfo,
+		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
 	}
