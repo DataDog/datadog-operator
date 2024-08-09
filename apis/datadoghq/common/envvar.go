@@ -31,6 +31,7 @@ const (
 	DDAdmissionControllerAppsecEnabled                   = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_APPSEC_ENABLED"
 	DDAdmissionControllerAppsecSCAEnabled                = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_APPSEC_SCA_ENABLED"
 	DDAdmissionControllerIASTEnabled                     = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_IAST_ENABLED"
+	DDAdmissionControllerProfilingEnabled                = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_PROFILING_ENABLED"
 	DDAPIKey                                             = "DD_API_KEY"
 	DDAPMEnabled                                         = "DD_APM_ENABLED"
 	DDAPMInstrumentationInstallTime                      = "DD_INSTRUMENTATION_INSTALL_TIME"

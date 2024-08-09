@@ -45,6 +45,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/processdiscovery"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/profiling"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/sbom"
