@@ -78,7 +78,6 @@ const (
 // DatadogPodAutoscalerSpec defines the desired state of DatadogPodAutoscaler
 type DatadogPodAutoscalerSpec struct {
 	// TargetRef is the reference to the resource to scale.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Modifying the targetRef is not allowed. Please delete and re-create the DatadogPodAutoscaler object."
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
 	// Owner defines the source of truth for this object (local or remote)
