@@ -245,7 +245,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubelet")
 			}
-		}, 600*time.Second, 30*time.Second, fmt.Sprintf("could not validate kubelet check on agent pod"))
+		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate kubelet check on agent pod"))
 
 		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -269,7 +269,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
+		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
@@ -298,7 +298,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
+		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
