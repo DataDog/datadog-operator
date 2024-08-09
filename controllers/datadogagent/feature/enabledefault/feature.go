@@ -418,7 +418,7 @@ func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
 }
 
 func getInstallInfoValue() string {
-	toolVersion := "datadog-operator"
+	toolVersion := "unknown"
 	if envVar := os.Getenv(apicommon.InstallInfoToolVersion); envVar != "" {
 		toolVersion = envVar
 	}
