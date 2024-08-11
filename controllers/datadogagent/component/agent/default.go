@@ -195,6 +195,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 		Command: []string{
 			"/otel-agent",
 			fmt.Sprintf("--config=%s", apicommon.OtelCustomConfigVolumePath),
+			fmt.Sprintf("--core-config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
 		Env:          envVarsForOtelAgent(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
