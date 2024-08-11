@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,6 +22,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/stretchr/testify/assert"
@@ -81,8 +82,8 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-		// NOTE: omitted 'DatadogDashboard created, check Status.Primary" test
-		// NOTE: re-enable check tags test once 'generated:kubernetes' is allowed in a
+		// NOTE: omitted 'DatadogDashboard created, check Status.Primary" test since there is no Status.Primary set
+		// NOTE: ommited, re-enable check tags test once 'generated:kubernetes' is allowed in 
 		// {
 		// 	name: "DatadogDashboard exists, check required tags",
 		// 	args: args{
@@ -165,6 +166,9 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
+		// {
+		// 	// test
+		// }
 	}
 
 	for _, tt := range tests {
@@ -183,12 +187,13 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 
 			// Set up
 			r := &Reconciler{
-				client:        fake.NewClientBuilder().WithStatusSubresource(&datadoghqv1alpha1.DatadogDashboard{}).Build(),
+				client:        fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogDashboard{}).Build(),
 				datadogClient: client,
 				datadogAuth:   testAuth,
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
+				versionInfo:   &version.Info{},
 			}
 
 			// First dashboard action
@@ -243,43 +248,19 @@ func newRequest(ns, name string) reconcile.Request {
 	}
 }
 
-func genericDatadogDashboard() *datadoghqv1alpha1.DatadogDashboard {
-	return &datadoghqv1alpha1.DatadogDashboard{
+func genericDatadogDashboard() *v1alpha1.DatadogDashboard {
+	return &v1alpha1.DatadogDashboard{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogDashboard",
-			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: resourcesNamespace,
 			Name:      resourcesName,
 		},
-		Spec: datadoghqv1alpha1.DatadogDashboardSpec{
+		Spec: v1alpha1.DatadogDashboardSpec{
 			Title:      "test dashboard",
 			LayoutType: "ordered",
 		},
 	}
-}
-
-// NOTE: move this into dashboar_test.go
-func setupTestAuth(apiURL string) context.Context {
-	testAuth := context.WithValue(
-		context.Background(),
-		datadogapi.ContextAPIKeys,
-		map[string]datadogapi.APIKey{
-			"apiKeyAuth": {
-				Key: "DUMMY_API_KEY",
-			},
-			"appKeyAuth": {
-				Key: "DUMMY_APP_KEY",
-			},
-		},
-	)
-	parsedAPIURL, _ := url.Parse(apiURL)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerIndex, 1)
-	testAuth = context.WithValue(testAuth, datadogapi.ContextServerVariables, map[string]string{
-		"name":     parsedAPIURL.Host,
-		"protocol": parsedAPIURL.Scheme,
-	})
-
-	return testAuth
 }

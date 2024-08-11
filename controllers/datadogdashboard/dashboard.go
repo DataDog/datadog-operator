@@ -37,7 +37,9 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 	} else {
 		dashboard.SetDescriptionNil()
 	}
-
+	if ddb.Spec.NotifyList != nil {
+		dashboard.SetNotifyList(ddb.Spec.NotifyList)
+	}
 	if ddb.Spec.ReflowType != nil {
 		dashboard.SetReflowType(*ddb.Spec.ReflowType)
 	}
@@ -156,15 +158,15 @@ func buildWidgets(logger logr.Logger, widgets []v1alpha1.Widget) []datadogV1.Wid
 		if widget.Id != nil {
 			dbWidget.SetId(*widget.Id)
 		}
-		if widget.Definition.TimeseriesWidgetDefinition != nil {
-			timeSeriesDefinition := buildTimeSeries(logger, widget.Definition.TimeseriesWidgetDefinition)
+		if widget.TimeseriesWidgetDefinition != nil {
+			timeSeriesDefinition := buildTimeSeries(logger, widget.TimeseriesWidgetDefinition)
 			definition := datadogV1.WidgetDefinition{
 				TimeseriesWidgetDefinition: timeSeriesDefinition,
 			}
 			dbWidget.SetDefinition(definition)
 		}
-		if widget.Definition.QueryValueWidgetDefinition != nil {
-			queryValueDefinition := buildQueryValue(logger, widget.Definition.QueryValueWidgetDefinition)
+		if widget.QueryValueWidgetDefinition != nil {
+			queryValueDefinition := buildQueryValue(logger, widget.QueryValueWidgetDefinition)
 			definition := datadogV1.WidgetDefinition{
 				QueryValueWidgetDefinition: queryValueDefinition,
 			}
@@ -229,6 +231,7 @@ func convertTsBackground(bg *v1alpha1.TimeseriesBackground) *datadogV1.Timeserie
 	}
 	return &dbBg
 }
+
 func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.QueryValueWidgetRequest {
 	dbRequests := []datadogV1.QueryValueWidgetRequest{}
 	for _, request := range requests {
@@ -481,6 +484,9 @@ func convertCustomLinks(customLinks []v1alpha1.WidgetCustomLink) []datadogV1.Wid
 		}
 		if link.OverrideLabel != nil {
 			dbCustomLink.SetOverrideLabel(*link.OverrideLabel)
+		}
+		if link.Link != nil {
+			dbCustomLink.SetLink(*link.Link)
 		}
 		dbCustomLinks = append(dbCustomLinks, dbCustomLink)
 	}
