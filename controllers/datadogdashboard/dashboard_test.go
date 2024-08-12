@@ -115,6 +115,45 @@ func TestBuildDashboard(t *testing.T) {
 								// 		},
 								// 	},
 								// },
+								DisplayType: datadogV1.WidgetDisplayType("area").Ptr(),
+								Formulas: []v1alpha1.WidgetFormula{
+									{
+										Alias:           apiutils.NewStringPointer("foo-bar"),
+										CellDisplayMode: datadogV1.TableWidgetCellDisplayMode("number").Ptr(),
+										ConditionalFormats: []v1alpha1.WidgetConditionalFormat{
+											{
+												Comparator:    "=",
+												CustomBgColor: apiutils.NewStringPointer("classic"),
+												CustomFgColor: apiutils.NewStringPointer("classic"),
+												HideValue:     apiutils.NewBoolPointer(false),
+												ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+												Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+												Palette:       "blue",
+												Timeframe:     apiutils.NewStringPointer("foo bar"),
+												// NOTE: add value in testing
+												// Value: &resource.Quantity{
+												// 	i:
+												// },
+											},
+										},
+										Formula: "formula",
+										Limit: &v1alpha1.WidgetFormulaLimit{
+											Count: apiutils.NewInt64Pointer(1),
+											Order: datadogV1.QuerySortOrder("asc").Ptr(),
+										},
+										Style: &v1alpha1.WidgetFormulaStyle{
+											Palette:      apiutils.NewStringPointer("classic"),
+											PaletteIndex: apiutils.NewInt64Pointer(0),
+										},
+									},
+								},
+								Metadata: []v1alpha1.TimeseriesWidgetExpressionAlias{
+									{
+										AliasName:  apiutils.NewStringPointer("foo bar"),
+										Expression: "test expression",
+									},
+								},
+								OnRightYaxis: apiutils.NewBoolPointer(true),
 								Queries: []v1alpha1.FormulaAndFunctionQueryDefinition{
 									{
 										FormulaAndFunctionMetricQueryDefinition: &v1alpha1.FormulaAndFunctionMetricQueryDefinition{
@@ -192,6 +231,12 @@ func TestBuildDashboard(t *testing.T) {
 										},
 									},
 								},
+								ResponseFormat: datadogV1.FormulaAndFunctionResponseFormat("timeseries").Ptr(),
+								Style: &v1alpha1.WidgetRequestStyle{
+									LineType:  datadogV1.WidgetLineType("dashed").Ptr(),
+									LineWidth: datadogV1.WidgetLineWidth("normal").Ptr(),
+									Palette:   apiutils.NewStringPointer("classic"),
+								},
 							},
 						},
 						RightYaxis: &v1alpha1.WidgetAxis{},
@@ -204,6 +249,13 @@ func TestBuildDashboard(t *testing.T) {
 						Type: "timeseries",
 					},
 					Id: apiutils.NewInt64Pointer(123),
+					Layout: v1alpha1.WidgetLayout{
+						Height:        10,
+						IsColumnBreak: apiutils.NewBoolPointer(true),
+						Width:         10,
+						X:             5,
+						Y:             5,
+					},
 				},
 				// v1alpha1.Widget{
 				// 	QueryValueWidgetDefinition: &v1alpha1.QueryValueWidgetDefinition{
@@ -302,10 +354,6 @@ func Test_createDashboard(t *testing.T) {
 	assert.Equal(t, db.Spec.Title, dashboard.GetTitle(), "discrepancy found in parameter: Title")
 	assert.Equal(t, db.Spec.Tags, dashboard.GetTags(), "discrepancy found in parameter: Tags")
 }
-
-// func Test_updateDashboard(t *testing.T) {
-
-// }
 
 func Test_deleteDashboard(t *testing.T) {
 	dbId := "test_id"
@@ -586,7 +634,47 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 				// 		},
 				// 	},
 				// },
+				DisplayType: datadogV1.WidgetDisplayType("area").Ptr(),
+				Formulas: []datadogV1.WidgetFormula{
+					{
+						Alias:           apiutils.NewStringPointer("foo-bar"),
+						CellDisplayMode: datadogV1.TableWidgetCellDisplayMode("number").Ptr(),
+						ConditionalFormats: []datadogV1.WidgetConditionalFormat{
+							{
+								Comparator:    "=",
+								CustomBgColor: apiutils.NewStringPointer("classic"),
+								CustomFgColor: apiutils.NewStringPointer("classic"),
+								HideValue:     apiutils.NewBoolPointer(false),
+								ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+								Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+								Palette:       "blue",
+								Timeframe:     apiutils.NewStringPointer("foo bar"),
+								// NOTE: add value in testing
+								// Value: &resource.Quantity{
+								// 	i:
+								// },
+							},
+						},
+						Formula: "formula",
+						Limit: &datadogV1.WidgetFormulaLimit{
+							Count: apiutils.NewInt64Pointer(1),
+							Order: datadogV1.QuerySortOrder("asc").Ptr(),
+						},
+						Style: &datadogV1.WidgetFormulaStyle{
+							Palette:      apiutils.NewStringPointer("classic"),
+							PaletteIndex: apiutils.NewInt64Pointer(0),
+						},
+					},
+				},
+				Metadata: []datadogV1.TimeseriesWidgetExpressionAlias{
+					{
+						AliasName:  apiutils.NewStringPointer("foo bar"),
+						Expression: "test expression",
+					},
+				},
+				OnRightYaxis: apiutils.NewBoolPointer(true),
 				Queries: []datadogV1.FormulaAndFunctionQueryDefinition{
+
 					{
 						FormulaAndFunctionMetricQueryDefinition: &datadogV1.FormulaAndFunctionMetricQueryDefinition{
 							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
@@ -663,6 +751,12 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 						},
 					},
 				},
+				ResponseFormat: datadogV1.FormulaAndFunctionResponseFormat("timeseries").Ptr(),
+				Style: &datadogV1.WidgetRequestStyle{
+					LineType:  datadogV1.WidgetLineType("dashed").Ptr(),
+					LineWidth: datadogV1.WidgetLineWidth("normal").Ptr(),
+					Palette:   apiutils.NewStringPointer("classic"),
+				},
 			},
 		},
 		RightYaxis: &datadogV1.WidgetAxis{},
@@ -681,7 +775,8 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 func genericDashboard(dbID string) datadogV1.Dashboard {
 	fakeRawNow := time.Unix(1612244495, 0)
 	fakeNow, _ := time.Parse(dateFormat, strings.Split(fakeRawNow.String(), " db=")[0])
-	layoutType := datadogV1.DASHBOARDLAYOUTTYPE_ORDERED
+	layoutType := datadogV1.DashboardLayoutType("free")
+	reflowType := datadogV1.DashboardReflowType("auto")
 	title := "Test dashboard"
 	handle := "test_user"
 	description := datadogapi.NullableString{}
@@ -699,7 +794,15 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 		Id:           &dbID,
 		Title:        title,
 		LayoutType:   layoutType,
+		ReflowType:   &reflowType,
 		Widgets:      []datadogV1.Widget{},
+		// Widgets: []datadogV1.Widget{
+		// 	{
+		// 		Definition: datadogV1.WidgetDefinition{
+		// 			TimeseriesWidgetDefinition: expectedTimeSeries(),
+		// 		},
+		// 	},
+		// },
 	}
 }
 
