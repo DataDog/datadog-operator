@@ -4059,16 +4059,6 @@ func (in *QueryValueWidgetRequest) DeepCopyInto(out *QueryValueWidgetRequest) {
 		*out = new(datadogV1.WidgetAggregator)
 		**out = **in
 	}
-	if in.ApmQuery != nil {
-		in, out := &in.ApmQuery, &out.ApmQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.AuditQuery != nil {
-		in, out := &in.AuditQuery, &out.AuditQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.ConditionalFormats != nil {
 		in, out := &in.ConditionalFormats, &out.ConditionalFormats
 		*out = make([]WidgetConditionalFormat, len(*in))
@@ -4076,42 +4066,12 @@ func (in *QueryValueWidgetRequest) DeepCopyInto(out *QueryValueWidgetRequest) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.EventQuery != nil {
-		in, out := &in.EventQuery, &out.EventQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Formulas != nil {
 		in, out := &in.Formulas, &out.Formulas
 		*out = make([]WidgetFormula, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.LogQuery != nil {
-		in, out := &in.LogQuery, &out.LogQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.NetworkQuery != nil {
-		in, out := &in.NetworkQuery, &out.NetworkQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.ProcessQuery != nil {
-		in, out := &in.ProcessQuery, &out.ProcessQuery
-		*out = new(ProcessQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.ProfileMetricsQuery != nil {
-		in, out := &in.ProfileMetricsQuery, &out.ProfileMetricsQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.Q != nil {
-		in, out := &in.Q, &out.Q
-		*out = new(string)
-		**out = **in
 	}
 	if in.Queries != nil {
 		in, out := &in.Queries, &out.Queries
@@ -4124,16 +4084,6 @@ func (in *QueryValueWidgetRequest) DeepCopyInto(out *QueryValueWidgetRequest) {
 		in, out := &in.ResponseFormat, &out.ResponseFormat
 		*out = new(datadogV1.FormulaAndFunctionResponseFormat)
 		**out = **in
-	}
-	if in.RumQuery != nil {
-		in, out := &in.RumQuery, &out.RumQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.SecurityQuery != nil {
-		in, out := &in.SecurityQuery, &out.SecurityQuery
-		*out = new(LogQueryDefinition)
-		(*in).DeepCopyInto(*out)
 	}
 }
 

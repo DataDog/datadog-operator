@@ -236,52 +236,9 @@ func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.
 	dbRequests := []datadogV1.QueryValueWidgetRequest{}
 	for _, request := range requests {
 		dbRequest := datadogV1.QueryValueWidgetRequest{}
-		if request.ApmQuery != nil {
-			dbLogDef := convertLogDefinition(request.ApmQuery)
-			dbRequest.SetApmQuery(*dbLogDef)
-		}
-		if request.AuditQuery != nil {
-			dbLogDef := convertLogDefinition(request.AuditQuery)
-			dbRequest.SetAuditQuery(*dbLogDef)
-		}
-		if request.EventQuery != nil {
-			dbLogDef := convertLogDefinition(request.EventQuery)
-			dbRequest.SetEventQuery(*dbLogDef)
-		}
-		if request.LogQuery != nil {
-			dbLogDef := convertLogDefinition(request.LogQuery)
-			dbRequest.SetLogQuery(*dbLogDef)
-		}
-		if request.NetworkQuery != nil {
-			dbLogDef := convertLogDefinition(request.NetworkQuery)
-			dbRequest.SetNetworkQuery(*dbLogDef)
-		}
-		if request.ProfileMetricsQuery != nil {
-			dbLogDef := convertLogDefinition(request.ProfileMetricsQuery)
-			dbRequest.SetProfileMetricsQuery(*dbLogDef)
-		}
-		if request.RumQuery != nil {
-			dbLogDef := convertLogDefinition(request.RumQuery)
-			dbRequest.SetRumQuery(*dbLogDef)
-		}
-		if request.SecurityQuery != nil {
-			dbLogDef := convertLogDefinition(request.SecurityQuery)
-			dbRequest.SetSecurityQuery(*dbLogDef)
-		}
-		if request.RumQuery != nil {
-			dbLogDef := convertLogDefinition(request.RumQuery)
-			dbRequest.SetRumQuery(*dbLogDef)
-		}
-		if request.ProcessQuery != nil {
-			dbProcessQuery := convertProcessQuery(*request.ProcessQuery)
-			dbRequest.SetProcessQuery(dbProcessQuery)
-		}
 		if request.Formulas != nil {
 			dbFormulas := convertFormulas(request.Formulas)
 			dbRequest.SetFormulas(dbFormulas)
-		}
-		if request.Q != nil {
-			dbRequest.SetQ(*request.Q)
 		}
 		if request.Queries != nil {
 			dbQueries := convertFormulaQueries(request.Queries)
