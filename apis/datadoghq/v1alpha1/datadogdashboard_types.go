@@ -182,6 +182,7 @@ type NullableList struct {
 // Widget Information about widget.
 // +k8s:openapi-gen=true
 type Widget struct {
+	// [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).
 	TimeseriesWidgetDefinition *TimeseriesWidgetDefinition `json:"timeseries,omitempty"`
 	QueryValueWidgetDefinition *QueryValueWidgetDefinition `json:"queryValue,omitempty"`
 	// ID of the widget.
@@ -281,38 +282,18 @@ type WidgetMarker struct {
 
 // TimeseriesWidgetRequest Updated timeseries widget.
 type TimeseriesWidgetRequest struct {
-	// The log query.
-	ApmQuery *LogQueryDefinition `json:"apmQuery,omitempty"`
-	// The log query.
-	AuditQuery *LogQueryDefinition `json:"auditQuery,omitempty"`
 	// Type of display to use for the request.
 	DisplayType *datadogV1.WidgetDisplayType `json:"displayType,omitempty"`
-	// The log query.
-	EventQuery *LogQueryDefinition `json:"eventQuery,omitempty"`
 	// List of formulas that operate on queries.
 	Formulas []WidgetFormula `json:"formulas,omitempty"`
-	// The log query.
-	LogQuery *LogQueryDefinition `json:"logQuery,omitempty"`
 	// Used to define expression aliases.
 	Metadata []TimeseriesWidgetExpressionAlias `json:"metadata,omitempty"`
-	// The log query.
-	NetworkQuery *LogQueryDefinition `json:"networkQuery,omitempty"`
 	// Whether or not to display a second y-axis on the right.
 	OnRightYaxis *bool `json:"onRightYaxis,omitempty"`
-	// The process query to use in the widget.
-	ProcessQuery *ProcessQueryDefinition `json:"processQuery,omitempty"`
-	// The log query.
-	ProfileMetricsQuery *LogQueryDefinition `json:"profileMetricsQuery,omitempty"`
-	// Widget query.
-	Q *string `json:"q,omitempty"`
 	// List of queries that can be returned directly or used in formulas.
 	Queries []FormulaAndFunctionQueryDefinition `json:"queries,omitempty"`
 	// Timeseries, scalar, or event list response. Event list response formats are supported by Geomap widgets.
 	ResponseFormat *datadogV1.FormulaAndFunctionResponseFormat `json:"responseFormat,omitempty"`
-	// The log query.
-	RumQuery *LogQueryDefinition `json:"rumQuery,omitempty"`
-	// The log query.
-	SecurityQuery *LogQueryDefinition `json:"securityQuery,omitempty"`
 	// Define request widget style.
 	Style *WidgetRequestStyle `json:"style,omitempty"`
 }

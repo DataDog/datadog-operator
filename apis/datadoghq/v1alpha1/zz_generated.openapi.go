@@ -4893,7 +4893,8 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 				Properties: map[string]spec.Schema{
 					"timeseries": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
+							Description: "[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
+							Ref:         ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
 						},
 					},
 					"queryValue": {
