@@ -37,7 +37,9 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 	} else {
 		dashboard.SetDescriptionNil()
 	}
-
+	if ddb.Spec.NotifyList != nil {
+		dashboard.SetNotifyList(ddb.Spec.NotifyList)
+	}
 	if ddb.Spec.ReflowType != nil {
 		dashboard.SetReflowType(*ddb.Spec.ReflowType)
 	}
@@ -229,6 +231,7 @@ func convertTsBackground(bg *v1alpha1.TimeseriesBackground) *datadogV1.Timeserie
 	}
 	return &dbBg
 }
+
 func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.QueryValueWidgetRequest {
 	dbRequests := []datadogV1.QueryValueWidgetRequest{}
 	for _, request := range requests {
@@ -379,6 +382,7 @@ func convertFormulas(formulas []v1alpha1.WidgetFormula) []datadogV1.WidgetFormul
 			dbStyle := convertFormulaStyle(*formula.Style)
 			dbFormula.SetStyle(dbStyle)
 		}
+		dbFormulas = append(dbFormulas, dbFormula)
 	}
 	return dbFormulas
 }
@@ -396,107 +400,12 @@ func convertCustomLinks(customLinks []v1alpha1.WidgetCustomLink) []datadogV1.Wid
 		if link.OverrideLabel != nil {
 			dbCustomLink.SetOverrideLabel(*link.OverrideLabel)
 		}
+		if link.Link != nil {
+			dbCustomLink.SetLink(*link.Link)
+		}
 		dbCustomLinks = append(dbCustomLinks, dbCustomLink)
 	}
 	return dbCustomLinks
-}
-
-func convertLogDefinition(logQuery *v1alpha1.LogQueryDefinition) *datadogV1.LogQueryDefinition {
-	dbLogQuery := datadogV1.LogQueryDefinition{}
-
-	if logQuery.Compute != nil {
-		dbLogCompute := datadogV1.LogsQueryCompute{}
-		dbLogQuery.Compute = &dbLogCompute
-		if logQuery.Compute.Aggregation != "" {
-			dbLogQuery.Compute.Aggregation = logQuery.Compute.Aggregation
-		}
-		if dbLogQuery.Compute.Facet != nil {
-			dbLogQuery.Compute.Facet = logQuery.Compute.Facet
-		}
-		if dbLogQuery.Compute.Interval != nil {
-			dbLogQuery.Compute.Interval = logQuery.Compute.Interval
-		}
-	}
-
-	if logQuery.GroupBy != nil {
-		dbGroupBys := []datadogV1.LogQueryDefinitionGroupBy{}
-		for _, groupBy := range logQuery.GroupBy {
-			// NOTE: style? declare in struct or outside
-			dbGroupBy := datadogV1.LogQueryDefinitionGroupBy{}
-			if groupBy.Facet != "" {
-				dbGroupBy.Facet = groupBy.Facet
-			}
-			if groupBy.Limit != nil {
-				dbGroupBy.Limit = groupBy.Limit
-			}
-			if groupBy.Sort != nil {
-				dbLogSort := datadogV1.LogQueryDefinitionGroupBySort{}
-				dbGroupBy.Sort = &dbLogSort
-				if groupBy.Sort.Aggregation != "" {
-					dbGroupBy.Sort.Aggregation = groupBy.Sort.Aggregation
-				}
-				if groupBy.Sort.Facet != nil {
-					dbGroupBy.Sort.Facet = groupBy.Sort.Facet
-				}
-				if groupBy.Sort.Order != "" {
-					dbGroupBy.Sort.Order = groupBy.Sort.Order
-				}
-			}
-			dbGroupBys = append(dbGroupBys, dbGroupBy)
-		}
-		dbLogQuery.GroupBy = dbGroupBys
-	}
-
-	if logQuery.Index != nil {
-		dbLogQuery.Index = logQuery.Index
-	}
-
-	if logQuery.MultiCompute != nil {
-		dbMultiCompute := []datadogV1.LogsQueryCompute{}
-		for _, compute := range logQuery.MultiCompute {
-			dbCompute := datadogV1.LogsQueryCompute{}
-			if compute.Aggregation != "" {
-				dbCompute.Aggregation = compute.Aggregation
-			}
-			if compute.Facet != nil {
-				dbCompute.Facet = compute.Facet
-			}
-			if compute.Interval != nil {
-				dbCompute.Interval = compute.Interval
-			}
-			dbMultiCompute = append(dbMultiCompute, dbCompute)
-		}
-		dbLogQuery.MultiCompute = dbMultiCompute
-	}
-
-	if logQuery.Search != nil {
-		dbSearch := datadogV1.LogQueryDefinitionSearch{}
-		// NOTE: is there a need to check
-		if logQuery.Search.Query != "" {
-			dbSearch.Query = logQuery.Search.Query
-		}
-		// NOTE: will this lose its reference
-		dbLogQuery.Search = &dbSearch
-	}
-
-	return &dbLogQuery
-}
-
-func convertProcessQuery(processQuery v1alpha1.ProcessQueryDefinition) datadogV1.ProcessQueryDefinition {
-	dbProcessQuery := datadogV1.ProcessQueryDefinition{}
-	if processQuery.FilterBy != nil {
-		dbProcessQuery.SetFilterBy(processQuery.FilterBy)
-	}
-	if processQuery.Limit != nil {
-		dbProcessQuery.SetLimit(*processQuery.Limit)
-	}
-	if processQuery.Metric != "" {
-		dbProcessQuery.SetMetric(processQuery.Metric)
-	}
-	if processQuery.SearchBy != nil {
-		dbProcessQuery.SetSearchBy(*processQuery.SearchBy)
-	}
-	return dbProcessQuery
 }
 
 func convertConditionalFormats(conFormats []v1alpha1.WidgetConditionalFormat) []datadogV1.WidgetConditionalFormat {
@@ -531,6 +440,7 @@ func convertConditionalFormats(conFormats []v1alpha1.WidgetConditionalFormat) []
 			convertedFloat, _ := strconv.ParseFloat(conFormat.Value.AsDec().String(), 64)
 			dbConFormat.SetValue(convertedFloat)
 		}
+		dbConFormats = append(dbConFormats, dbConFormat)
 	}
 	return dbConFormats
 }
