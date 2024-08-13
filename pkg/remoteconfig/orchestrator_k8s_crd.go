@@ -40,7 +40,7 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 		return
 	}
 
-	if err := r.updateInstanceStatus(dda, mergedUpdate); err != nil {
+	if err := r.crdUpdateInstanceStatus(dda, mergedUpdate); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
