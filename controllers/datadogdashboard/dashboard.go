@@ -17,7 +17,7 @@ import (
 // Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
 	// create a dashboard
-	layoutType := datadogV1.DashboardLayoutType(ddb.Spec.LayoutType)
+	layoutType := ddb.Spec.LayoutType
 	widgets := &[]datadogV1.Widget{}
 
 	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, *widgets)
