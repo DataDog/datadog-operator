@@ -36,7 +36,6 @@ const (
 	defaultSite           = "datadoghq.com"
 	pollInterval          = 10 * time.Second
 	remoteConfigUrlPrefix = "https://config."
-	crdRcProduct          = "ORCHESTRATOR_K8S_CRD"
 )
 
 type RemoteConfigUpdater struct {
@@ -92,11 +91,6 @@ type FeatureEnabledConfig struct {
 type agentConfigOrder struct {
 	Order         []string `json:"order"`
 	InternalOrder []string `json:"internal_order"`
-}
-
-// CustomResourceDefinitionURLs defines model for CustomResourceDefinitionURLs.
-type CustomResourceDefinitionURLs struct {
-	Crds *[]string `json:"crds,omitempty"`
 }
 
 // TODO replace
@@ -178,8 +172,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.logger.Info("Remote Configuration client started")
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
-	// TODO: Make const
-	rcClient.Subscribe(crdRcProduct, r.agentConfigUpdateCallback)
+	rcClient.Subscribe(crdRcProduct, r.crdConfigUpdateCallback)
 
 	return nil
 }
@@ -275,7 +268,6 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 	// Unmarshal configs and config order
 	var order agentConfigOrder
 	configByID := make(map[string]DatadogAgentRemoteConfig)
-	crds := []string{}
 	for configPath, c := range updates {
 		if c.Metadata.ID == "configuration_order" {
 			if err := json.Unmarshal(c.Config, &order); err != nil {
@@ -283,13 +275,6 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 				applyStatus(configPath, state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 				return DatadogAgentRemoteConfig{}, fmt.Errorf("could not unmarshal configuration order")
 			}
-		} else if c.Metadata.Product == crdRcProduct {
-			rcCRDs := CustomResourceDefinitionURLs{}
-			err := json.Unmarshal(c.Config, &rcCRDs)
-			if err != nil {
-				return DatadogAgentRemoteConfig{}, err
-			}
-			crds = append(crds, *rcCRDs.Crds...)
 		} else {
 			var configData DatadogAgentRemoteConfig
 			if err := json.Unmarshal(c.Config, &configData); err != nil {
@@ -311,10 +296,6 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 			mergeConfigs(&finalConfig, &config)
 		}
 	}
-
-	// Cleanup CRD duplicates and add to final config
-	crds = removeDuplicateStr(crds)
-	finalConfig.CRDs.Crds = &crds
 
 	return finalConfig, nil
 }
@@ -504,12 +485,6 @@ func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cf
 		newddaStatus.RemoteConfigConfiguration.Features.USM.Enabled = cfg.SystemProbe.USM.Enabled
 	} else {
 		newddaStatus.RemoteConfigConfiguration.Features.USM = nil
-	}
-
-	// Orchestrator Explorer
-	if cfg.CRDs != nil && len(*cfg.CRDs.Crds) > 0 {
-		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = append(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources, *cfg.CRDs.Crds...)
-		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = removeDuplicateStr(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources)
 	}
 
 	if !apiequality.Semantic.DeepEqual(&dda.Status, newddaStatus) {
