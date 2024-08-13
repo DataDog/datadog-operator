@@ -19,7 +19,7 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/google/uuid"
@@ -326,7 +326,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				},
 				{
 					Name:  apicommon.DDAPMInstrumentationInstallType,
-					Value: component.DefaultAgentInstallType,
+					Value: common.DefaultAgentInstallType,
 				},
 			}
 		}

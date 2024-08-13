@@ -3,9 +3,11 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package component
+package common
 
 import (
+	"fmt"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -59,4 +61,15 @@ func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version
 	labels[kubernetes.AppKubernetesComponentLabelKey] = componentKind
 
 	return labels
+}
+
+// GetAgentVersion return the Agent version based on the DatadogAgent info
+func GetAgentVersion(dda metav1.Object) string {
+	// TODO implement this method
+	return ""
+}
+
+// GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
+func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
 }

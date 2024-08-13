@@ -18,9 +18,10 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -1205,7 +1206,7 @@ func randomKubernetesObjectName() string {
 func defaultDaemonSetNamespacedName(namespace string, agent *v2alpha1.DatadogAgent) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: namespace,
-		Name:      component.GetAgentName(agent),
+		Name:      componentagent.GetAgentName(agent),
 	}
 }
 

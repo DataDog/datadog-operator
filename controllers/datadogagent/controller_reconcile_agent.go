@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
@@ -508,7 +507,7 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 // getDaemonSetNameFromDatadogAgent returns the expected DS/EDS name based on
 // the DDA name and nodeAgent name override
 func getDaemonSetNameFromDatadogAgent(dda *datadoghqv2alpha1.DatadogAgent) string {
-	dsName := component.GetAgentName(dda)
+	dsName := componentagent.GetAgentName(dda)
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			dsName = *componentOverride.Name
