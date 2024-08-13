@@ -18,7 +18,7 @@ type DatadogDashboardSpec struct {
 	// +optional
 	Description string `json:"description,omitempty"`
 	// Layout type of the dashboard.
-	LayoutType DashboardLayoutType `json:"layoutType,omitempty"`
+	LayoutType datadogV1.DashboardLayoutType `json:"layoutType,omitempty"`
 	// List of handles of users to notify when changes are made to this dashboard.
 	// +listType=set
 	// +optional
@@ -49,24 +49,6 @@ type DatadogDashboardSpec struct {
 	// +listMapKey=id
 	// +optional
 	Widgets []Widget `json:"widgets,omitempty"`
-}
-
-// DashboardLayoutType Layout type of the dashboard.
-type DashboardLayoutType string
-
-// List of DashboardLayoutType.
-const (
-	DashboardLayoutTypeOrdered DashboardLayoutType = "ordered"
-	DashboardLayoutTypeFree    DashboardLayoutType = "free"
-)
-
-func (t DashboardLayoutType) isValid() bool {
-	switch t {
-	case DashboardLayoutTypeOrdered, DashboardLayoutTypeFree:
-		return true
-	default:
-		return false
-	}
 }
 
 // DatadogDashboardStatus defines the observed state of DatadogDashboard
