@@ -112,3 +112,15 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 
 	return nil
 }
+
+func removeDuplicateStr(s []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, item := range s {
+		if _, value := keys[item]; !value {
+			keys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
+}

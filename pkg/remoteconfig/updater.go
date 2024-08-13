@@ -524,15 +524,3 @@ func NewRemoteConfigUpdater(client kubeclient.Client, logger logr.Logger) *Remot
 		logger:     logger,
 	}
 }
-
-func removeDuplicateStr(s []string) []string {
-	keys := make(map[string]bool)
-	list := []string{}
-	for _, item := range s {
-		if _, value := keys[item]; !value {
-			keys[item] = true
-			list = append(list, item)
-		}
-	}
-	return list
-}
