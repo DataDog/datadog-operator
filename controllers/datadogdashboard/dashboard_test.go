@@ -257,20 +257,25 @@ func TestBuildDashboard(t *testing.T) {
 						Y:             5,
 					},
 				},
-				// v1alpha1.Widget{
-				// 	QueryValueWidgetDefinition: &v1alpha1.QueryValueWidgetDefinition{
-				// 		Autoscale: apiutils.NewBoolPointer(true),
-				// 		CustomLinks: []v1alpha1.WidgetCustomLink{
-				// 			v1alpha1.WidgetCustomLink{
-				// 				IsHidden: apiutils.NewBoolPointer(true),
-				// 				Label:    apiutils.NewStringPointer("example"),
-				// 				Link:     apiutils.NewStringPointer("team:test"),
-				// 			},
-				// 		},
-				// 		Precision: apiutils.NewInt64Pointer(2),
-				// 		Requests:  apiutils,
-				// 	},
-				// },
+				v1alpha1.Widget{
+					QueryValueWidgetDefinition: &v1alpha1.QueryValueWidgetDefinition{
+						Autoscale: apiutils.NewBoolPointer(true),
+						CustomLinks: []v1alpha1.WidgetCustomLink{
+							v1alpha1.WidgetCustomLink{
+								IsHidden: apiutils.NewBoolPointer(true),
+								Label:    apiutils.NewStringPointer("example"),
+								Link:     apiutils.NewStringPointer("team:test"),
+							},
+						},
+						CustomUnit: apiutils.NewStringPointer("foobar"),
+						Precision:  apiutils.NewInt64Pointer(2),
+						Requests: []v1alpha1.QueryValueWidgetRequest{
+							{},
+						},
+						TextAlign: datadogV1.WidgetTextAlign("center").Ptr(),
+						Time:      &v1alpha1.WidgetTime{},
+					},
+				},
 			},
 		},
 	}
@@ -321,10 +326,14 @@ func Test_createDashboard(t *testing.T) {
 	db := &v1alpha1.DatadogDashboard{
 		Spec: v1alpha1.DatadogDashboardSpec{
 			LayoutType: v1alpha1.DashboardLayoutTypeOrdered,
-			Title:      "test_dashboardsssss",
+			NotifyList: []string{
+				"test@example.com",
+				"test2@example.com"},
+			Title: "Test dashboard",
 			Tags: []string{
 				"team:test", "team:test2",
 			},
+
 			// NOTE: test created widgets
 			// Widgets: []v1alpha1.Widget{
 			// 	{
@@ -350,7 +359,7 @@ func Test_createDashboard(t *testing.T) {
 	dashboard, err := createDashboard(testLogger, testAuth, client, db)
 	assert.Nil(t, err)
 
-	assert.Equal(t, db.Spec.LayoutType, dashboard.GetLayoutType(), "discrepancy found in parameter: LayoutType")
+	assert.Equal(t, datadogV1.DashboardLayoutType(db.Spec.LayoutType), dashboard.GetLayoutType(), "discrepancy found in parameter: LayoutType")
 	assert.Equal(t, db.Spec.Title, dashboard.GetTitle(), "discrepancy found in parameter: Title")
 	assert.Equal(t, db.Spec.Tags, dashboard.GetTags(), "discrepancy found in parameter: Tags")
 }
@@ -775,8 +784,13 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 func genericDashboard(dbID string) datadogV1.Dashboard {
 	fakeRawNow := time.Unix(1612244495, 0)
 	fakeNow, _ := time.Parse(dateFormat, strings.Split(fakeRawNow.String(), " db=")[0])
-	layoutType := datadogV1.DashboardLayoutType("free")
+	layoutType := datadogV1.DashboardLayoutType("ordered")
 	reflowType := datadogV1.DashboardReflowType("auto")
+	notifyList := datadogapi.NullableList[string]{}
+	notifyList.Set(&[]string{
+		"test@example.com",
+		"test2@example.com",
+	})
 	title := "Test dashboard"
 	handle := "test_user"
 	description := datadogapi.NullableString{}
@@ -794,6 +808,7 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 		Id:           &dbID,
 		Title:        title,
 		LayoutType:   layoutType,
+		NotifyList:   notifyList,
 		ReflowType:   &reflowType,
 		Widgets:      []datadogV1.Widget{},
 		// Widgets: []datadogV1.Widget{
