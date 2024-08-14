@@ -156,7 +156,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 }
 
 func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
-	// NOTE: taken from monitors. SlOS doesn't set status syncstatusgeterror. Add that.
 	return getDashboard(r.datadogAuth, r.datadogClient, instance.Status.ID)
 }
 
