@@ -257,11 +257,11 @@ func TestBuildDashboard(t *testing.T) {
 						Y:             5,
 					},
 				},
-				v1alpha1.Widget{
+				{
 					QueryValueWidgetDefinition: &v1alpha1.QueryValueWidgetDefinition{
 						Autoscale: apiutils.NewBoolPointer(true),
 						CustomLinks: []v1alpha1.WidgetCustomLink{
-							v1alpha1.WidgetCustomLink{
+							{
 								IsHidden: apiutils.NewBoolPointer(true),
 								Label:    apiutils.NewStringPointer("example"),
 								Link:     apiutils.NewStringPointer("team:test"),
@@ -270,10 +270,150 @@ func TestBuildDashboard(t *testing.T) {
 						CustomUnit: apiutils.NewStringPointer("foobar"),
 						Precision:  apiutils.NewInt64Pointer(2),
 						Requests: []v1alpha1.QueryValueWidgetRequest{
-							{},
+							{
+								Aggregator: datadogV1.WidgetAggregator("avg").Ptr(),
+								ConditionalFormats: []v1alpha1.WidgetConditionalFormat{
+									{
+										Comparator:    "=",
+										CustomBgColor: apiutils.NewStringPointer("classic"),
+										CustomFgColor: apiutils.NewStringPointer("classic"),
+										HideValue:     apiutils.NewBoolPointer(false),
+										ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+										Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+										Palette:       "blue",
+										Timeframe:     apiutils.NewStringPointer("foo bar"),
+										// NOTE: add value in testing
+										// Value: &resource.Quantity{
+										// 	i:
+										// },
+									},
+								},
+								Formulas: []v1alpha1.WidgetFormula{
+									{
+										Alias:           apiutils.NewStringPointer("foo-bar"),
+										CellDisplayMode: datadogV1.TableWidgetCellDisplayMode("number").Ptr(),
+										ConditionalFormats: []v1alpha1.WidgetConditionalFormat{
+											{
+												Comparator:    "=",
+												CustomBgColor: apiutils.NewStringPointer("classic"),
+												CustomFgColor: apiutils.NewStringPointer("classic"),
+												HideValue:     apiutils.NewBoolPointer(false),
+												ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+												Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+												Palette:       "blue",
+												Timeframe:     apiutils.NewStringPointer("foo bar"),
+												// NOTE: add value in testing
+												// Value: &resource.Quantity{
+												// 	i:
+												// },
+											},
+										},
+										Formula: "formula",
+										Limit: &v1alpha1.WidgetFormulaLimit{
+											Count: apiutils.NewInt64Pointer(1),
+											Order: datadogV1.QuerySortOrder("asc").Ptr(),
+										},
+										Style: &v1alpha1.WidgetFormulaStyle{
+											Palette:      apiutils.NewStringPointer("classic"),
+											PaletteIndex: apiutils.NewInt64Pointer(0),
+										},
+									},
+								},
+								Queries: []v1alpha1.FormulaAndFunctionQueryDefinition{
+									{
+										FormulaAndFunctionMetricQueryDefinition: &v1alpha1.FormulaAndFunctionMetricQueryDefinition{
+											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
+											// NOTE: CrossOrg UIDs in private beta
+											DataSource: "metrics",
+											Name:       "query1",
+											Query:      "avg:system.cpu.user{*}",
+										},
+									},
+									{
+										FormulaAndFunctionEventQueryDefinition: &v1alpha1.FormulaAndFunctionEventQueryDefinition{
+											Compute: &v1alpha1.FormulaAndFunctionEventQueryDefinitionCompute{
+												Aggregation: "count",
+												Interval:    apiutils.NewInt64Pointer(5000),
+											},
+											// NOTE: Crossuids is in private beta
+											DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
+											GroupBy:    []v1alpha1.FormulaAndFunctionEventQueryGroupBy{},
+											Name:       "logs",
+											Indexes:    []string{"*"},
+											Search: &v1alpha1.FormulaAndFunctionEventQueryDefinitionSearch{
+												Query: "kube_namespace:system",
+											},
+											// NOTE: Strorage is in private beta
+										},
+									},
+									{
+										FormulaAndFunctionProcessQueryDefinition: &v1alpha1.FormulaAndFunctionProcessQueryDefinition{
+											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
+											// NOTE: CrossOrgUids
+											DataSource: "container",
+											// IsNormalizedCpu: apiutils.NewBoolPointer(true),
+											Limit:      apiutils.NewInt64Pointer(10),
+											Metric:     "process.stat.cpu.total_pct",
+											Name:       "query2",
+											Sort:       datadogV1.QUERYSORTORDER_ASC.Ptr(),
+											TagFilters: []string{"team:test"},
+											TextFilter: apiutils.NewStringPointer("foo-bar"),
+										},
+									},
+									// v1alpha1.FormulaAndFunctionQueryDefinition{
+									// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &v1alpha1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
+
+									// 	},
+									// },
+									{
+										FormulaAndFunctionSLOQueryDefinition: &v1alpha1.FormulaAndFunctionSLOQueryDefinition{
+											AdditionalQueryFilters: apiutils.NewStringPointer(""),
+											DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
+											GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
+											Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
+											Name:                   apiutils.NewStringPointer("query3"),
+											SloId:                  "foobar123",
+											SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
+										},
+									},
+									{
+										FormulaAndFunctionSLOQueryDefinition: &v1alpha1.FormulaAndFunctionSLOQueryDefinition{
+											AdditionalQueryFilters: apiutils.NewStringPointer(""),
+											DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
+											GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
+											Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
+											Name:                   apiutils.NewStringPointer("query3"),
+											SloId:                  "foobar123",
+											SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
+										},
+									},
+									{
+										FormulaAndFunctionCloudCostQueryDefinition: &v1alpha1.FormulaAndFunctionCloudCostQueryDefinition{
+											Aggregator: datadogV1.WIDGETAGGREGATOR_AVERAGE.Ptr(),
+											DataSource: "cloud_cost",
+											Name:       "query1",
+											Query:      "sum:aws.cost.amortized{*}.rollup(sum, 86400)",
+										},
+									},
+								},
+								ResponseFormat: datadogV1.FormulaAndFunctionResponseFormat("timeseries").Ptr(),
+							},
 						},
 						TextAlign: datadogV1.WidgetTextAlign("center").Ptr(),
 						Time:      &v1alpha1.WidgetTime{},
+						TimeseriesBackground: &v1alpha1.TimeseriesBackground{
+							Type: "bars",
+							Yaxis: &v1alpha1.WidgetAxis{
+								IncludeZero: apiutils.NewBoolPointer(true),
+								Label:       apiutils.NewStringPointer("label"),
+								Max:         apiutils.NewStringPointer("auto"),
+								Min:         apiutils.NewStringPointer("auto"),
+								Scale:       apiutils.NewStringPointer("linear"),
+							},
+						},
+						Title:     apiutils.NewStringPointer("query value"),
+						TitleSize: apiutils.NewStringPointer("50"),
+						Type:      "query_value",
 					},
 				},
 			},
@@ -291,6 +431,7 @@ func TestBuildDashboard(t *testing.T) {
 	// assert.Equal(t, dashboard, expectedDashboard())
 	// Compare created dashboard from CRD to what it is expected to be
 	assert.Equal(t, dashboard.Widgets[0].Definition.TimeseriesWidgetDefinition, expectedTimeSeries(), "discrepancy found in parameter: TimeseriesWidgetDefinition")
+	assert.Equal(t, dashboard.Widgets[1].Definition.QueryValueWidgetDefinition, expectedQueryValue(), "discrepancy found in parameter: QueryValueWidgetDefinition")
 	// assert.Equal(t, db.Spec.Widgets[)
 
 	// Test timeseries (use conversion functions)
@@ -382,214 +523,50 @@ func Test_deleteDashboard(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-// func expectedDashboard() datadogV1.Dashboard {
-// 	notifyList := datadogapi.NullableList[string]{}
-// 	notifyList.Set(&[]string{
-// 		"foo",
-// 		"bar",
-// 	})
-// 	tags := datadogapi.NullableList[string]{}
-// 	tags.Set(&[]string{
-// 		"team:test",
-// 		"team:foo-bar",
-// 	})
-// 	availableValues := datadogapi.NullableList[string]{}
-// 	notifyList.Set(&[]string{
-// 		"foo",
-// 		"bar",
-// 	})
+func Test_updateDashboard(t *testing.T) {
+	dbId := "test_id"
+	expectedDashboard := genericDashboard(dbId)
 
-// 	dashboard := datadogV1.Dashboard{
-// 		LayoutType: "ordered",
-// 		NotifyList: notifyList,
-// 		ReflowType: datadogV1.DASHBOARDREFLOWTYPE_AUTO.Ptr(),
-// 		Tags:       tags,
-// 		TemplateVariablePresets: []datadogV1.DashboardTemplateVariablePreset{
-// 			{
-// 				Name: apiutils.NewStringPointer("test preset"),
-// 				TemplateVariables: []datadogV1.DashboardTemplateVariablePresetValue{
-// 					{
-// 						Name: apiutils.NewStringPointer("foo-bar"),
-// 						Values: []string{
-// 							"foo",
-// 							"bar",
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 		TemplateVariables: []datadogV1.DashboardTemplateVariable{
-// 			{
-// 				AvailableValues: availableValues,
-// 				Name:            "test variable",
-// 			},
-// 		},
-// 		Title: "test dashboard",
-// 		Widgets: []datadogV1.Widget{
-// 			{
-// 				Definition: datadogV1.WidgetDefinition{
-// 					TimeseriesWidgetDefinition: &datadogV1.TimeseriesWidgetDefinition{
-// 						CustomLinks: []datadogV1.WidgetCustomLink{
-// 							{
-// 								IsHidden: apiutils.NewBoolPointer(true),
-// 								Label:    apiutils.NewStringPointer("example"),
-// 								Link:     apiutils.NewStringPointer("team:test"),
-// 							},
-// 						},
-// 						Events: []datadogV1.WidgetEvent{
-// 							{
-// 								Q:             "foo-bar",
-// 								TagsExecution: apiutils.NewStringPointer("foo-bar"),
-// 							},
-// 						},
-// 						LegendColumns: []datadogV1.TimeseriesWidgetLegendColumn{
-// 							// string types
-// 							"value",
-// 							"avg",
-// 						},
-// 						LegendLayout: datadogV1.TIMESERIESWIDGETLEGENDLAYOUT_HORIZONTAL.Ptr(),
-// 						LegendSize:   apiutils.NewStringPointer("10"),
-// 						// NOTE: test this out (by setting it )
-// 						Markers: []datadogV1.WidgetMarker{
-// 							{
-// 								DisplayType: apiutils.NewStringPointer("warning"),
-// 								Label:       apiutils.NewStringPointer("marker label"),
-// 								// NOTE: may cause issues
-// 								Time:  apiutils.NewStringPointer("6:30"),
-// 								Value: "y = 15",
-// 							},
-// 						},
-// 						Requests: []datadogV1.TimeseriesWidgetRequest{
-// 							{
-// 								// LogQuery: &datadogV1.LogQueryDefinition{
-// 								// 	Compute: &datadogV1.LogsQueryCompute{
-// 								// 		Aggregation: "count",
-// 								// 		Facet:       apiutils.NewStringPointer("source"),
-// 								// 		Interval:    apiutils.NewInt64Pointer(5000),
-// 								// 	},
-// 								// 	GroupBy: []datadogV1.LogQueryDefinitionGroupBy{
-// 								// 		datadogV1.LogQueryDefinitionGroupBy{
-// 								// 			Facet: "source",
-// 								// 			Limit: apiutils.NewInt64Pointer(10),
-// 								// 			Sort: &datadogV1.LogQueryDefinitionGroupBySort{
-// 								// 				Aggregation: "count",
-// 								// 				Facet:       apiutils.NewStringPointer("source"),
-// 								// 				Order:       "asc",
-// 								// 			},
-// 								// 		},
-// 								// 	},
-// 								// },
-// 								Queries: []datadogV1.FormulaAndFunctionQueryDefinition{
-// 									{
-// 										FormulaAndFunctionMetricQueryDefinition: &datadogV1.FormulaAndFunctionMetricQueryDefinition{
-// 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
-// 											// NOTE: CrossOrg UIDs in private beta
-// 											DataSource: "metrics",
-// 											Name:       "query1",
-// 											Query:      "avg:system.cpu.user{*}",
-// 										},
-// 									},
-// 									{
-// 										FormulaAndFunctionEventQueryDefinition: &datadogV1.FormulaAndFunctionEventQueryDefinition{
-// 											Compute: datadogV1.FormulaAndFunctionEventQueryDefinitionCompute{
-// 												Aggregation: "count",
-// 												Interval:    apiutils.NewInt64Pointer(5000),
-// 											},
-// 											// NOTE: Crossuids is in private beta
-// 											DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
-// 											GroupBy:    []datadogV1.FormulaAndFunctionEventQueryGroupBy{},
-// 											Name:       "logs",
-// 											Indexes:    []string{"*"},
-// 											Search: &datadogV1.FormulaAndFunctionEventQueryDefinitionSearch{
-// 												Query: "kube_namespace:system",
-// 											},
-// 											// NOTE: Strorage is in private beta
-// 										},
-// 									},
-// 									{
-// 										FormulaAndFunctionProcessQueryDefinition: &datadogV1.FormulaAndFunctionProcessQueryDefinition{
-// 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
-// 											// NOTE: CrossOrgUids
-// 											DataSource: "container",
-// 											// IsNormalizedCpu: apiutils.NewBoolPointer(true),
-// 											Limit:      apiutils.NewInt64Pointer(10),
-// 											Metric:     "process.stat.cpu.total_pct",
-// 											Name:       "query2",
-// 											Sort:       datadogV1.QUERYSORTORDER_ASC.Ptr(),
-// 											TagFilters: []string{"team:test"},
-// 											TextFilter: apiutils.NewStringPointer("foo-bar"),
-// 										},
-// 									},
-// 									// datadogV1.FormulaAndFunctionQueryDefinition{
-// 									// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &datadogV1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
+	db := &v1alpha1.DatadogDashboard{
+		Spec: v1alpha1.DatadogDashboardSpec{
+			LayoutType: v1alpha1.DashboardLayoutTypeOrdered,
+			NotifyList: []string{
+				"test@example.com",
+				"test2@example.com"},
+			Title: "Test dashboard",
+			Tags: []string{
+				"team:test", "team:test2",
+			},
 
-// 									// 	},
-// 									// },
-// 									{
-// 										FormulaAndFunctionSLOQueryDefinition: &datadogV1.FormulaAndFunctionSLOQueryDefinition{
-// 											AdditionalQueryFilters: apiutils.NewStringPointer(""),
-// 											DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
-// 											GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
-// 											Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
-// 											Name:                   apiutils.NewStringPointer("query3"),
-// 											SloId:                  "foobar123",
-// 											SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
-// 										},
-// 									},
-// 									{
-// 										FormulaAndFunctionSLOQueryDefinition: &datadogV1.FormulaAndFunctionSLOQueryDefinition{
-// 											AdditionalQueryFilters: apiutils.NewStringPointer(""),
-// 											DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
-// 											GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
-// 											Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
-// 											Name:                   apiutils.NewStringPointer("query3"),
-// 											SloId:                  "foobar123",
-// 											SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
-// 										},
-// 									},
-// 									{
-// 										FormulaAndFunctionCloudCostQueryDefinition: &datadogV1.FormulaAndFunctionCloudCostQueryDefinition{
-// 											Aggregator: datadogV1.WIDGETAGGREGATOR_AVERAGE.Ptr(),
-// 											DataSource: "cloud_cost",
-// 											Name:       "query1",
-// 											Query:      "sum:aws.cost.amortized{*}.rollup(sum, 86400)",
-// 										},
-// 									},
-// 								},
-// 							},
-// 						},
-// 						RightYaxis: &datadogV1.WidgetAxis{},
-// 						ShowLegend: apiutils.NewBoolPointer(true),
-// 						Time: &datadogV1.WidgetTime{
-// 							LiveSpan: datadogV1.WIDGETLIVESPAN_PAST_THIRTY_MINUTES.Ptr(),
-// 						},
-// 						Title: apiutils.NewStringPointer("ts graph"),
-// 						// NOTE: Title align, Title Size don't have an effect
-// 						Type: "timeseries",
-// 					},
-// 				},
+			// NOTE: test created widgets
+			// Widgets: []v1alpha1.Widget{
+			// 	{
+			// 		TimeseriesWidgetDefinition: *expectedTimeSeries(),
+			// 	},
+			// },
+		},
+	}
 
-// 				Id: apiutils.NewInt64Pointer(123),
-// 			},
-// 			// v1alpha1.Widget{
-// 			// 	QueryValueWidgetDefinition: &v1alpha1.QueryValueWidgetDefinition{
-// 			// 		Autoscale: apiutils.NewBoolPointer(true),
-// 			// 		CustomLinks: []v1alpha1.WidgetCustomLink{
-// 			// 			v1alpha1.WidgetCustomLink{
-// 			// 				IsHidden: apiutils.NewBoolPointer(true),
-// 			// 				Label:    apiutils.NewStringPointer("example"),
-// 			// 				Link:     apiutils.NewStringPointer("team:test"),
-// 			// 			},
-// 			// 		},
-// 			// 		Precision: apiutils.NewInt64Pointer(2),
-// 			// 		Requests:  apiutils,
-// 			// 	},
-// 			// },
-// 		},
-// 	}
+	jsonDashboard, _ := expectedDashboard.MarshalJSON()
+	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(jsonDashboard)
+	}))
+	defer httpServer.Close()
 
-// 	return dashboard
-// }
+	testConfig := datadogapi.NewConfiguration()
+	testConfig.HTTPClient = httpServer.Client()
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewDashboardsApi(apiClient)
+	testAuth := setupTestAuth(httpServer.URL)
+
+	dashboard, err := updateDashboard(testLogger, testAuth, client, db)
+	assert.Nil(t, err)
+
+	assert.Equal(t, datadogV1.DashboardLayoutType(db.Spec.LayoutType), dashboard.GetLayoutType(), "discrepancy found in parameter: LayoutType")
+	assert.Equal(t, db.Spec.Title, dashboard.GetTitle(), "discrepancy found in parameter: Title")
+	assert.Equal(t, db.Spec.Tags, dashboard.GetTags(), "discrepancy found in parameter: Tags")
+}
 
 func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 	timeSeries := &datadogV1.TimeseriesWidgetDefinition{
@@ -779,6 +756,168 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 	}
 
 	return timeSeries
+}
+
+func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
+	queryValue := &datadogV1.QueryValueWidgetDefinition{
+		Autoscale: apiutils.NewBoolPointer(true),
+		CustomLinks: []datadogV1.WidgetCustomLink{
+			{
+				IsHidden: apiutils.NewBoolPointer(true),
+				Label:    apiutils.NewStringPointer("example"),
+				Link:     apiutils.NewStringPointer("team:test"),
+			},
+		},
+		CustomUnit: apiutils.NewStringPointer("foobar"),
+		Precision:  apiutils.NewInt64Pointer(2),
+		Requests: []datadogV1.QueryValueWidgetRequest{
+			{
+				Aggregator: datadogV1.WidgetAggregator("avg").Ptr(),
+				ConditionalFormats: []datadogV1.WidgetConditionalFormat{
+					{
+						Comparator:    "=",
+						CustomBgColor: apiutils.NewStringPointer("classic"),
+						CustomFgColor: apiutils.NewStringPointer("classic"),
+						HideValue:     apiutils.NewBoolPointer(false),
+						ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+						Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+						Palette:       "blue",
+						Timeframe:     apiutils.NewStringPointer("foo bar"),
+						// NOTE: add value in testing
+						// Value: &resource.Quantity{
+						// 	i:
+						// },
+					},
+				},
+				Formulas: []datadogV1.WidgetFormula{
+					{
+						Alias:           apiutils.NewStringPointer("foo-bar"),
+						CellDisplayMode: datadogV1.TableWidgetCellDisplayMode("number").Ptr(),
+						ConditionalFormats: []datadogV1.WidgetConditionalFormat{
+							{
+								Comparator:    "=",
+								CustomBgColor: apiutils.NewStringPointer("classic"),
+								CustomFgColor: apiutils.NewStringPointer("classic"),
+								HideValue:     apiutils.NewBoolPointer(false),
+								ImageUrl:      apiutils.NewStringPointer("https://app.datadog.com"),
+								Metric:        apiutils.NewStringPointer("kube_namespace:system"),
+								Palette:       "blue",
+								Timeframe:     apiutils.NewStringPointer("foo bar"),
+								// NOTE: add value in testing
+								// Value: &resource.Quantity{
+								// 	i:
+								// },
+							},
+						},
+						Formula: "formula",
+						Limit: &datadogV1.WidgetFormulaLimit{
+							Count: apiutils.NewInt64Pointer(1),
+							Order: datadogV1.QuerySortOrder("asc").Ptr(),
+						},
+						Style: &datadogV1.WidgetFormulaStyle{
+							Palette:      apiutils.NewStringPointer("classic"),
+							PaletteIndex: apiutils.NewInt64Pointer(0),
+						},
+					},
+				},
+				Queries: []datadogV1.FormulaAndFunctionQueryDefinition{
+					{
+						FormulaAndFunctionMetricQueryDefinition: &datadogV1.FormulaAndFunctionMetricQueryDefinition{
+							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
+							// NOTE: CrossOrg UIDs in private beta
+							DataSource: "metrics",
+							Name:       "query1",
+							Query:      "avg:system.cpu.user{*}",
+						},
+					},
+					{
+						FormulaAndFunctionEventQueryDefinition: &datadogV1.FormulaAndFunctionEventQueryDefinition{
+							Compute: datadogV1.FormulaAndFunctionEventQueryDefinitionCompute{
+								Aggregation: "count",
+								Interval:    apiutils.NewInt64Pointer(5000),
+							},
+							// NOTE: Crossuids is in private beta
+							DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
+							GroupBy:    []datadogV1.FormulaAndFunctionEventQueryGroupBy{},
+							Name:       "logs",
+							Indexes:    []string{"*"},
+							Search: &datadogV1.FormulaAndFunctionEventQueryDefinitionSearch{
+								Query: "kube_namespace:system",
+							},
+							// NOTE: Strorage is in private beta
+						},
+					},
+					{
+						FormulaAndFunctionProcessQueryDefinition: &datadogV1.FormulaAndFunctionProcessQueryDefinition{
+							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
+							// NOTE: CrossOrgUids
+							DataSource: "container",
+							// IsNormalizedCpu: apiutils.NewBoolPointer(true),
+							Limit:      apiutils.NewInt64Pointer(10),
+							Metric:     "process.stat.cpu.total_pct",
+							Name:       "query2",
+							Sort:       datadogV1.QUERYSORTORDER_ASC.Ptr(),
+							TagFilters: []string{"team:test"},
+							TextFilter: apiutils.NewStringPointer("foo-bar"),
+						},
+					},
+					// datadogV1.FormulaAndFunctionQueryDefinition{
+					// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &datadogV1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
+
+					// 	},
+					// },
+					{
+						FormulaAndFunctionSLOQueryDefinition: &datadogV1.FormulaAndFunctionSLOQueryDefinition{
+							AdditionalQueryFilters: apiutils.NewStringPointer(""),
+							DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
+							GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
+							Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
+							Name:                   apiutils.NewStringPointer("query3"),
+							SloId:                  "foobar123",
+							SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
+						},
+					},
+					{
+						FormulaAndFunctionSLOQueryDefinition: &datadogV1.FormulaAndFunctionSLOQueryDefinition{
+							AdditionalQueryFilters: apiutils.NewStringPointer(""),
+							DataSource:             datadogV1.FORMULAANDFUNCTIONSLODATASOURCE_SLO,
+							GroupMode:              datadogV1.FORMULAANDFUNCTIONSLOGROUPMODE_OVERALL.Ptr(),
+							Measure:                datadogV1.FORMULAANDFUNCTIONSLOMEASURE_SLO_STATUS,
+							Name:                   apiutils.NewStringPointer("query3"),
+							SloId:                  "foobar123",
+							SloQueryType:           datadogV1.FORMULAANDFUNCTIONSLOQUERYTYPE_METRIC.Ptr(),
+						},
+					},
+					{
+						FormulaAndFunctionCloudCostQueryDefinition: &datadogV1.FormulaAndFunctionCloudCostQueryDefinition{
+							Aggregator: datadogV1.WIDGETAGGREGATOR_AVERAGE.Ptr(),
+							DataSource: "cloud_cost",
+							Name:       "query1",
+							Query:      "sum:aws.cost.amortized{*}.rollup(sum, 86400)",
+						},
+					},
+				},
+				ResponseFormat: datadogV1.FormulaAndFunctionResponseFormat("timeseries").Ptr(),
+			},
+		},
+		TextAlign: datadogV1.WidgetTextAlign("center").Ptr(),
+		Time:      &datadogV1.WidgetTime{},
+		TimeseriesBackground: &datadogV1.TimeseriesBackground{
+			Type: "bars",
+			Yaxis: &datadogV1.WidgetAxis{
+				IncludeZero: apiutils.NewBoolPointer(true),
+				Label:       apiutils.NewStringPointer("label"),
+				Max:         apiutils.NewStringPointer("auto"),
+				Min:         apiutils.NewStringPointer("auto"),
+				Scale:       apiutils.NewStringPointer("linear"),
+			},
+		},
+		Title:     apiutils.NewStringPointer("query value"),
+		TitleSize: apiutils.NewStringPointer("50"),
+		Type:      "query_value",
+	}
+
+	return queryValue
 }
 
 func genericDashboard(dbID string) datadogV1.Dashboard {
