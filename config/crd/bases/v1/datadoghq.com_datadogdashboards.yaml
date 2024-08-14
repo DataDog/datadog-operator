@@ -278,9 +278,7 @@ spec:
                                         anyOf:
                                           - type: integer
                                           - type: string
-                                        description: |-
-                                          NOTE: turn into float
-                                          Value for the comparator.
+                                        description: Value for the comparator.
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
                                     required:
@@ -333,9 +331,7 @@ spec:
                                               anyOf:
                                                 - type: integer
                                                 - type: string
-                                              description: |-
-                                                NOTE: turn into float
-                                                Value for the comparator.
+                                              description: Value for the comparator.
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
                                           required:
@@ -376,9 +372,7 @@ spec:
                                 queries:
                                   description: List of queries that can be returned directly or used in formulas.
                                   items:
-                                    description: |-
-                                      NOTE: this struct does/did not have json tags..., might need to be an interface
-                                      FormulaAndFunctionQueryDefinition - A formula and function query.
+                                    description: FormulaAndFunctionQueryDefinition - A formula and function query.
                                     properties:
                                       apmDependencyQuery:
                                         description: FormulaAndFunctionApmDependencyStatsQueryDefinition A formula and functions APM dependency stats query.
@@ -827,9 +821,7 @@ spec:
                               type: object
                             type: array
                           requests:
-                            description: |-
-                              NOTE: should this be required? we will see
-                              List of timeseries widget requests.
+                            description: List of timeseries widget requests.
                             items:
                               description: TimeseriesWidgetRequest Updated timeseries widget.
                               properties:
@@ -880,9 +872,7 @@ spec:
                                               anyOf:
                                                 - type: integer
                                                 - type: string
-                                              description: |-
-                                                NOTE: turn into float
-                                                Value for the comparator.
+                                              description: Value for the comparator.
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
                                           required:
@@ -941,9 +931,7 @@ spec:
                                 queries:
                                   description: List of queries that can be returned directly or used in formulas.
                                   items:
-                                    description: |-
-                                      NOTE: this struct does/did not have json tags..., might need to be an interface
-                                      FormulaAndFunctionQueryDefinition - A formula and function query.
+                                    description: FormulaAndFunctionQueryDefinition - A formula and function query.
                                     properties:
                                       apmDependencyQuery:
                                         description: FormulaAndFunctionApmDependencyStatsQueryDefinition A formula and functions APM dependency stats query.

@@ -205,6 +205,9 @@ func buildQueryValue(logger logr.Logger, qv *v1alpha1.QueryValueWidgetDefinition
 	if qv.TitleAlign != nil {
 		dbQueryValue.SetTitleAlign(*qv.TitleAlign)
 	}
+	if qv.TitleSize != nil {
+		dbQueryValue.SetTitleSize(*qv.TitleSize)
+	}
 	if qv.Type != "" {
 		dbQueryValue.SetType(qv.Type)
 	}
@@ -227,6 +230,13 @@ func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.
 	dbRequests := []datadogV1.QueryValueWidgetRequest{}
 	for _, request := range requests {
 		dbRequest := datadogV1.QueryValueWidgetRequest{}
+		if request.Aggregator != nil {
+			dbRequest.SetAggregator(*request.Aggregator)
+		}
+		if request.ConditionalFormats != nil {
+			dbConFormats := convertConditionalFormats(request.ConditionalFormats)
+			dbRequest.SetConditionalFormats(dbConFormats)
+		}
 		if request.Formulas != nil {
 			dbFormulas := convertFormulas(request.Formulas)
 			dbRequest.SetFormulas(dbFormulas)
