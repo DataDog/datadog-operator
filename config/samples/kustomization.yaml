@@ -6,4 +6,5 @@ resources:
 - datadoghq_v1alpha1_datadogagentprofile.yaml
 - datadoghq_v1alpha1_datadogslo.yaml
 - datadoghq_v1alpha1_datadogpodautoscaler.yaml
+- datadoghq_v1alpha1_datadogdashboard.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

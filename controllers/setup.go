@@ -16,7 +16,9 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
+
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
@@ -27,10 +29,11 @@ import (
 )
 
 const (
-	agentControllerName   = "DatadogAgent"
-	monitorControllerName = "DatadogMonitor"
-	sloControllerName     = "DatadogSLO"
-	profileControllerName = "DatadogAgentProfile"
+	agentControllerName     = "DatadogAgent"
+	monitorControllerName   = "DatadogMonitor"
+	sloControllerName       = "DatadogSLO"
+	profileControllerName   = "DatadogAgentProfile"
+	dashboardControllerName = "DatadogDashboard"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -47,6 +50,7 @@ type SetupOptions struct {
 	DatadogAgentProfileEnabled      bool
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
+	DatadogDashboardEnabled         bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -67,10 +71,11 @@ type ExtendedDaemonsetOptions struct {
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
-	agentControllerName:   startDatadogAgent,
-	monitorControllerName: startDatadogMonitor,
-	sloControllerName:     startDatadogSLO,
-	profileControllerName: startDatadogAgentProfiles,
+	agentControllerName:     startDatadogAgent,
+	monitorControllerName:   startDatadogMonitor,
+	sloControllerName:       startDatadogSLO,
+	profileControllerName:   startDatadogAgentProfiles,
+	dashboardControllerName: startDatadogDashboard,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -103,6 +108,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
+		logger.Info("about to start controller...")
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
@@ -178,6 +184,27 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Log:         ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogDashboardEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", dashboardControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogDashboardClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	return (&DatadogDashboardReconciler{
+		Client:      mgr.GetClient(),
+		DDClient:    ddClient,
+		VersionInfo: vInfo,
+		Log:         ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
+		Scheme:      mgr.GetScheme(),
+		Recorder:    mgr.GetEventRecorderFor(dashboardControllerName),
 	}).SetupWithManager(mgr)
 }
 
