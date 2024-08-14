@@ -44,8 +44,8 @@ func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
-// GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
-func GetDefaultServiceAccountName(dda metav1.Object) string {
+// getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
+func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
@@ -107,7 +107,7 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: GetDefaultServiceAccountName(dda),
+		ServiceAccountName: getDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommonv1.ClusterAgentContainerName),

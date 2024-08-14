@@ -82,8 +82,8 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 	return template
 }
 
-// GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
-func GetDefaultServiceAccountName(dda metav1.Object) string {
+// getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
+func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
@@ -93,7 +93,7 @@ func clusterChecksRunnerImage() string {
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: GetDefaultServiceAccountName(dda),
+		ServiceAccountName: getDefaultServiceAccountName(dda),
 		InitContainers: []corev1.Container{
 			{
 				Name:    "init-config",
