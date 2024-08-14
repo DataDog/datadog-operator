@@ -14,8 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
@@ -276,7 +275,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 	}
 
 	// ClusterRole creation
-	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), agent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), componentagent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -388,17 +387,17 @@ func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateM
 
 func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
 	if f.dcaTokenInfo.token.SecretName != "" {
-		tokenEnvVar := component.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, component.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
+		tokenEnvVar := common.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
 		managers.EnvVar().AddEnvVar(tokenEnvVar)
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAPIKey, component.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAppKey, component.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 }

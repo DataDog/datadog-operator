@@ -3,21 +3,18 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package component
+package objects
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
@@ -26,45 +23,7 @@ import (
 
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 )
-
-const (
-	localServiceDefaultMinimumVersion = "1.22-0"
-)
-
-// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
-func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
-	version := ""
-	if imageConfig.Name != "" {
-		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
-	}
-	// Give priority to image Tag setting
-	if imageConfig.Tag != "" {
-		version = imageConfig.Tag
-	}
-	return version
-}
-
-// BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
-func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
-	return &corev1.EnvVar{
-		Name:      name,
-		ValueFrom: source,
-	}
-}
-
-// BuildEnvVarFromSecret return an corev1.EnvVarSource correspond to a secret reference
-func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
-	return &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: name,
-			},
-			Key: key,
-		},
-	}
-}
 
 // BuildKubernetesNetworkPolicy creates the base node agent kubernetes network policy
 func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) (string, string, metav1.LabelSelector, []netv1.PolicyType, []netv1.NetworkPolicyIngressRule, []netv1.NetworkPolicyEgressRule) {
@@ -213,23 +172,6 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 			IntVal: apicommon.DefaultClusterAgentServicePort,
 		},
 	}
-}
-
-// GetAgentLocalServiceSelector creates the selector to be used for the agent local service
-func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
-	return map[string]string{
-		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
-	}
-}
-
-// ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
-func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalService bool) bool {
-	if versionInfo == nil || versionInfo.GitVersion == "" {
-		return false
-	}
-	// Service Internal Traffic Policy is enabled by default since 1.22
-	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy

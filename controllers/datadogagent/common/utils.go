@@ -7,13 +7,18 @@ package common
 
 import (
 	"fmt"
+	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
@@ -72,4 +77,58 @@ func GetAgentVersion(dda metav1.Object) string {
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
+}
+
+// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
+func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
+	version := ""
+	if imageConfig.Name != "" {
+		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
+	}
+	// Give priority to image Tag setting
+	if imageConfig.Tag != "" {
+		version = imageConfig.Tag
+	}
+	return version
+}
+
+// BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
+func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name:      name,
+		ValueFrom: source,
+	}
+}
+
+// BuildEnvVarFromSecret return an corev1.EnvVarSource correspond to a secret reference
+func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: name,
+			},
+			Key: key,
+		},
+	}
+}
+
+const (
+	localServiceDefaultMinimumVersion = "1.22-0"
+)
+
+// GetAgentLocalServiceSelector creates the selector to be used for the agent local service
+func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
+	return map[string]string{
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+	}
+}
+
+// ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
+func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalService bool) bool {
+	if versionInfo == nil || versionInfo.GitVersion == "" {
+		return false
+	}
+	// Service Internal Traffic Policy is enabled by default since 1.22
+	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }

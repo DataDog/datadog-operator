@@ -21,7 +21,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
@@ -114,7 +114,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	if f.grpcEnabled {
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.grpcEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -129,13 +129,13 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
 				return err
 			}
 		}
 	}
 	if f.httpEnabled {
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.httpEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")

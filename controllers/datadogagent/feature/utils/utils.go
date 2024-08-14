@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 )
 
 // Process Checks utils
@@ -24,7 +24,7 @@ func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 	// Agent version must >= 7.53.0 to run feature in core agent
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion)
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion)
 		}
 	}
 	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, RunInCoreAgentMinVersion)
