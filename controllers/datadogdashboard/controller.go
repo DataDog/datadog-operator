@@ -186,10 +186,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	createdDashboard, err := createDashboard(logger, r.datadogAuth, r.datadogClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating Dashboard")
-	}
-
-	if err != nil {
-		logger.Error(err, "error creating Dashboard")
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
 		return err
 	}
