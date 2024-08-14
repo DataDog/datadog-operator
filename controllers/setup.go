@@ -17,7 +17,6 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 
-	// NOTE: online clientpkg does not have what I need, may cause problems later
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -194,11 +193,11 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, vInfo *versi
 		return nil
 	}
 
-	logger.Info("Test logging pt 2")
 	ddClient, err := datadogclient.InitDatadogDashboardClient(logger, options.Creds)
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}
+
 	return (&DatadogDashboardReconciler{
 		Client:      mgr.GetClient(),
 		DDClient:    ddClient,

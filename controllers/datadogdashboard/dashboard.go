@@ -1,13 +1,5 @@
 package datadogdashboard
 
-// build dashboards - build dashoard spec
-// get dashboards (why? idk, but perhaps to update status if it's not reachable. Tells you something)
-// validate if the fields of a dashboard are correctly written
-// create dashboard -- use dashboard spec to create dashbaord
-// update dashboard -- based on CRD change, I'm assuming?
-// delete dashboard -- delete dashboard
-// kubernetes automatically detects changes? how to deleting/updating
-
 import (
 	"context"
 	"errors"
@@ -26,7 +18,7 @@ import (
 // Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
 	// create a dashboard
-	layoutType := datadogV1.DashboardLayoutType(ddb.Spec.LayoutType)
+	layoutType := ddb.Spec.LayoutType
 	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
 
 	// NOTE: for now, pass in empty widgetlist
@@ -53,7 +45,6 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 			dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
 			for _, presetValue := range variablePreset.TemplateVariables {
 				dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
-				// Name is required
 				dbTemplateVariablePresetValue.SetName(*presetValue.Name)
 				if presetValue.Values != nil {
 					dbTemplateVariablePresetValue.SetValues(presetValue.Values)
