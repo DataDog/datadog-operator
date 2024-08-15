@@ -14,8 +14,8 @@ README.md             @DataDog/documentation @DataDog/container-ecosystems
 
 
 # Features owners
-/controllers/datadogagent/feature/admissioncontroller/*    @DataDog/container-platform
-/controllers/datadogagent/feature/prometheusscrape/*       @DataDog/container-platform
-/controllers/datadogagent/feature/clusterchecks/*          @DataDog/container-platform
-/controllers/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
-/controllers/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
+/internal/controller/datadogagent/feature/admissioncontroller/*    @DataDog/container-platform
+/internal/controller/datadogagent/feature/prometheusscrape/*       @DataDog/container-platform
+/internal/controller/datadogagent/feature/clusterchecks/*          @DataDog/container-platform
+/internal/controller/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
+/internal/controller/datadogagent/feature/helmcheck/*              @DataDog/container-integrations

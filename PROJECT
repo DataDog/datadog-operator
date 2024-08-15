@@ -1,6 +1,6 @@
 domain: com
 layout:
-- go.kubebuilder.io/v3
+- go.kubebuilder.io/v4
 multigroup: true
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
@@ -14,7 +14,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogMetric
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -22,7 +22,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogMonitor
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -30,7 +30,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogAgent
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -38,7 +38,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogAgent
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1
   version: v2alpha1
   webhooks:
     conversion: true
@@ -49,7 +49,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogSLO
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -58,7 +58,7 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogAgentProfile
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 - api:
     crdVersion: v1
@@ -66,6 +66,6 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogPodAutoscaler
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
   version: v1alpha1
 version: "3"
