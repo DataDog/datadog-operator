@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator/e2e
 
-go 1.22.0
+go 1.22.4
 
 require (
 	github.com/DataDog/datadog-agent/test/new-e2e v0.55.2
@@ -10,6 +10,7 @@ require (
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.13.1
 	github.com/pulumi/pulumi/sdk/v3 v3.126.0
 	github.com/stretchr/testify v1.9.0
+	github.com/zorkian/go-datadog-api v2.30.0+incompatible
 	k8s.io/apimachinery v0.28.9
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3
 	sigs.k8s.io/yaml v1.3.0
