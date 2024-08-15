@@ -19,25 +19,29 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./apis/datadoghq/v1alpha1.DatadogAgentProfile":                   schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref),
-		"./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus":             schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMetric":                         schema__apis_datadoghq_v1alpha1_DatadogMetric(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitor":                        schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorCondition":               schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions":       schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":          schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptions":                 schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows": schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":       schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorSpec":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorStatus":                  schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState":          schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLO":                            schema__apis_datadoghq_v1alpha1_DatadogSLO(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions":           schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOQuery":                       schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOSpec":                        schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOStatus":                      schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogAgentProfile":                                schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref),
+		"./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus":                          schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMetric":                                      schema__apis_datadoghq_v1alpha1_DatadogMetric(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                             schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitor":                                     schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQuery":                       schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQuery(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryControlledMonitorRef":   schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryControlledMonitorRef(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryMonitor":                schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryMonitor(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryUncontrolledMonitorRef": schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryUncontrolledMonitorRef(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorCondition":                            schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":                       schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptions":                              schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows":              schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorSpec":                                 schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorStatus":                               schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState":                       schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLO":                                         schema__apis_datadoghq_v1alpha1_DatadogSLO(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions":                        schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOQuery":                                    schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOSpec":                                     schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOStatus":                                   schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref),
 	}
 }
 
@@ -303,6 +307,123 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v1alpha1.DatadogMonitorSpec", "./apis/datadoghq/v1alpha1.DatadogMonitorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQuery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorCompositeQuery defines a composite monitor's query terms and expression. It can reference uncontrolled monitors by ID and controlled monitors by name.\n\nGiven this definition:\n\nexpression: \"${A} && ${B}\" monitors:\n  - term: A\n    uncontrolledRef:\n    id: 150000000\n  - term: B\n    controlledRef:\n    # ID is 150000001\n    name: existing-controlled-monitor-name\n\nThe controller will set the composite monitor's query to:\n\n\"150000000 && 150000001\"",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"expression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Expression is the templated expression containing monitor term interpolations (e.g. \"${A}\") and Boolean operators. The controller renders this template to a final query using the defined monitor terms and references.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"monitors": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Monitors is a list of query expression terms (e.g. \"A\") paired with a reference to an existing Datadog monitor.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryMonitor"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryMonitor"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryControlledMonitorRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ControlledRef is a reference to a Datadog monitor managed by this controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the Datadog monitor resource this controller manages. The controller retrieves the monitor ID from this named resource and interpolates it into its corresponding term in the query expression.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryMonitor(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorCompositeQueryMonitor defines a single term in a query expression with a single reference to an existing monitor. The controller replaces the monitor's term in the query expression with its resolved ID. or indirectly by name (controlled).",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"term": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Term is the name of the interpolated term in the query expression (e.g. \"A\").",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"uncontrolledRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UncontrolledRef is a reference to a Datadog monitor managed outside of the controller.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryUncontrolledMonitorRef"),
+						},
+					},
+					"controlledRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControlledRef is a reference to a Datadog monitor managed by this controller.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryControlledMonitorRef"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryControlledMonitorRef", "./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQueryUncontrolledMonitorRef"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorCompositeQueryUncontrolledMonitorRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UncontrolledRef is a reference to a Datadog monitor managed outside of the controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Id is the ID of the existing uncontrolled monitor.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -702,9 +823,16 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCall
 					},
 					"query": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Query is the Datadog monitor query",
+							Description: "Query is the Datadog monitor query. Leave unset for composite monitors.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"compositeQuery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CompositeQuery defines a composite monitor's query terms and expression. Leave unset for all monitor types except composite.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQuery"),
 						},
 					},
 					"restrictedRoles": {
@@ -772,7 +900,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "./apis/datadoghq/v1alpha1.DatadogMonitorOptions"},
+			"./apis/datadoghq/v1alpha1.DatadogMonitorCompositeQuery", "./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "./apis/datadoghq/v1alpha1.DatadogMonitorOptions"},
 	}
 }
 

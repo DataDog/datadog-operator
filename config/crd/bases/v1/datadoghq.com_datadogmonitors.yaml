@@ -59,6 +59,52 @@ spec:
             spec:
               description: DatadogMonitorSpec defines the desired state of DatadogMonitor
               properties:
+                compositeQuery:
+                  description: |-
+                    CompositeQuery defines a composite monitor's query terms and expression.
+                    Leave unset for all monitor types except composite.
+                  properties:
+                    expression:
+                      description: |-
+                        Expression is the templated expression containing monitor term interpolations
+                        (e.g. "${A}") and Boolean operators. The controller renders this template to a
+                        final query using the defined monitor terms and references.
+                      type: string
+                    monitors:
+                      description: |-
+                        Monitors is a list of query expression terms (e.g. "A") paired with a reference
+                        to an existing Datadog monitor.
+                      items:
+                        description: |-
+                          DatadogMonitorCompositeQueryMonitor defines a single term in a query expression
+                          with a single reference to an existing monitor. The controller replaces the
+                          monitor's term in the query expression with its resolved ID.
+                          or indirectly by name (controlled).
+                        properties:
+                          controlledRef:
+                            description: ControlledRef is a reference to a Datadog monitor managed by this controller.
+                            properties:
+                              name:
+                                description: |-
+                                  Name is the name of the Datadog monitor resource this controller manages.
+                                  The controller retrieves the monitor ID from this named resource and
+                                  interpolates it into its corresponding term in the query expression.
+                                type: string
+                            type: object
+                          term:
+                            description: Term is the name of the interpolated term in the query expression (e.g. "A").
+                            type: string
+                          uncontrolledRef:
+                            description: UncontrolledRef is a reference to a Datadog monitor managed outside of the controller.
+                            properties:
+                              id:
+                                description: Id is the ID of the existing uncontrolled monitor.
+                                type: string
+                            type: object
+                        type: object
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  type: object
                 controllerOptions:
                   description: ControllerOptions are the optional parameters in the DatadogMonitor controller
                   properties:
@@ -202,7 +248,7 @@ spec:
                   format: int64
                   type: integer
                 query:
-                  description: Query is the Datadog monitor query
+                  description: Query is the Datadog monitor query. Leave unset for composite monitors.
                   type: string
                 restrictedRoles:
                   description: |-
