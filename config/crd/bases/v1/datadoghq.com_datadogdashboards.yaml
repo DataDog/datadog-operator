@@ -123,24 +123,14 @@ spec:
                     properties:
                       availableValues:
                         description: The list of values that the template variable drop-down is limited to.
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            items:
-                              type: string
-                            type: array
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       default:
                         description: |-
                           (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
                           Deprecated
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            type: string
-                        type: object
+                        type: string
                       defaults:
                         description: One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
                         items:
@@ -152,12 +142,7 @@ spec:
                         type: string
                       prefix:
                         description: The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            type: string
-                        type: object
+                        type: string
                     required:
                       - name
                     type: object

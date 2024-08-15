@@ -134,31 +134,17 @@ type DashboardTemplateVariablePreset struct {
 // +k8s:openapi-gen=true
 type DashboardTemplateVariable struct {
 	// The list of values that the template variable drop-down is limited to.
-	AvailableValues NullableList `json:"availableValues,omitempty"`
+	AvailableValues *[]string `json:"availableValues,omitempty"`
 	// (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
 	// Deprecated
-	Default NullableString `json:"default,omitempty"`
+	Default *string `json:"default,omitempty"`
 	// One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
 	// +listType=set
 	Defaults []string `json:"defaults,omitempty"`
 	// The name of the variable.
 	Name string `json:"name"`
 	// The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
-	Prefix NullableString `json:"prefix,omitempty"`
-}
-
-// NullableString is a struct to hold a nullable string value.
-// +k8s:openapi-gen=true
-type NullableString struct {
-	Value *string `json:"value,omitempty"`
-	IsSet bool    `json:"isSet,omitempty"`
-}
-
-// NullableList struct to hold nullable list value.
-// +k8s:openapi-gen=true
-type NullableList struct {
-	Value *[]string `json:"value,omitempty"`
-	IsSet bool      `json:"isSet,omitempty"`
+	Prefix *string `json:"prefix,omitempty"`
 }
 
 // Widget Information about widget.

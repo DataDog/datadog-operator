@@ -66,12 +66,11 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 			if dbTemplateVariable.Defaults != nil {
 				dbTemplateVariable.SetDefaults(templateVariable.Defaults)
 			}
-			if templateVariable.AvailableValues.Value != nil {
-				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues.Value)
+			if templateVariable.AvailableValues != nil {
+				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues)
 			}
-			// NOTE: since we can just set nullableString/List like so, perhaps change types to just make it a regular string/list?
-			if templateVariable.Prefix.Value != nil {
-				dbTemplateVariable.SetPrefix(*templateVariable.Prefix.Value)
+			if templateVariable.Prefix != nil {
+				dbTemplateVariable.SetPrefix(*templateVariable.Prefix)
 			}
 			dbTemplateVariables = append(dbTemplateVariables, dbTemplateVariable)
 
