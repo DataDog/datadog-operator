@@ -59,16 +59,20 @@ type RcServiceConfiguration struct {
 
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
-	ID            string                        `json:"id,omitempty"`
-	Name          string                        `json:"name,omitempty"`
-	CoreAgent     *CoreAgentFeaturesConfig      `json:"config,omitempty"`
-	SystemProbe   *SystemProbeFeaturesConfig    `json:"system_probe,omitempty"`
-	SecurityAgent *SecurityAgentFeaturesConfig  `json:"security_agent,omitempty"`
-	CRDs          *CustomResourceDefinitionURLs `json:"crds,omitempty"`
+	ID            string                       `json:"id,omitempty"`
+	Name          string                       `json:"name,omitempty"`
+	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
+	ClusterAgent  *ClusterAgentFeaturesConfig  `json:"cluster_agent,omitempty"`
+	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
+	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
 }
 
 type CoreAgentFeaturesConfig struct {
 	SBOM *SbomConfig `json:"sbom"`
+}
+
+type ClusterAgentFeaturesConfig struct {
+	CRDs *CustomResourceDefinitionURLs `json:"crds,omitempty"`
 }
 
 type SystemProbeFeaturesConfig struct {
