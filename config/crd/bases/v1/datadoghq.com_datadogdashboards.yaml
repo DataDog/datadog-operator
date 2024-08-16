@@ -123,24 +123,14 @@ spec:
                     properties:
                       availableValues:
                         description: The list of values that the template variable drop-down is limited to.
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            items:
-                              type: string
-                            type: array
-                        type: object
+                        items:
+                          type: string
+                        type: array
                       default:
                         description: |-
                           (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
                           Deprecated
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            type: string
-                        type: object
+                        type: string
                       defaults:
                         description: One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
                         items:
@@ -152,12 +142,7 @@ spec:
                         type: string
                       prefix:
                         description: The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
-                        properties:
-                          isSet:
-                            type: boolean
-                          value:
-                            type: string
-                        type: object
+                        type: string
                     required:
                       - name
                     type: object
@@ -278,9 +263,7 @@ spec:
                                         anyOf:
                                           - type: integer
                                           - type: string
-                                        description: |-
-                                          NOTE: turn into float
-                                          Value for the comparator.
+                                        description: Value for the comparator.
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
                                     required:
@@ -333,9 +316,7 @@ spec:
                                               anyOf:
                                                 - type: integer
                                                 - type: string
-                                              description: |-
-                                                NOTE: turn into float
-                                                Value for the comparator.
+                                              description: Value for the comparator.
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
                                           required:
@@ -376,9 +357,7 @@ spec:
                                 queries:
                                   description: List of queries that can be returned directly or used in formulas.
                                   items:
-                                    description: |-
-                                      NOTE: this struct does/did not have json tags..., might need to be an interface
-                                      FormulaAndFunctionQueryDefinition - A formula and function query.
+                                    description: FormulaAndFunctionQueryDefinition - A formula and function query.
                                     properties:
                                       apmDependencyQuery:
                                         description: FormulaAndFunctionApmDependencyStatsQueryDefinition A formula and functions APM dependency stats query.
@@ -827,9 +806,7 @@ spec:
                               type: object
                             type: array
                           requests:
-                            description: |-
-                              NOTE: should this be required? we will see
-                              List of timeseries widget requests.
+                            description: List of timeseries widget requests.
                             items:
                               description: TimeseriesWidgetRequest Updated timeseries widget.
                               properties:
@@ -880,9 +857,7 @@ spec:
                                               anyOf:
                                                 - type: integer
                                                 - type: string
-                                              description: |-
-                                                NOTE: turn into float
-                                                Value for the comparator.
+                                              description: Value for the comparator.
                                               pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                               x-kubernetes-int-or-string: true
                                           required:
@@ -941,9 +916,7 @@ spec:
                                 queries:
                                   description: List of queries that can be returned directly or used in formulas.
                                   items:
-                                    description: |-
-                                      NOTE: this struct does/did not have json tags..., might need to be an interface
-                                      FormulaAndFunctionQueryDefinition - A formula and function query.
+                                    description: FormulaAndFunctionQueryDefinition - A formula and function query.
                                     properties:
                                       apmDependencyQuery:
                                         description: FormulaAndFunctionApmDependencyStatsQueryDefinition A formula and functions APM dependency stats query.

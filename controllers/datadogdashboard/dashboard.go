@@ -1,13 +1,5 @@
 package datadogdashboard
 
-// build dashboards - build dashoard spec
-// get dashboards (why? idk, but perhaps to update status if it's not reachable. Tells you something)
-// validate if the fields of a dashboard are correctly written
-// create dashboard -- use dashboard spec to create dashbaord
-// update dashboard -- based on CRD change, I'm assuming?
-// delete dashboard -- delete dashboard
-// kubernetes automatically detects changes? how to deleting/updating
-
 import (
 	"context"
 	"errors"
@@ -26,10 +18,9 @@ import (
 // Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
 	// create a dashboard
-	layoutType := datadogV1.DashboardLayoutType(ddb.Spec.LayoutType)
+	layoutType := ddb.Spec.LayoutType
 	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
 
-	// NOTE: for now, pass in empty widgetlist
 	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, dbWidgets)
 
 	if ddb.Spec.Description != "" {
@@ -53,7 +44,6 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 			dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
 			for _, presetValue := range variablePreset.TemplateVariables {
 				dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
-				// Name is required
 				dbTemplateVariablePresetValue.SetName(*presetValue.Name)
 				if presetValue.Values != nil {
 					dbTemplateVariablePresetValue.SetValues(presetValue.Values)
@@ -75,12 +65,11 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 			if dbTemplateVariable.Defaults != nil {
 				dbTemplateVariable.SetDefaults(templateVariable.Defaults)
 			}
-			if templateVariable.AvailableValues.Value != nil {
-				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues.Value)
+			if templateVariable.AvailableValues != nil {
+				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues)
 			}
-			// NOTE: since we can just set nullableString/List like so, perhaps change types to just make it a regular string/list?
-			if templateVariable.Prefix.Value != nil {
-				dbTemplateVariable.SetPrefix(*templateVariable.Prefix.Value)
+			if templateVariable.Prefix != nil {
+				dbTemplateVariable.SetPrefix(*templateVariable.Prefix)
 			}
 			dbTemplateVariables = append(dbTemplateVariables, dbTemplateVariable)
 
@@ -214,6 +203,9 @@ func buildQueryValue(logger logr.Logger, qv *v1alpha1.QueryValueWidgetDefinition
 	if qv.TitleAlign != nil {
 		dbQueryValue.SetTitleAlign(*qv.TitleAlign)
 	}
+	if qv.TitleSize != nil {
+		dbQueryValue.SetTitleSize(*qv.TitleSize)
+	}
 	if qv.Type != "" {
 		dbQueryValue.SetType(qv.Type)
 	}
@@ -236,6 +228,13 @@ func convertQvRequests(requests []v1alpha1.QueryValueWidgetRequest) []datadogV1.
 	dbRequests := []datadogV1.QueryValueWidgetRequest{}
 	for _, request := range requests {
 		dbRequest := datadogV1.QueryValueWidgetRequest{}
+		if request.Aggregator != nil {
+			dbRequest.SetAggregator(*request.Aggregator)
+		}
+		if request.ConditionalFormats != nil {
+			dbConFormats := convertConditionalFormats(request.ConditionalFormats)
+			dbRequest.SetConditionalFormats(dbConFormats)
+		}
 		if request.Formulas != nil {
 			dbFormulas := convertFormulas(request.Formulas)
 			dbRequest.SetFormulas(dbFormulas)
@@ -471,7 +470,6 @@ func convertFormulaQueries(formulas []v1alpha1.FormulaAndFunctionQueryDefinition
 	dbFormulas := []datadogV1.FormulaAndFunctionQueryDefinition{}
 
 	for _, formula := range formulas {
-		// NOTE: get rid of this with interface?
 		if formula.FormulaAndFunctionMetricQueryDefinition != nil {
 			dbMetricQuery := convertFormulaMetric(formula.FormulaAndFunctionMetricQueryDefinition)
 			dbFormulaDef := datadogV1.FormulaAndFunctionQueryDefinition{
@@ -514,7 +512,6 @@ func convertFormulaQueries(formulas []v1alpha1.FormulaAndFunctionQueryDefinition
 	return dbFormulas
 }
 
-// NOTE: change name to convertFormulaMetricQuery for consistency after touching base with dashboards team
 func convertFormulaMetric(metricQuery *v1alpha1.FormulaAndFunctionMetricQueryDefinition) *datadogV1.FormulaAndFunctionMetricQueryDefinition {
 	dbMetricQuery := datadogV1.FormulaAndFunctionMetricQueryDefinition{}
 	if metricQuery.Aggregator != nil {
@@ -607,7 +604,6 @@ func convertFormulaProcess(processQuery *v1alpha1.FormulaAndFunctionProcessQuery
 	if processQuery.Aggregator != nil {
 		dbProcessQuery.SetAggregator(*processQuery.Aggregator)
 	}
-	// NOTE: INSERT CROSSORGUIDS
 	if processQuery.DataSource != "" {
 		dbProcessQuery.SetDataSource(processQuery.DataSource)
 	}
@@ -718,7 +714,6 @@ func convertFormulaCloudCost(ccQuery *v1alpha1.FormulaAndFunctionCloudCostQueryD
 
 func convertTsMetadata(metadata []v1alpha1.TimeseriesWidgetExpressionAlias) []datadogV1.TimeseriesWidgetExpressionAlias {
 	dbMetadata := []datadogV1.TimeseriesWidgetExpressionAlias{}
-	// NOTE: name change?
 	for _, alias := range metadata {
 		dbAlias := datadogV1.TimeseriesWidgetExpressionAlias{}
 		if alias.AliasName != nil {

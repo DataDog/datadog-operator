@@ -19,7 +19,7 @@ type DatadogDashboardSpec struct {
 	// +optional
 	Description string `json:"description,omitempty"`
 	// Layout type of the dashboard.
-	LayoutType DashboardLayoutType `json:"layoutType,omitempty"`
+	LayoutType datadogV1.DashboardLayoutType `json:"layoutType,omitempty"`
 	// List of handles of users to notify when changes are made to this dashboard.
 	// +listType=set
 	// +optional
@@ -50,24 +50,6 @@ type DatadogDashboardSpec struct {
 	// +listMapKey=id
 	// +optional
 	Widgets []Widget `json:"widgets,omitempty"`
-}
-
-// DashboardLayoutType Layout type of the dashboard.
-type DashboardLayoutType string
-
-// List of DashboardLayoutType.
-const (
-	DashboardLayoutTypeOrdered DashboardLayoutType = "ordered"
-	DashboardLayoutTypeFree    DashboardLayoutType = "free"
-)
-
-func (t DashboardLayoutType) isValid() bool {
-	switch t {
-	case DashboardLayoutTypeOrdered, DashboardLayoutTypeFree:
-		return true
-	default:
-		return false
-	}
 }
 
 // DatadogDashboardStatus defines the observed state of DatadogDashboard
@@ -152,31 +134,17 @@ type DashboardTemplateVariablePreset struct {
 // +k8s:openapi-gen=true
 type DashboardTemplateVariable struct {
 	// The list of values that the template variable drop-down is limited to.
-	AvailableValues NullableList `json:"availableValues,omitempty"`
+	AvailableValues *[]string `json:"availableValues,omitempty"`
 	// (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
 	// Deprecated
-	Default NullableString `json:"default,omitempty"`
+	Default *string `json:"default,omitempty"`
 	// One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
 	// +listType=set
 	Defaults []string `json:"defaults,omitempty"`
 	// The name of the variable.
 	Name string `json:"name"`
 	// The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.
-	Prefix NullableString `json:"prefix,omitempty"`
-}
-
-// NullableString is a struct to hold a nullable string value.
-// +k8s:openapi-gen=true
-type NullableString struct {
-	Value *string `json:"value,omitempty"`
-	IsSet bool    `json:"isSet,omitempty"`
-}
-
-// NullableList struct to hold nullable list value.
-// +k8s:openapi-gen=true
-type NullableList struct {
-	Value *[]string `json:"value,omitempty"`
-	IsSet bool      `json:"isSet,omitempty"`
+	Prefix *string `json:"prefix,omitempty"`
 }
 
 // Widget Information about widget.
@@ -220,7 +188,6 @@ type TimeseriesWidgetDefinition struct {
 	LegendSize *string `json:"legendSize,omitempty"`
 	// List of markers.
 	Markers []WidgetMarker `json:"markers,omitempty"`
-	// NOTE: should this be required? we will see
 	// List of timeseries widget requests.
 	Requests []TimeseriesWidgetRequest `json:"requests"`
 	// Axis controls for the widget.
@@ -306,69 +273,6 @@ type TimeseriesWidgetExpressionAlias struct {
 	Expression string `json:"expression"`
 }
 
-// LogQueryDefinition The log query.
-type LogQueryDefinition struct {
-	// Define computation for a log query.
-	Compute *LogsQueryCompute `json:"compute,omitempty"`
-	// List of tag prefixes to group by in the case of a cluster check.
-	GroupBy []LogQueryDefinitionGroupBy `json:"groupBy,omitempty"`
-	// A coma separated-list of index names. Use "*" query all indexes at once. [Multiple Indexes](https://docs.datadoghq.com/logs/indexes/#multiple-indexes)
-	Index *string `json:"index,omitempty"`
-	// This field is mutually exclusive with `compute`.
-	MultiCompute []LogsQueryCompute `json:"multiCompute,omitempty"`
-	// The query being made on the logs.
-	Search *LogQueryDefinitionSearch `json:"search,omitempty"`
-}
-
-// LogsQueryCompute Define computation for a log query.
-type LogsQueryCompute struct {
-	// The aggregation method.
-	Aggregation string `json:"aggregation"`
-	// Facet name.
-	Facet *string `json:"facet,omitempty"`
-	// Define a time interval in seconds.
-	Interval *int64 `json:"interval,omitempty"`
-}
-
-// LogQueryDefinitionGroupBy Defined items in the group.
-type LogQueryDefinitionGroupBy struct {
-	// Facet name.
-	Facet string `json:"facet"`
-	// Maximum number of items in the group.
-	Limit *int64 `json:"limit,omitempty"`
-	// Define a sorting method.
-	Sort *LogQueryDefinitionGroupBySort `json:"sort,omitempty"`
-}
-
-// LogQueryDefinitionGroupBySort Define a sorting method.
-type LogQueryDefinitionGroupBySort struct {
-	// The aggregation method.
-	Aggregation string `json:"aggregation"`
-	// Facet name.
-	Facet *string `json:"facet,omitempty"`
-	// Widget sorting methods.
-	Order datadogV1.WidgetSort `json:"order"`
-}
-
-// LogQueryDefinitionSearch The query being made on the logs.
-type LogQueryDefinitionSearch struct {
-	// Search value to apply.
-	Query string `json:"query"`
-}
-
-// ProcessQueryDefinition The process query to use in the widget.
-type ProcessQueryDefinition struct {
-	// List of processes.
-	FilterBy []string `json:"filterBy,omitempty"`
-	// Max number of items in the filter list.
-	Limit *int64 `json:"limit,omitempty"`
-	// Your chosen metric.
-	Metric string `json:"metric"`
-	// Your chosen search term.
-	SearchBy *string `json:"searchBy,omitempty"`
-}
-
-// NOTE: this struct does/did not have json tags..., might need to be an interface
 // FormulaAndFunctionQueryDefinition - A formula and function query.
 type FormulaAndFunctionQueryDefinition struct {
 	FormulaAndFunctionMetricQueryDefinition             *FormulaAndFunctionMetricQueryDefinition             `json:"metricQuery,omitempty"`
@@ -625,7 +529,6 @@ type WidgetConditionalFormat struct {
 	Palette datadogV1.WidgetPalette `json:"palette"`
 	// Defines the displayed timeframe.
 	Timeframe *string `json:"timeframe,omitempty"`
-	// NOTE: turn into float
 	// Value for the comparator.
 	Value *resource.Quantity `json:"value"`
 }

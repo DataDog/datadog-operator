@@ -74,8 +74,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.LogCollectionConfig":                     schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref),
 		"./apis/datadoghq/v1alpha1.NetworkPolicySpec":                       schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref),
 		"./apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
-		"./apis/datadoghq/v1alpha1.NullableList":                            schema__apis_datadoghq_v1alpha1_NullableList(ref),
-		"./apis/datadoghq/v1alpha1.NullableString":                          schema__apis_datadoghq_v1alpha1_NullableString(ref),
 		"./apis/datadoghq/v1alpha1.OTLPGRPCSpec":                            schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPHTTPSpec":                            schema__apis_datadoghq_v1alpha1_OTLPHTTPSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPProtocolsSpec":                       schema__apis_datadoghq_v1alpha1_OTLPProtocolsSpec(ref),
@@ -986,15 +984,23 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 					"availableValues": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The list of values that the template variable drop-down is limited to.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableList"),
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"default": {
 						SchemaProps: spec.SchemaProps{
 							Description: "(deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`. Deprecated",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"defaults": {
@@ -1028,16 +1034,14 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 					"prefix": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
 				Required: []string{"name"},
 			},
 		},
-		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.NullableList", "./apis/datadoghq/v1alpha1.NullableString"},
 	}
 }
 
@@ -4073,64 +4077,6 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v1alpha1.CRISocketConfig", "./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.DogstatsdConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.KubeletConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_NullableList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NullableList struct to hold nullable list value.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"isSet": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_NullableString(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NullableString is a struct to hold a nullable string value.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"isSet": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
 	}
 }
 

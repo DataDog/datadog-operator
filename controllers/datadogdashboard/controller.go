@@ -159,7 +159,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 }
 
 func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboard, error) {
-	// NOTE: taken from monitors. SlOS doesn't set status syncstatusgeterror. Add that.
 	return getDashboard(r.datadogAuth, r.datadogClient, instance.Status.ID)
 }
 
@@ -188,10 +187,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 
 	// Create Dashboard in Datadog
 	createdDashboard, err := createDashboard(logger, r.datadogAuth, r.datadogClient, instance)
-	if err != nil {
-		logger.Error(err, "error creating Dashboard")
-	}
-
 	if err != nil {
 		logger.Error(err, "error creating Dashboard")
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
