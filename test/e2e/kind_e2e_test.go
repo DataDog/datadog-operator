@@ -60,6 +60,38 @@ func TestKindSuite(t *testing.T) {
 	e2e.Run[kindEnv](t, &kindSuite{}, e2eParams...)
 }
 
+const (
+	UserData = `#!/bin/bash
+echo "User Data"
+echo "Installing kubectl"
+snap install kubectl --classic
+
+echo "Verifying kubectl"
+kubectl version --client
+
+echo "Installing kubens"
+curl -sLo kubens https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubens
+chmod +x kubens
+mv kubens /usr/local/bin/
+
+echo '
+
+alias k="kubectl"
+alias kg="kubectl get"
+alias kgp="kubectl get pod"
+alias krm="kubectl delete"
+alias krmp="kubectl delete pod"
+alias kd="kubectl describe"
+alias kdp="kubectl describe pod"
+alias ke="kubectl edit"
+alias kl="kubectl logs"
+alias kx="kubectl exec"
+' >> /home/ubuntu/.bashrc
+`
+)
+
+// echo "User Data"
+
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
 func kindProvisioner(k8sVersion string) e2e.Provisioner {
 	return e2e.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
@@ -70,7 +102,7 @@ func kindProvisioner(k8sVersion string) e2e.Provisioner {
 		}
 
 		// Create EC2 VM
-		vm, err := ec2.NewVM(awsEnv, "kind")
+		vm, err := ec2.NewVM(awsEnv, "kind", ec2.WithUserData(UserData))
 		if err != nil {
 			return err
 		}
