@@ -21,7 +21,6 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 	layoutType := ddb.Spec.LayoutType
 	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
 
-	// NOTE: for now, pass in empty widgetlist
 	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, dbWidgets)
 
 	if ddb.Spec.Description != "" {
@@ -471,7 +470,6 @@ func convertFormulaQueries(formulas []v1alpha1.FormulaAndFunctionQueryDefinition
 	dbFormulas := []datadogV1.FormulaAndFunctionQueryDefinition{}
 
 	for _, formula := range formulas {
-		// NOTE: get rid of this with interface?
 		if formula.FormulaAndFunctionMetricQueryDefinition != nil {
 			dbMetricQuery := convertFormulaMetric(formula.FormulaAndFunctionMetricQueryDefinition)
 			dbFormulaDef := datadogV1.FormulaAndFunctionQueryDefinition{
@@ -514,7 +512,6 @@ func convertFormulaQueries(formulas []v1alpha1.FormulaAndFunctionQueryDefinition
 	return dbFormulas
 }
 
-// NOTE: change name to convertFormulaMetricQuery for consistency after touching base with dashboards team
 func convertFormulaMetric(metricQuery *v1alpha1.FormulaAndFunctionMetricQueryDefinition) *datadogV1.FormulaAndFunctionMetricQueryDefinition {
 	dbMetricQuery := datadogV1.FormulaAndFunctionMetricQueryDefinition{}
 	if metricQuery.Aggregator != nil {
@@ -607,7 +604,6 @@ func convertFormulaProcess(processQuery *v1alpha1.FormulaAndFunctionProcessQuery
 	if processQuery.Aggregator != nil {
 		dbProcessQuery.SetAggregator(*processQuery.Aggregator)
 	}
-	// NOTE: INSERT CROSSORGUIDS
 	if processQuery.DataSource != "" {
 		dbProcessQuery.SetDataSource(processQuery.DataSource)
 	}
@@ -718,7 +714,6 @@ func convertFormulaCloudCost(ccQuery *v1alpha1.FormulaAndFunctionCloudCostQueryD
 
 func convertTsMetadata(metadata []v1alpha1.TimeseriesWidgetExpressionAlias) []datadogV1.TimeseriesWidgetExpressionAlias {
 	dbMetadata := []datadogV1.TimeseriesWidgetExpressionAlias{}
-	// NOTE: name change?
 	for _, alias := range metadata {
 		dbAlias := datadogV1.TimeseriesWidgetExpressionAlias{}
 		if alias.AliasName != nil {
