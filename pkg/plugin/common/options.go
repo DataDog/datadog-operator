@@ -23,7 +23,6 @@ type Options struct {
 	Clientset    *kubernetes.Clientset
 	APIExtClient *apiextensionclient.Clientset
 
-	isV2Available bool
 	UserNamespace string
 }
 
@@ -42,10 +41,6 @@ func (o *Options) Init(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to instantiate clientset: %w", err)
 	}
 	o.SetClientset(clientset)
-
-	if o.isV2Available, err = IsV2Available(o.Clientset); err != nil {
-		return err
-	}
 
 	restConfig, err := o.ConfigFlags.ToRESTConfig()
 	if err != nil {
@@ -103,9 +98,4 @@ func (o *Options) GetClientConfig() clientcmd.ClientConfig {
 // SetConfigFlags configures the config flags
 func (o *Options) SetConfigFlags() {
 	o.ConfigFlags = genericclioptions.NewConfigFlags(false)
-}
-
-// IsDatadogAgentV2Available returns true if the v2Alpha1.DatadogAgent resource is available
-func (o *Options) IsDatadogAgentV2Available() bool {
-	return o.isV2Available
 }
