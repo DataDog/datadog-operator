@@ -23,6 +23,33 @@ import (
 const (
 	manifestsPath       = "./manifests"
 	mgrKustomizeDirPath = "../../config/e2e"
+	UserData            = `#!/bin/bash
+echo "User Data"
+echo "Installing kubectl"
+snap install kubectl --classic
+
+echo "Verifying kubectl"
+kubectl version --client
+
+echo "Installing kubens"
+curl -sLo kubens https://github.com/ahmetb/kubectx/releases/download/v0.9.5/kubens
+chmod +x kubens
+mv kubens /usr/local/bin/
+
+echo '
+
+alias k="kubectl"
+alias kg="kubectl get"
+alias kgp="kubectl get pod"
+alias krm="kubectl delete"
+alias krmp="kubectl delete pod"
+alias kd="kubectl describe"
+alias kdp="kubectl describe pod"
+alias ke="kubectl edit"
+alias kl="kubectl logs"
+alias kx="kubectl exec"
+' >> /home/ubuntu/.bashrc
+`
 	defaultMgrImageName = "gcr.io/datadoghq/operator"
 	defaultMgrImgTag    = "latest"
 	defaultMgrFileName  = "e2e-manager.yaml"
