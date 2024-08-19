@@ -74,8 +74,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.LogCollectionConfig":                     schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref),
 		"./apis/datadoghq/v1alpha1.NetworkPolicySpec":                       schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref),
 		"./apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
-		"./apis/datadoghq/v1alpha1.NullableList":                            schema__apis_datadoghq_v1alpha1_NullableList(ref),
-		"./apis/datadoghq/v1alpha1.NullableString":                          schema__apis_datadoghq_v1alpha1_NullableString(ref),
 		"./apis/datadoghq/v1alpha1.OTLPGRPCSpec":                            schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPHTTPSpec":                            schema__apis_datadoghq_v1alpha1_OTLPHTTPSpec(ref),
 		"./apis/datadoghq/v1alpha1.OTLPProtocolsSpec":                       schema__apis_datadoghq_v1alpha1_OTLPProtocolsSpec(ref),
@@ -90,7 +88,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.SyscallMonitorSpec":                      schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref),
 		"./apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
 		"./apis/datadoghq/v1alpha1.Widget":                                  schema__apis_datadoghq_v1alpha1_Widget(ref),
-		"./apis/datadoghq/v1alpha1.WidgetDefinition":                        schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref),
 		"./apis/datadoghq/v1alpha1.WidgetLayout":                            schema__apis_datadoghq_v1alpha1_WidgetLayout(ref),
 	}
 }
@@ -987,15 +984,23 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 					"availableValues": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The list of values that the template variable drop-down is limited to.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableList"),
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 					"default": {
 						SchemaProps: spec.SchemaProps{
 							Description: "(deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`. Deprecated",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"defaults": {
@@ -1029,16 +1034,14 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 					"prefix": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The tag prefix associated with the variable. Only tags with this prefix appear in the variable drop-down.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.NullableString"),
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
 				Required: []string{"name"},
 			},
 		},
-		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.NullableList", "./apis/datadoghq/v1alpha1.NullableString"},
 	}
 }
 
@@ -4077,64 +4080,6 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_NullableList(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NullableList struct to hold nullable list value.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"isSet": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_NullableString(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "NullableString is a struct to hold a nullable string value.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"isSet": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -4892,11 +4837,15 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 				Description: "Widget Information about widget.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"definition": {
+					"timeseries": {
 						SchemaProps: spec.SchemaProps{
 							Description: "[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetDefinition"),
+							Ref:         ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
+						},
+					},
+					"queryValue": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition"),
 						},
 					},
 					"id": {
@@ -4914,22 +4863,11 @@ func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common
 						},
 					},
 				},
-				Required: []string{"definition", "id"},
+				Required: []string{"id"},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.WidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_WidgetDefinition(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "WidgetDefinition - [Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
-				Type:        []string{"object"},
-			},
-		},
+			"./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition", "./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
 	}
 }
 
