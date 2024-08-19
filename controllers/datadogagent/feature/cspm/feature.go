@@ -10,7 +10,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -97,37 +96,6 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
-		}
-
-		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.SecurityAgentContainerName,
-				},
-			},
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
-	if dda.Spec.Agent.Security != nil && *dda.Spec.Agent.Security.Compliance.Enabled {
-		f.enable = true
-		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-
-		if dda.Spec.Agent.Security.Compliance.CheckInterval != nil {
-			f.checkInterval = strconv.FormatInt(dda.Spec.Agent.Security.Compliance.CheckInterval.Duration.Nanoseconds(), 10)
-		}
-
-		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
-			f.configMapName = dda.Spec.Agent.Security.Compliance.ConfigDir.ConfigMapName
-			f.customConfig = v1alpha1.ConvertConfigDirSpecToCustomConfig(dda.Spec.Agent.Security.Compliance.ConfigDir)
 		}
 
 		reqComp = feature.RequiredComponents{

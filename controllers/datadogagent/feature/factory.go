@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
@@ -69,36 +68,6 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedSingleAgentContainerName}
 		return output, requiredComponents
 	}
-	return output, requiredComponents
-}
-
-// BuildFeaturesV1 use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
-	builderMutex.RLock()
-	defer builderMutex.RUnlock()
-
-	var output []Feature
-	var requiredComponents RequiredComponents
-
-	// to always return in feature in the same order we need to sort the map keys
-	sortedkeys := make([]IDType, 0, len(featureBuilders))
-	for key := range featureBuilders {
-		sortedkeys = append(sortedkeys, key)
-	}
-	sort.Slice(sortedkeys, func(i, j int) bool {
-		return sortedkeys[i] < sortedkeys[j]
-	})
-
-	for _, id := range sortedkeys {
-		feat := featureBuilders[id](options)
-		// only add feat to the output if the feature is enabled
-		config := feat.ConfigureV1(dda)
-		if config.IsEnabled() {
-			output = append(output, feat)
-		}
-		requiredComponents.Merge(&config)
-	}
-
 	return output, requiredComponents
 }
 

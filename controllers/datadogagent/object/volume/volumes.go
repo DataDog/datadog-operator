@@ -102,47 +102,6 @@ func GetVolumeFromConfigMap(configMap *apicommonv1.ConfigMapConfig, defaultConfi
 	}
 }
 
-// common CustomConfig
-
-// GetVolumeFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig. This is only used in v1alpha1.
-func GetVolumeFromCustomConfigSpec(customConfig *apicommonv1.CustomConfig, volumeName, defaultConfigMapName string) corev1.Volume {
-	configMap := customConfig.ConfigMap
-	cmName := defaultConfigMapName
-	if configMap != nil && len(configMap.Name) > 0 {
-		cmName = configMap.Name
-	}
-
-	cmSource := &corev1.ConfigMapVolumeSource{
-		LocalObjectReference: corev1.LocalObjectReference{
-			Name: cmName,
-		},
-	}
-
-	return corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: cmSource,
-		},
-	}
-}
-
-// GetVolumeMountFromCustomConfigSpec return a corev1.Volume corresponding to a common CustomConfig. It is only used in v1alpha1.
-func GetVolumeMountFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
-	subPath := defaultSubPath
-	if cfcm.ConfigMap != nil && len(cfcm.ConfigMap.Items) > 0 {
-		subPath = cfcm.ConfigMap.Items[0].Path
-	}
-
-	return corev1.VolumeMount{
-		Name:      volumeName,
-		MountPath: volumePath,
-		SubPath:   subPath,
-		ReadOnly:  true,
-	}
-}
-
-// v2alpha1 CustomConfig, MultiCustomConfig, and others
-
 // GetVolumeFromCustomConfig returns a Volume from a v2alpha1 CustomConfig. It is used for agent-level configuration overrides in v2alpha1.
 func GetVolumeFromCustomConfig(customConfig v2alpha1.CustomConfig, defaultConfigMapName, volumeName string) corev1.Volume {
 	var vol corev1.Volume

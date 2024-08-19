@@ -15,47 +15,18 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_cwsFeature_Configure(t *testing.T) {
-	ddav1CWSDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				Security: &v1alpha1.SecuritySpec{
-					Runtime: v1alpha1.RuntimeSecuritySpec{
-						Enabled: apiutils.NewBoolPointer(false),
-					},
-				},
-			},
-		},
-	}
-
-	ddav1CWSEnabled := ddav1CWSDisabled.DeepCopy()
-	{
-		ddav1CWSEnabled.Spec.Agent.Security.Runtime.Enabled = apiutils.NewBoolPointer(true)
-		ddav1CWSEnabled.Spec.Agent.Security.Runtime.PoliciesDir = &v1alpha1.ConfigDirSpec{
-			ConfigMapName: "custom_test",
-			Items: []corev1.KeyToPath{
-				{
-					Key:  "key1",
-					Path: "some/path",
-				},
-			},
-		}
-		ddav1CWSEnabled.Spec.Agent.Security.Runtime.SyscallMonitor = &v1alpha1.SyscallMonitorSpec{
-			Enabled: apiutils.NewBoolPointer(true),
-		}
-	}
-
-	ddav2CWSDisabled := v2alpha1.DatadogAgent{
+	ddaCWSDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
@@ -67,10 +38,10 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2CWSLiteEnabled := ddav2CWSDisabled.DeepCopy()
+	ddaCWSLiteEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddav2CWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
-		ddav2CWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &apicommonv1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
@@ -81,18 +52,18 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddav2CWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
 	}
-	ddav2CWSFullEnabled := ddav2CWSDisabled.DeepCopy()
+	ddaCWSFullEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddav2CWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
-		ddav2CWSFullEnabled.Spec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{
+		ddaCWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{
 			Enabled: apiutils.NewBoolPointer(true),
 		}
-		ddav2CWSFullEnabled.Spec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{
+		ddaCWSFullEnabled.Spec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{
 			Enabled: apiutils.NewBoolPointer(true),
 		}
-		ddav2CWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+		ddaCWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &apicommonv1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
@@ -103,51 +74,34 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddav2CWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
-		ddav2CWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v1Alpha1.DatadogAgent
-		//////////////////////////
-		{
-			Name:          "v1alpha1 CWS not enabled",
-			DDAv1:         ddav1CWSDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v1alpha1 CWS enabled",
-			DDAv1:         ddav1CWSEnabled,
-			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false, false),
-		},
-		//////////////////////////
-		// v2Alpha1.DatadogAgent
-		//////////////////////////
 		{
 			Name:          "v2alpha1 CWS not enabled",
-			DDAv2:         ddav2CWSDisabled.DeepCopy(),
+			DDA:           ddaCWSDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 CWS enabled",
-			DDAv2:         ddav2CWSLiteEnabled,
+			DDA:           ddaCWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true, false),
+			Agent:         cwsAgentNodeWantFunc(false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
-			DDAv2:         ddav2CWSFullEnabled,
+			DDA:           ddaCWSFullEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true, true),
+			Agent:         cwsAgentNodeWantFunc(true),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -387,28 +341,27 @@ func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTe
 			volumes := mgr.VolumeMgr.Volumes
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
-			if useDDAV2 {
-				// check annotations
-				customConfig := &apicommonv1.CustomConfig{
-					ConfigMap: &apicommonv1.ConfigMapConfig{
-						Name: "custom_test",
-						Items: []corev1.KeyToPath{
-							{
-								Key:  "key1",
-								Path: "some/path",
-							},
+			// check annotations
+			customConfig := &apicommonv1.CustomConfig{
+				ConfigMap: &apicommonv1.ConfigMapConfig{
+					Name: "custom_test",
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "key1",
+							Path: "some/path",
 						},
 					},
-				}
-				hash, err := comparison.GenerateMD5ForSpec(customConfig)
-				assert.NoError(t, err)
-				wantAnnotations := map[string]string{
-					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
-					apicommon.SystemProbeAppArmorAnnotationKey:                         apicommon.SystemProbeAppArmorAnnotationValue,
-				}
-				annotations := mgr.AnnotationMgr.Annotations
-				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+				},
 			}
+			hash, err := comparison.GenerateMD5ForSpec(customConfig)
+			assert.NoError(t, err)
+			wantAnnotations := map[string]string{
+				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
+				apicommon.SystemProbeAppArmorAnnotationKey:                         apicommon.SystemProbeAppArmorAnnotationValue,
+			}
+			annotations := mgr.AnnotationMgr.Annotations
+			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
 		},
 	)
 }

@@ -23,8 +23,6 @@ const (
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
-	// MD5ChecksumAnnotationKey is part of the key name to identify custom seccomp configurations
-	MD5ChecksumSeccompProfileAnnotationName = "%s-seccomp"
 
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"

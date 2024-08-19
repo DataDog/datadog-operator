@@ -47,7 +47,7 @@ extensions:
           parent_environments: 
             - "staging"
           branch: "main"
-          schedule: "10 3 * * SUN-THU"
+          schedule: "30 23 * * SUN-THU"
           workflows:
             - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
           options:

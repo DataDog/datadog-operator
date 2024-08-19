@@ -8,7 +8,6 @@ package asm
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -72,12 +71,6 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			},
 		},
 	}
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-// ASM is not supported by v1
-func (f *asmFeature) ConfigureV1(_ *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	return feature.RequiredComponents{}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

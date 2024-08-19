@@ -113,6 +113,7 @@ type DatadogMonitorOptions struct {
 	// cluster violating the alert conditions by setting notify_by to ["cluster"]. Tags mentioned in notify_by must
 	// be a subset of the grouping tags in the query. For example, a query grouped by cluster and namespace cannot
 	// notify on region. Setting notify_by to [*] configures the monitor to notify as a simple-alert.
+	// +listType=set
 	NotifyBy []string `json:"notifyBy,omitempty"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
 	NotifyNoData *bool `json:"notifyNoData,omitempty"`
@@ -128,6 +129,7 @@ type DatadogMonitorOptions struct {
 	// The number of times re-notification messages should be sent on the current status at the provided re-notification interval.
 	RenotifyOccurrences *int64 `json:"renotifyOccurrences,omitempty"`
 	// The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.
+	// +listType=set
 	RenotifyStatuses []datadogV1.MonitorRenotifyStatusType `json:"renotifyStatuses,omitempty"`
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
