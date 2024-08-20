@@ -18,7 +18,7 @@ import (
 )
 
 func Test_ebpfCheckFeature_Configure(t *testing.T) {
-	ddav2EBPFCheckDisabled := v2alpha1.DatadogAgent{
+	ddaEBPFCheckDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
@@ -27,9 +27,9 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2EBPFCheckEnabled := ddav2EBPFCheckDisabled.DeepCopy()
+	ddaEBPFCheckEnabled := ddaEBPFCheckDisabled.DeepCopy()
 	{
-		ddav2EBPFCheckEnabled.Spec.Features.EBPFCheck.Enabled = apiutils.NewBoolPointer(true)
+		ddaEBPFCheckEnabled.Spec.Features.EBPFCheck.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	ebpfCheckAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -112,17 +112,14 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v2alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name:          "v2alpha1 ebpf check not enabled",
-			DDAv2:         ddav2EBPFCheckDisabled.DeepCopy(),
+			Name:          "ebpf check not enabled",
+			DDA:           ddaEBPFCheckDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 ebpf check enabled",
-			DDAv2:         ddav2EBPFCheckEnabled,
+			Name:          "ebpf check enabled",
+			DDA:           ddaEBPFCheckEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ebpfCheckAgentNodeWantFunc),
 		},

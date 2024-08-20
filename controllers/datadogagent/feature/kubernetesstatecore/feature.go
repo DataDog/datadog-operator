@@ -15,7 +15,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -120,36 +119,6 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
-		}
-
-		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-	}
-
-	return output
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-	var output feature.RequiredComponents
-
-	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-
-		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
-			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
-				f.runInClusterChecksRunner = true
-				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
-			}
-		} else {
-			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-		}
-
-		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-			f.customConfig = v1alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 		}
 
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)

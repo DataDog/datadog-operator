@@ -9,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -62,24 +61,6 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		npm := dda.Spec.Features.NPM
 		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
 		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.NetworkMonitoring != nil && *dda.Spec.Features.NetworkMonitoring.Enabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SystemProbeContainerName,
-				},
-			},
-		}
 	}
 
 	return reqComp
