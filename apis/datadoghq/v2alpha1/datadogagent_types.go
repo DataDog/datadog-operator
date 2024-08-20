@@ -1117,7 +1117,7 @@ type SecretsBackendRolesConfig struct {
 // SecretsBackendFeatureConfig provides configuration for the secret backend.
 // +k8s:openapi-gen=true
 type SecretsBackendFeatureConfig struct {
-	// Command defines the secret backend command to use
+	// Command defines the secret backend command to use.
 	// Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
 	// Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
 	Command *string `json:"command,omitempty"`
@@ -1126,7 +1126,7 @@ type SecretsBackendFeatureConfig struct {
 	// +optional
 	Args *string `json:"args,omitempty"`
 
-	// Timeout defines the command timeout in seconds
+	// Timeout defines the command timeout in seconds.
 	// Default: 30
 	// +optional
 	Timeout *int32 `json:"timeout,omitempty"`

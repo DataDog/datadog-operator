@@ -1279,7 +1279,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"command": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Command defines the secret backend command to use Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers",
+							Description: "Command defines the secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1293,7 +1293,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Timeout defines the command timeout in seconds Default: 30",
+							Description: "Timeout defines the command timeout in seconds. Default: 30",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
