@@ -101,7 +101,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		// Individual env var testing
 		{
 			Name: "v2alpha1 secrets backend command only - node Agent",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithSecretsBackendCommand(command).
 				Build(),
 			WantConfigure: true,
@@ -109,7 +109,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 secrets backend empty command - node Agent",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithSecretsBackendCommand("").
 				Build(),
 			WantConfigure: true,
@@ -117,7 +117,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 secrets backend args only - node Agent",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithSecretsBackendArgs(args).
 				Build(),
 			WantConfigure: true,
@@ -125,7 +125,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 secrets backend timeout only - node Agent",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithSecretsBackendTimeout(timeout).
 				Build(),
 			WantConfigure: true,
@@ -134,7 +134,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		// All env vars and all components
 		{
 			Name: "v2alpha1 secrets backend command & args & timeout - node Agent & DCA & CCR",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithSecretsBackendCommand(command).
 				WithSecretsBackendArgs(args).
 				WithSecretsBackendTimeout(timeout).
@@ -149,7 +149,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		// Global RBAC permissions
 		{
 			Name: "v2alpha1 secrets backend enabled global permissions",
-			DDAv2: addNameNamespaceToDDA(
+			DDA: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().
@@ -161,7 +161,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		// Roles permissions
 		{
 			Name: "v2alpha1 roles permissions",
-			DDAv2: addNameNamespaceToDDA(
+			DDA: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().
@@ -173,7 +173,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 		// Global RBAC and roles permissions
 		{
 			Name: "v2alpha1 enabled global permissions & roles permissions",
-			DDAv2: addNameNamespaceToDDA(
+			DDA: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().

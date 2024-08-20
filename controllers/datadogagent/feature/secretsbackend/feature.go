@@ -14,7 +14,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -107,11 +106,6 @@ func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 	}
 
 	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *secretsBackendFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	return feature.RequiredComponents{}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
