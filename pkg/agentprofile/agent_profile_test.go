@@ -549,6 +549,120 @@ func Test_labelsOverride(t *testing.T) {
 	}
 }
 
+func Test_canLabel(t *testing.T) {
+	tests := []struct {
+		name      string
+		slowStart *v1alpha1.SlowStart
+		expected  bool
+	}{
+		{
+			name:      "nil slow start",
+			slowStart: nil,
+			expected:  false,
+		},
+		{
+			name:      "empty slow start",
+			slowStart: &v1alpha1.SlowStart{},
+			expected:  false,
+		},
+		{
+			name: "completed slow start status",
+			slowStart: &v1alpha1.SlowStart{
+				Status: v1alpha1.CompletedStatus,
+			},
+			expected: false,
+		},
+		{
+			name: "in progress slow start status",
+			slowStart: &v1alpha1.SlowStart{
+				Status: v1alpha1.InProgressStatus,
+			},
+			expected: true,
+		},
+		{
+			name: "waiting slow start status",
+			slowStart: &v1alpha1.SlowStart{
+				Status: v1alpha1.WaitingStatus,
+			},
+			expected: false,
+		},
+		{
+			name: "timeout slow start status",
+			slowStart: &v1alpha1.SlowStart{
+				Status: v1alpha1.TimeoutStatus,
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testLogger := zap.New(zap.UseDevMode(true))
+			actual := canLabel(testLogger, tt.slowStart)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+func Test_getSlowStartStatus(t *testing.T) {
+	now := metav1.NewTime(time.Now())
+	oneSecBefore := metav1.NewTime(now.Add(time.Duration(-1) * time.Second))
+	tenSecBefore := metav1.NewTime(now.Add(time.Duration(-10) * time.Second))
+	tests := []struct {
+		name              string
+		status            *v1alpha1.SlowStart
+		nodesNeedingLabel int
+		expectedStatus    v1alpha1.SlowStartStatus
+	}{
+		{
+			name:              "nil status",
+			status:            nil,
+			nodesNeedingLabel: 0,
+			expectedStatus:    v1alpha1.WaitingStatus,
+		},
+		{
+			name:              "empty status",
+			status:            &v1alpha1.SlowStart{},
+			nodesNeedingLabel: 1,
+			expectedStatus:    "",
+		},
+		{
+			name: "non-empty status, no nodes need labeling",
+			status: &v1alpha1.SlowStart{
+				Status: v1alpha1.InProgressStatus,
+			},
+			nodesNeedingLabel: 0,
+			expectedStatus:    v1alpha1.CompletedStatus,
+		},
+		{
+			name: "non-empty status, waiting but not yet timeout",
+			status: &v1alpha1.SlowStart{
+				Status:         v1alpha1.WaitingStatus,
+				LastTransition: &oneSecBefore,
+			},
+			nodesNeedingLabel: 1,
+			expectedStatus:    v1alpha1.WaitingStatus,
+		},
+		{
+			name: "non-empty status, waiting past timeout",
+			status: &v1alpha1.SlowStart{
+				Status:         v1alpha1.WaitingStatus,
+				LastTransition: &tenSecBefore,
+			},
+			nodesNeedingLabel: 1,
+			expectedStatus:    v1alpha1.TimeoutStatus,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testLogger := zap.New(zap.UseDevMode(true))
+			t.Setenv(apicommon.SlowStartTimeout, "5")
+			status := getSlowStartStatus(testLogger, tt.status, tt.nodesNeedingLabel)
+			assert.Equal(t, tt.expectedStatus, status)
+		})
+	}
+}
+
 func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{

@@ -7,11 +7,14 @@ package agentprofile
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
+	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -36,10 +39,10 @@ const (
 
 // ProfileToApply validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
+func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
 	now metav1.Time) (map[string]types.NamespacedName, error) {
 	nodesThatMatchProfile := map[string]bool{}
-	profileStatus := datadoghqv1alpha1.DatadogAgentProfileStatus{}
+	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
 	if hash, err := comparison.GenerateMD5ForSpec(profile.Spec); err != nil {
 		logger.Error(err, "couldn't generate hash for profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -51,18 +54,20 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
-		UpdateProfileStatus(profile, profileStatus, now)
+		UpdateProfileStatus(logger, profile, profileStatus, now)
 		return profileAppliedByNode, err
 	}
 
-	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
-		UpdateProfileStatus(profile, profileStatus, now)
+		UpdateProfileStatus(logger, profile, profileStatus, now)
 		return profileAppliedByNode, err
 	}
+
+	nodesNeedingLabel := 0
 
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
@@ -71,7 +76,7 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 			profileStatus.Valid = metav1.ConditionFalse
-			UpdateProfileStatus(profile, profileStatus, now)
+			UpdateProfileStatus(logger, profile, profileStatus, now)
 			return profileAppliedByNode, err
 		}
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
@@ -84,29 +89,61 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 				logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
 				profileStatus.Applied = metav1.ConditionFalse
-				UpdateProfileStatus(profile, profileStatus, now)
+				UpdateProfileStatus(logger, profile, profileStatus, now)
 				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
-				nodesThatMatchProfile[node.Name] = true
+				profileLabelValue, labelExists := node.Labels[ProfileLabelKey]
+				if labelExists && profileLabelValue == profile.Name {
+					nodesThatMatchProfile[node.Name] = true
+				} else {
+					nodesThatMatchProfile[node.Name] = false
+					nodesNeedingLabel++
+				}
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
 				profileStatus.Applied = metav1.ConditionTrue
 			}
 		}
 	}
 
-	for node := range nodesThatMatchProfile {
+	useSlowStart := os.Getenv(apicommon.SlowStartEnabled) == "true"
+	numNodesToLabel := 0
+	if useSlowStart {
+		profileStatus.SlowStart = &v1alpha1.SlowStart{}
+		if profile.Status.SlowStart != nil {
+			profileStatus.SlowStart.PodsReady = profile.Status.SlowStart.PodsReady
+			profileStatus.SlowStart.LastTransition = profile.Status.SlowStart.LastTransition
+		}
+		profileStatus.SlowStart.Status = getSlowStartStatus(logger, profile.Status.SlowStart, nodesNeedingLabel)
+
+		if canLabel(logger, profileStatus.SlowStart) {
+			numNodesToLabel = getNumNodesToLabel(logger, profile.Status.SlowStart)
+		}
+	}
+
+	for node, hasCorrectProfileLabel := range nodesThatMatchProfile {
+		if useSlowStart {
+			if hasCorrectProfileLabel {
+				profileStatus.SlowStart.NodesLabeled++
+			} else {
+				if numNodesToLabel <= 0 {
+					continue
+				}
+				numNodesToLabel--
+				profileStatus.SlowStart.NodesLabeled++
+			}
+		}
+
 		profileAppliedByNode[node] = types.NamespacedName{
 			Namespace: profile.Namespace,
 			Name:      profile.Name,
 		}
 	}
 
-	UpdateProfileStatus(profile, profileStatus, now)
-
+	UpdateProfileStatus(logger, profile, profileStatus, now)
 	return profileAppliedByNode, nil
 }
 
-func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []datadoghqv1alpha1.DatadogAgentProfile {
+func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []v1alpha1.DatadogAgentProfile {
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
@@ -123,7 +160,7 @@ func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
 
 // OverrideFromProfile returns the component override that should be
 // applied according to the given profile.
-func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
 	if profile.Name == "" && profile.Namespace == "" {
 		return v2alpha1.DatadogAgentComponentOverride{}
 	}
@@ -168,8 +205,8 @@ func DaemonSetName(profileNamespacedName types.NamespacedName) string {
 
 // defaultProfile returns the default profile, we just need a name to identify
 // it.
-func defaultProfile() datadoghqv1alpha1.DatadogAgentProfile {
-	return datadoghqv1alpha1.DatadogAgentProfile{
+func defaultProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "",
 			Name:      defaultProfileName,
@@ -177,7 +214,7 @@ func defaultProfile() datadoghqv1alpha1.DatadogAgentProfile {
 	}
 }
 
-func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affinity {
+func affinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return affinityOverrideForDefaultProfile()
 	}
@@ -286,7 +323,7 @@ func containersOverride(nodeAgentOverride *datadoghqv1alpha1.Override) map[commo
 	return res
 }
 
-func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]string {
+func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return nil
 	}
@@ -294,7 +331,7 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 	labels := map[string]string{}
 
 	if profile.Spec.Config != nil {
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
 			for labelName, labelVal := range nodeAgentOverride.Labels {
 				labels[labelName] = labelVal
 			}
@@ -308,8 +345,8 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
-func SortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
-	sortedProfiles := make([]datadoghqv1alpha1.DatadogAgentProfile, len(profiles))
+func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAgentProfile {
+	sortedProfiles := make([]v1alpha1.DatadogAgentProfile, len(profiles))
 	copy(sortedProfiles, profiles)
 
 	sort.Slice(sortedProfiles, func(i, j int) bool {
@@ -323,7 +360,7 @@ func SortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv
 	return sortedProfiles
 }
 
-func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
+func profileMatchesNode(profile *v1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
 	if profile.Spec.ProfileAffinity == nil {
 		return true, nil
 	}
@@ -376,4 +413,65 @@ func validateProfileName(profileName string) error {
 	}
 
 	return nil
+}
+
+func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
+	if slowStart == nil {
+		return false
+	}
+
+	switch slowStart.Status {
+	case v1alpha1.CompletedStatus:
+		return false
+	case v1alpha1.InProgressStatus:
+		return true
+	case v1alpha1.WaitingStatus:
+		return false
+	case v1alpha1.TimeoutStatus:
+		return false
+	default:
+		logger.Error(fmt.Errorf("received unexpected slow start status condition"), string(slowStart.Status))
+		return false
+	}
+}
+
+func getNumNodesToLabel(logger logr.Logger, slowStartStatus *v1alpha1.SlowStart) int {
+	if slowStartStatus == nil {
+		return 0
+	}
+
+	maxUnavailable, err := strconv.Atoi(os.Getenv(apicommon.SlowStartMaxUnavailable))
+	if err != nil {
+		logger.Error(err, "unable to parse DD_DAP_SLOW_START_MAX_UNAVAILABLE value")
+	}
+
+	return maxUnavailable - (int(slowStartStatus.NodesLabeled - slowStartStatus.PodsReady))
+}
+
+func getSlowStartDuration(logger logr.Logger) time.Duration {
+	duration, err := strconv.Atoi(os.Getenv(apicommon.SlowStartTimeout))
+	if err != nil {
+		logger.Error(err, "unable to parse DD_DAP_SLOW_START_TIMEOUT value")
+	}
+
+	return time.Duration(duration) * time.Second
+}
+
+func getSlowStartStatus(logger logr.Logger, status *v1alpha1.SlowStart, nodesNeedingLabel int) v1alpha1.SlowStartStatus {
+	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
+	if status == nil {
+		return v1alpha1.WaitingStatus
+	}
+
+	// all necessary nodes have been labeled
+	if nodesNeedingLabel == 0 {
+		return v1alpha1.CompletedStatus
+	}
+
+	// timeout after waiting a specified duration
+	if status.Status == v1alpha1.WaitingStatus && time.Since(status.LastTransition.Time) > getSlowStartDuration(logger) {
+		return v1alpha1.TimeoutStatus
+	}
+
+	return status.Status
 }
