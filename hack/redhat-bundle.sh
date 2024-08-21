@@ -26,7 +26,7 @@ eval $SED \'s#containerImage: gcr.io/datadoghq/operator:#containerImage: registr
 $YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat\"" $RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Pin images
-$ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin "$RH_BUNDLE_PATH/manifests" -a ~/.redhat/auths.json
+$ROOT/bin/$PLATFORM/operator-manifest-tools pinning pin "$RH_BUNDLE_PATH/manifests" -a ~/.redhat/auths.json -r skopeo
 
 # Remove tests folder as unused
 rm -rf "$RH_BUNDLE_PATH/tests"
