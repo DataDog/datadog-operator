@@ -162,9 +162,29 @@ func buildWidgets(logger logr.Logger, widgets []v1alpha1.Widget) []datadogV1.Wid
 			dbWidget.SetDefinition(definition)
 		}
 
+		if widget.Layout != (v1alpha1.WidgetLayout{}) {
+			dbWidgetLayout := convertWidgetLayout(widget.Layout)
+			dbWidget.SetLayout(dbWidgetLayout)
+		}
+
 		dbWidgets = append(dbWidgets, dbWidget)
 	}
 	return dbWidgets
+}
+
+func convertWidgetLayout(layout v1alpha1.WidgetLayout) datadogV1.WidgetLayout {
+	dbLayout := datadogV1.WidgetLayout{}
+
+	if layout.IsColumnBreak != nil {
+		dbLayout.SetIsColumnBreak(*layout.IsColumnBreak)
+	}
+	// cannot be empty/nil
+	dbLayout.SetHeight(layout.Height)
+	dbLayout.SetWidth(layout.Width)
+	dbLayout.SetX(layout.X)
+	dbLayout.SetY(layout.Y)
+
+	return dbLayout
 }
 
 func buildQueryValue(logger logr.Logger, qv *v1alpha1.QueryValueWidgetDefinition) *datadogV1.QueryValueWidgetDefinition {
