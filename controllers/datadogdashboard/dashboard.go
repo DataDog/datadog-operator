@@ -29,6 +29,9 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 		if ddb.Spec.NotifyList != nil {
 			dashboard.SetNotifyList(ddb.Spec.NotifyList)
 		}
+		if ddb.Spec.TemplateVariables != nil {
+			dashboard.SetTemplateVariables(convertTempVars(ddb.Spec.TemplateVariables))
+		}
 		return dashboard
 	}
 
@@ -149,7 +152,7 @@ func convertTempVars(tempVars []v1alpha1.DashboardTemplateVariable) []datadogV1.
 		dbTemplateVariable := datadogV1.DashboardTemplateVariable{}
 		dbTemplateVariable.SetName(templateVariable.Name)
 
-		if dbTemplateVariable.Defaults != nil {
+		if templateVariable.Defaults != nil {
 			dbTemplateVariable.SetDefaults(templateVariable.Defaults)
 		}
 		if templateVariable.AvailableValues != nil {

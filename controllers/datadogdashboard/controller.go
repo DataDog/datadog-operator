@@ -84,11 +84,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 
-	if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
-		logger.Error(err, "invalid Dashboard")
+	// If data field is not set, validate dashboard
+	if instance.Spec.Data == "" {
+		if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
+			logger.Error(err, "invalid Dashboard")
 
-		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusValidateError, "ValidatingDashboard", err)
-		return r.updateStatusIfNeeded(logger, instance, status, result)
+			updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusValidateError, "ValidatingDashboard", err)
+			return r.updateStatusIfNeeded(logger, instance, status, result)
+		}
 	}
 
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
