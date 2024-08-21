@@ -23,11 +23,9 @@ const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
 func TestBuildDashboard(t *testing.T) {
 	templateVariables := []v1alpha1.DashboardTemplateVariable{
 		{
-			AvailableValues: v1alpha1.NullableList{
-				Value: &[]string{
-					"foo",
-					"bar",
-				},
+			AvailableValues: &[]string{
+				"foo",
+				"bar",
 			},
 			Name: "test variable",
 		},
@@ -360,11 +358,6 @@ func TestBuildDashboard(t *testing.T) {
 											TextFilter: apiutils.NewStringPointer("foo-bar"),
 										},
 									},
-									// v1alpha1.FormulaAndFunctionQueryDefinition{
-									// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &v1alpha1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
-
-									// 	},
-									// },
 									{
 										FormulaAndFunctionSLOQueryDefinition: &v1alpha1.FormulaAndFunctionSLOQueryDefinition{
 											AdditionalQueryFilters: apiutils.NewStringPointer(""),
@@ -421,7 +414,6 @@ func TestBuildDashboard(t *testing.T) {
 	}
 
 	dashboard := buildDashboard(testLogger, db)
-
 	assert.Equal(t, datadogV1.DashboardLayoutType(db.Spec.LayoutType), dashboard.GetLayoutType(), "discrepancy found in parameter: Query")
 	assert.Equal(t, db.Spec.NotifyList, dashboard.GetNotifyList(), "discrepancy found in parameter: NotifyList")
 	assert.Equal(t, datadogV1.DashboardReflowType(*db.Spec.ReflowType), dashboard.GetReflowType(), "discrepancy found in parameter: ReflowType")
@@ -466,7 +458,7 @@ func Test_createDashboard(t *testing.T) {
 
 	db := &v1alpha1.DatadogDashboard{
 		Spec: v1alpha1.DatadogDashboardSpec{
-			LayoutType: v1alpha1.DashboardLayoutTypeOrdered,
+			LayoutType: datadogV1.DASHBOARDLAYOUTTYPE_ORDERED,
 			NotifyList: []string{
 				"test@example.com",
 				"test2@example.com"},
@@ -529,7 +521,7 @@ func Test_updateDashboard(t *testing.T) {
 
 	db := &v1alpha1.DatadogDashboard{
 		Spec: v1alpha1.DatadogDashboardSpec{
-			LayoutType: v1alpha1.DashboardLayoutTypeOrdered,
+			LayoutType: datadogV1.DASHBOARDLAYOUTTYPE_ORDERED,
 			NotifyList: []string{
 				"test@example.com",
 				"test2@example.com"},
