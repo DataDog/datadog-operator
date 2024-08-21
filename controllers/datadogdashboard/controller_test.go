@@ -83,7 +83,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 			},
 		},
 		// NOTE: omitted 'DatadogDashboard created, check Status.Primary" test since there is no Status.Primary set
-		// NOTE: ommited, re-enable check tags test once 'generated:kubernetes' is allowed in 
+		// NOTE: ommited, re-enable check tags test once 'generated:kubernetes' is allowed in
 		// {
 		// 	name: "DatadogDashboard exists, check required tags",
 		// 	args: args{
@@ -166,9 +166,6 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-		// {
-		// 	// test
-		// }
 	}
 
 	for _, tt := range tests {

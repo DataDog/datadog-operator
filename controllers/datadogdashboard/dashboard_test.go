@@ -83,14 +83,12 @@ func TestBuildDashboard(t *testing.T) {
 						},
 						LegendLayout: datadogV1.TIMESERIESWIDGETLEGENDLAYOUT_HORIZONTAL.Ptr(),
 						LegendSize:   apiutils.NewStringPointer("10"),
-						// NOTE: test this out (by setting it )
 						Markers: []v1alpha1.WidgetMarker{
 							{
 								DisplayType: apiutils.NewStringPointer("warning"),
 								Label:       apiutils.NewStringPointer("marker label"),
-								// NOTE: may cause issues
-								Time:  apiutils.NewStringPointer("6:30"),
-								Value: "y = 15",
+								Time:        apiutils.NewStringPointer("6:30"),
+								Value:       "y = 15",
 							},
 						},
 						Requests: []v1alpha1.TimeseriesWidgetRequest{
@@ -128,10 +126,6 @@ func TestBuildDashboard(t *testing.T) {
 												Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 												Palette:       "blue",
 												Timeframe:     apiutils.NewStringPointer("foo bar"),
-												// NOTE: add value in testing
-												// Value: &resource.Quantity{
-												// 	i:
-												// },
 											},
 										},
 										Formula: "formula",
@@ -184,7 +178,6 @@ func TestBuildDashboard(t *testing.T) {
 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
 											// NOTE: CrossOrgUids
 											DataSource: "container",
-											// IsNormalizedCpu: apiutils.NewBoolPointer(true),
 											Limit:      apiutils.NewInt64Pointer(10),
 											Metric:     "process.stat.cpu.total_pct",
 											Name:       "query2",
@@ -243,8 +236,7 @@ func TestBuildDashboard(t *testing.T) {
 							LiveSpan: datadogV1.WIDGETLIVESPAN_PAST_THIRTY_MINUTES.Ptr(),
 						},
 						Title: apiutils.NewStringPointer("ts graph"),
-						// NOTE: Title align, Title Size don't have an effect
-						Type: "timeseries",
+						Type:  "timeseries",
 					},
 					Id: apiutils.NewInt64Pointer(123),
 					Layout: v1alpha1.WidgetLayout{
@@ -280,10 +272,6 @@ func TestBuildDashboard(t *testing.T) {
 										Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 										Palette:       "blue",
 										Timeframe:     apiutils.NewStringPointer("foo bar"),
-										// NOTE: add value in testing
-										// Value: &resource.Quantity{
-										// 	i:
-										// },
 									},
 								},
 								Formulas: []v1alpha1.WidgetFormula{
@@ -300,10 +288,6 @@ func TestBuildDashboard(t *testing.T) {
 												Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 												Palette:       "blue",
 												Timeframe:     apiutils.NewStringPointer("foo bar"),
-												// NOTE: add value in testing
-												// Value: &resource.Quantity{
-												// 	i:
-												// },
 											},
 										},
 										Formula: "formula",
@@ -466,13 +450,6 @@ func Test_createDashboard(t *testing.T) {
 			Tags: []string{
 				"team:test", "team:test2",
 			},
-
-			// NOTE: test created widgets
-			// Widgets: []v1alpha1.Widget{
-			// 	{
-			// 		TimeseriesWidgetDefinition: *expectedTimeSeries(),
-			// 	},
-			// },
 		},
 	}
 
@@ -529,13 +506,6 @@ func Test_updateDashboard(t *testing.T) {
 			Tags: []string{
 				"team:test", "team:test2",
 			},
-
-			// NOTE: test created widgets
-			// Widgets: []v1alpha1.Widget{
-			// 	{
-			// 		TimeseriesWidgetDefinition: *expectedTimeSeries(),
-			// 	},
-			// },
 		},
 	}
 
@@ -582,12 +552,11 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 		},
 		LegendLayout: datadogV1.TIMESERIESWIDGETLEGENDLAYOUT_HORIZONTAL.Ptr(),
 		LegendSize:   apiutils.NewStringPointer("10"),
-		// NOTE: test this out (by setting it )
 		Markers: []datadogV1.WidgetMarker{
 			{
 				DisplayType: apiutils.NewStringPointer("warning"),
 				Label:       apiutils.NewStringPointer("marker label"),
-				// NOTE: may cause issues
+	
 				Time:  apiutils.NewStringPointer("6:30"),
 				Value: "y = 15",
 			},
@@ -743,7 +712,6 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 			LiveSpan: datadogV1.WIDGETLIVESPAN_PAST_THIRTY_MINUTES.Ptr(),
 		},
 		Title: apiutils.NewStringPointer("ts graph"),
-		// NOTE: Title align, Title Size don't have an effect
 		Type: "timeseries",
 	}
 
@@ -775,10 +743,6 @@ func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
 						Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 						Palette:       "blue",
 						Timeframe:     apiutils.NewStringPointer("foo bar"),
-						// NOTE: add value in testing
-						// Value: &resource.Quantity{
-						// 	i:
-						// },
 					},
 				},
 				Formulas: []datadogV1.WidgetFormula{
@@ -795,10 +759,6 @@ func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
 								Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 								Palette:       "blue",
 								Timeframe:     apiutils.NewStringPointer("foo bar"),
-								// NOTE: add value in testing
-								// Value: &resource.Quantity{
-								// 	i:
-								// },
 							},
 						},
 						Formula: "formula",
