@@ -50,6 +50,9 @@ type DatadogDashboardSpec struct {
 	// +listMapKey=id
 	// +optional
 	Widgets []Widget `json:"widgets,omitempty"`
+	// String that represents the whole dashboard.
+	// +optional
+	Data string `json:"data,omitempty"`
 }
 
 // DatadogDashboardStatus defines the observed state of DatadogDashboard

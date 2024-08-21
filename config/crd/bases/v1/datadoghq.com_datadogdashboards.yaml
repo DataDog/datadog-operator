@@ -51,6 +51,9 @@ spec:
             spec:
               description: DatadogDashboardSpec defines the desired state of DatadogDashboard
               properties:
+                data:
+                  description: String that represents the whole dashboard.
+                  type: string
                 description:
                   description: Description of the dashboard.
                   type: string

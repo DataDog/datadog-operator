@@ -2,6 +2,7 @@ package datadogdashboard
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -17,7 +18,20 @@ import (
 
 // Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
-	// create a dashboard
+	// If there is a JSON string, use that to build the dashboard
+	if ddb.Spec.Data != "" {
+		dashboard := &datadogV1.Dashboard{}
+		json.Unmarshal([]byte(ddb.Spec.Data), dashboard)
+		// Overrides. Title takes precedence over what's in the data json.
+		if ddb.Spec.Title != "" {
+			dashboard.SetTitle(ddb.Spec.Title)
+		}
+		if ddb.Spec.NotifyList != nil {
+			dashboard.SetNotifyList(ddb.Spec.NotifyList)
+		}
+		return dashboard
+	}
+
 	layoutType := ddb.Spec.LayoutType
 	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
 
@@ -36,44 +50,12 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 	}
 
 	if ddb.Spec.TemplateVariablePresets != nil {
-		dbTemplateVariablePresets := []datadogV1.DashboardTemplateVariablePreset{}
-		for _, variablePreset := range ddb.Spec.TemplateVariablePresets {
-			dbTemplateVariablePreset := datadogV1.DashboardTemplateVariablePreset{}
-			// Note: Name is required. It can't be nil.
-			dbTemplateVariablePreset.SetName(*variablePreset.Name)
-			dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
-			for _, presetValue := range variablePreset.TemplateVariables {
-				dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
-				dbTemplateVariablePresetValue.SetName(*presetValue.Name)
-				if presetValue.Values != nil {
-					dbTemplateVariablePresetValue.SetValues(presetValue.Values)
-				}
-				dbTemplateVariablePresetValues = append(dbTemplateVariablePresetValues, dbTemplateVariablePresetValue)
-			}
-			dbTemplateVariablePreset.SetTemplateVariables(dbTemplateVariablePresetValues)
-			dbTemplateVariablePresets = append(dbTemplateVariablePresets, dbTemplateVariablePreset)
-		}
+		dbTemplateVariablePresets := convertTempVarPresets(ddb.Spec.TemplateVariablePresets)
 		dashboard.SetTemplateVariablePresets(dbTemplateVariablePresets)
 	}
 
 	if ddb.Spec.TemplateVariables != nil {
-		dbTemplateVariables := []datadogV1.DashboardTemplateVariable{}
-		for _, templateVariable := range ddb.Spec.TemplateVariables {
-			dbTemplateVariable := datadogV1.DashboardTemplateVariable{}
-			dbTemplateVariable.SetName(templateVariable.Name)
-
-			if dbTemplateVariable.Defaults != nil {
-				dbTemplateVariable.SetDefaults(templateVariable.Defaults)
-			}
-			if templateVariable.AvailableValues != nil {
-				dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues)
-			}
-			if templateVariable.Prefix != nil {
-				dbTemplateVariable.SetPrefix(*templateVariable.Prefix)
-			}
-			dbTemplateVariables = append(dbTemplateVariables, dbTemplateVariable)
-
-		}
+		dbTemplateVariables := convertTempVars(ddb.Spec.TemplateVariables)
 		dashboard.SetTemplateVariables(dbTemplateVariables)
 	}
 
@@ -138,6 +120,48 @@ func translateClientError(err error, msg string) error {
 	}
 
 	return fmt.Errorf(msg+": %w", err)
+}
+
+func convertTempVarPresets(tempVarPresets []v1alpha1.DashboardTemplateVariablePreset) []datadogV1.DashboardTemplateVariablePreset {
+	dbTemplateVariablePresets := []datadogV1.DashboardTemplateVariablePreset{}
+	for _, variablePreset := range tempVarPresets {
+		dbTemplateVariablePreset := datadogV1.DashboardTemplateVariablePreset{}
+		// Note: Name is required. It can't be nil.
+		dbTemplateVariablePreset.SetName(*variablePreset.Name)
+		dbTemplateVariablePresetValues := []datadogV1.DashboardTemplateVariablePresetValue{}
+		for _, presetValue := range variablePreset.TemplateVariables {
+			dbTemplateVariablePresetValue := datadogV1.DashboardTemplateVariablePresetValue{}
+			dbTemplateVariablePresetValue.SetName(*presetValue.Name)
+			if presetValue.Values != nil {
+				dbTemplateVariablePresetValue.SetValues(presetValue.Values)
+			}
+			dbTemplateVariablePresetValues = append(dbTemplateVariablePresetValues, dbTemplateVariablePresetValue)
+		}
+		dbTemplateVariablePreset.SetTemplateVariables(dbTemplateVariablePresetValues)
+		dbTemplateVariablePresets = append(dbTemplateVariablePresets, dbTemplateVariablePreset)
+	}
+	return dbTemplateVariablePresets
+}
+
+func convertTempVars(tempVars []v1alpha1.DashboardTemplateVariable) []datadogV1.DashboardTemplateVariable {
+	dbTemplateVariables := []datadogV1.DashboardTemplateVariable{}
+	for _, templateVariable := range tempVars {
+		dbTemplateVariable := datadogV1.DashboardTemplateVariable{}
+		dbTemplateVariable.SetName(templateVariable.Name)
+
+		if dbTemplateVariable.Defaults != nil {
+			dbTemplateVariable.SetDefaults(templateVariable.Defaults)
+		}
+		if templateVariable.AvailableValues != nil {
+			dbTemplateVariable.SetAvailableValues(*templateVariable.AvailableValues)
+		}
+		if templateVariable.Prefix != nil {
+			dbTemplateVariable.SetPrefix(*templateVariable.Prefix)
+		}
+		dbTemplateVariables = append(dbTemplateVariables, dbTemplateVariable)
+
+	}
+	return dbTemplateVariables
 }
 
 func buildWidgets(logger logr.Logger, widgets []v1alpha1.Widget) []datadogV1.Widget {

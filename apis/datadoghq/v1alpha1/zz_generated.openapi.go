@@ -2258,6 +2258,13 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 					},
+					"data": {
+						SchemaProps: spec.SchemaProps{
+							Description: "String that represents the whole dashboard.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
