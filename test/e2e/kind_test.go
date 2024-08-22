@@ -94,7 +94,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 		}
 
 		// Create EC2 VM
-		vm, err := ec2.NewVM(awsEnv, "kind")
+		vm, err := ec2.NewVM(awsEnv, "kind", ec2.WithUserData(UserData))
 		if err != nil {
 			return err
 		}
