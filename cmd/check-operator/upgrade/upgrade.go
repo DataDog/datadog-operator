@@ -19,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,19 +130,6 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) getV1Status() (common.StatusWrapper, error) {
-	datadogAgent := &v1alpha1.DatadogAgent{}
-	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
-	}
-	return common.NewV1StatusWrapper(datadogAgent), nil
-}
-
 func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	datadogAgent := &v2alpha1.DatadogAgent{}
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
@@ -179,18 +165,9 @@ func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
 	checkFunc := func() (bool, error) {
 		var agentDone, dcaDone, ccrDone, reconcileError bool
-		v2Available, err := common.IsV2Available(o.Clientset)
-		if err != nil {
-			return false, fmt.Errorf("unable to detect if CRD v2 is available, err:%w", err)
-		}
 		var status common.StatusWrapper
-		if v2Available {
-			o.printOutf("v2alpha1 is available")
-			status, err = o.getV2Status()
-		} else {
-			o.printOutf("Only v1alpha1 is available")
-			status, err = o.getV1Status()
-		}
+		o.printOutf("v2alpha1 is available")
+		status, err := o.getV2Status()
 
 		if errors.IsNotFound(err) {
 			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)

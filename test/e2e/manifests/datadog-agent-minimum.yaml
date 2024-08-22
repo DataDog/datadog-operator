@@ -6,12 +6,11 @@ spec:
   global:
     credentials:
       apiSecret:
-        secretName: datadog-secret
         keyName: api-key
-      appSecret:
         secretName: datadog-secret
+      appSecret:
         keyName: app-key
-    clusterName: operator-e2e-ci
+        secretName: datadog-secret
     kubelet:
       tlsVerify: false
   features:
@@ -27,3 +26,23 @@ spec:
           env:
             - name: DD_SKIP_SSL_VALIDATION
               value: "true"
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterAgent:
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterChecksRunner:
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME

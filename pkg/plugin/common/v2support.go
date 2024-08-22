@@ -6,44 +6,13 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/kubernetes"
 )
-
-// IsV2Available returns true if the v2alpha1.DatadogAgent resource kind is available
-func IsV2Available(cl *kubernetes.Clientset) (bool, error) {
-	_, resources, err := cl.Discovery().ServerGroupsAndResources()
-	if err != nil {
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			return false, fmt.Errorf("unable to perform resource discovery: %w", err)
-		}
-		var errGroup *discovery.ErrGroupDiscoveryFailed
-		if errors.As(err, &errGroup) {
-			for group, apiGroupErr := range errGroup.Groups {
-				return false, fmt.Errorf("unable to perform resource discovery for group %s: %w", group, apiGroupErr)
-			}
-		}
-	}
-
-	for _, resourceGroup := range resources {
-		if resourceGroup.GroupVersion == "datadoghq.com/v2alpha1" {
-			for _, resource := range resourceGroup.APIResources {
-				if resource.Kind == "DatadogAgent" {
-					return true, nil
-				}
-			}
-		}
-	}
-	return false, nil
-}
 
 func OverrideComponentImage(spec *v2alpha1.DatadogAgentSpec, cmpName v2alpha1.ComponentName, imageName, imageTag string) error {
 	if _, found := spec.Override[cmpName]; !found {
