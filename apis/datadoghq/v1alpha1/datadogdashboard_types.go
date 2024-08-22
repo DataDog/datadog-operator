@@ -50,7 +50,7 @@ type DatadogDashboardSpec struct {
 	// +listMapKey=id
 	// +optional
 	Widgets []Widget `json:"widgets,omitempty"`
-	// String that represents the whole dashboard.
+	// JSON string representation of Datadog's API dashboard object
 	// +optional
 	Data string `json:"data,omitempty"`
 }

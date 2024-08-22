@@ -18,55 +18,45 @@ import (
 
 // Transform v1alpha1 dashboard into a datadogV1 Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
+	dashboard := &datadogV1.Dashboard{}
 	// If there is a JSON string, use that to build the dashboard instead
 	if ddb.Spec.Data != "" {
-		dashboard := &datadogV1.Dashboard{}
 		json.Unmarshal([]byte(ddb.Spec.Data), dashboard)
 		// Overrides. Title, NotifyList and TemplateVariables takes precedence over what's in the json.
-		if ddb.Spec.Title != "" {
-			dashboard.SetTitle(ddb.Spec.Title)
+	} else {
+		layoutType := ddb.Spec.LayoutType
+		dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
+		dashboard = datadogV1.NewDashboard(layoutType, ddb.Spec.Title, dbWidgets)
+
+		if ddb.Spec.Description != "" {
+			dashboard.SetDescription(ddb.Spec.Description)
+		} else {
+			dashboard.SetDescriptionNil()
 		}
-		if ddb.Spec.NotifyList != nil {
-			dashboard.SetNotifyList(ddb.Spec.NotifyList)
+		if ddb.Spec.ReflowType != nil {
+			dashboard.SetReflowType(*ddb.Spec.ReflowType)
 		}
-		if ddb.Spec.TemplateVariables != nil {
-			dashboard.SetTemplateVariables(convertTempVars(ddb.Spec.TemplateVariables))
+		if ddb.Spec.TemplateVariablePresets != nil {
+			dbTemplateVariablePresets := convertTempVarPresets(ddb.Spec.TemplateVariablePresets)
+			dashboard.SetTemplateVariablePresets(dbTemplateVariablePresets)
 		}
-		return dashboard
+
+		dashboard.SetWidgets(dbWidgets)
+		tags := ddb.Spec.Tags
+		sort.Strings(tags)
+		dashboard.SetTags(tags)
 	}
 
-	layoutType := ddb.Spec.LayoutType
-	dbWidgets := buildWidgets(logger, ddb.Spec.Widgets)
-
-	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, dbWidgets)
-
-	if ddb.Spec.Description != "" {
-		dashboard.SetDescription(ddb.Spec.Description)
-	} else {
-		dashboard.SetDescriptionNil()
+	// If these are set, they override the same fields in the JSON string if that is also set
+	if ddb.Spec.Title != "" {
+		dashboard.SetTitle(ddb.Spec.Title)
 	}
 	if ddb.Spec.NotifyList != nil {
 		dashboard.SetNotifyList(ddb.Spec.NotifyList)
 	}
-	if ddb.Spec.ReflowType != nil {
-		dashboard.SetReflowType(*ddb.Spec.ReflowType)
-	}
-
-	if ddb.Spec.TemplateVariablePresets != nil {
-		dbTemplateVariablePresets := convertTempVarPresets(ddb.Spec.TemplateVariablePresets)
-		dashboard.SetTemplateVariablePresets(dbTemplateVariablePresets)
-	}
-
 	if ddb.Spec.TemplateVariables != nil {
-		dbTemplateVariables := convertTempVars(ddb.Spec.TemplateVariables)
-		dashboard.SetTemplateVariables(dbTemplateVariables)
+		dashboard.SetTemplateVariables(convertTempVars(ddb.Spec.TemplateVariables))
 	}
-
-	dashboard.SetWidgets(dbWidgets)
-
-	tags := ddb.Spec.Tags
-	sort.Strings(tags)
-	dashboard.SetTags(tags)
 
 	return dashboard
 }

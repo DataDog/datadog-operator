@@ -834,7 +834,7 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 }
 
 // Test a dashboard manifest with the data field set
-func TestUnmarshallDashboard(t *testing.T) {
+func TestUnmarshalDashboard(t *testing.T) {
 	dashboardJson := readFile("dashboard.json")
 	v1alpha1Dashboard := v1alpha1.DatadogDashboard{}
 	err := json.Unmarshal(dashboardJson, &v1alpha1Dashboard)
@@ -847,7 +847,7 @@ func TestUnmarshallDashboard(t *testing.T) {
 		Defaults:        []string{"*"},
 	}}
 
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	// Sanity check. Check that dashboard has the number of widgets we expect it to have
 	assert.Equal(t, 1, len(dashboard.GetWidgets()))
 	// Check overridden fields

@@ -2260,7 +2260,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 					},
 					"data": {
 						SchemaProps: spec.SchemaProps{
-							Description: "String that represents the whole dashboard.",
+							Description: "JSON string representation of Datadog's API dashboard object",
 							Type:        []string{"string"},
 							Format:      "",
 						},
