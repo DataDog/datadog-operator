@@ -2,11 +2,14 @@ package datadogdashboard
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -828,6 +831,49 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 		ReflowType:   &reflowType,
 		Widgets:      []datadogV1.Widget{},
 	}
+}
+
+// Test a dashboard manifest with the data field set
+func TestUnmarshalDashboard(t *testing.T) {
+	dashboardJson := readFile("dashboard.json")
+	v1alpha1Dashboard := v1alpha1.DatadogDashboard{}
+	err := json.Unmarshal(dashboardJson, &v1alpha1Dashboard)
+	dashboard := buildDashboard(testLogger, &v1alpha1Dashboard)
+
+	templateVariables := []datadogV1.DashboardTemplateVariable{{
+		Name:            "second",
+		Prefix:          *datadogapi.NewNullableString(apiutils.NewStringPointer("override prefix")),
+		AvailableValues: *datadogapi.NewNullableList(&[]string{"host1"}),
+		Defaults:        []string{"*"},
+	}}
+
+	assert.Nil(t, err)
+	// Sanity check. Check that dashboard has the number of widgets we expect it to have
+	assert.Equal(t, 1, len(dashboard.GetWidgets()))
+	// Check overridden fields
+	assert.Equal(t, "Changed Title", dashboard.GetTitle())
+	assert.Equal(t, []string{"test@datadoghq.com"}, dashboard.GetNotifyList())
+	assert.Equal(t, templateVariables, dashboard.GetTemplateVariables())
+}
+
+func readFile(path string) []byte {
+	f, err := os.Open(path)
+	if err != nil {
+		panic(fmt.Sprintf("cannot open file %q: %s", path, err))
+	}
+
+	defer func() {
+		if err = f.Close(); err != nil {
+			panic(fmt.Sprintf("cannot close file: %s", err))
+		}
+	}()
+
+	b, err := io.ReadAll(f)
+	if err != nil {
+		panic(fmt.Sprintf("cannot read file %q: %s", path, err))
+	}
+
+	return b
 }
 
 func setupTestAuth(apiURL string) context.Context {

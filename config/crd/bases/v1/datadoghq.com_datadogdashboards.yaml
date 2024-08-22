@@ -51,6 +51,9 @@ spec:
             spec:
               description: DatadogDashboardSpec defines the desired state of DatadogDashboard
               properties:
+                data:
+                  description: JSON string representation of Datadog's API dashboard object
+                  type: string
                 description:
                   description: Description of the dashboard.
                   type: string
