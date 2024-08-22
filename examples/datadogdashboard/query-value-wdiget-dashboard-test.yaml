@@ -1,0 +1,30 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogDashboard
+metadata:
+  name: example-dashboard
+  namespace: system
+spec:
+  title: test
+  layoutType: ordered
+  widgets:
+    - queryValue:
+        autoscale: true
+        precision: 2
+        timeseriesBackground:
+          type: area
+        requests:
+          - responseFormat: scalar
+            queries:
+              - eventQuery:
+                  dataSource: logs
+                  name: query1
+                  search:
+                    query: ""
+                  indexes:
+                    - "*"
+                  compute:
+                    aggregation: count
+                  groupBy: []
+                  storage: hot
+        type: query_value
+      id: 1234
