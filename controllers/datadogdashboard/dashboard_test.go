@@ -25,7 +25,6 @@ var (
 
 // Test a dashboard manifest with the data field set
 func TestUnmarshallDashboard(t *testing.T) {
-
 	dashboardJson := readFile("dashboard.json")
 	v1alpha1Dashboard := v1alpha1.DatadogDashboard{}
 	err := json.Unmarshal(dashboardJson, &v1alpha1Dashboard)
@@ -39,9 +38,9 @@ func TestUnmarshallDashboard(t *testing.T) {
 	}}
 
 	assert.Equal(t, nil, err)
-	// Sanity check. Check that dashboard has the number of widgets we expect it to
+	// Sanity check. Check that dashboard has the number of widgets we expect it to have
 	assert.Equal(t, 1, len(dashboard.GetWidgets()))
-	// Check overriden fields
+	// Check overridden fields
 	assert.Equal(t, "Changed Title", dashboard.GetTitle())
 	assert.Equal(t, []string{"test@datadoghq.com"}, dashboard.GetNotifyList())
 	assert.Equal(t, templateVariables, dashboard.GetTemplateVariables())

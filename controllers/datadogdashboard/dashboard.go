@@ -16,13 +16,13 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// Dashboard
+// Transform v1alpha1 dashboard into a datadogV1 Dashboard
 func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadogV1.Dashboard {
-	// If there is a JSON string, use that to build the dashboard
+	// If there is a JSON string, use that to build the dashboard instead
 	if ddb.Spec.Data != "" {
 		dashboard := &datadogV1.Dashboard{}
 		json.Unmarshal([]byte(ddb.Spec.Data), dashboard)
-		// Overrides. Title takes precedence over what's in the data json.
+		// Overrides. Title, NotifyList and TemplateVariables takes precedence over what's in the json.
 		if ddb.Spec.Title != "" {
 			dashboard.SetTitle(ddb.Spec.Title)
 		}
