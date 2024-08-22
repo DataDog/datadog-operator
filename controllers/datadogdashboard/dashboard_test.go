@@ -77,7 +77,6 @@ func TestBuildDashboard(t *testing.T) {
 							},
 						},
 						LegendColumns: []datadogV1.TimeseriesWidgetLegendColumn{
-							// string types
 							"value",
 							"avg",
 						},
@@ -93,24 +92,6 @@ func TestBuildDashboard(t *testing.T) {
 						},
 						Requests: []v1alpha1.TimeseriesWidgetRequest{
 							{
-								// LogQuery: &v1alpha1.LogQueryDefinition{
-								// 	Compute: &v1alpha1.LogsQueryCompute{
-								// 		Aggregation: "count",
-								// 		Facet:       apiutils.NewStringPointer("source"),
-								// 		Interval:    apiutils.NewInt64Pointer(5000),
-								// 	},
-								// 	GroupBy: []v1alpha1.LogQueryDefinitionGroupBy{
-								// 		v1alpha1.LogQueryDefinitionGroupBy{
-								// 			Facet: "source",
-								// 			Limit: apiutils.NewInt64Pointer(10),
-								// 			Sort: &v1alpha1.LogQueryDefinitionGroupBySort{
-								// 				Aggregation: "count",
-								// 				Facet:       apiutils.NewStringPointer("source"),
-								// 				Order:       "asc",
-								// 			},
-								// 		},
-								// 	},
-								// },
 								DisplayType: datadogV1.WidgetDisplayType("area").Ptr(),
 								Formulas: []v1alpha1.WidgetFormula{
 									{
@@ -150,7 +131,6 @@ func TestBuildDashboard(t *testing.T) {
 									{
 										FormulaAndFunctionMetricQueryDefinition: &v1alpha1.FormulaAndFunctionMetricQueryDefinition{
 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
-											// NOTE: CrossOrg UIDs in private beta
 											DataSource: "metrics",
 											Name:       "query1",
 											Query:      "avg:system.cpu.user{*}",
@@ -162,7 +142,6 @@ func TestBuildDashboard(t *testing.T) {
 												Aggregation: "count",
 												Interval:    apiutils.NewInt64Pointer(5000),
 											},
-											// NOTE: Crossuids is in private beta
 											DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
 											GroupBy:    []v1alpha1.FormulaAndFunctionEventQueryGroupBy{},
 											Name:       "logs",
@@ -170,13 +149,12 @@ func TestBuildDashboard(t *testing.T) {
 											Search: &v1alpha1.FormulaAndFunctionEventQueryDefinitionSearch{
 												Query: "kube_namespace:system",
 											},
-											// NOTE: Strorage is in private beta
+											// Storage is in private beta, not tested here
 										},
 									},
 									{
 										FormulaAndFunctionProcessQueryDefinition: &v1alpha1.FormulaAndFunctionProcessQueryDefinition{
 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
-											// NOTE: CrossOrgUids
 											DataSource: "container",
 											Limit:      apiutils.NewInt64Pointer(10),
 											Metric:     "process.stat.cpu.total_pct",
@@ -186,11 +164,6 @@ func TestBuildDashboard(t *testing.T) {
 											TextFilter: apiutils.NewStringPointer("foo-bar"),
 										},
 									},
-									// v1alpha1.FormulaAndFunctionQueryDefinition{
-									// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &v1alpha1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
-
-									// 	},
-									// },
 									{
 										FormulaAndFunctionSLOQueryDefinition: &v1alpha1.FormulaAndFunctionSLOQueryDefinition{
 											AdditionalQueryFilters: apiutils.NewStringPointer(""),
@@ -305,7 +278,6 @@ func TestBuildDashboard(t *testing.T) {
 									{
 										FormulaAndFunctionMetricQueryDefinition: &v1alpha1.FormulaAndFunctionMetricQueryDefinition{
 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
-											// NOTE: CrossOrg UIDs in private beta
 											DataSource: "metrics",
 											Name:       "query1",
 											Query:      "avg:system.cpu.user{*}",
@@ -317,7 +289,6 @@ func TestBuildDashboard(t *testing.T) {
 												Aggregation: "count",
 												Interval:    apiutils.NewInt64Pointer(5000),
 											},
-											// NOTE: Crossuids is in private beta
 											DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
 											GroupBy:    []v1alpha1.FormulaAndFunctionEventQueryGroupBy{},
 											Name:       "logs",
@@ -325,15 +296,12 @@ func TestBuildDashboard(t *testing.T) {
 											Search: &v1alpha1.FormulaAndFunctionEventQueryDefinitionSearch{
 												Query: "kube_namespace:system",
 											},
-											// NOTE: Strorage is in private beta
 										},
 									},
 									{
 										FormulaAndFunctionProcessQueryDefinition: &v1alpha1.FormulaAndFunctionProcessQueryDefinition{
 											Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
-											// NOTE: CrossOrgUids
 											DataSource: "container",
-											// IsNormalizedCpu: apiutils.NewBoolPointer(true),
 											Limit:      apiutils.NewInt64Pointer(10),
 											Metric:     "process.stat.cpu.total_pct",
 											Name:       "query2",
@@ -404,13 +372,9 @@ func TestBuildDashboard(t *testing.T) {
 	assert.Equal(t, db.Spec.Tags, dashboard.GetTags(), "discrepancy found in parameter: Tags")
 	assert.Equal(t, db.Spec.Title, dashboard.GetTitle(), "discrepancy found in parameter: Title")
 
-	// assert.Equal(t, dashboard, expectedDashboard())
 	// Compare created dashboard from CRD to what it is expected to be
 	assert.Equal(t, dashboard.Widgets[0].Definition.TimeseriesWidgetDefinition, expectedTimeSeries(), "discrepancy found in parameter: TimeseriesWidgetDefinition")
 	assert.Equal(t, dashboard.Widgets[1].Definition.QueryValueWidgetDefinition, expectedQueryValue(), "discrepancy found in parameter: QueryValueWidgetDefinition")
-	// assert.Equal(t, db.Spec.Widgets[)
-
-	// Test timeseries (use conversion functions)
 }
 
 func Test_getDashboard(t *testing.T) {
@@ -435,7 +399,6 @@ func Test_getDashboard(t *testing.T) {
 	assert.Equal(t, expectedDashboard, val)
 }
 
-// NOTE: weird code in Test_createMonitor
 func Test_createDashboard(t *testing.T) {
 	dbId := "test_id"
 	expectedDashboard := genericDashboard(dbId)
@@ -556,31 +519,13 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 			{
 				DisplayType: apiutils.NewStringPointer("warning"),
 				Label:       apiutils.NewStringPointer("marker label"),
-	
+
 				Time:  apiutils.NewStringPointer("6:30"),
 				Value: "y = 15",
 			},
 		},
 		Requests: []datadogV1.TimeseriesWidgetRequest{
 			{
-				// LogQuery: &datadogV1.LogQueryDefinition{
-				// 	Compute: &datadogV1.LogsQueryCompute{
-				// 		Aggregation: "count",
-				// 		Facet:       apiutils.NewStringPointer("source"),
-				// 		Interval:    apiutils.NewInt64Pointer(5000),
-				// 	},
-				// 	GroupBy: []datadogV1.LogQueryDefinitionGroupBy{
-				// 		datadogV1.LogQueryDefinitionGroupBy{
-				// 			Facet: "source",
-				// 			Limit: apiutils.NewInt64Pointer(10),
-				// 			Sort: &datadogV1.LogQueryDefinitionGroupBySort{
-				// 				Aggregation: "count",
-				// 				Facet:       apiutils.NewStringPointer("source"),
-				// 				Order:       "asc",
-				// 			},
-				// 		},
-				// 	},
-				// },
 				DisplayType: datadogV1.WidgetDisplayType("area").Ptr(),
 				Formulas: []datadogV1.WidgetFormula{
 					{
@@ -596,10 +541,6 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 								Metric:        apiutils.NewStringPointer("kube_namespace:system"),
 								Palette:       "blue",
 								Timeframe:     apiutils.NewStringPointer("foo bar"),
-								// NOTE: add value in testing
-								// Value: &resource.Quantity{
-								// 	i:
-								// },
 							},
 						},
 						Formula: "formula",
@@ -625,7 +566,6 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 					{
 						FormulaAndFunctionMetricQueryDefinition: &datadogV1.FormulaAndFunctionMetricQueryDefinition{
 							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
-							// NOTE: CrossOrg UIDs in private beta
 							DataSource: "metrics",
 							Name:       "query1",
 							Query:      "avg:system.cpu.user{*}",
@@ -637,7 +577,6 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 								Aggregation: "count",
 								Interval:    apiutils.NewInt64Pointer(5000),
 							},
-							// NOTE: Crossuids is in private beta
 							DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
 							GroupBy:    []datadogV1.FormulaAndFunctionEventQueryGroupBy{},
 							Name:       "logs",
@@ -645,15 +584,13 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 							Search: &datadogV1.FormulaAndFunctionEventQueryDefinitionSearch{
 								Query: "kube_namespace:system",
 							},
-							// NOTE: Strorage is in private beta
 						},
 					},
 					{
 						FormulaAndFunctionProcessQueryDefinition: &datadogV1.FormulaAndFunctionProcessQueryDefinition{
 							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
-							// NOTE: CrossOrgUids
 							DataSource: "container",
-							// IsNormalizedCpu: apiutils.NewBoolPointer(true),
+
 							Limit:      apiutils.NewInt64Pointer(10),
 							Metric:     "process.stat.cpu.total_pct",
 							Name:       "query2",
@@ -662,11 +599,6 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 							TextFilter: apiutils.NewStringPointer("foo-bar"),
 						},
 					},
-					// datadogV1.FormulaAndFunctionQueryDefinition{
-					// 	FormulaAndFunctionApmDependencyStatsQueryDefinition: &datadogV1.FormulaAndFunctionApmDependencyStatsQueryDefinition{
-
-					// 	},
-					// },
 					{
 						FormulaAndFunctionSLOQueryDefinition: &datadogV1.FormulaAndFunctionSLOQueryDefinition{
 							AdditionalQueryFilters: apiutils.NewStringPointer(""),
@@ -712,7 +644,7 @@ func expectedTimeSeries() *datadogV1.TimeseriesWidgetDefinition {
 			LiveSpan: datadogV1.WIDGETLIVESPAN_PAST_THIRTY_MINUTES.Ptr(),
 		},
 		Title: apiutils.NewStringPointer("ts graph"),
-		Type: "timeseries",
+		Type:  "timeseries",
 	}
 
 	return timeSeries
@@ -776,7 +708,6 @@ func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
 					{
 						FormulaAndFunctionMetricQueryDefinition: &datadogV1.FormulaAndFunctionMetricQueryDefinition{
 							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AVG.Ptr(),
-							// NOTE: CrossOrg UIDs in private beta
 							DataSource: "metrics",
 							Name:       "query1",
 							Query:      "avg:system.cpu.user{*}",
@@ -788,7 +719,6 @@ func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
 								Aggregation: "count",
 								Interval:    apiutils.NewInt64Pointer(5000),
 							},
-							// NOTE: Crossuids is in private beta
 							DataSource: *datadogV1.FORMULAANDFUNCTIONEVENTSDATASOURCE_LOGS.Ptr(),
 							GroupBy:    []datadogV1.FormulaAndFunctionEventQueryGroupBy{},
 							Name:       "logs",
@@ -796,13 +726,11 @@ func expectedQueryValue() *datadogV1.QueryValueWidgetDefinition {
 							Search: &datadogV1.FormulaAndFunctionEventQueryDefinitionSearch{
 								Query: "kube_namespace:system",
 							},
-							// NOTE: Strorage is in private beta
 						},
 					},
 					{
 						FormulaAndFunctionProcessQueryDefinition: &datadogV1.FormulaAndFunctionProcessQueryDefinition{
 							Aggregator: datadogV1.FORMULAANDFUNCTIONMETRICAGGREGATION_AREA.Ptr(),
-							// NOTE: CrossOrgUids
 							DataSource: "container",
 							// IsNormalizedCpu: apiutils.NewBoolPointer(true),
 							Limit:      apiutils.NewInt64Pointer(10),
@@ -877,38 +805,28 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 	fakeNow, _ := time.Parse(dateFormat, strings.Split(fakeRawNow.String(), " db=")[0])
 	layoutType := datadogV1.DashboardLayoutType("ordered")
 	reflowType := datadogV1.DashboardReflowType("auto")
-	notifyList := datadogapi.NullableList[string]{}
-	notifyList.Set(&[]string{
+	notifyList := datadogapi.NewNullableList(&[]string{
 		"test@example.com",
 		"test2@example.com",
 	})
 	title := "Test dashboard"
 	handle := "test_user"
-	description := datadogapi.NullableString{}
-	description.Set(apiutils.NewStringPointer("test description"))
-	tags := datadogapi.NullableList[string]{}
-	tags.Set(&[]string{
+	description := datadogapi.NewNullableString(apiutils.NewStringPointer("test description"))
+	tags := datadogapi.NewNullableList(&[]string{
 		"team:test", "team:test2",
 	})
 
 	return datadogV1.Dashboard{
 		AuthorHandle: &handle,
 		CreatedAt:    &fakeNow,
-		Description:  description,
-		Tags:         tags,
+		Description:  *description,
+		Tags:         *tags,
 		Id:           &dbID,
 		Title:        title,
 		LayoutType:   layoutType,
-		NotifyList:   notifyList,
+		NotifyList:   *notifyList,
 		ReflowType:   &reflowType,
 		Widgets:      []datadogV1.Widget{},
-		// Widgets: []datadogV1.Widget{
-		// 	{
-		// 		Definition: datadogV1.WidgetDefinition{
-		// 			TimeseriesWidgetDefinition: expectedTimeSeries(),
-		// 		},
-		// 	},
-		// },
 	}
 }
 

@@ -27,7 +27,6 @@ var (
 func Test_handleFinalizer(t *testing.T) {
 	s := scheme.Scheme
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogDashboard{})
-	// metaNow := metav1.NewTime(time.Now())
 
 	r := &Reconciler{
 		client: fake.NewClientBuilder().
@@ -53,24 +52,6 @@ func Test_handleFinalizer(t *testing.T) {
 			},
 			finalizerShouldExist: true,
 		},
-		// {
-		// 	name: "a new DatadogDashboard object has a deletion timestamp",
-		// 	db: &datadoghqv1alpha1.DatadogDashboard{
-		// 		TypeMeta: metav1.TypeMeta{
-		// 			Kind: "DatadogDashboard",
-		// 		},
-		// 		ObjectMeta: metav1.ObjectMeta{
-		// 			Name: "test DasDatadogDashboard",
-		// 			// https://github.com/kubernetes-sigs/controller-runtime/commit/7a66d580c0c53504f5b509b45e9300cc18a1cc30#diff-20ecedbf30721c01c33fb67d911da11c277e29990497a600d20cb0ec7215affdR683-R686
-		// 			// this is getting wiped upon creation with new controller-runtime
-		// 			DeletionTimestamp: &metaNow,
-		// 		},
-		// 		Status: datadoghqv1alpha1.DatadogDashboardStatus{
-		// 			Primary: false,
-		// 		},
-		// 	},
-		// 	finalizerShouldExist: false,
-		// },
 	}
 
 	for _, test := range testCases {
