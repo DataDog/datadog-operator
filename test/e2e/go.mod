@@ -1,8 +1,11 @@
 module github.com/DataDog/datadog-operator/e2e
 
-go 1.22.0
+go 1.22.4
 
 require (
+	github.com/DataDog/datadog-agent/test/new-e2e v0.55.2
+	github.com/DataDog/datadog-operator v1.7.0
+	github.com/DataDog/test-infra-definitions v0.0.0-20240731091741-3c7d2dc2d3dd
 	github.com/DataDog/datadog-agent/test/new-e2e v0.55.2
 	github.com/DataDog/datadog-api-client-go/v2 v2.26.0
 	github.com/DataDog/datadog-operator v1.7.0
@@ -24,6 +27,14 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2 // indirect
 	github.com/DataDog/datadog-agent/test/fakeintake v0.55.2 // indirect
+	github.com/DataDog/extendeddaemonset v0.9.0-rc.2 // indirect
+	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/DataDog/agent-payload/v5 v5.0.106 // indirect
+	github.com/DataDog/datadog-agent/comp/netflow/payload v0.55.2 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.55.2 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2 // indirect
+	github.com/DataDog/datadog-agent/test/fakeintake v0.55.2 // indirect
+	github.com/DataDog/datadog-api-client-go/v2 v2.26.0 // indirect
 	github.com/DataDog/extendeddaemonset v0.9.0-rc.2 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20200805151601-30884ca2197a // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect

@@ -37,6 +37,26 @@ spec:
               name: datadog-cluster-name
               key: DD_CLUSTER_NAME
     clusterAgent:
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterChecksRunner:
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterAgent:
       labels:
         agent.datadoghq.com/e2e-test: datadog-agent-minimum
       env:
