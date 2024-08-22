@@ -52,11 +52,6 @@ alias kl="kubectl logs"
 alias kx="kubectl exec"
 ' >> /home/ubuntu/.bashrc
 `
-	defaultMgrImageName = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag    = "latest"
-	defaultMgrFileName  = "e2e-manager.yaml"
-	manifestsPath              = "./manifests"
-	mgrKustomizeDirPath        = "../../config/e2e"
 	defaultMgrImageName        = "gcr.io/datadoghq/operator"
 	defaultMgrImgTag           = "latest"
 	defaultMgrFileName         = "e2e-manager.yaml"
