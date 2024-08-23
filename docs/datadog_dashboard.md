@@ -69,6 +69,11 @@ Here, the created dashboard's title would be "test" instead of "title" (which is
 * Operator v1.9.0+
 * Tests were performed on Kubernetes versions v>=`1.30.0`
 
+## Enabling DatadogDashboards
+
+DAP is disabled by default. To enable DAP using the [datadog-operator helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator), set `datadogDashboard.enabled=true` in your `values.yaml` file or as a flag in the command line arguments `--set datadogDashboard.enabled=true`.
+
+
 
 
 
