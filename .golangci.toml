@@ -91,6 +91,9 @@
     "nakedret",
     "gomoddirectives",
     "dupword",
+    "intrange",
+    "mnd",
+    "musttag"
   ]
 
 [issues]
