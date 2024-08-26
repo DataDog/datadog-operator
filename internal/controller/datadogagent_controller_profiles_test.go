@@ -18,8 +18,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -27,8 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 )
 
 // This file contains integration tests for Datadog Agent Profiles. They define
@@ -1206,7 +1206,7 @@ func randomKubernetesObjectName() string {
 func defaultDaemonSetNamespacedName(namespace string, agent *v2alpha1.DatadogAgent) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: namespace,
-		Name:      component.GetAgentName(agent),
+		Name:      componentagent.GetAgentName(agent),
 	}
 }
 

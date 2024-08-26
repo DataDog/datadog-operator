@@ -9,21 +9,18 @@ import (
 	"context"
 	"time"
 
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -510,7 +507,7 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 // getDaemonSetNameFromDatadogAgent returns the expected DS/EDS name based on
 // the DDA name and nodeAgent name override
 func getDaemonSetNameFromDatadogAgent(dda *datadoghqv2alpha1.DatadogAgent) string {
-	dsName := component.GetAgentName(dda)
+	dsName := componentagent.GetAgentName(dda)
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			dsName = *componentOverride.Name

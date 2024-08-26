@@ -8,7 +8,7 @@ package agent
 import (
 	"time"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,7 +18,7 @@ import (
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
 func NewDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOptions, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
-	labels, annotations, selector := component.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
+	labels, annotations, selector := common.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -47,7 +47,7 @@ func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOpti
 	// Per https://github.com/DataDog/extendeddaemonset/blob/28a8e082cee9890ae6d925a7d6247a36c6f6ba5d/controllers/extendeddaemonsetreplicaset/controller.go#L344-L360
 	// Up until v0.8.2, the Datadog Operator set the selector to nil, which circumvented this case.
 	// Until the EDS controller uses the Affinity field to get the NodeList instead of Spec.Selector, let's keep the previous behavior.
-	labels, annotations, _ := component.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
+	labels, annotations, _ := common.GetDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &edsv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{

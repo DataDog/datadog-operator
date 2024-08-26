@@ -12,7 +12,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -20,15 +19,39 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
+
+// GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
+func GetClusterAgentServiceName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+}
+
+// GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
+func GetClusterAgentName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+}
+
+// GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
+func GetClusterAgentVersion(dda metav1.Object) string {
+	// Todo implement this function
+	return ""
+}
+
+// GetClusterAgentRbacResourcesName return the Cluster-Agent RBAC resource name
+func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+}
+
+// getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
+func getDefaultServiceAccountName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+}
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
 func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
@@ -46,11 +69,11 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
 func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
-		component.GetVolumeInstallInfo(dda),
-		component.GetVolumeForConfd(),
-		component.GetVolumeForLogs(),
-		component.GetVolumeForCertificates(),
-		component.GetVolumeForAuth(),
+		common.GetVolumeInstallInfo(dda),
+		common.GetVolumeForConfd(),
+		common.GetVolumeForLogs(),
+		common.GetVolumeForCertificates(),
+		common.GetVolumeForAuth(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -59,16 +82,16 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 		// In some envs like Openshift, when running as non-root, the pod will
 		// not have permissions to write on /tmp, that's why we need to mount
 		// it with write perms.
-		component.GetVolumeForTmp(),
+		common.GetVolumeForTmp(),
 	}
 
 	volumeMounts := []corev1.VolumeMount{
-		component.GetVolumeMountForInstallInfo(),
-		component.GetVolumeMountForConfd(),
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForCertificates(),
-		component.GetVolumeMountForAuth(false),
-		component.GetVolumeMountForTmp(),
+		common.GetVolumeMountForInstallInfo(),
+		common.GetVolumeMountForConfd(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForCertificates(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForTmp(),
 	}
 
 	podTemplate := &corev1.PodTemplateSpec{
@@ -82,14 +105,9 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 	return podTemplate
 }
 
-// GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
-func GetDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: GetDefaultServiceAccountName(dda),
+		ServiceAccountName: getDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommonv1.ClusterAgentContainerName),
@@ -161,7 +179,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,
-			Value: component.DefaultAgentInstallType,
+			Value: common.DefaultAgentInstallType,
 		},
 		{
 			Name:  apicommon.DDAuthTokenFilePath,
@@ -191,104 +209,6 @@ func DefaultAffinity() *corev1.Affinity {
 					},
 				},
 			},
-		},
-	}
-}
-
-// GetDefaultClusterAgentRolePolicyRules returns the default policy rules for the Cluster Agent
-// Can be used by the Agent if the Cluster Agent is disabled
-func GetDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
-	rules := []rbacv1.PolicyRule{}
-
-	rules = append(rules, GetLeaderElectionPolicyRule(dda)...)
-	rules = append(rules, rbacv1.PolicyRule{
-		APIGroups: []string{rbac.CoreAPIGroup},
-		Resources: []string{rbac.ConfigMapsResource},
-		ResourceNames: []string{
-			common.DatadogClusterIDResourceName,
-		},
-		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
-	})
-	return rules
-}
-
-// GetDefaultClusterAgentClusterRolePolicyRules returns the default policy rules for the Cluster Agent
-// Can be used by the Agent if the Cluster Agent is disabled
-func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ServicesResource,
-				rbac.EventsResource,
-				rbac.EndpointsResource,
-				rbac.PodsResource,
-				rbac.NodesResource,
-				rbac.ComponentStatusesResource,
-				rbac.ConfigMapsResource,
-				rbac.NamespaceResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
-			Resources: []string{rbac.ClusterResourceQuotasResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
-		},
-		{
-			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-		{
-			// Horizontal Pod Autoscaling
-			APIGroups: []string{rbac.AutoscalingAPIGroup},
-			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
-			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.NamespaceResource},
-			ResourceNames: []string{
-				common.KubeSystemResourceName,
-			},
-			Verbs: []string{rbac.GetVerb},
-		},
-	}
-}
-
-// GetLeaderElectionPolicyRule returns the policy rules for leader election
-func GetLeaderElectionPolicyRule(dda metav1.Object) []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{
-				common.DatadogLeaderElectionOldResourceName, // Kept for backward compatibility with agent <7.37.0
-				utils.GetDatadogLeaderElectionResourceName(dda),
-			},
-			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			Verbs:     []string{rbac.CreateVerb},
-		},
-		{
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{rbac.LeasesResource},
-			Verbs:     []string{rbac.CreateVerb},
-		},
-		{
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{rbac.LeasesResource},
-			ResourceNames: []string{
-				utils.GetDatadogLeaderElectionResourceName(dda),
-			},
-			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 	}
 }

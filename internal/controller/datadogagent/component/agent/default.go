@@ -12,12 +12,13 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -28,7 +29,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -36,7 +37,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOp
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -86,6 +87,16 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 	}
 }
 
+// GetAgentName return the Agent name based on the DatadogAgent info
+func GetAgentName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+}
+
+// GetAgentRoleName returns the name of the role for the Agent
+func GetAgentRoleName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+}
+
 func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
@@ -94,13 +105,13 @@ func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
-func initContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+func initContainers(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
 		initConfigContainer(dda),
 	}
 	for _, containerName := range requiredContainers {
-		if containerName == common.SystemProbeContainerName {
+		if containerName == commonv1.SystemProbeContainerName {
 			initContainers = append(initContainers, initSeccompSetupContainer())
 		}
 	}
@@ -110,7 +121,7 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 
 func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
-		Name:           string(common.UnprivilegedSingleAgentContainerName),
+		Name:           string(commonv1.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
@@ -125,22 +136,22 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	return containers
 }
 
-func agentOptimizedContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+func agentOptimizedContainers(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
 
 	for _, containerName := range requiredContainers {
 		switch containerName {
-		case common.CoreAgentContainerName:
+		case commonv1.CoreAgentContainerName:
 			// Nothing to do. It's always required.
-		case common.TraceAgentContainerName:
+		case commonv1.TraceAgentContainerName:
 			containers = append(containers, traceAgentContainer(dda))
-		case common.ProcessAgentContainerName:
+		case commonv1.ProcessAgentContainerName:
 			containers = append(containers, processAgentContainer(dda))
-		case common.SecurityAgentContainerName:
+		case commonv1.SecurityAgentContainerName:
 			containers = append(containers, securityAgentContainer(dda))
-		case common.SystemProbeContainerName:
+		case commonv1.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
-		case common.OtelAgent:
+		case commonv1.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
 		}
 	}
@@ -150,7 +161,7 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []common.Age
 
 func coreAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:           string(common.CoreAgentContainerName),
+		Name:           string(commonv1.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
@@ -163,7 +174,7 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 
 func traceAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(common.TraceAgentContainerName),
+		Name:  string(commonv1.TraceAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"trace-agent",
@@ -177,7 +188,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 
 func processAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(common.ProcessAgentContainerName),
+		Name:  string(commonv1.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
@@ -190,7 +201,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 
 func otelAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(common.OtelAgent),
+		Name:  string(commonv1.OtelAgent),
 		Image: agentImage(),
 		Command: []string{
 			"/otel-agent",
@@ -217,7 +228,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 
 func securityAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(common.SecurityAgentContainerName),
+		Name:  string(commonv1.SecurityAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"security-agent",
@@ -230,7 +241,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 
 func systemProbeContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(common.SystemProbeContainerName),
+		Name:  string(commonv1.SystemProbeContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"system-probe",
@@ -350,7 +361,7 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallType,
-			Value: component.DefaultAgentInstallType,
+			Value: common.DefaultAgentInstallType,
 		},
 	}
 
@@ -378,35 +389,35 @@ func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
 
 func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForChecksd(),
-		component.GetVolumeMountForAuth(false),
-		component.GetVolumeMountForConfd(),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForProc(),
-		component.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForChecksd(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForConfd(),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
-func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Volume {
+func volumesForAgent(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Volume {
 	volumes := []corev1.Volume{
-		component.GetVolumeForLogs(),
-		component.GetVolumeForAuth(),
-		component.GetVolumeInstallInfo(dda),
-		component.GetVolumeForChecksd(),
-		component.GetVolumeForConfd(),
-		component.GetVolumeForConfig(),
-		component.GetVolumeForProc(),
-		component.GetVolumeForCgroups(),
-		component.GetVolumeForDogstatsd(),
-		component.GetVolumeForRuntimeSocket(),
+		common.GetVolumeForLogs(),
+		common.GetVolumeForAuth(),
+		common.GetVolumeInstallInfo(dda),
+		common.GetVolumeForChecksd(),
+		common.GetVolumeForConfd(),
+		common.GetVolumeForConfig(),
+		common.GetVolumeForProc(),
+		common.GetVolumeForCgroups(),
+		common.GetVolumeForDogstatsd(),
+		common.GetVolumeForRuntimeSocket(),
 	}
 
 	for _, containerName := range requiredContainers {
-		if containerName == common.SystemProbeContainerName {
+		if containerName == commonv1.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
-				component.GetVolumeForSecurity(dda),
-				component.GetVolumeForSeccomp(),
+				common.GetVolumeForSecurity(dda),
+				common.GetVolumeForSeccomp(),
 			}
 			volumes = append(volumes, sysProbeVolumes...)
 		}
@@ -417,299 +428,92 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 
 func volumeMountsForCoreAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(false),
-		component.GetVolumeMountForInstallInfo(),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForProc(),
-		component.GetVolumeMountForCgroups(),
-		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForInstallInfo(),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
 func volumeMountsForTraceAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForProc(),
-		component.GetVolumeMountForCgroups(),
-		component.GetVolumeMountForAuth(true),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForCgroups(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
 func volumeMountsForProcessAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(true),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
-		component.GetVolumeMountForProc(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(),
 	}
 }
 
 func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(true),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
 func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(true),
-		component.GetVolumeMountForConfig(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
 	}
 }
 
 func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		component.GetVolumeMountForSecurity(),
-		component.GetVolumeMountForSeccomp(),
+		common.GetVolumeMountForSecurity(),
+		common.GetVolumeMountForSeccomp(),
 	}
 }
 
 func volumeMountsForOtelAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		// TODO: add/remove volume mounts
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(true),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
-		component.GetVolumeMountForProc(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(),
 	}
 }
 
-// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
-func DefaultSeccompConfigDataForSystemProbe() map[string]string {
-	return map[string]string{
-		"system-probe-seccomp.json": `{
-			"defaultAction": "SCMP_ACT_ERRNO",
-			"syscalls": [
-				{
-				"names": [
-					"accept4",
-					"access",
-					"arch_prctl",
-					"bind",
-					"bpf",
-					"brk",
-					"capget",
-					"capset",
-					"chdir",
-					"chmod",
-					"clock_gettime",
-					"clone",
-					"clone3",
-					"close",
-					"connect",
-					"copy_file_range",
-					"creat",
-					"dup",
-					"dup2",
-					"dup3",
-					"epoll_create",
-					"epoll_create1",
-					"epoll_ctl",
-					"epoll_ctl_old",
-					"epoll_pwait",
-					"epoll_wait",
-					"epoll_wait_old",
-					"eventfd",
-					"eventfd2",
-					"execve",
-					"execveat",
-					"exit",
-					"exit_group",
-					"faccessat",
-					"faccessat2",
-					"fchmod",
-					"fchmodat",
-					"fchown",
-					"fchown32",
-					"fchownat",
-					"fcntl",
-					"fcntl64",
-					"flock",
-					"fstat",
-					"fstat64",
-					"fstatfs",
-					"fsync",
-					"futex",
-					"futimens",
-					"getcwd",
-					"getdents",
-					"getdents64",
-					"getegid",
-					"geteuid",
-					"getgid",
-					"getgroups",
-					"getpeername",
-					"getpgrp",
-					"getpid",
-					"getppid",
-					"getpriority",
-					"getrandom",
-					"getresgid",
-					"getresgid32",
-					"getresuid",
-					"getresuid32",
-					"getrlimit",
-					"getrusage",
-					"getsid",
-					"getsockname",
-					"getsockopt",
-					"gettid",
-					"gettimeofday",
-					"getuid",
-					"getxattr",
-					"inotify_add_watch",
-					"inotify_init",
-					"inotify_init1",
-					"inotify_rm_watch",
-					"ioctl",
-					"ipc",
-					"listen",
-					"lseek",
-					"lstat",
-					"lstat64",
-					"madvise",
-					"memfd_create",
-					"mkdir",
-					"mkdirat",
-					"mmap",
-					"mmap2",
-					"mprotect",
-					"mremap",
-					"munmap",
-					"nanosleep",
-					"newfstatat",
-					"open",
-					"openat",
-					"openat2",
-					"pause",
-					"perf_event_open",
-					"pipe",
-					"pipe2",
-					"poll",
-					"ppoll",
-					"prctl",
-					"pread64",
-					"prlimit64",
-					"pselect6",
-					"read",
-					"readlink",
-					"readlinkat",
-					"recvfrom",
-					"recvmmsg",
-					"recvmsg",
-					"rename",
-					"renameat",
-					"renameat2",
-					"restart_syscall",
-					"rmdir",
-					"rseq",
-					"rt_sigaction",
-					"rt_sigpending",
-					"rt_sigprocmask",
-					"rt_sigqueueinfo",
-					"rt_sigreturn",
-					"rt_sigsuspend",
-					"rt_sigtimedwait",
-					"rt_tgsigqueueinfo",
-					"sched_getaffinity",
-					"sched_yield",
-					"seccomp",
-					"select",
-					"semtimedop",
-					"send",
-					"sendmmsg",
-					"sendmsg",
-					"sendto",
-					"set_robust_list",
-					"set_tid_address",
-					"setgid",
-					"setgid32",
-					"setgroups",
-					"setgroups32",
-					"setitimer",
-					"setns",
-					"setpgid",
-					"setrlimit",
-					"setsid",
-					"setsidaccept4",
-					"setsockopt",
-					"setuid",
-					"setuid32",
-					"sigaltstack",
-					"socket",
-					"socketcall",
-					"socketpair",
-					"stat",
-					"stat64",
-					"statfs",
-					"statx",
-					"symlinkat",
-					"sysinfo",
-					"tgkill",
-					"umask",
-					"uname",
-					"unlink",
-					"unlinkat",
-					"utime",
-					"utimensat",
-					"utimes",
-					"wait4",
-					"waitid",
-					"waitpid",
-					"write"
-				],
-				"action": "SCMP_ACT_ALLOW",
-				"args": null
-				},
-				{
-				"names": [
-					"setns"
-				],
-				"action": "SCMP_ACT_ALLOW",
-				"args": [
-					{
-					"index": 1,
-					"value": 1073741824,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_EQ"
-					}
-				],
-				"comment": "",
-				"includes": {},
-				"excludes": {}
-				},
-				{
-				"names": [
-					"kill"
-				],
-				"action": "SCMP_ACT_ALLOW",
-				"args": [
-					{
-					"index": 1,
-					"value": 0,
-					"op": "SCMP_CMP_EQ"
-					}
-				],
-				"comment": "allow process detection via kill",
-				"includes": {},
-				"excludes": {}
-				}
-			]
+func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+	labels := common.GetDefaultLabels(owner, componentKind, componentName, version)
+	annotations := object.GetDefaultAnnotations(owner)
+
+	if selector != nil {
+		for key, val := range selector.MatchLabels {
+			labels[key] = val
 		}
-		`,
+	} else {
+		selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
+				apicommon.AgentDeploymentComponentLabelKey: componentKind,
+			},
+		}
 	}
+	return labels, annotations, selector
 }

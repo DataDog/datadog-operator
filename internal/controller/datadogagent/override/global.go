@@ -14,7 +14,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -97,7 +97,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			var err error
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
-				err = resourcesManager.NetworkPolicyManager().AddKubernetesNetworkPolicy(component.BuildKubernetesNetworkPolicy(dda, componentName))
+				err = resourcesManager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
 			case v2alpha1.NetworkPolicyFlavorCilium:
 				var ddURL string
 				var dnsSelectorEndpoints []metav1.LabelSelector
@@ -108,7 +108,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					dnsSelectorEndpoints = config.NetworkPolicy.DNSSelectorEndpoints
 				}
 				err = resourcesManager.CiliumPolicyManager().AddCiliumPolicy(
-					component.BuildCiliumPolicy(
+					objects.BuildCiliumPolicy(
 						dda,
 						*config.Site,
 						ddURL,

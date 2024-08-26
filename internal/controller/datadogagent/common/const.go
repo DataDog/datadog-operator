@@ -19,4 +19,6 @@ const (
 	ClusterAgentSuffix = "dca"
 
 	CustomResourceDefinitionsName = "customresourcedefinitions"
+
+	DefaultAgentInstallType = "k8s_manual"
 )

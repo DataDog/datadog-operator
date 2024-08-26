@@ -3,406 +3,27 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package component
+package objects
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 )
-
-const (
-	localServiceDefaultMinimumVersion = "1.22-0"
-
-	DefaultAgentInstallType = "k8s_manual"
-)
-
-// GetVolumeForConfig return the volume that contains the agent config
-func GetVolumeForConfig() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.ConfigVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeForConfd return the volume that contains the agent confd config files
-func GetVolumeForConfd() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.ConfdVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeForChecksd return the volume that contains the agent confd config files
-func GetVolumeForChecksd() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.ChecksdVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeForRmCorechecks return the volume that overwrites the corecheck directory
-func GetVolumeForRmCorechecks() corev1.Volume {
-	return corev1.Volume{
-		Name: "remove-corechecks",
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeForAuth return the Volume container authentication information
-func GetVolumeForAuth() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.AuthVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeForLogs return the Volume that should container generated logs
-func GetVolumeForLogs() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.LogDatadogVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeInstallInfo return the Volume that should install-info file
-func GetVolumeInstallInfo(owner metav1.Object) corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.InstallInfoVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: GetInstallInfoConfigMapName(owner),
-				},
-			},
-		},
-	}
-}
-
-// GetVolumeForProc returns the volume with /proc
-func GetVolumeForProc() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.ProcdirVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.ProcdirHostPath,
-			},
-		},
-	}
-}
-
-// GetVolumeForCgroups returns the volume that contains the cgroup directory
-func GetVolumeForCgroups() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.CgroupsVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/sys/fs/cgroup",
-			},
-		},
-	}
-}
-
-// GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
-func GetVolumeForDogstatsd() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.DogstatsdSocketVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
-func GetInstallInfoConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-install-info", dda.GetName())
-}
-
-// GetVolumeMountForConfig return the VolumeMount that contains the agent config
-func GetVolumeMountForConfig() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.ConfigVolumeName,
-		MountPath: apicommon.ConfigVolumePath,
-	}
-}
-
-// GetVolumeMountForConfd return the VolumeMount that contains the agent confd config files
-func GetVolumeMountForConfd() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.ConfdVolumeName,
-		MountPath: apicommon.ConfdVolumePath,
-		ReadOnly:  true,
-	}
-}
-
-// GetVolumeMountForChecksd return the VolumeMount that contains the agent checksd config files
-func GetVolumeMountForChecksd() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.ChecksdVolumeName,
-		MountPath: apicommon.ChecksdVolumePath,
-		ReadOnly:  true,
-	}
-}
-
-// GetVolumeMountForRmCorechecks return the VolumeMount that overwrites the corechecks directory
-func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      "remove-corechecks",
-		MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
-	}
-}
-
-// GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
-func GetVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.AuthVolumeName,
-		MountPath: apicommon.AuthVolumePath,
-		ReadOnly:  readOnly,
-	}
-}
-
-// GetVolumeMountForLogs return the VolumeMount for the container generated logs
-func GetVolumeMountForLogs() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.LogDatadogVolumeName,
-		MountPath: apicommon.LogDatadogVolumePath,
-		ReadOnly:  false,
-	}
-}
-
-// GetVolumeForTmp return the Volume use for /tmp
-func GetVolumeForTmp() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.TmpVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeMountForTmp return the VolumeMount for /tmp
-func GetVolumeMountForTmp() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.TmpVolumeName,
-		MountPath: apicommon.TmpVolumePath,
-		ReadOnly:  false,
-	}
-}
-
-// GetVolumeForCertificates return the Volume use to store certificates
-func GetVolumeForCertificates() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.CertificatesVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-// GetVolumeMountForCertificates return the VolumeMount use to store certificates
-func GetVolumeMountForCertificates() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.CertificatesVolumeName,
-		MountPath: apicommon.CertificatesVolumePath,
-		ReadOnly:  false,
-	}
-}
-
-// GetVolumeMountForInstallInfo return the VolumeMount that contains the agent install-info file
-func GetVolumeMountForInstallInfo() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.InstallInfoVolumeName,
-		MountPath: apicommon.InstallInfoVolumePath,
-		SubPath:   apicommon.InstallInfoVolumeSubPath,
-		ReadOnly:  apicommon.InstallInfoVolumeReadOnly,
-	}
-}
-
-// GetVolumeMountForProc returns the VolumeMount that contains /proc
-func GetVolumeMountForProc() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.ProcdirVolumeName,
-		MountPath: apicommon.ProcdirMountPath,
-		ReadOnly:  true,
-	}
-}
-
-// GetVolumeMountForCgroups returns the VolumeMount that contains the cgroups info
-func GetVolumeMountForCgroups() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.CgroupsVolumeName,
-		MountPath: apicommon.CgroupsMountPath,
-		ReadOnly:  true,
-	}
-}
-
-// GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
-func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.DogstatsdSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketLocalPath,
-		ReadOnly:  readOnly,
-	}
-}
-
-// GetVolumeForRuntimeSocket returns the Volume for the runtime socket
-func GetVolumeForRuntimeSocket() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.CriSocketVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.RuntimeDirVolumePath,
-			},
-		},
-	}
-}
-
-// GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
-func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.CriSocketVolumeName,
-		MountPath: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath,
-		ReadOnly:  readOnly,
-	}
-}
-
-// GetVolumeMountForSecurity returns the VolumeMount for datadog-agent-security
-func GetVolumeMountForSecurity() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.SeccompSecurityVolumeName,
-		MountPath: apicommon.SeccompSecurityVolumePath,
-	}
-}
-
-// GetVolumeForSecurity returns the Volume for datadog-agent-security
-func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.SeccompSecurityVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: GetDefaultSeccompConfigMapName(owner),
-				},
-			},
-		},
-	}
-}
-
-// GetVolumeMountForSeccomp returns the VolumeMount for seccomp root
-func GetVolumeMountForSeccomp() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      apicommon.SeccompRootVolumeName,
-		MountPath: apicommon.SeccompRootVolumePath,
-	}
-}
-
-// GetVolumeForSeccomp returns the volume for seccomp root
-func GetVolumeForSeccomp() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.SeccompRootVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.SeccompRootPath,
-			},
-		},
-	}
-}
-
-// GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
-func GetClusterAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
-// GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
-func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
-// GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
-func GetClusterAgentVersion(dda metav1.Object) string {
-	// Todo implement this function
-	return ""
-}
-
-// GetAgentName return the Agent name based on the DatadogAgent info
-func GetAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
-}
-
-// GetAgentVersion return the Agent version based on the DatadogAgent info
-func GetAgentVersion(dda metav1.Object) string {
-	// TODO implement this method
-	return ""
-}
-
-// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
-func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
-	version := ""
-	if imageConfig.Name != "" {
-		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
-	}
-	// Give priority to image Tag setting
-	if imageConfig.Tag != "" {
-		version = imageConfig.Tag
-	}
-	return version
-}
-
-// GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
-func GetClusterChecksRunnerName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
-}
-
-// GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
-func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
-}
-
-// BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
-func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
-	return &corev1.EnvVar{
-		Name:      name,
-		ValueFrom: source,
-	}
-}
-
-// BuildEnvVarFromSecret return an corev1.EnvVarSource correspond to a secret reference
-func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
-	return &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: name,
-			},
-			Key: key,
-		},
-	}
-}
 
 // BuildKubernetesNetworkPolicy creates the base node agent kubernetes network policy
 func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) (string, string, metav1.LabelSelector, []netv1.PolicyType, []netv1.NetworkPolicyIngressRule, []netv1.NetworkPolicyEgressRule) {
@@ -515,13 +136,13 @@ func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.Componen
 	var suffix string
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
-		policyName = GetAgentName(dda)
+		policyName = componentagent.GetAgentName(dda)
 		suffix = apicommon.DefaultAgentResourceSuffix
 	case v2alpha1.ClusterAgentComponentName:
-		policyName = GetClusterAgentName(dda)
+		policyName = componentdca.GetClusterAgentName(dda)
 		suffix = apicommon.DefaultClusterAgentResourceSuffix
 	case v2alpha1.ClusterChecksRunnerComponentName:
-		policyName = GetClusterChecksRunnerName(dda)
+		policyName = componentccr.GetClusterChecksRunnerName(dda)
 		suffix = apicommon.DefaultClusterChecksRunnerResourceSuffix
 	}
 	podSelector = metav1.LabelSelector{
@@ -551,23 +172,6 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 			IntVal: apicommon.DefaultClusterAgentServicePort,
 		},
 	}
-}
-
-// GetAgentLocalServiceSelector creates the selector to be used for the agent local service
-func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
-	return map[string]string{
-		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
-	}
-}
-
-// ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
-func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalService bool) bool {
-	if versionInfo == nil || versionInfo.GitVersion == "" {
-		return false
-	}
-	// Service Internal Traffic Policy is enabled by default since 1.22
-	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy
@@ -1007,7 +611,7 @@ func ingressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hostNetwo
 		ingress.FromEndpoints = []metav1.LabelSelector{
 			{
 				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: GetAgentName(dda),
+					kubernetes.AppKubernetesInstanceLabelKey: componentagent.GetAgentName(dda),
 					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
 				},
 			},
