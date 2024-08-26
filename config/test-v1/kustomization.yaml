@@ -28,20 +28,20 @@ resources:
 
 # [V1alpha1 testing] configure v1alpha1 as the storage version
 # This is just in case we need to test something with the old version.
-patches:
-- path: storagev1_in_datadogagents.yaml
-  target:
-    group: apiextensions.k8s.io
-    kind: CustomResourceDefinition
-    name: datadogagents.datadoghq.com
-    version: v1
-- path: manager_enablev1_patch.yaml
-  target:
-    group: apps
-    kind: Deployment
-    name: manager
-    namespace: system
-    version: v1
+#patches:
+#- path: storagev1_in_datadogagents.yaml
+#  target:
+#    group: apiextensions.k8s.io
+#    kind: CustomResourceDefinition
+#    name: datadogagents.datadoghq.com
+#    version: v1
+#- path: manager_enablev1_patch.yaml
+#  target:
+#    group: apps
+#    kind: Deployment
+#    name: manager
+#    namespace: system
+#    version: v1
 
 # Protect the /metrics endpoint by putting it behind auth.
 # If you want your controller-manager to expose the /metrics
