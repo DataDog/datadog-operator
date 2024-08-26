@@ -80,8 +80,6 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         # In OpenShift 4.0+, set the hostNetwork parameter to allow access to your cloud provider metadata API endpoint.
         # This is necessary to retrieve host tags and aliases collected by Datadog cloud provider integrations. 
         hostNetwork: true
-        image:
-          name: gcr.io/datadoghq/agent:latest
         securityContext:
           runAsUser: 0
           seLinuxOptions:
@@ -101,8 +99,6 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
       clusterAgent:
         serviceAccountName: datadog-agent-scc
         replicas: 2 # High-availability
-        image:
-          name: gcr.io/datadoghq/cluster-agent:latest
   ```
 
 Setting the `serviceAccountName` in the `nodeAgent` and `clusterAgent` `override` section ensures that these pods are associated with the necessary `SecurityContextConstraints` and RBACs.
