@@ -38,15 +38,25 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
 
 2. Create a file with the manifest of your `DatadogAgent` deployment.
 
-The following is the simplest recommended configuration for the `DatadogAgent` in OpenShift:
+The following is the simplest recommended configuration for the `DatadogAgent` in OpenShift. Datadog recommends to set your `global.clusterName` accordingly:
 
   ```yaml
-  apiVersion: datadoghq.com/v2alpha1
   kind: DatadogAgent
+  apiVersion: datadoghq.com/v2alpha1
   metadata:
     name: datadog
-    namespace: openshift-operators # same namespace as where the Datadog Operator was deployed
+    namespace: openshift-operators # set as namespace as where the Datadog Operator was deployed
   spec:
+    features:
+      apm:
+        enabled: true
+        hostPortConfig:
+          enabled: true
+        unixDomainSocketConfig:
+          enabled: false
+      dogstatsd:
+        unixDomainSocketConfig:
+          enabled: false
     global:
       credentials:
         apiSecret:
@@ -55,34 +65,29 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         appSecret:
           keyName: app-key
           secretName: datadog-secret
-      criSocketPath: /var/run/crio/crio.sock
+      clusterName: <CLUSTER_NAME>
       kubelet:
-        # This is needed if the kubelet certificate is self-signed.
-        # Alternatively, the CA certificate used to sign the kubelet certificate can be mounted.
         tlsVerify: false
     override:
-      nodeAgent:
-        # In OpenShift 4.0+, set the hostNetwork parameter to allow access to your cloud provider metadata API endpoint.
-        # This is necessary to retrieve host tags and aliases collected by Datadog cloud provider integrations. 
-        hostNetwork: true
-        securityContext:
-          runAsUser: 0
-          seLinuxOptions:
-            level: s0
-            role: system_r
-            type: spc_t
-            user: system_u
-        serviceAccountName: datadog-agent-scc
       clusterAgent:
         serviceAccountName: datadog-agent-scc
-        replicas: 2
-        containers:
-          cluster-agent:
-            securityContext:
-              readOnlyRootFilesystem: false
+      nodeAgent:
+        serviceAccountName: datadog-agent-scc
+        hostNetwork: true
+        tolerations:
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+            effect: NoSchedule
+          - key: node-role.kubernetes.io/infra
+            operator: Exists
+            effect: NoSchedule
   ```
 
-Setting the `serviceAccountName` in the `nodeAgent` and `clusterAgent` `override` section ensures that these pods are associated with the necessary `SecurityContextConstraints` and RBACs.
+A few notes on this configuration:
+- Setting the `serviceAccountName: datadog-agent-scc` in the `nodeAgent` and `clusterAgent` `override` section ensures that these pods are associated with the necessary `SecurityContextConstraints` and RBACs managed by the OperatorHub installation.
+- The Kubelet API certificates may not always be signed by cluster CA, so Kubelet TLS verification must be disabled.
+- In OpenShift 4.0+, set the `hostNetwork` parameter to allow access to your cloud provider metadata (IMDS) API endpoint for host tags and aliases.
+- If using APM or DogStatsD, disable the Unix Domain Socket (UDS) method as this requires highly elevated privileges on your APM application pods. Disabling it will also ensure the Admission Controller will not inject this configuration. To disable APM entirely set `features.apm.enabled` to false.
 
 3. Apply the Datadog Agent manifest:
    ```shell
