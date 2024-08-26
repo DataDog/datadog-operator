@@ -153,7 +153,7 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []commonv1.A
 			containers = append(containers, systemProbeContainer(dda))
 		case commonv1.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
-		case common.AgentDataPlaneContainerName:
+		case commonv1.AgentDataPlaneContainerName:
 			containers = append(containers, agentDataPlaneContainer(dda))
 		}
 	}
@@ -262,7 +262,7 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 
 func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:           string(common.OtelAgent),
+		Name:           string(commonv1.AgentDataPlaneContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent-data-plane"},
 		Env:            envVarsForAgentDataPlane(dda),
