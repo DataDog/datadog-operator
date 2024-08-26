@@ -7,6 +7,7 @@ package v1alpha1
 
 import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,10 @@ type Override struct {
 	// default.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+
+	// The deployment strategy to use to replace existing pods with new ones.
+	// +optional
+	UpdateStrategy *v2alpha1.UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Labels provide labels that are added to the Datadog Agent pods.
 	// +optional
