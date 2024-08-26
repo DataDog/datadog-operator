@@ -165,7 +165,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			if e != nil {
 				logger.Error(e, "unable to parse DD_DAP_SLOW_START_MAX_UNAVAILABLE value")
 			}
-			if profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady < int32(maxUnavailable) {
+			if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < maxUnavailable {
 				newStatus = v1alpha1.InProgressStatus
 			}
 			profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
