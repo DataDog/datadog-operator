@@ -20,7 +20,8 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
@@ -177,7 +178,7 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
-	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 		apmPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(int(apicommon.DefaultApmPort)),
@@ -193,14 +194,14 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}
 
 	// network policies
 	if f.hostPortEnabled {
-		policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
 			ingressRules := []netv1.NetworkPolicyIngressRule{

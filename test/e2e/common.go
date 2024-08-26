@@ -6,9 +6,11 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -50,9 +52,12 @@ alias kl="kubectl logs"
 alias kx="kubectl exec"
 ' >> /home/ubuntu/.bashrc
 `
-	defaultMgrImageName = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag    = "latest"
-	defaultMgrFileName  = "e2e-manager.yaml"
+	defaultMgrImageName        = "gcr.io/datadoghq/operator"
+	defaultMgrImgTag           = "latest"
+	defaultMgrFileName         = "e2e-manager.yaml"
+	nodeAgentSelector          = "agent.datadoghq.com/component=agent"
+	clusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
+	clusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
 )
 
 var (
@@ -104,13 +109,10 @@ func verifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
 	verifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
 }
 
-func verifyAgent(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
+func verifyAgentPods(t *testing.T, kubectlOptions *k8s.KubectlOptions, selector string) {
 	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
 	nodes := k8s.GetNodes(t, kubectlOptions)
-
-	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), "agent.datadoghq.com/component=agent")
-	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-agent")
-	verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/component=cluster-checks-runner")
+	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), selector)
 }
 
 func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
@@ -203,4 +205,24 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 	}
 
 	return nil
+}
+
+func parseCollectorJson(collectorOutput string) map[string]interface{} {
+	var jsonString string
+	var jsonObject map[string]interface{}
+
+	re := regexp.MustCompile(`(\{.*\})`)
+	match := re.FindStringSubmatch(collectorOutput)
+	if len(match) > 0 {
+		jsonString = match[0]
+	} else {
+		return map[string]interface{}{}
+	}
+
+	// Parse collector JSON
+	err := json.Unmarshal([]byte(jsonString), &jsonObject)
+	if err != nil {
+		return map[string]interface{}{}
+	}
+	return jsonObject
 }

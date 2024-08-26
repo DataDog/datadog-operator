@@ -20,8 +20,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -83,7 +82,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		// Process Agent is not required as of agent version 7.51.0
 		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
 				f.processAgentRequired = true
 				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
 			}

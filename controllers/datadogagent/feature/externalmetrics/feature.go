@@ -13,13 +13,14 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -206,7 +207,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	}
 
 	// network policies
-	policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
+	policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
 	if f.createKubernetesNetworkPolicy {
 		ingressRules := []netv1.NetworkPolicyIngressRule{
 			{
@@ -289,15 +290,15 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 			var apiKeyEnvVar *corev1.EnvVar
 			// api key from existing secret
 			if s.name != "" {
-				apiKeyEnvVar = component.BuildEnvVarFromSource(
+				apiKeyEnvVar = common.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAPIKey,
-					component.BuildEnvVarFromSecret(s.name, s.key),
+					common.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
 				// api key from secret created by operator
-				apiKeyEnvVar = component.BuildEnvVarFromSource(
+				apiKeyEnvVar = common.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAPIKey,
-					component.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPIKeyKey),
+					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPIKeyKey),
 				)
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, apiKeyEnvVar)
@@ -307,15 +308,15 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 			var appKeyEnvVar *corev1.EnvVar
 			// app key from existing secret
 			if s.name != "" {
-				appKeyEnvVar = component.BuildEnvVarFromSource(
+				appKeyEnvVar = common.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAppKey,
-					component.BuildEnvVarFromSecret(s.name, s.key),
+					common.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
 				// api key from secret created by operator
-				appKeyEnvVar = component.BuildEnvVarFromSource(
+				appKeyEnvVar = common.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAppKey,
-					component.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPPKeyKey),
+					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPPKeyKey),
 				)
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, appKeyEnvVar)
