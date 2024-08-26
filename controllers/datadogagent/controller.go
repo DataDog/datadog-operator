@@ -65,6 +65,7 @@ type ReconcilerOptions struct {
 	DatadogAgentProfileEnabled      bool
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
+	AgentDataPlaneEnabled           bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -112,6 +113,7 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 		Logger:                          logger,
 		ProcessChecksInCoreAgentEnabled: opts.ProcessChecksInCoreAgentEnabled,
 		OtelAgentEnabled:                opts.OtelAgentEnabled,
+		AgentDataPlaneEnabled:           opts.AgentDataPlaneEnabled,
 	}
 }
 

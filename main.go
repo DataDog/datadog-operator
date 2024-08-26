@@ -123,6 +123,7 @@ type options struct {
 	remoteConfigEnabled                    bool
 	processChecksInCoreAgentEnabled        bool
 	otelAgentEnabled                       bool
+	agentDataPlaneEnabled                  bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -157,6 +158,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
+	flag.BoolVar(&opts.agentDataPlaneEnabled, "agentDataPlaneEnabled", false, "Enable the Agent Data Plane container (beta)")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -298,6 +300,7 @@ func run(opts *options) error {
 		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
 		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
 		OtelAgentEnabled:                opts.otelAgentEnabled,
+		AgentDataPlaneEnabled:           opts.agentDataPlaneEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
