@@ -55,6 +55,7 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         appSecret:
           keyName: app-key
           secretName: datadog-secret
+      clusterName: <CLUSTER_NAME>
       criSocketPath: /var/run/crio/crio.sock
       kubelet:
         # This is needed if the kubelet certificate is self-signed.
