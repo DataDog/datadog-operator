@@ -8,7 +8,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -225,7 +225,7 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		},
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_TYPE",
-			Value: component.DefaultAgentInstallType,
+			Value: common.DefaultAgentInstallType,
 		},
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_TIME",
