@@ -60,6 +60,20 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         # This is needed if the kubelet certificate is self-signed.
         # Alternatively, the CA certificate used to sign the kubelet certificate can be mounted.
         tlsVerify: false
+    features:
+      apm:
+        enabled: true
+        hostPortConfig:
+          enabled: true
+        # Unix Domain Socket uses a `hostPath` volume, prevented by OpenShift default SecurityContextConstraints for applicative pods.
+        # More information: https://docs.datadoghq.com/containers/troubleshooting/admission-controller/?tab=datadogoperator#openshift
+        unixDomainSocketConfig:
+          enabled: false
+      dogstatsd:
+        hostPortConfig:
+          enabled: true
+        unixDomainSocketConfig:
+          enabled: false
     override:
       nodeAgent:
         # In OpenShift 4.0+, set the hostNetwork parameter to allow access to your cloud provider metadata API endpoint.
@@ -75,6 +89,14 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
             type: spc_t
             user: system_u
         serviceAccountName: datadog-agent-scc
+        # Tolerations matching OpenShift default taints on master nodes
+        tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/infra
+          operator: Exists
+          effect: NoSchedule
       clusterAgent:
         serviceAccountName: datadog-agent-scc
         replicas: 2 # High-availability
