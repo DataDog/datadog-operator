@@ -38,14 +38,14 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
 
 2. Create a file with the manifest of your `DatadogAgent` deployment.
 
-The following is the simplest recommended configuration for the `DatadogAgent` in OpenShift. Datadog recommends to set your `global.clusterName` accordingly:
+The following is the simplest recommended configuration for the `DatadogAgent` in OpenShift. Datadog recommends setting your `global.clusterName` as follows:
 
   ```yaml
   kind: DatadogAgent
   apiVersion: datadoghq.com/v2alpha1
   metadata:
     name: datadog
-    namespace: openshift-operators # set as namespace as where the Datadog Operator was deployed
+    namespace: openshift-operators # set as the same namespace where the Datadog Operator was deployed
   spec:
     features:
       apm:
@@ -84,10 +84,11 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
   ```
 
 A few notes on this configuration:
+
 - Setting the `serviceAccountName: datadog-agent-scc` in the `nodeAgent` and `clusterAgent` `override` section ensures that these pods are associated with the necessary `SecurityContextConstraints` and RBACs managed by the OperatorHub installation.
-- The Kubelet API certificates may not always be signed by cluster CA, so Kubelet TLS verification must be disabled.
+- The Kubelet API certificates might not always be signed by cluster CA. As a result, you must disable Kubelet TLS verification.
 - In OpenShift 4.0+, set the `hostNetwork` parameter to allow access to your cloud provider metadata (IMDS) API endpoint for host tags and aliases.
-- If using APM or DogStatsD, disable the Unix Domain Socket (UDS) method as this requires highly elevated privileges on your APM application pods. Disabling it will also ensure the Admission Controller will not inject this configuration. To disable APM entirely set `features.apm.enabled` to false.
+- If using APM or DogStatsD, disable the Unix Domain Socket (UDS) method, as this requires highly elevated privileges on your APM application pods. Disabling it also ensures that the Admission Controller does not inject this configuration. To disable APM entirely, set `features.apm.enabled` to false.
 
 3. Apply the Datadog Agent manifest:
    ```shell

@@ -2,7 +2,7 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
-  namespace: openshift-operators # set as namespace as where the Datadog Operator was deployed
+  namespace: openshift-operators  # set as the same namespace where the Datadog Operator was deployed
 spec:
   features:
     logCollection:
