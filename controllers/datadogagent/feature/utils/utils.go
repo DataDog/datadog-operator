@@ -18,7 +18,7 @@ import (
 
 // Process Checks utils
 
-const RunInCoreAgentMinVersion = "7.53.0-0"
+const RunInCoreAgentMinVersion = "7.57.0-0"
 
 func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 	// Agent version must >= 7.53.0 to run feature in core agent
