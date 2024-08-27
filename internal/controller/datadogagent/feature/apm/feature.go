@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -37,6 +38,10 @@ func init() {
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
 	apmFeat := &apmFeature{}
+
+	if options != nil {
+		apmFeat.processCheckRunsInCoreAgent = options.ProcessChecksInCoreAgentEnabled
+	}
 
 	return apmFeat
 }
@@ -60,6 +65,8 @@ type apmFeature struct {
 	createCiliumNetworkPolicy     bool
 
 	singleStepInstrumentation *instrumentationConfig
+
+	processCheckRunsInCoreAgent bool
 }
 
 type instrumentationConfig struct {
@@ -151,7 +158,8 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 
-		if f.shouldEnableLanguageDetection() {
+		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
+		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 	}
@@ -370,6 +378,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
+
+		// Always add this envvar to Core and Process containers
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
 	}
 
 	// uds

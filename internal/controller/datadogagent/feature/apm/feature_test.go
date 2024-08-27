@@ -13,6 +13,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -311,7 +312,7 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure:  true,
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: false},
 			ClusterAgent:   testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
-			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true),
+			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, false),
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
@@ -330,11 +331,38 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
-			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false),
+			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false, false),
 			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if found {
 					t.Error("Should not have created RBAC for language detection")
+				}
+			},
+		},
+		{
+			Name: "single step instrumentation with language detection enabled, process check runs in core agent",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAdmissionControllerEnabled(true).
+				WithComponentOverride(
+					v2alpha1.NodeAgentComponentName,
+					v2alpha1.DatadogAgentComponentOverride{
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
+						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
+					},
+				).
+				Build(),
+			WantConfigure:  true,
+			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
+			ClusterAgent:   testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
+			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, true),
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
+				if !found {
+					t.Error("Should have created proper RBAC for language detection")
 				}
 			},
 		},
@@ -613,7 +641,7 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 	)
 }
 
-func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool) *test.ComponentTest {
+func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEnabled bool, processChecksInCoreAgent bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -623,10 +651,16 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 
 			var expectedEnvVars []*corev1.EnvVar
 			if languageDetectionEnabled {
-				expectedEnvVars = []*corev1.EnvVar{{
-					Name:  apicommon.DDLanguageDetectionEnabled,
-					Value: "true",
-				}}
+				expectedEnvVars = []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDLanguageDetectionEnabled,
+						Value: "true",
+					},
+					{
+						Name:  apicommon.DDProcessConfigRunInCoreAgent,
+						Value: utils.BoolToString(&processChecksInCoreAgent),
+					},
+				}
 			}
 
 			// Assert Env Vars Added to Core Agent Container
