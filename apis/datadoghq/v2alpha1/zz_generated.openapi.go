@@ -1279,28 +1279,28 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"command": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Command defines the secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh`: https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers",
+							Description: "The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"args": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Args defines the list of arguments to pass to the command (space-separated strings).",
+							Description: "List of arguments to pass to the command (space-separated strings).",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Timeout defines the command timeout in seconds. Default: 30",
+							Description: "Timeout defines the command timeout in seconds. Default: `30`.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"enableGlobalPermissions": {
 						SchemaProps: spec.SchemaProps{
-							Description: "EnableGlobalPermissions defines whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: false",
+							Description: "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1312,7 +1312,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Roles defines roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` / `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent",
+							Description: "Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
