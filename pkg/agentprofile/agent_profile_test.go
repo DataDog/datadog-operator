@@ -380,7 +380,7 @@ func TestOverrideFromProfile(t *testing.T) {
 			},
 		},
 		{
-			name:    "default profile",
+			name:    "default profile, no overrides applied",
 			profile: exampleDefaultProfile(),
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: apiutils.NewStringPointer(""),
