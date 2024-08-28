@@ -12,7 +12,6 @@ package v1alpha1
 import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -1456,7 +1455,7 @@ func (in *Override) DeepCopyInto(out *Override) {
 	}
 	if in.UpdateStrategy != nil {
 		in, out := &in.UpdateStrategy, &out.UpdateStrategy
-		*out = new(v2alpha1.UpdateStrategy)
+		*out = new(commonv1.UpdateStrategy)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Labels != nil {

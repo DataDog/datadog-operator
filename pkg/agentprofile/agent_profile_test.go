@@ -350,9 +350,9 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &v2alpha1.UpdateStrategy{
+				UpdateStrategy: &common.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &v2alpha1.RollingUpdate{
+					RollingUpdate: &common.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
@@ -623,9 +623,9 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &v2alpha1.UpdateStrategy{
+				UpdateStrategy: &common.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &v2alpha1.RollingUpdate{
+					RollingUpdate: &common.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
