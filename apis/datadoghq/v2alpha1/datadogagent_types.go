@@ -1125,7 +1125,7 @@ type SecretsBackendFeatureConfig struct {
 	// +optional
 	Args *string `json:"args,omitempty"`
 
-	// Timeout defines the command timeout in seconds.
+	// The command timeout in seconds.
 	// Default: `30`.
 	// +optional
 	Timeout *int32 `json:"timeout,omitempty"`

@@ -1423,7 +1423,7 @@ spec:
                           x-kubernetes-list-type: atomic
                         timeout:
                           description: |-
-                            Timeout defines the command timeout in seconds.
+                            The command timeout in seconds.
                             Default: `30`.
                           format: int32
                           type: integer
@@ -7320,7 +7320,7 @@ spec:
                               x-kubernetes-list-type: atomic
                             timeout:
                               description: |-
-                                Timeout defines the command timeout in seconds.
+                                The command timeout in seconds.
                                 Default: `30`.
                               format: int32
                               type: integer

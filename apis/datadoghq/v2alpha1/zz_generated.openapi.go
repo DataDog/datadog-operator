@@ -1293,7 +1293,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 					},
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Timeout defines the command timeout in seconds. Default: `30`.",
+							Description: "The command timeout in seconds. Default: `30`.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
