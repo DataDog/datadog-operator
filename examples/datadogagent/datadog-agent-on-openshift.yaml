@@ -2,42 +2,46 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
-  namespace: datadog
+  namespace: openshift-operators  # set as the same namespace where the Datadog Operator was deployed
 spec:
   features:
     logCollection:
       enabled: true
-    liveProcessCollection:
-      enabled: true
-    liveContainerCollection:
-      enabled: true
+      containerCollectAll: true
     apm:
       enabled: true
+      hostPortConfig:
+        enabled: true
+      unixDomainSocketConfig:
+        enabled: false
+    dogstatsd:
+      unixDomainSocketConfig:
+        enabled: false
   global:
-    clusterName: my-example-cluster
     credentials:
       apiKey: <DATADOG_API_KEY>
-      appKey: <DATADOG_API_KEY>
-    criSocketPath: /var/run/crio/crio.sock
+      appKey: <DATADOG_APP_KEY>
+    clusterName: <CLUSTER_NAME>
     kubelet:
-      # This is needed if the kubelet certificate is self-signed.
-      # Alternatively, the CA certificate used to sign the kubelet certificate can be mounted.
       tlsVerify: false
   override:
-    nodeAgent:
-      hostNetwork: true
-      serviceAccountName: datadog-agent-scc
-      securityContext:
-        runAsUser: 0
-        seLinuxOptions:
-          user: system_u
-          role: system_r
-          type: spc_t
-          level: s0
     clusterAgent:
       serviceAccountName: datadog-agent-scc
-      replicas: 2
-      containers:
-        cluster-agent:
-          securityContext:
-            readOnlyRootFilesystem: false
+    nodeAgent:
+      serviceAccountName: datadog-agent-scc
+      hostNetwork: true
+      securityContext:
+        runAsUser: 0
+        # Set when enabling log collection
+        seLinuxOptions:
+          level: s0
+          role: system_r
+          type: spc_t
+          user: system_u
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/infra
+          operator: Exists
+          effect: NoSchedule

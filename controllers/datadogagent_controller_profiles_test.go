@@ -18,9 +18,10 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -169,6 +170,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"3"},
 										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profile.Name},
+										},
 									},
 								},
 							},
@@ -290,6 +296,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Key:      "some-label",
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"1", "2"},
+										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profile.Name},
 										},
 									},
 								},
@@ -417,6 +428,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Key:      "some-label",
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"1"},
+										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profile.Name},
 										},
 									},
 								},
@@ -577,6 +593,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"1"},
 										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profiles[0].Name},
+										},
 									},
 								},
 							},
@@ -608,6 +629,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Key:      "some-label",
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"2"},
+										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profiles[1].Name},
 										},
 									},
 								},
@@ -762,6 +788,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"1"},
 										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profiles[0].Name},
+										},
 									},
 								},
 							},
@@ -903,6 +934,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"1"},
 										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profile.Name},
+										},
 									},
 								},
 							},
@@ -1026,6 +1062,11 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Key:      "b",
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"2"},
+										},
+										{
+											Key:      agentprofile.ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{profile.Name},
 										},
 									},
 								},
@@ -1165,7 +1206,7 @@ func randomKubernetesObjectName() string {
 func defaultDaemonSetNamespacedName(namespace string, agent *v2alpha1.DatadogAgent) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: namespace,
-		Name:      component.GetAgentName(agent),
+		Name:      componentagent.GetAgentName(agent),
 	}
 }
 

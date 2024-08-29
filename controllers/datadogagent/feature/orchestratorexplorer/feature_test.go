@@ -13,13 +13,13 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/controllers/datadogagent/merger/fake"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -54,15 +54,15 @@ var expectedOrchestratorEnvsV2 = []*corev1.EnvVar{
 func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name: "v2alpha1 orchestrator explorer not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "orchestrator explorer not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 orchestrator explorer enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "orchestrator explorer enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -75,8 +75,8 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
 		},
 		{
-			Name: "v2alpha1 orchestrator explorer enabled and runs on cluster checks runner",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "orchestrator explorer enabled and runs on cluster checks runner",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -92,8 +92,8 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 		},
 		{
-			Name: "v2alpha1 orchestrator explorer enabled on version requiring process agent",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "orchestrator explorer enabled on version requiring process agent",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).

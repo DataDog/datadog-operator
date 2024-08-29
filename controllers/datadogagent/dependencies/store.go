@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -107,7 +107,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	obj.GetLabels()[operatorStoreLabelKey] = "true"
 
 	if ds.owner != nil {
-		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), component.GetAgentVersion(ds.owner))
+		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), common.GetAgentVersion(ds.owner))
 		if len(defaultLabels) > 0 {
 			for key, val := range defaultLabels {
 				obj.GetLabels()[key] = val

@@ -18,11 +18,12 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	featutils "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -37,6 +38,10 @@ func init() {
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
 	apmFeat := &apmFeature{}
+
+	if options != nil {
+		apmFeat.processCheckRunsInCoreAgent = options.ProcessChecksInCoreAgentEnabled
+	}
 
 	return apmFeat
 }
@@ -60,6 +65,8 @@ type apmFeature struct {
 	createCiliumNetworkPolicy     bool
 
 	singleStepInstrumentation *instrumentationConfig
+
+	processCheckRunsInCoreAgent bool
 }
 
 type instrumentationConfig struct {
@@ -151,52 +158,12 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 
-		if f.shouldEnableLanguageDetection() {
+		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
+		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
 		}
 	}
 
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	apm := dda.Spec.Agent.Apm
-	if apiutils.BoolValue(apm.Enabled) {
-		f.hostPortEnabled = true
-		f.hostPortHostPort = *apm.HostPort
-		f.useHostNetwork = v1alpha1.IsHostNetworkEnabled(dda)
-		if apiutils.BoolValue(apm.UnixDomainSocket.Enabled) {
-			f.udsEnabled = true
-			if apm.UnixDomainSocket.HostFilepath != nil {
-				f.udsHostFilepath = *apm.UnixDomainSocket.HostFilepath
-			}
-		}
-
-		if dda.Spec.Agent.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-		}
-		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-
-		if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
-			if flavor == v1alpha1.NetworkPolicyFlavorCilium {
-				f.createCiliumNetworkPolicy = true
-			} else {
-				f.createKubernetesNetworkPolicy = true
-			}
-		}
-
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.TraceAgentContainerName,
-				},
-			},
-		}
-	}
 	return reqComp
 }
 
@@ -211,7 +178,7 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
-	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 		apmPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(int(apicommon.DefaultApmPort)),
@@ -227,14 +194,14 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}
 
 	// network policies
 	if f.hostPortEnabled {
-		policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
 			ingressRules := []netv1.NetworkPolicyIngressRule{
@@ -411,6 +378,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
+
+		// Always add this envvar to Core and Process containers
+		runInCoreAgentEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
 	}
 
 	// uds

@@ -19,27 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 )
 
-// GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
-func GetClusterAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
-// GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
-func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
-// GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
-func GetClusterAgentVersion(dda metav1.Object) string {
-	// Todo implement this function
-	return ""
-}
-
-// GetClusterAgentRbacResourcesName return the Cluster-Agent RBAC resource name
-func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
-}
-
 // GetClusterAgentService returns the Cluster-Agent service
 func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))

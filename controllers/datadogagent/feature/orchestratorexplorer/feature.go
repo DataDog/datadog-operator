@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -21,8 +20,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -84,7 +82,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		// Process Agent is not required as of agent version 7.51.0
 		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
 				f.processAgentRequired = true
 				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
 			}
@@ -121,46 +119,6 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-			}
-		}
-	}
-
-	return reqComp
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
-	f.processAgentRequired = true
-
-	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
-		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName},
-		}
-
-		if orchestratorExplorer.Conf != nil {
-			f.customConfig = v1alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
-		}
-		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
-		if orchestratorExplorer.Scrubbing != nil {
-			f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.Scrubbing.Containers)
-		}
-		f.extraTags = orchestratorExplorer.ExtraTags
-		if orchestratorExplorer.DDUrl != nil {
-			f.ddURL = *orchestratorExplorer.DDUrl
-		}
-		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-
-		if v1alpha1.IsClusterChecksEnabled(dda) && apiutils.BoolValue(orchestratorExplorer.ClusterCheck) {
-			if v1alpha1.IsCCREnabled(dda) {
-				f.runInClusterChecksRunner = true
-				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 			}
 		}
 	}

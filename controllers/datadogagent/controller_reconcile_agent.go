@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
@@ -283,39 +282,51 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 			return err
 		}
 
-		_, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]
-
 		newLabels := map[string]string{}
-		for k, v := range node.Labels {
-			// If the profile uses the old profile label key, it should be removed
-			if k != agentprofile.OldProfileLabelKey {
+		labelsToRemove := map[string]bool{}
+		labelsToAddOrChange := map[string]string{}
+
+		// If the profile is the default one and the label exists in the node,
+		// it should be removed.
+		if isDefaultProfile {
+			if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
+				labelsToRemove[agentprofile.ProfileLabelKey] = true
+			}
+		} else {
+			// If the profile is not the default one and the label does not exist in
+			// the node, it should be added. If the label value is outdated, it
+			// should be updated.
+			if profileLabelValue := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
+				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
+			}
+		}
+
+		// Remove old profile label key if it is present
+		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {
+			labelsToRemove[agentprofile.OldProfileLabelKey] = true
+		}
+
+		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
+			for k, v := range node.Labels {
+				if _, ok := labelsToRemove[k]; ok {
+					continue
+				}
+				newLabels[k] = v
+			}
+
+			for k, v := range labelsToAddOrChange {
 				newLabels[k] = v
 			}
 		}
 
-		// If the profile is the default one and the label exists in the node,
-		// it should be removed.
-		if isDefaultProfile && profileLabelExists {
-			delete(newLabels, agentprofile.ProfileLabelKey)
-		}
-
-		// If the profile is not the default one and the label does not exist in
-		// the node, it should be added.
-		if !isDefaultProfile && !profileLabelExists {
-			newLabels[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
-		}
-
 		if len(newLabels) == 0 {
-			return nil
+			continue
 		}
 
-		patch := corev1.Node{
-			TypeMeta:   node.TypeMeta,
-			ObjectMeta: node.ObjectMeta,
-		}
-		patch.Labels = newLabels
+		modifiedNode := node.DeepCopy()
+		modifiedNode.Labels = newLabels
 
-		err := r.client.Patch(ctx, &patch, client.MergeFrom(node))
+		err := r.client.Patch(ctx, modifiedNode, client.MergeFrom(node))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -496,7 +507,7 @@ func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[stri
 // getDaemonSetNameFromDatadogAgent returns the expected DS/EDS name based on
 // the DDA name and nodeAgent name override
 func getDaemonSetNameFromDatadogAgent(dda *datadoghqv2alpha1.DatadogAgent) string {
-	dsName := component.GetAgentName(dda)
+	dsName := componentagent.GetAgentName(dda)
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			dsName = *componentOverride.Name

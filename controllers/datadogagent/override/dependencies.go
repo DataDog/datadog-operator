@@ -49,6 +49,8 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 
 func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, namespace string) error {
 	var errs []error
+
+	// Delete created RBACs if CreateRbac is set to false
 	if override.CreateRbac != nil && !*override.CreateRbac {
 		rbacManager := manager.RBACManager()
 		logger.Info("Deleting RBACs for %s", component)
@@ -56,6 +58,8 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 		errs = append(errs, rbacManager.DeleteRoleByComponent(string(component), namespace))
 		errs = append(errs, rbacManager.DeleteClusterRoleByComponent(string(component)))
 	}
+
+	// Note: ServiceAccountName overrides are taken into account in the features code (out of pattern)
 
 	return errors.NewAggregate(errs)
 }

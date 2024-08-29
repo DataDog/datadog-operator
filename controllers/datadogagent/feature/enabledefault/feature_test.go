@@ -7,8 +7,9 @@ package enabledefault
 
 import (
 	"encoding/json"
-	"github.com/google/go-cmp/cmp"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
@@ -41,7 +42,7 @@ func Test_getInstallInfoValue(t *testing.T) {
 		{
 			name:                   "Env var empty/unset (os.Getenv returns unset env var as empty string)",
 			toolVersionEnvVarValue: "",
-			expectedToolVersion:    "datadog-operator",
+			expectedToolVersion:    "unknown",
 		},
 		{
 			name:                   "Env var set",
@@ -71,7 +72,7 @@ func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Manage Cluster Agent service account name env variable",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithName("datadog").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),
