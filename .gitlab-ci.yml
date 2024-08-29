@@ -71,6 +71,11 @@ stages:
     when: manual
   - when: never
 
+.on_build_images:
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: never
+  - when: always
+
 build:
   stage: build
   tags: ["runner:main", "size:large"]
@@ -109,6 +114,7 @@ generate_code:
 
 build_operator_image_amd64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -125,6 +131,7 @@ build_operator_image_amd64:
 
 build_operator_image_arm64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
@@ -141,6 +148,7 @@ build_operator_image_arm64:
 
 build_operator_check_image_amd64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -157,6 +165,7 @@ build_operator_check_image_amd64:
 
 build_operator_check_image_arm64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
