@@ -252,7 +252,7 @@ func TestProfileToApply(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
 			now := metav1.NewTime(time.Now())
-			profileAppliedByNode, err := ProfileToApply(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now)
+			profileAppliedByNode, err := ProfileToApply(testLogger, &test.profile, test.nodes, test.profileAppliedByNode, now, 1)
 			assert.Equal(t, test.expectedErr, err)
 			assert.Equal(t, test.expectedProfilesAppliedPerNode, profileAppliedByNode)
 		})
@@ -586,13 +586,6 @@ func Test_canLabel(t *testing.T) {
 			},
 			expected: false,
 		},
-		{
-			name: "timeout slow start status",
-			slowStart: &v1alpha1.SlowStart{
-				Status: v1alpha1.TimeoutStatus,
-			},
-			expected: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -606,7 +599,6 @@ func Test_canLabel(t *testing.T) {
 func Test_getSlowStartStatus(t *testing.T) {
 	now := metav1.NewTime(time.Now())
 	oneSecBefore := metav1.NewTime(now.Add(time.Duration(-1) * time.Second))
-	tenSecBefore := metav1.NewTime(now.Add(time.Duration(-10) * time.Second))
 	tests := []struct {
 		name              string
 		status            *v1alpha1.SlowStart
@@ -634,7 +626,7 @@ func Test_getSlowStartStatus(t *testing.T) {
 			expectedStatus:    v1alpha1.CompletedStatus,
 		},
 		{
-			name: "non-empty status, waiting but not yet timeout",
+			name: "non-empty status, waiting",
 			status: &v1alpha1.SlowStart{
 				Status:         v1alpha1.WaitingStatus,
 				LastTransition: &oneSecBefore,
@@ -642,22 +634,11 @@ func Test_getSlowStartStatus(t *testing.T) {
 			nodesNeedingLabel: 1,
 			expectedStatus:    v1alpha1.WaitingStatus,
 		},
-		{
-			name: "non-empty status, waiting past timeout",
-			status: &v1alpha1.SlowStart{
-				Status:         v1alpha1.WaitingStatus,
-				LastTransition: &tenSecBefore,
-			},
-			nodesNeedingLabel: 1,
-			expectedStatus:    v1alpha1.TimeoutStatus,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testLogger := zap.New(zap.UseDevMode(true))
-			t.Setenv(apicommon.SlowStartTimeout, "5")
-			status := getSlowStartStatus(testLogger, tt.status, tt.nodesNeedingLabel)
+			status := getSlowStartStatus(tt.status, tt.nodesNeedingLabel)
 			assert.Equal(t, tt.expectedStatus, status)
 		})
 	}
@@ -794,6 +775,131 @@ func Test_validateProfileName(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.expectedError, validateProfileName(test.profileName))
+		})
+	}
+}
+
+func TestGetMaxUnavailable(t *testing.T) {
+	tests := []struct {
+		name                   string
+		dda                    *v2alpha1.DatadogAgent
+		profile                *v1alpha1.DatadogAgentProfile
+		expectedMaxUnavailable int
+	}{
+		{
+			name:                   "empty dda, empty profile",
+			dda:                    &v2alpha1.DatadogAgent{},
+			profile:                &v1alpha1.DatadogAgentProfile{},
+			expectedMaxUnavailable: 1,
+		},
+		{
+			name: "non-empty dda, empty profile, int value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &common.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &common.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{
+										IntVal: 5,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile:                &v1alpha1.DatadogAgentProfile{},
+			expectedMaxUnavailable: 5,
+		},
+		{
+			name: "non-empty dda, empty profile, empty max unavailable",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &common.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &common.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile:                &v1alpha1.DatadogAgentProfile{},
+			expectedMaxUnavailable: 0,
+		},
+		{
+			name: "non-empty dda, empty profile, malformed string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &common.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &common.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "10",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile:                &v1alpha1.DatadogAgentProfile{},
+			expectedMaxUnavailable: 1,
+		},
+		{
+			name: "non-empty dda, non-empty profile, string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &common.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &common.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{
+										IntVal: 5,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								UpdateStrategy: &common.UpdateStrategy{
+									Type: "RollingUpdate",
+									RollingUpdate: &common.RollingUpdate{
+										MaxUnavailable: &intstr.IntOrString{
+											Type:   intstr.String,
+											StrVal: "15%",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedMaxUnavailable: 15,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testLogger := zap.New(zap.UseDevMode(true))
+			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100)
+			assert.Equal(t, tt.expectedMaxUnavailable, actualMaxUnavailable)
 		})
 	}
 }

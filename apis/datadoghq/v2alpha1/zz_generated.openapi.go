@@ -44,33 +44,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
-		"./apis/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
-		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
-		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
-		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
-		"./apis/datadoghq/v2alpha1.DatadogAgentStatus":                schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref),
-		"./apis/datadoghq/v2alpha1.DatadogCredentials":                schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref),
-		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
-		"./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.FIPSConfig":                        schema__apis_datadoghq_v2alpha1_FIPSConfig(ref),
-		"./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig":            schema__apis_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
-		"./apis/datadoghq/v2alpha1.MultiCustomConfig":                 schema__apis_datadoghq_v2alpha1_MultiCustomConfig(ref),
-		"./apis/datadoghq/v2alpha1.NetworkPolicyConfig":               schema__apis_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
-		"./apis/datadoghq/v2alpha1.OTLPFeatureConfig":                 schema__apis_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.OTLPGRPCConfig":                    schema__apis_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
-		"./apis/datadoghq/v2alpha1.OTLPHTTPConfig":                    schema__apis_datadoghq_v2alpha1_OTLPHTTPConfig(ref),
-		"./apis/datadoghq/v2alpha1.OTLPProtocolsConfig":               schema__apis_datadoghq_v2alpha1_OTLPProtocolsConfig(ref),
-		"./apis/datadoghq/v2alpha1.OTLPReceiverConfig":                schema__apis_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
-		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
-		"./apis/datadoghq/v2alpha1.RollingUpdate":                     schema__apis_datadoghq_v2alpha1_RollingUpdate(ref),
-		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
-		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
-		"./apis/datadoghq/v2alpha1.UpdateStrategy":                    schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
 }
 
@@ -1232,33 +1205,6 @@ func schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.Refere
 	}
 }
 
-func schema_datadog_operator_apis_datadoghq_v2alpha1_RollingUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "RollingUpdate describes how to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-					"maxSurge": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
 func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1311,33 +1257,5 @@ func schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.Reference
 				},
 			},
 		},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "The deployment strategy to use to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type can be \"RollingUpdate\" or \"OnDelete\" for DaemonSets and \"RollingUpdate\" or \"Recreate\" for Deployments",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"rollingUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Configure the rolling update strategy of the Deployment or DaemonSet.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.RollingUpdate"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.RollingUpdate"},
 	}
 }

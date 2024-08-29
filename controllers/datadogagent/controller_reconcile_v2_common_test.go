@@ -167,21 +167,6 @@ func Test_shouldCheckSlowStartStatus(t *testing.T) {
 			expected:  false,
 		},
 		{
-			name: "timeout slow start status",
-			profile: &v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-				Status: v1alpha1.DatadogAgentProfileStatus{
-					SlowStart: &v1alpha1.SlowStart{
-						Status: v1alpha1.TimeoutStatus,
-					},
-				},
-			},
-			slowStart: "true",
-			expected:  false,
-		},
-		{
 			name: "in progress slow start status",
 			profile: &v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{

@@ -8,11 +8,8 @@ package datadogagent
 import (
 	"context"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -159,22 +156,22 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 
 	if alreadyExists {
 		now := metav1.NewTime(time.Now())
-		if shouldCheckSlowStartStatus(profile) {
-			newStatus := v1alpha1.WaitingStatus
-			maxUnavailable, e := strconv.Atoi(os.Getenv(common.SlowStartMaxUnavailable))
-			if e != nil {
-				logger.Error(e, "unable to parse DD_DAP_SLOW_START_MAX_UNAVAILABLE value")
+		if agentprofile.SlowStartEnabled() {
+			if profile.Status.SlowStart != nil {
+				profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
 			}
-			if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < maxUnavailable {
-				newStatus = v1alpha1.InProgressStatus
-			}
-			profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
+			if shouldCheckSlowStartStatus(profile) {
+				newStatus := v1alpha1.WaitingStatus
 
-			if profile.Status.SlowStart.Status != newStatus {
-				profile.Status.SlowStart.LastTransition = &now
-			}
-			profile.Status.SlowStart.Status = newStatus
+				if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.SlowStart.MaxUnavailable) {
+					newStatus = v1alpha1.InProgressStatus
+				}
 
+				if profile.Status.SlowStart.Status != newStatus {
+					profile.Status.SlowStart.LastTransition = &now
+				}
+				profile.Status.SlowStart.Status = newStatus
+			}
 			r.updateDAPStatus(logger, profile)
 		}
 
@@ -395,10 +392,6 @@ func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.Labe
 }
 
 func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
-	if os.Getenv(common.SlowStartEnabled) != "true" {
-		return false
-	}
-
 	if profile == nil {
 		return false
 	}
@@ -412,10 +405,6 @@ func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 	}
 
 	if profile.Status.SlowStart.Status == v1alpha1.CompletedStatus {
-		return false
-	}
-
-	if profile.Status.SlowStart.Status == v1alpha1.TimeoutStatus {
 		return false
 	}
 

@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
-	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -26,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -40,7 +39,7 @@ const (
 // ProfileToApply validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
 func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time) (map[string]types.NamespacedName, error) {
+	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
 	nodesThatMatchProfile := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
@@ -105,23 +104,23 @@ func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, n
 		}
 	}
 
-	useSlowStart := os.Getenv(apicommon.SlowStartEnabled) == "true"
 	numNodesToLabel := 0
-	if useSlowStart {
+	if SlowStartEnabled() {
 		profileStatus.SlowStart = &v1alpha1.SlowStart{}
 		if profile.Status.SlowStart != nil {
 			profileStatus.SlowStart.PodsReady = profile.Status.SlowStart.PodsReady
 			profileStatus.SlowStart.LastTransition = profile.Status.SlowStart.LastTransition
 		}
-		profileStatus.SlowStart.Status = getSlowStartStatus(logger, profile.Status.SlowStart, nodesNeedingLabel)
+		profileStatus.SlowStart.Status = getSlowStartStatus(profile.Status.SlowStart, nodesNeedingLabel)
+		profileStatus.SlowStart.MaxUnavailable = int32(maxUnavailable)
 
 		if canLabel(logger, profileStatus.SlowStart) {
-			numNodesToLabel = getNumNodesToLabel(logger, profile.Status.SlowStart)
+			numNodesToLabel = getNumNodesToLabel(profile.Status.SlowStart, maxUnavailable)
 		}
 	}
 
 	for node, hasCorrectProfileLabel := range nodesThatMatchProfile {
-		if useSlowStart {
+		if SlowStartEnabled() {
 			if hasCorrectProfileLabel {
 				profileStatus.SlowStart.NodesLabeled++
 			} else {
@@ -177,7 +176,7 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.Datadog
 
 	if !IsDefaultProfile(profile.Namespace, profile.Name) && profile.Spec.Config != nil {
 		// We only support overrides for the node agent
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
 			profileComponentOverride.Containers = containersOverride(nodeAgentOverride)
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
@@ -296,7 +295,7 @@ func podAntiAffinityOverride() *v1.PodAntiAffinity {
 	}
 }
 
-func containersOverride(nodeAgentOverride *datadoghqv1alpha1.Override) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
+func containersOverride(nodeAgentOverride *v1alpha1.Override) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
 	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
@@ -427,37 +426,21 @@ func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
 		return true
 	case v1alpha1.WaitingStatus:
 		return false
-	case v1alpha1.TimeoutStatus:
-		return false
 	default:
 		logger.Error(fmt.Errorf("received unexpected slow start status condition"), string(slowStart.Status))
 		return false
 	}
 }
 
-func getNumNodesToLabel(logger logr.Logger, slowStartStatus *v1alpha1.SlowStart) int {
+func getNumNodesToLabel(slowStartStatus *v1alpha1.SlowStart, maxUnavailable int) int {
 	if slowStartStatus == nil {
 		return 0
-	}
-
-	maxUnavailable, err := strconv.Atoi(os.Getenv(apicommon.SlowStartMaxUnavailable))
-	if err != nil {
-		logger.Error(err, "unable to parse DD_DAP_SLOW_START_MAX_UNAVAILABLE value")
 	}
 
 	return maxUnavailable - (int(slowStartStatus.NodesLabeled - slowStartStatus.PodsReady))
 }
 
-func getSlowStartDuration(logger logr.Logger) time.Duration {
-	duration, err := strconv.Atoi(os.Getenv(apicommon.SlowStartTimeout))
-	if err != nil {
-		logger.Error(err, "unable to parse DD_DAP_SLOW_START_TIMEOUT value")
-	}
-
-	return time.Duration(duration) * time.Second
-}
-
-func getSlowStartStatus(logger logr.Logger, status *v1alpha1.SlowStart, nodesNeedingLabel int) v1alpha1.SlowStartStatus {
+func getSlowStartStatus(status *v1alpha1.SlowStart, nodesNeedingLabel int) v1alpha1.SlowStartStatus {
 	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
 	if status == nil {
 		return v1alpha1.WaitingStatus
@@ -468,10 +451,47 @@ func getSlowStartStatus(logger logr.Logger, status *v1alpha1.SlowStart, nodesNee
 		return v1alpha1.CompletedStatus
 	}
 
-	// timeout after waiting a specified duration
-	if status.Status == v1alpha1.WaitingStatus && time.Since(status.LastTransition.Time) > getSlowStartDuration(logger) {
-		return v1alpha1.TimeoutStatus
+	return status.Status
+}
+
+// SlowStartEnabled returns true if the slow start enabled env var is set to true
+func SlowStartEnabled() bool {
+	return os.Getenv(apicommon.SlowStartEnabled) == "true"
+}
+
+// GetMaxUnavailable gets the maxUnavailable value as in int.
+// Priority is DAP > DDA > Kubernetes default value
+func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *v1alpha1.DatadogAgentProfile, numNodes int) int {
+	// Kubernetes default for DaemonSet MaxUnavailable is 1
+	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
+	defaultMaxUnavailable := 1
+
+	// maxUnavailable from profile
+	if profile.Spec.Config != nil {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
+			if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
+				numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
+				if err != nil {
+					logger.Error(err, "unable to get max unavailable pods from DatadogAgentProfile, defaulting to 1")
+					return defaultMaxUnavailable
+				}
+				return numToScale
+			}
+		}
 	}
 
-	return status.Status
+	// maxUnavilable from DDA
+	if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
+			numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
+			if err != nil {
+				logger.Error(err, "unable to get max unavailable pods from DatadogAgent, defaulting to 1")
+				return defaultMaxUnavailable
+			}
+			return numToScale
+		}
+	}
+
+	// k8s default
+	return defaultMaxUnavailable
 }

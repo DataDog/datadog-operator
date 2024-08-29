@@ -183,7 +183,5 @@ const (
 
 // DatadogAgentProfile env var names
 const (
-	SlowStartEnabled        = "DD_DAP_SLOW_START_ENABLED"
-	SlowStartMaxUnavailable = "DD_DAP_SLOW_START_MAX_UNAVAILABLE"
-	SlowStartTimeout        = "DD_DAP_SLOW_START_TIMEOUT"
+	SlowStartEnabled = "DD_DAP_SLOW_START_ENABLED"
 )

@@ -1271,7 +1271,7 @@ func schema__apis_datadoghq_v1alpha1_SlowStart(ref common.ReferenceCallback) com
 					},
 					"nodesLabeled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NodesLabeled shows the number of nodes currently labeled for a DatadogAgentProfile.",
+							Description: "NodesLabeled shows the number of nodes currently labeled.",
 							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
@@ -1279,7 +1279,15 @@ func schema__apis_datadoghq_v1alpha1_SlowStart(ref common.ReferenceCallback) com
 					},
 					"podsReady": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PodsReady shows the number of pods in the ready state for a DatadogAgentProfile.",
+							Description: "PodsReady shows the number of pods in the ready state.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxUnavailable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxUnavailable shows the number of pods that can be in an unready state.",
 							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",

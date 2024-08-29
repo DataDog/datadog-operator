@@ -22,7 +22,6 @@ const (
 	CompletedStatus  SlowStartStatus = "Completed"
 	WaitingStatus    SlowStartStatus = "Waiting"
 	InProgressStatus SlowStartStatus = "In Progress"
-	TimeoutStatus    SlowStartStatus = "Timeout"
 )
 
 // DatadogAgentProfileSpec defines the desired state of DatadogAgentProfile
@@ -117,13 +116,17 @@ type SlowStart struct {
 	// +optional
 	Status SlowStartStatus `json:"status,omitempty"`
 
-	// NodesLabeled shows the number of nodes currently labeled for a DatadogAgentProfile.
+	// NodesLabeled shows the number of nodes currently labeled.
 	// +optional
 	NodesLabeled int32 `json:"nodesLabeled"`
 
-	// PodsReady shows the number of pods in the ready state for a DatadogAgentProfile.
+	// PodsReady shows the number of pods in the ready state.
 	// +optional
 	PodsReady int32 `json:"podsReady"`
+
+	// MaxUnavailable shows the number of pods that can be in an unready state.
+	// +optional
+	MaxUnavailable int32 `json:"maxUnavailable"`
 
 	// LastTransition is the last time the status was updated.
 	// +optional
