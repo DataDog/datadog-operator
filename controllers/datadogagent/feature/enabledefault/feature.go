@@ -13,10 +13,9 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
-	componentccr "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -276,7 +275,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 	}
 
 	// ClusterRole creation
-	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), agent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), componentagent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -285,9 +284,9 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 	for _, containerName := range requiredComponent.Containers {
 		if containerName == commonv1.SystemProbeContainerName {
 			errs = append(errs, managers.ConfigMapManager().AddConfigMap(
-				component.GetDefaultSeccompConfigMapName(f.owner),
+				common.GetDefaultSeccompConfigMapName(f.owner),
 				f.owner.GetNamespace(),
-				agent.DefaultSeccompConfigDataForSystemProbe(),
+				DefaultSeccompConfigDataForSystemProbe(),
 			))
 		}
 	}
@@ -305,12 +304,12 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		}
 
 		// Role Creation
-		if err := managers.RBACManager().AddPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, getDefaultClusterAgentRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 
 		// ClusterRole creation
-		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, getDefaultClusterAgentClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -333,7 +332,7 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 		}
 
 		// ClusterRole creation
-		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentccr.GetCCRRbacResourcesName(f.owner), f.clusterChecksRunner.serviceAccountName, componentccr.GetDefaultClusterChecksRunnerClusterRolePolicyRules(f.owner, f.disableNonResourceRules), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), getCCRRbacResourcesName(f.owner), f.clusterChecksRunner.serviceAccountName, getDefaultClusterChecksRunnerClusterRolePolicyRules(f.owner, f.disableNonResourceRules), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -388,17 +387,17 @@ func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateM
 
 func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
 	if f.dcaTokenInfo.token.SecretName != "" {
-		tokenEnvVar := component.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, component.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
+		tokenEnvVar := common.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
 		managers.EnvVar().AddEnvVar(tokenEnvVar)
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAPIKey, component.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAppKey, component.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 }
@@ -406,7 +405,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      component.GetInstallInfoConfigMapName(dda),
+			Name:      common.GetInstallInfoConfigMapName(dda),
 			Namespace: dda.GetNamespace(),
 		},
 		Data: map[string]string{
@@ -418,7 +417,7 @@ func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
 }
 
 func getInstallInfoValue() string {
-	toolVersion := "datadog-operator"
+	toolVersion := "unknown"
 	if envVar := os.Getenv(apicommon.InstallInfoToolVersion); envVar != "" {
 		toolVersion = envVar
 	}
