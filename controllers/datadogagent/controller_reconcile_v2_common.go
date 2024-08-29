@@ -404,9 +404,5 @@ func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 		return false
 	}
 
-	if profile.Status.SlowStart.Status == v1alpha1.CompletedStatus {
-		return false
-	}
-
-	return true
+	return profile.Status.SlowStart.Status != v1alpha1.CompletedStatus
 }

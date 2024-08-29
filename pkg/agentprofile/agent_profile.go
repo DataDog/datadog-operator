@@ -36,11 +36,14 @@ const (
 	labelValueMaxLength = 63
 )
 
-// ProfileToApply validates a profile spec and returns a map that maps each
+// ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
+// When slow start is enabled, the profile is mapped to:
+// - existing nodes with the correct label
+// - nodes that need a new or corrected label up to maxUnavailable # of nodes
+func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
 	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
-	nodesThatMatchProfile := map[string]bool{}
+	matchingNodes := map[string]bool{}
 	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
 	if hash, err := comparison.GenerateMD5ForSpec(profile.Spec); err != nil {
@@ -66,7 +69,7 @@ func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, n
 		return profileAppliedByNode, err
 	}
 
-	nodesNeedingLabel := 0
+	toLabelNodeCount := 0
 
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
@@ -93,10 +96,10 @@ func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, n
 			} else {
 				profileLabelValue, labelExists := node.Labels[ProfileLabelKey]
 				if labelExists && profileLabelValue == profile.Name {
-					nodesThatMatchProfile[node.Name] = true
+					matchingNodes[node.Name] = true
 				} else {
-					nodesThatMatchProfile[node.Name] = false
-					nodesNeedingLabel++
+					matchingNodes[node.Name] = false
+					toLabelNodeCount++
 				}
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
 				profileStatus.Applied = metav1.ConditionTrue
@@ -111,7 +114,7 @@ func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, n
 			profileStatus.SlowStart.PodsReady = profile.Status.SlowStart.PodsReady
 			profileStatus.SlowStart.LastTransition = profile.Status.SlowStart.LastTransition
 		}
-		profileStatus.SlowStart.Status = getSlowStartStatus(profile.Status.SlowStart, nodesNeedingLabel)
+		profileStatus.SlowStart.Status = getSlowStartStatus(profile.Status.SlowStart, toLabelNodeCount)
 		profileStatus.SlowStart.MaxUnavailable = int32(maxUnavailable)
 
 		if canLabel(logger, profileStatus.SlowStart) {
@@ -119,7 +122,7 @@ func ProfileToApply(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, n
 		}
 	}
 
-	for node, hasCorrectProfileLabel := range nodesThatMatchProfile {
+	for node, hasCorrectProfileLabel := range matchingNodes {
 		if SlowStartEnabled() {
 			if hasCorrectProfileLabel {
 				profileStatus.SlowStart.NodesLabeled++
@@ -440,14 +443,14 @@ func getNumNodesToLabel(slowStartStatus *v1alpha1.SlowStart, maxUnavailable int)
 	return maxUnavailable - (int(slowStartStatus.NodesLabeled - slowStartStatus.PodsReady))
 }
 
-func getSlowStartStatus(status *v1alpha1.SlowStart, nodesNeedingLabel int) v1alpha1.SlowStartStatus {
+func getSlowStartStatus(status *v1alpha1.SlowStart, toLabelNodeCount int) v1alpha1.SlowStartStatus {
 	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
 	if status == nil {
 		return v1alpha1.WaitingStatus
 	}
 
 	// all necessary nodes have been labeled
-	if nodesNeedingLabel == 0 {
+	if toLabelNodeCount == 0 {
 		return v1alpha1.CompletedStatus
 	}
 
