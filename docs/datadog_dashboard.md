@@ -7,7 +7,7 @@ The Datadog Dashboards CRD allows users to create dashboards using the operator 
 All configurable Dashboard fields are available in the CRD: `Description`, `LayoutType`, `NotifyList`, `ReflowType`, `Tags`, `TemplateVariables`, `TemplateVariablePresets`, `Title`, and `Widgets`. For more information, see the [Dashboard](https://docs.datadoghq.com/dashboards/) documentation.
 
 There are two main ways to define the Spec of a Datadog Dashboard. The first way is by specifying each field in a yaml file like so:
-```
+```yaml
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogDashboard
 metadata:
