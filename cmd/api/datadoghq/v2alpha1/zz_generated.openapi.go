@@ -42,10 +42,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./api/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
-		"./api/datadoghq/v2alpha1.RollingUpdate":                     schema__api_datadoghq_v2alpha1_RollingUpdate(ref),
 		"./api/datadoghq/v2alpha1.SeccompConfig":                     schema__api_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./api/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
-		"./api/datadoghq/v2alpha1.UpdateStrategy":                    schema__api_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
 }
 
@@ -1207,33 +1205,6 @@ func schema__api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.Referen
 	}
 }
 
-func schema__api_datadoghq_v2alpha1_RollingUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "RollingUpdate describes how to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-					"maxSurge": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
 func schema__api_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1286,33 +1257,5 @@ func schema__api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.ReferenceC
 				},
 			},
 		},
-	}
-}
-
-func schema__api_datadoghq_v2alpha1_UpdateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "The deployment strategy to use to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type can be \"RollingUpdate\" or \"OnDelete\" for DaemonSets and \"RollingUpdate\" or \"Recreate\" for Deployments",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"rollingUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Configure the rolling update strategy of the Deployment or DaemonSet.",
-							Ref:         ref("./api/datadoghq/v2alpha1.RollingUpdate"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"./api/datadoghq/v2alpha1.RollingUpdate"},
 	}
 }
