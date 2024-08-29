@@ -8,6 +8,7 @@ package common
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // AgentImageConfig defines the agent container image config.
@@ -125,4 +126,29 @@ type DeploymentStatus struct {
 
 	// DeploymentName corresponds to the name of the Deployment.
 	DeploymentName string `json:"deploymentName,omitempty"`
+}
+
+// The deployment strategy to use to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type UpdateStrategy struct {
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+	// or "Recreate" for Deployments
+	Type string `json:"type,omitempty"`
+	// Configure the rolling update strategy of the Deployment or DaemonSet.
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
+}
+
+// RollingUpdate describes how to replace existing pods with new ones.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type RollingUpdate struct {
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Refer to the Kubernetes API documentation for additional details..
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+
+	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+	// Kubernetes API documentation for additional details.
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
