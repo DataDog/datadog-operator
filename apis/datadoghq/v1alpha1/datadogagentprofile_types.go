@@ -48,6 +48,10 @@ type Override struct {
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
+	// The deployment strategy to use to replace existing pods with new ones.
+	// +optional
+	UpdateStrategy *commonv1.UpdateStrategy `json:"updateStrategy,omitempty"`
+
 	// Labels provide labels that are added to the Datadog Agent pods.
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
