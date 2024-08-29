@@ -17,7 +17,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -103,7 +103,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
-	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 		dsdPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolUDP,
 			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
@@ -118,7 +118,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 			}
 		}
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}

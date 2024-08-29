@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestGetDefaultServiceAccountName(t *testing.T) {
+func Test_getDefaultServiceAccountName(t *testing.T) {
 	dda := v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-datadog-agent",
@@ -21,5 +21,5 @@ func TestGetDefaultServiceAccountName(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, "my-datadog-agent-cluster-checks-runner", GetDefaultServiceAccountName(&dda))
+	assert.Equal(t, "my-datadog-agent-cluster-checks-runner", getDefaultServiceAccountName(&dda))
 }

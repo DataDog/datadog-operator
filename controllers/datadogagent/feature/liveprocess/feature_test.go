@@ -56,7 +56,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
@@ -71,7 +71,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
 				Build(),
@@ -101,7 +101,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
