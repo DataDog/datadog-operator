@@ -8,6 +8,7 @@ package override
 import (
 	"testing"
 
+	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/stretchr/testify/assert"
@@ -144,9 +145,9 @@ func makeDaemonSet(strategyType *string, strategyMaxUnavailable *string, strateg
 
 func makeOverride(strategyType *string, strategyMaxUnavailable *string, strategyMaxSurge *string) v2alpha1.DatadogAgentComponentOverride {
 	override := v2alpha1.DatadogAgentComponentOverride{
-		UpdateStrategy: &v2alpha1.UpdateStrategy{
+		UpdateStrategy: &commonv1.UpdateStrategy{
 			Type: "",
-			RollingUpdate: &v2alpha1.RollingUpdate{
+			RollingUpdate: &commonv1.RollingUpdate{
 				MaxUnavailable: &intstr.IntOrString{},
 				MaxSurge:       &intstr.IntOrString{},
 			},
