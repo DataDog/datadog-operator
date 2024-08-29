@@ -38,7 +38,7 @@ spec:
 ```
 However, because adding widgets is a very big pull, only two widget types (`Timeseries` and `QueryValue`) are supported this way.
 
-The second way is by copying the JSON of a dashboard in app, escaping it and just putting that into the `Data` field. Since this string isn't as easy to configure, there
+The second way is by copying the JSON of a dashboard in app, escaping it, and putting that into the `Data` field. Since this string isn't as easy to configure, there
 are a fields that if specified override the same values in `Data`: `Title` `NotifyList` and `TemplateVariables`. Here is an example:
 ```
 apiVersion: datadoghq.com/v1alpha1
