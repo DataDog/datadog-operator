@@ -1817,6 +1817,28 @@ spec:
                             Default: true
                           type: boolean
                       type: object
+                    kubernetesResourcesAnnotationsAsTags:
+                      additionalProperties:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      description: |-
+                        Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags.
+                        <KUBERNETES_RESOURCE_GROUP>:
+                        		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY>
+                        KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+                      type: object
+                    kubernetesResourcesLabelsAsTags:
+                      additionalProperties:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      description: |-
+                        Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags.
+                        <KUBERNETES_RESOURCE_GROUP>:
+                        		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+                        KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+                      type: object
                     localService:
                       description: LocalService contains configuration to customize the internal traffic policy service.
                       properties:
