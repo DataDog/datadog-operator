@@ -110,15 +110,16 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
-			} else {
-				f.logger.V(2).Info("built ksm core from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
+
+		hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for ksm core custom config")
+		} else {
+			f.logger.V(2).Info("built ksm core from custom config", "hash", hash)
+		}
+		f.customConfigAnnotationValue = hash
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
@@ -148,11 +149,21 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		return err
 	}
 	if configCM != nil {
-		// Add md5 hash annotation for custom config
-		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
-			configCM.SetAnnotations(annotations)
+		// generate md5 hash
+		hash, err := comparison.GenerateMD5ForSpec(configCM.Data)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for ksm core custom config")
+		} else {
+			f.logger.V(2).Info("built ksm core from custom config", "hash", hash)
 		}
+		// store the hash in the feature to be able to add it on the cluster-agent pod template
+		f.customConfigAnnotationValue = hash
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
+
+		// Add md5 hash annotation for custom config
+		annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
+		configCM.SetAnnotations(annotations)
+
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}

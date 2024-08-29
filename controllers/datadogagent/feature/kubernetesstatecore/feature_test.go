@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/controllers/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/google/go-cmp/cmp"
@@ -113,16 +114,17 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 
 			if hasCustomConfig {
-				customConfig := apicommonv1.CustomConfig{
-					ConfigData: apiutils.NewStringPointer(customData),
-				}
-				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
+				cm, err := configmap.BuildConfigMapConfigData("", apiutils.NewStringPointer(customData), "", ksmCoreCheckName)
+				assert.NoError(t, err)
+				hash, err := comparison.GenerateMD5ForSpec(cm.Data)
 				assert.NoError(t, err)
 				wantAnnotations := map[string]string{
 					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
 				}
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+				t.Logf("want annotations: %#v\n", wantAnnotations)
+				t.Logf("get annotations: %#v\n", wantAnnotations)
 			}
 		},
 	)
