@@ -4,7 +4,6 @@ kind: mergequeue
 enable: true
 merge_method: squash
 merge_freeze: false
-gitlab_check_enable: false
 github_teams_restrictions:
   - agent-all
   - container-app
