@@ -28,7 +28,7 @@ func extractGroupAndResource(groupResource string) (group string, resource strin
 		ok = false
 	}
 
-	return
+	return group, resource, ok
 }
 
 func appendGroupResource(groupResourceAccumulator map[string]map[string]struct{}, group string, resource string) map[string]map[string]struct{} {
