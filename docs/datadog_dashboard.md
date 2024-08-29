@@ -1,5 +1,5 @@
 # Datadog Dashboards
-This feature will be introduced in DatadogOperator v1.9.0 and is currently in beta.
+This feature is in beta.
 
 ## Overview
 The Datadog Dashboards CRD allows users to create dashboards using the operator and manage them as Kubernetes resources. 
