@@ -7,8 +7,10 @@ package datadogmonitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -54,6 +57,7 @@ var supportedMonitorTypes = map[string]bool{
 	string(datadogV1.MONITORTYPE_SLO_ALERT):             true,
 	string(datadogV1.MONITORTYPE_EVENT_V2_ALERT):        true,
 	string(datadogV1.MONITORTYPE_AUDIT_ALERT):           true,
+	string(datadogV1.MONITORTYPE_COMPOSITE):             true,
 }
 
 const requiredTag = "generated:kubernetes"
@@ -113,6 +117,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
 		return result, err
+	}
+
+	if instance.Spec.Type == datadoghqv1alpha1.DatadogMonitorTypeComposite {
+		query, err := r.getCompositeQuery(ctx, instance)
+		if err != nil {
+			logger.Error(err, "failed to validate composite query")
+
+			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+		}
+
+		instance.Spec.Query = query
 	}
 
 	// Validate the DatadogMonitor spec
@@ -346,6 +361,47 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 func getRequiredTags() []string {
 	return []string{requiredTag}
+}
+
+func (r *Reconciler) getCompositeQuery(ctx context.Context, datadogMonitor *datadoghqv1alpha1.DatadogMonitor) (string, error) {
+	monitorIdByTerm := make(map[string]string)
+	for _, monitorRef := range datadogMonitor.Spec.CompositeQuery.Monitors {
+		if monitorRef.ControlledRef.Name != "" && monitorRef.UncontrolledRef.Id != "" {
+			return "", errors.New("A monitor reference must either be to one controlled or uncontrolled monitor.")
+		}
+
+		if monitorRef.ControlledRef.Name != "" {
+			instance := &datadoghqv1alpha1.DatadogMonitor{}
+			err := r.client.Get(
+				ctx,
+				types.NamespacedName{
+					Namespace: datadogMonitor.GetObjectMeta().GetNamespace(),
+					Name:      monitorRef.ControlledRef.Name,
+				},
+				instance,
+			)
+			if err != nil {
+				return "", err
+			}
+
+			if instance.Status.ID == 0 {
+				return "", errors.New("Referenced monitor does not have ID yet")
+			}
+
+			monitorIdByTerm[monitorRef.Term] = strconv.Itoa(instance.Status.ID)
+		}
+
+		if monitorRef.UncontrolledRef.Id != "" {
+			monitorIdByTerm[monitorRef.Term] = monitorRef.UncontrolledRef.Id
+		}
+	}
+
+	query := datadogMonitor.Spec.CompositeQuery.Expression
+	for term, id := range monitorIdByTerm {
+		query = strings.ReplaceAll(query, fmt.Sprintf("${%s}", term), id)
+	}
+
+	return query, nil
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor

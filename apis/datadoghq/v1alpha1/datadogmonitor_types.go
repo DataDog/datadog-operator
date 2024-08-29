@@ -20,8 +20,11 @@ type DatadogMonitorSpec struct {
 	Message string `json:"message,omitempty"`
 	// Priority is an integer from 1 (high) to 5 (low) indicating alert severity
 	Priority int64 `json:"priority,omitempty"`
-	// Query is the Datadog monitor query
+	// Query is the Datadog monitor query. Leave unset for composite monitors.
 	Query string `json:"query,omitempty"`
+	// CompositeQuery defines a composite monitor's query terms and expression.
+	// Leave unset for all monitor types except composite.
+	CompositeQuery DatadogMonitorCompositeQuery `json:"compositeQuery,omitempty"`
 	// RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor.
 	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
 	// see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
@@ -37,6 +40,68 @@ type DatadogMonitorSpec struct {
 
 	// ControllerOptions are the optional parameters in the DatadogMonitor controller
 	ControllerOptions DatadogMonitorControllerOptions `json:"controllerOptions,omitempty"`
+}
+
+// DatadogMonitorCompositeQuery defines a composite monitor's query terms and expression.
+// It can reference uncontrolled monitors by ID and controlled monitors by name.
+//
+// Given this definition:
+//
+// expression: "${A} && ${B}"
+// monitors:
+//   - term: A
+//     uncontrolledRef:
+//     id: 150000000
+//   - term: B
+//     controlledRef:
+//     # ID is 150000001
+//     name: existing-controlled-monitor-name
+//
+// The controller will set the composite monitor's query to:
+//
+// "150000000 && 150000001"
+//
+// +k8s:openapi-gen=true
+type DatadogMonitorCompositeQuery struct {
+	// Expression is the templated expression containing monitor term interpolations
+	// (e.g. "${A}") and Boolean operators. The controller renders this template to a
+	// final query using the defined monitor terms and references.
+	Expression string `json:"expression,omitempty"`
+
+	// Monitors is a list of query expression terms (e.g. "A") paired with a reference
+	// to an existing Datadog monitor.
+	// +listType=atomic
+	Monitors []DatadogMonitorCompositeQueryMonitor `json:"monitors,omitempty"`
+}
+
+// DatadogMonitorCompositeQueryMonitor defines a single term in a query expression
+// with a single reference to an existing monitor. The controller replaces the
+// monitor's term in the query expression with its resolved ID.
+// or indirectly by name (controlled).
+// +k8s:openapi-gen=true
+type DatadogMonitorCompositeQueryMonitor struct {
+	// Term is the name of the interpolated term in the query expression (e.g. "A").
+	Term string `json:"term,omitempty"`
+	// UncontrolledRef is a reference to a Datadog monitor managed outside of the controller.
+	UncontrolledRef DatadogMonitorCompositeQueryUncontrolledMonitorRef `json:"uncontrolledRef,omitempty"`
+	// ControlledRef is a reference to a Datadog monitor managed by this controller.
+	ControlledRef DatadogMonitorCompositeQueryControlledMonitorRef `json:"controlledRef,omitempty"`
+}
+
+// UncontrolledRef is a reference to a Datadog monitor managed outside of the controller.
+// +k8s:openapi-gen=true
+type DatadogMonitorCompositeQueryUncontrolledMonitorRef struct {
+	// Id is the ID of the existing uncontrolled monitor.
+	Id string `json:"id,omitempty"`
+}
+
+// ControlledRef is a reference to a Datadog monitor managed by this controller.
+// +k8s:openapi-gen=true
+type DatadogMonitorCompositeQueryControlledMonitorRef struct {
+	// Name is the name of the Datadog monitor resource this controller manages.
+	// The controller retrieves the monitor ID from this named resource and
+	// interpolates it into its corresponding term in the query expression.
+	Name string `json:"name,omitempty"`
 }
 
 // DatadogMonitorType defines the type of monitor
