@@ -38,7 +38,6 @@ spec:
         args:
         - --enable-leader-election
         - --pprof
-        - --agentDataPlaneEnabled
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager

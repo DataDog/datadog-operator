@@ -403,7 +403,10 @@ func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
 
 func envVarsForAgentDataPlane(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
-		// TODO: add additional env vars here
+		{
+			Name:  "DD_API_LISTEN_ADDRESS",
+			Value: "tcp://0.0.0.0:9999",
+		},
 	}
 
 	return append(envs, commonEnvVars(dda)...)
