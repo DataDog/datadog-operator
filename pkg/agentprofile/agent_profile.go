@@ -424,7 +424,7 @@ func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
 
 	switch slowStart.Status {
 	case v1alpha1.CompletedStatus:
-		return false
+		return true
 	case v1alpha1.InProgressStatus:
 		return true
 	case v1alpha1.WaitingStatus:

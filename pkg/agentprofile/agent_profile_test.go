@@ -570,7 +570,7 @@ func Test_canLabel(t *testing.T) {
 			slowStart: &v1alpha1.SlowStart{
 				Status: v1alpha1.CompletedStatus,
 			},
-			expected: false,
+			expected: true,
 		},
 		{
 			name: "in progress slow start status",
