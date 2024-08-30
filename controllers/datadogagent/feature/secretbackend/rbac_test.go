@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package secretsbackend
+package secretbackend
 
 import (
 	"testing"
@@ -16,13 +16,13 @@ import (
 func Test_getSecretsRolesPermissions(t *testing.T) {
 	for _, tt := range []struct {
 		name               string
-		role               secretsBackendRole
+		role               secretBackendRole
 		expectedPolicyRule []rbacv1.PolicyRule
 	}{
 		{
 			// Classic use case : access within a namespace of specific secrets
 			name: "role with namespace and 3 secrets",
-			role: secretsBackendRole{
+			role: secretBackendRole{
 				namespace:   "foo",
 				secretsList: []string{"bar", "baz", "qux"},
 			},

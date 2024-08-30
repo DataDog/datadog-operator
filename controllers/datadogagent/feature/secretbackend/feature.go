@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package secretsbackend
+package secretbackend
 
 import (
 	"strconv"
@@ -21,24 +21,24 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.SecretsBackendIDType, buildSecretsBackendFeature)
+	err := feature.Register(feature.SecretBackendIDType, buildSecretBackendFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildSecretsBackendFeature(options *feature.Options) feature.Feature {
-	secretsBackendFeat := &secretsBackendFeature{}
+func buildSecretBackendFeature(options *feature.Options) feature.Feature {
+	secretBackendFeat := &secretBackendFeature{}
 
-	return secretsBackendFeat
+	return secretBackendFeat
 }
 
-type secretsBackendRole struct {
+type secretBackendRole struct {
 	namespace   string
 	secretsList []string
 }
 
-type secretsBackendFeature struct {
+type secretBackendFeature struct {
 	serviceAccountNameAgent               string
 	serviceAccountNameClusterAgent        string
 	serviceAccountNameClusterChecksRunner string
@@ -46,33 +46,33 @@ type secretsBackendFeature struct {
 	args                                  string
 	timeout                               int32
 	enableGlobalPermissions               bool
-	roles                                 []secretsBackendRole
+	roles                                 []secretBackendRole
 	owner                                 metav1.Object
 }
 
 // ID returns the ID of the Feature
-func (f *secretsBackendFeature) ID() feature.IDType {
-	return feature.SecretsBackendIDType
+func (f *secretBackendFeature) ID() feature.IDType {
+	return feature.SecretBackendIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *secretBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	secretsBackend := dda.Spec.Features.SecretsBackend
+	secretBackend := dda.Spec.Features.SecretBackend
 
-	if secretsBackend != nil {
-		f.command = apiutils.StringValue(secretsBackend.Command)
-		f.args = apiutils.StringValue(secretsBackend.Args)
-		if secretsBackend.Timeout != nil {
-			f.timeout = *secretsBackend.Timeout
+	if secretBackend != nil {
+		f.command = apiutils.StringValue(secretBackend.Command)
+		f.args = apiutils.StringValue(secretBackend.Args)
+		if secretBackend.Timeout != nil {
+			f.timeout = *secretBackend.Timeout
 		}
-		f.enableGlobalPermissions = apiutils.BoolValue(secretsBackend.EnableGlobalPermissions)
+		f.enableGlobalPermissions = apiutils.BoolValue(secretBackend.EnableGlobalPermissions)
 
-		if secretsBackend.Roles != nil {
+		if secretBackend.Roles != nil {
 			// Disable global permissions if roles are specified
 			f.enableGlobalPermissions = false
-			for _, role := range secretsBackend.Roles {
-				f.roles = append(f.roles, secretsBackendRole{
+			for _, role := range secretBackend.Roles {
+				f.roles = append(f.roles, secretBackendRole{
 					namespace:   apiutils.StringValue(role.Namespace),
 					secretsList: role.Secrets,
 				})
@@ -110,17 +110,17 @@ func (f *secretsBackendFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *secretBackendFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 
 	if f.enableGlobalPermissions {
-		rbacName := getGlobalPermSecretsBackendRBACResourceName(f.owner)
+		rbacName := getGlobalPermSecretBackendRBACResourceName(f.owner)
 		roleRef := rbacv1.RoleRef{
 			APIGroup: rbac.RbacAPIGroup,
 			Kind:     rbac.ClusterRoleKind,
 			Name:     rbacName,
 		}
 		// Adding RBAC to node Agents
-		if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameAgent, secretsBackendGlobalRBACPolicyRules); err != nil {
+		if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountNameAgent, secretBackendGlobalRBACPolicyRules); err != nil {
 			return err
 		}
 
@@ -170,7 +170,7 @@ func (f *secretsBackendFeature) ManageDependencies(managers feature.ResourceMana
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *secretsBackendFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *secretBackendFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 
 	if f.command != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
@@ -199,13 +199,13 @@ func (f *secretsBackendFeature) ManageClusterAgent(managers feature.PodTemplateM
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *secretsBackendFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *secretBackendFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *secretsBackendFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *secretBackendFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 
 	if f.command != "" {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -233,7 +233,7 @@ func (f *secretsBackendFeature) ManageNodeAgent(managers feature.PodTemplateMana
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *secretsBackendFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *secretBackendFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.command != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDSecretBackendCommand,

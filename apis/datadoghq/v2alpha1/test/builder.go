@@ -717,45 +717,45 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 	return builder
 }
 
-// Secrets Backend
+// SecretBackend
 
-func (builder *DatadogAgentBuilder) initSecretsBackendFeature() {
-	if builder.datadogAgent.Spec.Features.SecretsBackend == nil {
-		builder.datadogAgent.Spec.Features.SecretsBackend = &v2alpha1.SecretsBackendFeatureConfig{}
+func (builder *DatadogAgentBuilder) initSecretBackendFeature() {
+	if builder.datadogAgent.Spec.Features.SecretBackend == nil {
+		builder.datadogAgent.Spec.Features.SecretBackend = &v2alpha1.SecretBackendFeatureConfig{}
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithSecretsBackendCommand(command string) *DatadogAgentBuilder {
-	builder.initSecretsBackendFeature()
-	builder.datadogAgent.Spec.Features.SecretsBackend.Command = apiutils.NewStringPointer(command)
+func (builder *DatadogAgentBuilder) WithSecretBackendCommand(command string) *DatadogAgentBuilder {
+	builder.initSecretBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretBackend.Command = apiutils.NewStringPointer(command)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSecretsBackendArgs(args string) *DatadogAgentBuilder {
-	builder.initSecretsBackendFeature()
-	builder.datadogAgent.Spec.Features.SecretsBackend.Args = apiutils.NewStringPointer(args)
+func (builder *DatadogAgentBuilder) WithSecretBackendArgs(args string) *DatadogAgentBuilder {
+	builder.initSecretBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretBackend.Args = apiutils.NewStringPointer(args)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSecretsBackendTimeout(timeout int32) *DatadogAgentBuilder {
-	builder.initSecretsBackendFeature()
-	builder.datadogAgent.Spec.Features.SecretsBackend.Timeout = apiutils.NewInt32Pointer(timeout)
+func (builder *DatadogAgentBuilder) WithSecretBackendTimeout(timeout int32) *DatadogAgentBuilder {
+	builder.initSecretBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretBackend.Timeout = apiutils.NewInt32Pointer(timeout)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSecretsBackendEnabledGlobalPermissions(enabled bool) *DatadogAgentBuilder {
-	builder.initSecretsBackendFeature()
-	builder.datadogAgent.Spec.Features.SecretsBackend.EnableGlobalPermissions = apiutils.NewBoolPointer(enabled)
+func (builder *DatadogAgentBuilder) WithSecretBackendEnabledGlobalPermissions(enabled bool) *DatadogAgentBuilder {
+	builder.initSecretBackendFeature()
+	builder.datadogAgent.Spec.Features.SecretBackend.EnableGlobalPermissions = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSecretsBackendRoles(roles []v2alpha1.SecretsBackendRolesConfig) *DatadogAgentBuilder {
-	builder.initSecretsBackendFeature()
-	var r []*v2alpha1.SecretsBackendRolesConfig
+func (builder *DatadogAgentBuilder) WithSecretBackendRoles(roles []v2alpha1.SecretBackendRolesConfig) *DatadogAgentBuilder {
+	builder.initSecretBackendFeature()
+	var r []*v2alpha1.SecretBackendRolesConfig
 	for i := range roles {
 		r = append(r, &roles[i])
 	}
-	builder.datadogAgent.Spec.Features.SecretsBackend.Roles = r
+	builder.datadogAgent.Spec.Features.SecretBackend.Roles = r
 	return builder
 }
 

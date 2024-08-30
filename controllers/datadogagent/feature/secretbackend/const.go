@@ -3,9 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package secretsbackend
+package secretbackend
 
 const (
-	secretsBackendRBACSuffix string = "secrets-backend"
-	secretsReader            string = "secret-reader"
+	secretBackendRBACSuffix string = "secret-backend"
+	secretsReader           string = "secret-reader"
 )

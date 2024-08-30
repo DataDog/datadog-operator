@@ -100,8 +100,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
-	// SecretsBackend configuration.
-	SecretsBackend *SecretsBackendFeatureConfig `json:"secretsBackend,omitempty"`
+	// SecretBackend configuration.
+	SecretBackend *SecretBackendFeatureConfig `json:"secretBackend,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -1101,9 +1101,9 @@ type DatadogCredentials struct {
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
 }
 
-// SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature
+// SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
 // +k8s:openapi-gen=true
-type SecretsBackendRolesConfig struct {
+type SecretBackendRolesConfig struct {
 	// Namespace defines the namespace in which the secrets reside.
 	// +required
 	Namespace *string `json:"namespace,omitempty"`
@@ -1114,9 +1114,9 @@ type SecretsBackendRolesConfig struct {
 	Secrets []string `json:"secrets,omitempty"`
 }
 
-// SecretsBackendFeatureConfig provides configuration for the secret backend.
+// SecretBackendFeatureConfig provides configuration for the secret backend.
 // +k8s:openapi-gen=true
-type SecretsBackendFeatureConfig struct {
+type SecretBackendFeatureConfig struct {
 	// The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
 	// Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.
 	Command *string `json:"command,omitempty"`
@@ -1141,7 +1141,7 @@ type SecretsBackendFeatureConfig struct {
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.
 	// +optional
 	// +listType=atomic
-	Roles []*SecretsBackendRolesConfig `json:"roles,omitempty"`
+	Roles []*SecretBackendRolesConfig `json:"roles,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.

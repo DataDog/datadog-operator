@@ -44,8 +44,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
 		"./apis/datadoghq/v2alpha1.RollingUpdate":                     schema__apis_datadoghq_v2alpha1_RollingUpdate(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
-		"./apis/datadoghq/v2alpha1.SecretsBackendFeatureConfig":       schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig":         schema__apis_datadoghq_v2alpha1_SecretsBackendRolesConfig(ref),
+		"./apis/datadoghq/v2alpha1.SecretBackendFeatureConfig":        schema__apis_datadoghq_v2alpha1_SecretBackendFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.SecretBackendRolesConfig":          schema__apis_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 		"./apis/datadoghq/v2alpha1.UpdateStrategy":                    schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
@@ -587,17 +587,17 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig"),
 						},
 					},
-					"secretsBackend": {
+					"secretBackend": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretsBackend configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.SecretsBackendFeatureConfig"),
+							Description: "SecretBackend configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.SecretBackendFeatureConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.ASMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.AutoscalingFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.SecretsBackendFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.ASMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.AutoscalingFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.SecretBackendFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -1270,11 +1270,11 @@ func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback)
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__apis_datadoghq_v2alpha1_SecretBackendFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SecretsBackendFeatureConfig provides configuration for the secret backend.",
+				Description: "SecretBackendFeatureConfig provides configuration for the secret backend.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"command": {
@@ -1317,7 +1317,7 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig"),
+										Ref: ref("./apis/datadoghq/v2alpha1.SecretBackendRolesConfig"),
 									},
 								},
 							},
@@ -1327,15 +1327,15 @@ func schema__apis_datadoghq_v2alpha1_SecretsBackendFeatureConfig(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.SecretsBackendRolesConfig"},
+			"./apis/datadoghq/v2alpha1.SecretBackendRolesConfig"},
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_SecretsBackendRolesConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__apis_datadoghq_v2alpha1_SecretBackendRolesConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature",
+				Description: "SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"namespace": {

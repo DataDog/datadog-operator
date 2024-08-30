@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package secretsbackend
+package secretbackend
 
 import (
 	"fmt"
@@ -36,7 +36,7 @@ const (
 	ddaNamespace        = "bar"
 )
 
-var roles = []v2alpha1.SecretsBackendRolesConfig{
+var roles = []v2alpha1.SecretBackendRolesConfig{
 	{
 		Namespace: apiutils.NewStringPointer("foo"),
 		Secrets:   []string{"bar", "baz", "qux"},
@@ -47,28 +47,28 @@ var roles = []v2alpha1.SecretsBackendRolesConfig{
 	},
 }
 
-var expectedSecretsBackendCommandEnv = []*corev1.EnvVar{
+var expectedSecretBackendCommandEnv = []*corev1.EnvVar{
 	{
 		Name:  apicommon.DDSecretBackendCommand,
 		Value: command,
 	},
 }
 
-var expectedSecretsBackendArgsEnv = []*corev1.EnvVar{
+var expectedSecretBackendArgsEnv = []*corev1.EnvVar{
 	{
 		Name:  apicommon.DDSecretBackendArguments,
 		Value: args,
 	},
 }
 
-var expectedSecretsBackendTimeoutEnv = []*corev1.EnvVar{
+var expectedSecretBackendTimeoutEnv = []*corev1.EnvVar{
 	{
 		Name:  apicommon.DDSecretBackendTimeout,
 		Value: strconv.FormatInt(int64(timeout), 10),
 	},
 }
 
-var expectedSecretsBackendEnvs = []*corev1.EnvVar{
+var expectedSecretBackendEnvs = []*corev1.EnvVar{
 	{
 		Name:  apicommon.DDSecretBackendCommand,
 		Value: command,
@@ -96,64 +96,64 @@ var expectedSubjects = []rbacv1.Subject{
 	},
 }
 
-func Test_secretsBackendFeature_Configure(t *testing.T) {
+func Test_secretBackendFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		// Individual env var testing
 		{
-			Name: "v2alpha1 secrets backend command only - node Agent",
+			Name: "v2alpha1 secret backend command only - node Agent",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithSecretsBackendCommand(command).
+				WithSecretBackendCommand(command).
 				Build(),
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretsBackendNodeAgentCommandWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretBackendNodeAgentCommandWantFunc),
 		},
 		{
-			Name: "v2alpha1 secrets backend empty command - node Agent",
+			Name: "v2alpha1 secret backend empty command - node Agent",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithSecretsBackendCommand("").
+				WithSecretBackendCommand("").
 				Build(),
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretsBackendNodeAgentEmptyCommandWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretBackendNodeAgentEmptyCommandWantFunc),
 		},
 		{
-			Name: "v2alpha1 secrets backend args only - node Agent",
+			Name: "v2alpha1 secret backend args only - node Agent",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithSecretsBackendArgs(args).
+				WithSecretBackendArgs(args).
 				Build(),
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretsBackendNodeAgentArgsWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretBackendNodeAgentArgsWantFunc),
 		},
 		{
-			Name: "v2alpha1 secrets backend timeout only - node Agent",
+			Name: "v2alpha1 secret backend timeout only - node Agent",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithSecretsBackendTimeout(timeout).
+				WithSecretBackendTimeout(timeout).
 				Build(),
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretsBackendNodeAgentTimeoutWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(secretBackendNodeAgentTimeoutWantFunc),
 		},
 		// All env vars and all components
 		{
-			Name: "v2alpha1 secrets backend command & args & timeout - node Agent & DCA & CCR",
+			Name: "v2alpha1 secret backend command & args & timeout - node Agent & DCA & CCR",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithSecretsBackendCommand(command).
-				WithSecretsBackendArgs(args).
-				WithSecretsBackendTimeout(timeout).
+				WithSecretBackendCommand(command).
+				WithSecretBackendArgs(args).
+				WithSecretBackendTimeout(timeout).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
 			WantConfigure:       true,
-			Agent:               test.NewDefaultComponentTest().WithWantFunc(secretsBackendNodeAgentCommandArgsTimeoutWantFunc),
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(secretsBackendDCACommandArgsTimeoutWantFunc),
-			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(secretsBackendCCRCommandArgsTimeoutWantFunc),
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(secretBackendNodeAgentCommandArgsTimeoutWantFunc),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(secretBackendDCACommandArgsTimeoutWantFunc),
+			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(secretBackendCCRCommandArgsTimeoutWantFunc),
 		},
 		// Global RBAC permissions
 		{
-			Name: "v2alpha1 secrets backend enabled global permissions",
+			Name: "v2alpha1 secret backend enabled global permissions",
 			DDA: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().
-					WithSecretsBackendEnabledGlobalPermissions(true).
+					WithSecretBackendEnabledGlobalPermissions(true).
 					Build()),
 			WantConfigure:        true,
 			WantDependenciesFunc: testGlobalPermissionsRBACResources,
@@ -165,7 +165,7 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().
-					WithSecretsBackendRoles(roles).
+					WithSecretBackendRoles(roles).
 					Build()),
 			WantConfigure:        true,
 			WantDependenciesFunc: testRolesPermissionsRBACResources,
@@ -177,57 +177,57 @@ func Test_secretsBackendFeature_Configure(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				v2alpha1test.NewDatadogAgentBuilder().
-					WithSecretsBackendEnabledGlobalPermissions(true).
-					WithSecretsBackendRoles(roles).
+					WithSecretBackendEnabledGlobalPermissions(true).
+					WithSecretBackendRoles(roles).
 					Build()),
 			WantConfigure:        true,
 			WantDependenciesFunc: testEnabledGlobalAndRolesPermissionsRBACResources,
 		},
 	}
 
-	tests.Run(t, buildSecretsBackendFeature)
+	tests.Run(t, buildSecretBackendFeature)
 }
 
-func secretsBackendNodeAgentCommandWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendNodeAgentCommandWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendCommandEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendCommandEnv))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendCommandEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendCommandEnv))
 }
 
-func secretsBackendNodeAgentEmptyCommandWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendNodeAgentEmptyCommandWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
 	assert.Nil(t, agentEnvVars, "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, nil))
 }
 
-func secretsBackendNodeAgentArgsWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendNodeAgentArgsWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendArgsEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendArgsEnv))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendArgsEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendArgsEnv))
 }
 
-func secretsBackendNodeAgentTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendNodeAgentTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendTimeoutEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendTimeoutEnv))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendTimeoutEnv), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendTimeoutEnv))
 }
 
-func secretsBackendNodeAgentCommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendNodeAgentCommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendEnvs), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendEnvs))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendEnvs), "Node Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendEnvs))
 }
 
-func secretsBackendDCACommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendDCACommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendEnvs), "DCA envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendEnvs))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendEnvs), "DCA envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendEnvs))
 }
 
-func secretsBackendCCRCommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+func secretBackendCCRCommandArgsTimeoutWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterChecksRunnersContainerName]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretsBackendEnvs), "CCR envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretsBackendEnvs))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedSecretBackendEnvs), "CCR envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedSecretBackendEnvs))
 }
 
 func addNameNamespaceToDDA(name string, namespace string, dda *v2alpha1.DatadogAgent) *v2alpha1.DatadogAgent {
@@ -237,7 +237,7 @@ func addNameNamespaceToDDA(name string, namespace string, dda *v2alpha1.DatadogA
 }
 
 func testGlobalPermissionsRBACResources(t testing.TB, store dependencies.StoreClient) {
-	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretsBackendRBACSuffix)
+	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretBackendRBACSuffix)
 	crObj, found := store.Get(kubernetes.ClusterRolesKind, "", rbacName)
 
 	// Validate ClusterRole policy rules
@@ -247,8 +247,8 @@ func testGlobalPermissionsRBACResources(t testing.TB, store dependencies.StoreCl
 		cr := crObj.(*rbacv1.ClusterRole)
 		assert.True(
 			t,
-			apiutils.IsEqualStruct(cr.Rules, secretsBackendGlobalRBACPolicyRules),
-			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, secretsBackendGlobalRBACPolicyRules),
+			apiutils.IsEqualStruct(cr.Rules, secretBackendGlobalRBACPolicyRules),
+			"ClusterRole Policy Rules \ndiff = %s", cmp.Diff(cr.Rules, secretBackendGlobalRBACPolicyRules),
 		)
 	}
 
@@ -332,7 +332,7 @@ func testRolesPermissionsRBACResources(t testing.TB, store dependencies.StoreCli
 
 func testEnabledGlobalAndRolesPermissionsRBACResources(t testing.TB, store dependencies.StoreClient) {
 	// Assert ClusterRole is not created (if defined, roles take precedence over enabled global permissions)
-	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretsBackendRBACSuffix)
+	rbacName := fmt.Sprintf("%s-%s-%s", ddaNamespace, ddaName, secretBackendRBACSuffix)
 	crObj, _ := store.Get(kubernetes.ClusterRolesKind, "", rbacName)
 	assert.Nil(
 		t,

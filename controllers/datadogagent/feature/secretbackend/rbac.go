@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package secretsbackend
+package secretbackend
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var secretsBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
+var secretBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{rbac.CoreAPIGroup},
 		Resources: []string{rbac.SecretsResource},
@@ -21,9 +21,9 @@ var secretsBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
 	},
 }
 
-// getGlobalPermSecretsBackendRBACResourceName return the RBAC resources name associated to the ClusterRole/ClusterRoleBinding to read secrets
-func getGlobalPermSecretsBackendRBACResourceName(owner metav1.Object) string {
-	return fmt.Sprintf("%s-%s-%s", owner.GetNamespace(), owner.GetName(), secretsBackendRBACSuffix)
+// getGlobalPermSecretBackendRBACResourceName return the RBAC resources name associated to the ClusterRole/ClusterRoleBinding to read secrets
+func getGlobalPermSecretBackendRBACResourceName(owner metav1.Object) string {
+	return fmt.Sprintf("%s-%s-%s", owner.GetNamespace(), owner.GetName(), secretBackendRBACSuffix)
 }
 
 // getNamespaceSecretReaderRBACResourceName return the RBAC resources name to the Role/RoleBinding to read secrets from a namespace
@@ -32,7 +32,7 @@ func getNamespaceSecretReaderRBACResourceName(owner metav1.Object, namespace str
 }
 
 // getSecretsRolesPermissions returns policy rules to allow Datadog agents to get defined secrets
-func getSecretsRolesPermissions(role secretsBackendRole) []rbacv1.PolicyRule {
+func getSecretsRolesPermissions(role secretBackendRole) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{rbac.CoreAPIGroup},

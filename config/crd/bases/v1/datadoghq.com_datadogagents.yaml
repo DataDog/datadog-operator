@@ -1384,8 +1384,8 @@ spec:
                               type: boolean
                           type: object
                       type: object
-                    secretsBackend:
-                      description: SecretsBackend configuration.
+                    secretBackend:
+                      description: SecretBackend configuration.
                       properties:
                         args:
                           description: List of arguments to pass to the command (space-separated strings).
@@ -1407,7 +1407,7 @@ spec:
                             Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.
                             See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.
                           items:
-                            description: SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature
+                            description: SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
                             properties:
                               namespace:
                                 description: Namespace defines the namespace in which the secrets reside.
@@ -7281,8 +7281,8 @@ spec:
                                   type: boolean
                               type: object
                           type: object
-                        secretsBackend:
-                          description: SecretsBackend configuration.
+                        secretBackend:
+                          description: SecretBackend configuration.
                           properties:
                             args:
                               description: List of arguments to pass to the command (space-separated strings).
@@ -7304,7 +7304,7 @@ spec:
                                 Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.
                                 See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.
                               items:
-                                description: SecretsBackendRolesConfig provides configuration of the secrets Datadog agents can read for the Secrets Backend feature
+                                description: SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
                                 properties:
                                   namespace:
                                     description: Namespace defines the namespace in which the secrets reside.

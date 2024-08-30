@@ -68,5 +68,5 @@ const (
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 	// Secrets feature
-	SecretsBackendIDType = "secrets_backend"
+	SecretBackendIDType = "secrets_backend"
 )
