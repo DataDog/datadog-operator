@@ -44,8 +44,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DatadogSLOQuery":                       schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"./apis/datadoghq/v1alpha1.DatadogSLOSpec":                        schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogSLOStatus":                      schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref),
-		"./apis/datadoghq/v1alpha1.Widget":                                schema__apis_datadoghq_v1alpha1_Widget(ref),
-		"./apis/datadoghq/v1alpha1.WidgetLayout":                          schema__apis_datadoghq_v1alpha1_WidgetLayout(ref),
 	}
 }
 
@@ -380,14 +378,14 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"description": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Description of the dashboard.",
+							Description: "Description is the description of the dashboard.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"layoutType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Layout type of the dashboard.",
+							Description: "LayoutType is the layout type of the dashboard.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -399,7 +397,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of handles of users to notify when changes are made to this dashboard.",
+							Description: "NotifyList is the list of handles of users to notify when changes are made to this dashboard.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -414,7 +412,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 					},
 					"reflowType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reflow type for a new dashboard layout dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
+							Description: "Reflowtype is the reflow type for a 'new dashboard layout' dashboard. Set this only when layout type is 'ordered'. If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto', widgets should not have layouts.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -426,7 +424,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of team names representing ownership of a dashboard.",
+							Description: "Tags is a list of team names representing ownership of a dashboard.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -449,7 +447,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Array of template variables saved views.",
+							Description: "TemplateVariablePresets is an array of template variables saved views.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -471,7 +469,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of template variables for this dashboard.",
+							Description: "TemplateVariables is a list of template variables for this dashboard.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -485,36 +483,14 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 					},
 					"title": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Title of the dashboard.",
+							Description: "Title is the title of the dashboard.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"widgets": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"id",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
 						SchemaProps: spec.SchemaProps{
-							Description: "List of widgets to display on the dashboard.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.Widget"),
-									},
-								},
-							},
-						},
-					},
-					"data": {
-						SchemaProps: spec.SchemaProps{
-							Description: "JSON string representation of Datadog's API dashboard object",
+							Description: "Widgets is a JSON string representation of a list of Datadog API Widgets",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -523,7 +499,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DashboardTemplateVariable", "./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset", "./apis/datadoghq/v1alpha1.Widget"},
+			"./apis/datadoghq/v1alpha1.DashboardTemplateVariable", "./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset"},
 	}
 }
 
@@ -1697,99 +1673,5 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_Widget(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Widget Information about widget.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"timeseries": {
-						SchemaProps: spec.SchemaProps{
-							Description: "[Definition of the widget](https://docs.datadoghq.com/dashboards/widgets/).",
-							Ref:         ref("./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition"),
-						},
-					},
-					"queryValue": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition"),
-						},
-					},
-					"id": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ID of the widget.",
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"layout": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The layout for a widget on a `free` or new dashboard layout dashboard.",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.WidgetLayout"),
-						},
-					},
-				},
-				Required: []string{"id"},
-			},
-		},
-		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.QueryValueWidgetDefinition", "./apis/datadoghq/v1alpha1.TimeseriesWidgetDefinition", "./apis/datadoghq/v1alpha1.WidgetLayout"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_WidgetLayout(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "WidgetLayout The layout for a widget on a `free` or new dashboard layout dashboard.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"height": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The height of the widget. Should be a non-negative integer.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"isColumnBreak": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Whether the widget should be the first one on the second column in high density or not.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"width": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The width of the widget. Should be a non-negative integer.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"x": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The position of the widget on the x (horizontal) axis. Should be a non-negative integer.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-					"y": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The position of the widget on the y (vertical) axis. Should be a non-negative integer.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int64",
-						},
-					},
-				},
-				Required: []string{"height", "width", "x", "y"},
-			},
-		},
 	}
 }

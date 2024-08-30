@@ -45,7 +45,6 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-// NOTE: monitor returns nil as apart of (*Reconciler, Error) return
 func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
@@ -67,7 +66,6 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger.Info("Reconciling Datadog Dashboard", "version", r.versionInfo.String())
 	now := metav1.NewTime(time.Now())
 
-	// Get Instance
 	instance := &v1alpha1.DatadogDashboard{}
 	var result ctrl.Result
 	var err error
@@ -87,14 +85,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 
-	// If data field is not set, validate dashboard
-	if instance.Spec.Data == "" {
-		if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
-			logger.Error(err, "invalid Dashboard")
+	if err = v1alpha1.IsValidDatadogDashboard(&instance.Spec); err != nil {
+		logger.Error(err, "invalid Dashboard")
 
-			updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusValidateError, "ValidatingDashboard", err)
-			return r.updateStatusIfNeeded(logger, instance, status, result)
-		}
+		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusValidateError, "ValidatingDashboard", err)
+		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
@@ -166,7 +161,7 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogDashboard) (datadogV1.Dashboa
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogDashboard, status *v1alpha1.DatadogDashboardStatus, now metav1.Time, hash string) error {
-	if _, err := updateDashboard(logger, r.datadogAuth, r.datadogClient, instance); err != nil {
+	if _, err := updateDashboard(r.datadogAuth, logger, r.datadogClient, instance); err != nil {
 		logger.Error(err, "error updating Dashboard", "Dashboard ID", instance.Status.ID)
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusUpdateError, "UpdatingDasboard", err)
 		return err
@@ -189,7 +184,7 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	logger.V(1).Info("Dashboard ID is not set; creating Dashboard in Datadog")
 
 	// Create Dashboard in Datadog
-	createdDashboard, err := createDashboard(logger, r.datadogAuth, r.datadogClient, instance)
+	createdDashboard, err := createDashboard(r.datadogAuth, logger, r.datadogClient, instance)
 	if err != nil {
 		logger.Error(err, "error creating Dashboard")
 		updateErrStatus(status, now, v1alpha1.DatadogDashboardSyncStatusCreateError, "CreatingDashboard", err)
@@ -201,7 +196,6 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogDashbo
 	// Add static information to status
 	status.ID = createdDashboard.GetId()
 	createdTime := metav1.NewTime(createdDashboard.GetCreatedAt())
-	// NOTE: dashboard doesn't have a creator field
 	status.Creator = createdDashboard.GetAuthorHandle()
 	status.Created = &createdTime
 	status.SyncStatus = v1alpha1.DatadogDashboardSyncStatusOK

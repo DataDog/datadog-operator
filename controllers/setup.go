@@ -16,9 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
-
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
-
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
@@ -108,7 +106,6 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
-		logger.Info("about to start controller...")
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}

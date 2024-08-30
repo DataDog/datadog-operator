@@ -34,7 +34,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.D
 			}
 		}
 
-		// Requeue until the object was properly deleted by Kuberentes
+		// Requeue until the object is properly deleted by Kubernetes
 		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
@@ -44,7 +44,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.D
 			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
 
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Proceed in reconcile loop.

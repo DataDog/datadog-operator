@@ -22,7 +22,6 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +71,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), genericDatadogDashboard())
 				},
 			},
-			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
 				db := &datadoghqv1alpha1.DatadogDashboard{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, db); err != nil {
@@ -82,8 +81,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-		// NOTE: omitted 'DatadogDashboard created, check Status.Primary" test since there is no Status.Primary set
-		// NOTE: ommited, re-enable check tags test once 'generated:kubernetes' is allowed in
+		// NOTE: omitted, re-enable check tags test once 'generated:kubernetes' is allowed in
 		// {
 		// 	name: "DatadogDashboard exists, check required tags",
 		// 	args: args{
@@ -245,17 +243,17 @@ func newRequest(ns, name string) reconcile.Request {
 	}
 }
 
-func genericDatadogDashboard() *v1alpha1.DatadogDashboard {
-	return &v1alpha1.DatadogDashboard{
+func genericDatadogDashboard() *datadoghqv1alpha1.DatadogDashboard {
+	return &datadoghqv1alpha1.DatadogDashboard{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogDashboard",
-			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: resourcesNamespace,
 			Name:      resourcesName,
 		},
-		Spec: v1alpha1.DatadogDashboardSpec{
+		Spec: datadoghqv1alpha1.DatadogDashboardSpec{
 			Title:      "test dashboard",
 			LayoutType: "ordered",
 		},
