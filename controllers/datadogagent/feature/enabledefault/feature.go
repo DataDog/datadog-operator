@@ -52,6 +52,7 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 	if options != nil {
 		dF.logger = options.Logger
 		dF.otelAgentEnabled = options.OtelAgentEnabled
+		dF.agentDataPlaneEnabled = options.AgentDataPlaneEnabled
 	}
 
 	return dF
