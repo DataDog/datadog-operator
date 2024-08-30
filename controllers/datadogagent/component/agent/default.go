@@ -125,8 +125,8 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentReadinessProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -168,9 +168,9 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-		StartupProbe:   apicommon.GetDefaultStartupProbe(),
+		LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentReadinessProbe(),
+		StartupProbe:   apicommon.GetAgentStartupProbe(),
 	}
 }
 
@@ -267,8 +267,8 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Command:        []string{"agent-data-plane"},
 		Env:            envVarsForAgentDataPlane(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		LivenessProbe:  apicommon.GetAgentDataPlaneLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentDataPlaneReadinessProbe(),
 	}
 }
 

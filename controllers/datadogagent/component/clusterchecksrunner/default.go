@@ -115,9 +115,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Args: []string{
 					"agent run",
 				},
-				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-				StartupProbe:   apicommon.GetDefaultStartupProbe(),
+				LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+				ReadinessProbe: apicommon.GetAgentReadinessProbe(),
+				StartupProbe:   apicommon.GetAgentStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),

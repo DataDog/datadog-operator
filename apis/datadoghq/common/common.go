@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// GetDefaultLivenessProbe creates a defaulted LivenessProbe
-func GetDefaultLivenessProbe() *corev1.Probe {
+// GetDefaultLivenessProbeWithPort creates a liveness probe with defaulted values, using the provided port
+func GetDefaultLivenessProbeWithPort(port int32) *corev1.Probe {
 	livenessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
@@ -24,14 +24,14 @@ func GetDefaultLivenessProbe() *corev1.Probe {
 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
 		Path: DefaultLivenessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+			IntVal: port,
 		},
 	}
 	return livenessProbe
 }
 
-// GetDefaultReadinessProbe creates a defaulted ReadinessProbe
-func GetDefaultReadinessProbe() *corev1.Probe {
+// GetDefaultReadinessProbeWithPort creates a readiness probe with defaulted values, using the provided port
+func GetDefaultReadinessProbeWithPort(port int32) *corev1.Probe {
 	readinessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultReadinessProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultReadinessProbePeriodSeconds,
@@ -42,14 +42,14 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
 		Path: DefaultReadinessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+			IntVal: port,
 		},
 	}
 	return readinessProbe
 }
 
-// GetDefaultStartupProbe creates a defaulted StartupProbe
-func GetDefaultStartupProbe() *corev1.Probe {
+// GetDefaultStartupProbeWithPort creates a startup probe with defaulted values, using the provided port
+func GetDefaultStartupProbeWithPort(port int32) *corev1.Probe {
 	startupProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultStartupProbeInitialDelaySeconds,
 		PeriodSeconds:       DefaultStartupProbePeriodSeconds,
@@ -60,10 +60,35 @@ func GetDefaultStartupProbe() *corev1.Probe {
 	startupProbe.HTTPGet = &corev1.HTTPGetAction{
 		Path: DefaultStartupProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: DefaultAgentHealthPort,
+			IntVal: port,
 		},
 	}
 	return startupProbe
+}
+
+// GetAgentLivenessProbe creates a liveness probe configured for the core Agent
+func GetAgentLivenessProbe() *corev1.Probe {
+	return GetDefaultLivenessProbeWithPort(DefaultAgentHealthPort)
+}
+
+// GetAgentLivenessProbe creates a readiness probe configured for the core Agent
+func GetAgentReadinessProbe() *corev1.Probe {
+	return GetDefaultReadinessProbeWithPort(DefaultAgentHealthPort)
+}
+
+// GetAgentStartupProbe creates a startup probe configured for the core Agent
+func GetAgentStartupProbe() *corev1.Probe {
+	return GetDefaultStartupProbeWithPort(DefaultAgentHealthPort)
+}
+
+// GetAgentDataPlaneLivenessProbe creates a liveness probe configured for the Agent Data Plane
+func GetAgentDataPlaneLivenessProbe() *corev1.Probe {
+	return GetDefaultLivenessProbeWithPort(DefaultAgentDataPlanetHealthPort)
+}
+
+// GetAgentDataPlaneLivenessProbe creates a readiness probe configured for the Agent Data Plane
+func GetAgentDataPlaneReadinessProbe() *corev1.Probe {
+	return GetDefaultReadinessProbeWithPort(DefaultAgentDataPlanetHealthPort)
 }
 
 // GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent

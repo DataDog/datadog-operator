@@ -84,6 +84,9 @@ const (
 	// DefaultAgentHealthPort default agent health port
 	DefaultAgentHealthPort int32 = 5555
 
+	// DefaultAgentHealthPort default ADP health port
+	DefaultAgentDataPlanetHealthPort int32 = 9999
+
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
 	DefaultLivenessProbePeriodSeconds       int32 = 15
