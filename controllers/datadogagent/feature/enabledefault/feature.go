@@ -52,6 +52,7 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 	if options != nil {
 		dF.logger = options.Logger
 		dF.otelAgentEnabled = options.OtelAgentEnabled
+		dF.agentDataPlaneEnabled = options.AgentDataPlaneEnabled
 	}
 
 	return dF
@@ -68,6 +69,7 @@ type defaultFeature struct {
 	logger                  logr.Logger
 	disableNonResourceRules bool
 	otelAgentEnabled        bool
+	agentDataPlaneEnabled   bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -184,32 +186,27 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
-	//
+	additionalAgentContainers := make([]commonv1.AgentContainerName, 0)
+
 	// In Operator 1.9 OTel Agent will be configured through a feature.
 	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
 	if f.otelAgentEnabled {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-				Containers: []commonv1.AgentContainerName{
-					commonv1.OtelAgent,
-				},
-			},
-		}
-	} else {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-		}
+		additionalAgentContainers = append(additionalAgentContainers, commonv1.OtelAgent)
 	}
 
+	if f.agentDataPlaneEnabled {
+		additionalAgentContainers = append(additionalAgentContainers, commonv1.AgentDataPlaneContainerName)
+	}
+
+	return feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+		},
+		Agent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+			Containers: additionalAgentContainers,
+		},
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

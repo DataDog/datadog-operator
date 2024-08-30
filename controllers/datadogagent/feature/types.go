@@ -154,6 +154,7 @@ type Options struct {
 
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
+	AgentDataPlaneEnabled           bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

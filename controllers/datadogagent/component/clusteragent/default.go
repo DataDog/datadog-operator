@@ -121,9 +121,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				},
 				Env:            envVars,
 				VolumeMounts:   volumeMounts,
-				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-				StartupProbe:   apicommon.GetDefaultStartupProbe(),
+				LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+				ReadinessProbe: apicommon.GetAgentReadinessProbe(),
+				StartupProbe:   apicommon.GetAgentStartupProbe(),
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{

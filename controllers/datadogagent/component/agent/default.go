@@ -125,8 +125,8 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentReadinessProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -153,6 +153,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []commonv1.A
 			containers = append(containers, systemProbeContainer(dda))
 		case commonv1.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
+		case commonv1.AgentDataPlaneContainerName:
+			containers = append(containers, agentDataPlaneContainer(dda))
 		}
 	}
 
@@ -166,9 +168,9 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-		StartupProbe:   apicommon.GetDefaultStartupProbe(),
+		LivenessProbe:  apicommon.GetAgentLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentReadinessProbe(),
+		StartupProbe:   apicommon.GetAgentStartupProbe(),
 	}
 }
 
@@ -255,6 +257,18 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
 			},
 		},
+	}
+}
+
+func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:           string(commonv1.AgentDataPlaneContainerName),
+		Image:          agentImage(),
+		Command:        []string{"agent-data-plane"},
+		Env:            envVarsForAgentDataPlane(dda),
+		VolumeMounts:   volumeMountsForAgentDataPlane(),
+		LivenessProbe:  apicommon.GetAgentDataPlaneLivenessProbe(),
+		ReadinessProbe: apicommon.GetAgentDataPlaneReadinessProbe(),
 	}
 }
 
@@ -387,6 +401,17 @@ func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvVars(dda)...)
 }
 
+func envVarsForAgentDataPlane(dda metav1.Object) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
+		{
+			Name:  "DD_API_LISTEN_ADDRESS",
+			Value: "tcp://0.0.0.0:9999",
+		},
+	}
+
+	return append(envs, commonEnvVars(dda)...)
+}
+
 func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
@@ -496,6 +521,18 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+	}
+}
+
+func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForCgroups(),
 	}
 }
 
