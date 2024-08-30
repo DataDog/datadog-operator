@@ -586,6 +586,13 @@ func (builder *DatadogAgentBuilder) WithASMEnabled(threats, sca, iast bool) *Dat
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithProfilingEnabled(enabled string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.Profiling = &v2alpha1.ProfilingFeatureConfig{
+		Enabled: apiutils.NewStringPointer(enabled),
+	}
+	return builder
+}
+
 // OTLP
 
 func (builder *DatadogAgentBuilder) initOTLP() {

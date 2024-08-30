@@ -207,6 +207,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -313,6 +316,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -394,6 +400,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -515,6 +524,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -646,6 +658,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -771,6 +786,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -895,6 +913,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1030,6 +1051,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1154,6 +1178,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1283,6 +1310,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1399,6 +1429,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
@@ -1538,6 +1571,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1686,6 +1722,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1813,6 +1852,9 @@ func Test_defaultFeatures(t *testing.T) {
 						IAST: &ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
+					},
+					Profiling: &ProfilingFeatureConfig{
+						Enabled: apiutils.NewStringPointer(defaultAdmissionProfilingEnabled),
 					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
