@@ -1453,6 +1453,11 @@ func (in *Override) DeepCopyInto(out *Override) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.UpdateStrategy != nil {
+		in, out := &in.UpdateStrategy, &out.UpdateStrategy
+		*out = new(commonv1.UpdateStrategy)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
 		*out = make(map[string]string, len(*in))
