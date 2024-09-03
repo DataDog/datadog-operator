@@ -69,13 +69,6 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 							},
 						},
 					},
-					"default": {
-						SchemaProps: spec.SchemaProps{
-							Description: "(deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`. Deprecated",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"defaults": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -173,13 +166,6 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref co
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The name of the variable.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"value": {
-						SchemaProps: spec.SchemaProps{
-							Description: "(deprecated) The value of the template variable within the saved view. Cannot be used in conjunction with `values`. Deprecated",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -520,7 +506,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.Reference
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions represents the latest available observations of the state of a DatadogSLO.",
+							Description: "Conditions represents the latest available observations of the state of a DatadogDashboard.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -534,34 +520,34 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.Reference
 					},
 					"id": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ID is the SLO ID generated in Datadog.",
+							Description: "ID is the dashboard ID generated in Datadog.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"creator": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Creator is the identity of the SLO creator.",
+							Description: "Creator is the identity of the dashboard creator.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"created": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Created is the time the SLO was created.",
+							Description: "Created is the time the dashboard was created.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"syncStatus": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SyncStatus shows the health of syncing the SLO state to Datadog.",
+							Description: "SyncStatus shows the health of syncing the dashboard state to Datadog.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"currentHash": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentHash tracks the hash of the current DatadogSLOSpec to know if the Spec has changed and needs an update.",
+							Description: "CurrentHash tracks the hash of the current DatadogDashboardSpec to know if the Spec has changed and needs an update.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

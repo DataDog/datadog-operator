@@ -76,7 +76,7 @@ func updateDashboard(auth context.Context, logger logr.Logger, client *datadogV1
 	dashboard := buildDashboard(logger, ddb)
 	dbUpdated, _, err := client.UpdateDashboard(auth, ddb.Status.ID, *dashboard)
 	if err != nil {
-		return datadogV1.Dashboard{}, translateClientError(err, "error updating SLO")
+		return datadogV1.Dashboard{}, translateClientError(err, "error updating dashboard")
 	}
 
 	return dbUpdated, nil

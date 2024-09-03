@@ -52,19 +52,19 @@ type DatadogDashboardSpec struct {
 // DatadogDashboardStatus defines the observed state of DatadogDashboard
 // +k8s:openapi-gen=true
 type DatadogDashboardStatus struct {
-	// Conditions represents the latest available observations of the state of a DatadogSLO.
+	// Conditions represents the latest available observations of the state of a DatadogDashboard.
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	// ID is the SLO ID generated in Datadog.
+	// ID is the dashboard ID generated in Datadog.
 	ID string `json:"id,omitempty"`
-	// Creator is the identity of the SLO creator.
+	// Creator is the identity of the dashboard creator.
 	Creator string `json:"creator,omitempty"`
-	// Created is the time the SLO was created.
+	// Created is the time the dashboard was created.
 	Created *metav1.Time `json:"created,omitempty"`
-	// SyncStatus shows the health of syncing the SLO state to Datadog.
+	// SyncStatus shows the health of syncing the dashboard state to Datadog.
 	SyncStatus DatadogDashboardSyncStatus `json:"syncStatus,omitempty"`
-	// CurrentHash tracks the hash of the current DatadogSLOSpec to know
+	// CurrentHash tracks the hash of the current DatadogDashboardSpec to know
 	// if the Spec has changed and needs an update.
 	CurrentHash string `json:"currentHash,omitempty"`
 	// DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource
@@ -108,9 +108,6 @@ type DatadogDashboard struct {
 type DashboardTemplateVariablePresetValue struct {
 	// The name of the variable.
 	Name *string `json:"name"`
-	// (deprecated) The value of the template variable within the saved view. Cannot be used in conjunction with `values`.
-	// Deprecated
-	Value *string `json:"value,omitempty"`
 	// One or many template variable values within the saved view, which will be unioned together using `OR` if more than one is specified. Cannot be used in conjunction with `value`.
 	// +listType=set
 	Values []string `json:"values,omitempty"`
@@ -132,9 +129,6 @@ type DashboardTemplateVariablePreset struct {
 type DashboardTemplateVariable struct {
 	// The list of values that the template variable drop-down is limited to.
 	AvailableValues *[]string `json:"availableValues,omitempty"`
-	// (deprecated) The default value for the template variable on dashboard load. Cannot be used in conjunction with `defaults`.
-	// Deprecated
-	Default *string `json:"default,omitempty"`
 	// One or many default values for template variables on load. If more than one default is specified, they will be unioned together with `OR`. Cannot be used in conjunction with `default`.
 	// +listType=set
 	Defaults []string `json:"defaults,omitempty"`

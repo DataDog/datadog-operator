@@ -87,11 +87,6 @@ func (in *DashboardTemplateVariable) DeepCopyInto(out *DashboardTemplateVariable
 			copy(*out, *in)
 		}
 	}
-	if in.Default != nil {
-		in, out := &in.Default, &out.Default
-		*out = new(string)
-		**out = **in
-	}
 	if in.Defaults != nil {
 		in, out := &in.Defaults, &out.Defaults
 		*out = make([]string, len(*in))
@@ -146,11 +141,6 @@ func (in *DashboardTemplateVariablePresetValue) DeepCopyInto(out *DashboardTempl
 	*out = *in
 	if in.Name != nil {
 		in, out := &in.Name, &out.Name
-		*out = new(string)
-		**out = **in
-	}
-	if in.Value != nil {
-		in, out := &in.Value, &out.Value
 		*out = new(string)
 		**out = **in
 	}
