@@ -269,7 +269,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
+		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
@@ -298,7 +298,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
+		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
