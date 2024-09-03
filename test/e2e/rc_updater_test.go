@@ -35,12 +35,10 @@ type updaterSuite struct {
 func TestUpdaterSuite(t *testing.T) {
 
 	e2eParams := []e2e.SuiteOption{
-		e2e.WithStackName(fmt.Sprintf("operator-kind-2%s", k8sVersion)),
-		e2e.WithProvisioner(kindProvisioner(k8sVersion)),
+		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", k8sVersion)),
+		e2e.WithProvisioner(kindProvisioner(k8sVersion, []string{"rc-e2e-manager.yaml"})),
 		e2e.WithDevMode(),
 	}
-
-	// testID := uuid.NewString()[:4]
 
 	apiKey, _ := api.GetAPIKey()
 	appKey, _ := api.GetAPPKey()
@@ -88,7 +86,7 @@ func (u *updaterSuite) TestOperatorDeployed() {
 
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
-	verifyAgent(u.T(), u.kubectlOptions)
+	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
 }
 
 func (u *updaterSuite) TestFeaturesDisabled() {

@@ -100,4 +100,3 @@ tags
 .idea/
 # test errors
 errors
-go.work*

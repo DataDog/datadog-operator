@@ -31,6 +31,8 @@ spec:
         tlsVerify: false
   override:
     nodeAgent:
+      labels:
+        agent.datadoghq.com/e2e-test: datadog-agent-rc
       containers:
         agent:
           env:
