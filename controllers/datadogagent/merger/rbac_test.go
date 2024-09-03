@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -59,7 +59,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -78,14 +78,14 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -95,7 +95,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.RolesKind, ns, name+"role"); !found {
 					t.Errorf("missing Role %s/%s", ns, name+"role")
 				}
@@ -107,7 +107,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another Role already exist",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -117,7 +117,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.RolesKind, ns, name+"role"); !found {
 					t.Errorf("missing Role %s/%s", ns, name+"role")
 				}
@@ -129,7 +129,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "update existing Role",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role2),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role2),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -139,7 +139,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				obj, found := store.Get(kubernetes.RolesKind, ns, name+"role")
 				if !found {
 					t.Errorf("missing Role %s/%s", ns, name+"role")
@@ -193,7 +193,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -212,14 +212,14 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -229,7 +229,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.ClusterRolesKind, "", name+"role"); !found {
 					t.Errorf("missing ClusterRole %s", name+"role")
 				}
@@ -241,7 +241,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another ClusterRole already exist",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -251,7 +251,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.ClusterRolesKind, "", name+"role"); !found {
 					t.Errorf("missing ClusterRole %s", name+"role")
 				}

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package dependencies
+package store
 
 import (
 	"context"
@@ -211,7 +211,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
-				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				ds.logger.V(2).Info("store.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToCreate = append(objsToCreate, objStore)
 				continue
 			} else if err != nil {
@@ -231,25 +231,25 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
-				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
 		}
 	}
 
-	ds.logger.V(2).Info("dependencies.store objsToCreate", "nb", len(objsToCreate))
+	ds.logger.V(2).Info("store.store objsToCreate", "nb", len(objsToCreate))
 	for _, obj := range objsToCreate {
 		if err := k8sClient.Create(ctx, obj); err != nil {
-			ds.logger.Error(err, "dependencies.store Create", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
+			ds.logger.Error(err, "store.store Create", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}
 
-	ds.logger.V(2).Info("dependencies.store objsToUpdate", "nb", len(objsToUpdate))
+	ds.logger.V(2).Info("store.store objsToUpdate", "nb", len(objsToUpdate))
 	for _, obj := range objsToUpdate {
 		if err := k8sClient.Update(ctx, obj); err != nil {
-			ds.logger.Error(err, "dependencies.store Update", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
+			ds.logger.Error(err, "store.store Update", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}

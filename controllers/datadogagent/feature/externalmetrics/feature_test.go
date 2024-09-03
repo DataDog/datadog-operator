@@ -12,10 +12,10 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
@@ -73,7 +73,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 			Name:          "external metrics enabled, secrets set, registerAPIService enabled",
 			DDA:           newAgent(true, true, true, false, secret),
 			WantConfigure: true,
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
 				ns := ""
 
@@ -88,7 +88,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 			Name:          "external metrics enabled, secrets set, registerAPIService disabled",
 			DDA:           newAgent(true, false, true, false, secret),
 			WantConfigure: true,
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
 				ns := ""
 

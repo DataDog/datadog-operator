@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -33,7 +33,7 @@ type RBACManager interface {
 }
 
 // NewRBACManager return new RBACManager instance
-func NewRBACManager(store dependencies.StoreClient) RBACManager {
+func NewRBACManager(store store.StoreClient) RBACManager {
 	manager := &rbacManagerImpl{
 		store:                     store,
 		serviceAccountByComponent: make(map[string][]string),
@@ -45,7 +45,7 @@ func NewRBACManager(store dependencies.StoreClient) RBACManager {
 
 // rbacManagerImpl use to manage RBAC resources.
 type rbacManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 
 	serviceAccountByComponent map[string][]string
 	roleByComponent           map[string][]string

@@ -20,11 +20,11 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -72,8 +72,8 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 	tests.Run(t, buildHelmCheckFeature)
 }
 
-func helmCheckWantDepsFunc(ccr bool, collectEvents bool, valuesAsTags map[string]string, rbacSuffix string) func(t testing.TB, store dependencies.StoreClient) {
-	return func(t testing.TB, store dependencies.StoreClient) {
+func helmCheckWantDepsFunc(ccr bool, collectEvents bool, valuesAsTags map[string]string, rbacSuffix string) func(t testing.TB, store store.StoreClient) {
+	return func(t testing.TB, store store.StoreClient) {
 		// validate configMap
 		configMapName := fmt.Sprintf("%s-%s", resourcesName, apicommon.DefaultHelmCheckConf)
 

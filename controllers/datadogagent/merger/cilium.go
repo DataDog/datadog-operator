@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -22,7 +22,7 @@ type CiliumPolicyManager interface {
 }
 
 // NewCiliumPolicyManager returns a new CiliumPolicyManager instance
-func NewCiliumPolicyManager(store dependencies.StoreClient) CiliumPolicyManager {
+func NewCiliumPolicyManager(store store.StoreClient) CiliumPolicyManager {
 	manager := &ciliumPolicyManagerImpl{
 		store: store,
 	}
@@ -31,7 +31,7 @@ func NewCiliumPolicyManager(store dependencies.StoreClient) CiliumPolicyManager 
 
 // ciliumPolicyManagerImpl is used to manage cilium policy resources.
 type ciliumPolicyManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 // AddCiliumPolicy creates a cilium network policy or adds policy specs to a cilium network policy

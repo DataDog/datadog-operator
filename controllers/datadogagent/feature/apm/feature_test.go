@@ -15,10 +15,10 @@ import (
 	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
@@ -256,7 +256,7 @@ func TestAPMFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationFull(),
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if found {
 					t.Error("Should not have created proper RBAC for language detection because language detection is not enabled.")
@@ -313,7 +313,7 @@ func TestAPMFeature(t *testing.T) {
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: false},
 			ClusterAgent:   testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
 			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, false),
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
 					t.Error("Should have created proper RBAC for language detection")
@@ -332,7 +332,7 @@ func TestAPMFeature(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
 			Agent:         testAPMInstrumentationWithLanguageDetectionForNodeAgent(false, false),
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if found {
 					t.Error("Should not have created RBAC for language detection")
@@ -359,7 +359,7 @@ func TestAPMFeature(t *testing.T) {
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
 			ClusterAgent:   testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent(),
 			Agent:          testAPMInstrumentationWithLanguageDetectionForNodeAgent(true, true),
-			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-apm-cluster-agent")
 				if !found {
 					t.Error("Should have created proper RBAC for language detection")

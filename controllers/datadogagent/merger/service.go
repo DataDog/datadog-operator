@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +20,7 @@ type ServiceManager interface {
 }
 
 // NewServiceManager returns a new ServiceManager instance
-func NewServiceManager(store dependencies.StoreClient) ServiceManager {
+func NewServiceManager(store store.StoreClient) ServiceManager {
 	manager := &serviceManagerImpl{
 		store: store,
 	}
@@ -29,7 +29,7 @@ func NewServiceManager(store dependencies.StoreClient) ServiceManager {
 
 // serviceManagerImpl is used to manage service resources.
 type serviceManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 // AddService creates or updates service

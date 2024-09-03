@@ -10,7 +10,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -58,7 +58,7 @@ func TestServiceManager_AddService(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -78,14 +78,14 @@ func TestServiceManager_AddService(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -94,7 +94,7 @@ func TestServiceManager_AddService(t *testing.T) {
 				itp:       &serviceInternalTrafficPolicy,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.ServicesKind, ns, name1); !found {
 					t.Errorf("missing Service %s/%s", ns, name1)
 				}
@@ -102,7 +102,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		},
 		{
 			name:  "another Service already exists",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -111,7 +111,7 @@ func TestServiceManager_AddService(t *testing.T) {
 				itp:       &serviceInternalTrafficPolicy,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.ServicesKind, ns, name1); !found {
 					t.Errorf("missing Service %s/%s", ns, name1)
 				}
@@ -119,7 +119,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		},
 		{
 			name:  "update existing NetworkPolicy",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
 			args: args{
 				namespace: ns,
 				name:      name2,
@@ -128,7 +128,7 @@ func TestServiceManager_AddService(t *testing.T) {
 				itp:       &serviceInternalTrafficPolicy,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				obj, found := store.Get(kubernetes.ServicesKind, ns, name2)
 				if !found {
 					t.Errorf("missing Service %s/%s", ns, name2)

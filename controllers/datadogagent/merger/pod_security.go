@@ -6,7 +6,7 @@
 package merger
 
 import (
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
@@ -20,7 +20,7 @@ type PodSecurityManager interface {
 }
 
 // NewPodSecurityManager return new PodSecurityManager instance
-func NewPodSecurityManager(store dependencies.StoreClient) PodSecurityManager {
+func NewPodSecurityManager(store store.StoreClient) PodSecurityManager {
 	manager := &podSecurityManagerImpl{
 		store: store,
 	}
@@ -29,7 +29,7 @@ func NewPodSecurityManager(store dependencies.StoreClient) PodSecurityManager {
 
 // podSecurityManagerImpl is used to manage pod security resources.
 type podSecurityManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 func (m *podSecurityManagerImpl) GetPodSecurityPolicy(namespace string, pspName string) (psp *policyv1beta1.PodSecurityPolicy, err error) {

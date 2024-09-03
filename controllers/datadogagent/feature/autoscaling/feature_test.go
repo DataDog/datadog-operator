@@ -13,10 +13,10 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -78,7 +78,7 @@ func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
 	}
 }
 
-func testRBACResources(t testing.TB, store dependencies.StoreClient) {
+func testRBACResources(t testing.TB, store store.StoreClient) {
 	// RBAC
 	rbacName := fmt.Sprintf("%s-%s", ddaName, "cluster-agent-autoscaling")
 

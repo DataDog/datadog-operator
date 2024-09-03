@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -20,7 +20,7 @@ type APIServiceManager interface {
 }
 
 // NewAPIServiceManager returns a new APIServiceManager instance
-func NewAPIServiceManager(store dependencies.StoreClient) APIServiceManager {
+func NewAPIServiceManager(store store.StoreClient) APIServiceManager {
 	manager := &apiServiceManagerImpl{
 		store: store,
 	}
@@ -29,7 +29,7 @@ func NewAPIServiceManager(store dependencies.StoreClient) APIServiceManager {
 
 // apiServiceManagerImpl is used to manage service resources.
 type apiServiceManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 // AddAPIService creates or updates service
