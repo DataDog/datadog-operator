@@ -118,7 +118,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		profileStatus.SlowStart.MaxUnavailable = int32(maxUnavailable)
 
 		if canLabel(logger, profileStatus.SlowStart) {
-			numNodesToLabel = getNumNodesToLabel(profile.Status.SlowStart, maxUnavailable)
+			numNodesToLabel = getNumNodesToLabel(profile.Status.SlowStart, maxUnavailable, toLabelNodeCount)
 		}
 	}
 
@@ -435,9 +435,14 @@ func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
 	}
 }
 
-func getNumNodesToLabel(slowStartStatus *v1alpha1.SlowStart, maxUnavailable int) int {
+func getNumNodesToLabel(slowStartStatus *v1alpha1.SlowStart, maxUnavailable, toLabelNodeCount int) int {
 	if slowStartStatus == nil {
 		return 0
+	}
+
+	// once slow start is completed, label all necessary nodes
+	if slowStartStatus.Status == v1alpha1.CompletedStatus {
+		return toLabelNodeCount
 	}
 
 	return maxUnavailable - (int(slowStartStatus.NodesLabeled - slowStartStatus.PodsReady))
