@@ -120,6 +120,17 @@ This issue is resolved in Datadog Operator bundle 1.4.2+. Use the OperatorHub UI
 For further help, contact [Datadog Support][7].
 
 
+### Datadog Operator 1.8.0 on OpenShift
+
+When upgrading from versions <1.8.0 to Datadog Operator 1.8.0 of the Datadog Operator bundle provided to OperatorHub in OpenShift, one may encounter an error due to the removal of the deprecated v1alpha1 CRD version.
+
+#### Resolution
+
+1. Remove the v1alpha1 version from the CRD `spec.versions` list
+2. Proceed with the bundle upgrade
+
+For more details, see [Removing an old version][8] from the Kubernetes Custom Resources documentation.
+
 
 [1]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12#deploy-instructions
 [2]: https://olm.operatorframework.io/
@@ -128,5 +139,6 @@ For further help, contact [Datadog Support][7].
 [5]: https://app.datadoghq.com/organization-settings/api-keys
 [6]: https://app.datadoghq.com/organization-settings/application-keys
 [7]: https://www.datadoghq.com/support/
+[8]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/
 
 
