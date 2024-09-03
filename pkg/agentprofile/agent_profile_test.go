@@ -10,18 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const testNamespace = "default"
@@ -320,6 +322,11 @@ func TestOverrideFromProfile(t *testing.T) {
 											Operator: v1.NodeSelectorOpIn,
 											Values:   []string{"linux"},
 										},
+										{
+											Key:      ProfileLabelKey,
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{"linux"},
+										},
 									},
 								},
 							},
@@ -342,6 +349,15 @@ func TestOverrideFromProfile(t *testing.T) {
 						},
 					},
 				},
+				PriorityClassName: apiutils.NewStringPointer("foo"),
+				UpdateStrategy: &common.UpdateStrategy{
+					Type: "RollingUpdate",
+					RollingUpdate: &common.RollingUpdate{
+						MaxUnavailable: &intstr.IntOrString{
+							IntVal: 10,
+						},
+					},
+				},
 				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 					common.CoreAgentContainerName: {
 						Resources: &v1.ResourceRequirements{
@@ -349,10 +365,56 @@ func TestOverrideFromProfile(t *testing.T) {
 								v1.ResourceCPU: resource.MustParse("100m"),
 							},
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+						},
 					},
 				},
 				Labels: map[string]string{
 					"agent.datadoghq.com/datadogagentprofile": "linux",
+					"foo": "bar",
+				},
+			},
+		},
+		{
+			name:    "default profile, no overrides applied",
+			profile: exampleDefaultProfile(),
+			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
+				Name: apiutils.NewStringPointer(""),
+				Affinity: &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      ProfileLabelKey,
+											Operator: v1.NodeSelectorOpDoesNotExist,
+										},
+									},
+								},
+							},
+						},
+					},
+					PodAntiAffinity: &v1.PodAntiAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+							{
+								LabelSelector: &metav1.LabelSelector{
+									MatchExpressions: []metav1.LabelSelectorRequirement{
+										{
+											Key:      apicommon.AgentDeploymentComponentLabelKey,
+											Operator: metav1.LabelSelectorOpIn,
+											Values:   []string{"agent"},
+										},
+									},
+								},
+								TopologyKey: v1.LabelHostname,
+							},
+						},
+					},
 				},
 			},
 		},
@@ -396,19 +458,42 @@ func TestDaemonSetName(t *testing.T) {
 	}
 }
 
-func TestPriorityClassNameOverride(t *testing.T) {
+func Test_labelsOverride(t *testing.T) {
 	tests := []struct {
-		name                  string
-		profile               v1alpha1.DatadogAgentProfile
-		expectedpriorityClass *string
+		name           string
+		profile        v1alpha1.DatadogAgentProfile
+		expectedLabels map[string]string
 	}{
 		{
-			name:                  "empty profile",
-			profile:               v1alpha1.DatadogAgentProfile{},
-			expectedpriorityClass: nil,
+			name: "default profile",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: defaultProfileName,
+				},
+			},
+			expectedLabels: nil,
 		},
 		{
-			name: "profile with no priority class set",
+			name: "profile with no label overrides",
+			profile: v1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: testNamespace,
+					Name:      "foo",
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {},
+						},
+					},
+				},
+			},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+			},
+		},
+		{
+			name: "profile with label overrides",
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: testNamespace,
@@ -418,16 +503,22 @@ func TestPriorityClassNameOverride(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								Containers: map[common.AgentContainerName]*v1alpha1.Container{},
+								Labels: map[string]string{
+									"foo": "bar",
+								},
 							},
 						},
 					},
 				},
 			},
-			expectedpriorityClass: nil,
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
+				"foo":           "bar",
+			},
 		},
 		{
-			name: "profile with empty priority class set",
+			// ProfileLabelKey should not be overriden by a user-created profile
+			name: "profile with label overriding ProfileLabelKey",
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: testNamespace,
@@ -437,40 +528,23 @@ func TestPriorityClassNameOverride(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
-								PriorityClassName: apiutils.NewStringPointer(""),
+								Labels: map[string]string{
+									ProfileLabelKey: "bar",
+								},
 							},
 						},
 					},
 				},
 			},
-			expectedpriorityClass: apiutils.NewStringPointer(""),
-		},
-		{
-			name: "profile with priority class set",
-			profile: v1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: testNamespace,
-					Name:      "foo",
-				},
-				Spec: v1alpha1.DatadogAgentProfileSpec{
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
-								Containers:        map[common.AgentContainerName]*v1alpha1.Container{},
-								PriorityClassName: apiutils.NewStringPointer("bar"),
-							},
-						},
-					},
-				},
+			expectedLabels: map[string]string{
+				ProfileLabelKey: "foo",
 			},
-			expectedpriorityClass: apiutils.NewStringPointer("bar"),
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedpriorityClass, priorityClassNameOverride(&test.profile))
+			assert.Equal(t, test.expectedLabels, labelsOverride(&test.profile))
 		})
 	}
 }
@@ -491,7 +565,7 @@ func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 					},
 				},
 			},
-			Config: configWithCPURequestOverrideForCoreAgent("100m"),
+			Config: configWithAllOverrides("100m"),
 		},
 	}
 }
@@ -512,7 +586,7 @@ func exampleProfileForWindows() v1alpha1.DatadogAgentProfile {
 					},
 				},
 			},
-			Config: configWithCPURequestOverrideForCoreAgent("200m"),
+			Config: configWithAllOverrides("200m"),
 		},
 	}
 }
@@ -525,19 +599,49 @@ func exampleInvalidProfile() v1alpha1.DatadogAgentProfile {
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			// missing ProfileAffinity
-			Config: configWithCPURequestOverrideForCoreAgent("200m"),
+			Config: configWithAllOverrides("200m"),
 		},
 	}
 }
 
-// configWithCPURequestOverrideForCoreAgent returns a config with a CPU request
-// for the core agent container.
-func configWithCPURequestOverrideForCoreAgent(cpuRequest string) *v1alpha1.Config {
+func exampleDefaultProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "",
+			Name:      "default",
+		},
+		Spec: v1alpha1.DatadogAgentProfileSpec{
+			Config: configWithAllOverrides("200m"),
+		},
+	}
+}
+
+// configWithAllOverrides returns a config with all available overrides for the
+// core agent container.
+func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 	return &v1alpha1.Config{
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
+				PriorityClassName: apiutils.NewStringPointer("foo"),
+				UpdateStrategy: &common.UpdateStrategy{
+					Type: "RollingUpdate",
+					RollingUpdate: &common.RollingUpdate{
+						MaxUnavailable: &intstr.IntOrString{
+							IntVal: 10,
+						},
+					},
+				},
+				Labels: map[string]string{
+					"foo": "bar",
+				},
 				Containers: map[common.AgentContainerName]*v1alpha1.Container{
 					common.CoreAgentContainerName: {
+						Env: []corev1.EnvVar{
+							{
+								Name:  "foo",
+								Value: "bar",
+							},
+						},
 						Resources: &v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceCPU: resource.MustParse(cpuRequest),

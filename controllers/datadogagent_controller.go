@@ -87,6 +87,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics,verbs=list;watch;create;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics/status,verbs=update
 
+// Configure Autoscaling product
+// (RBACs for events and pods are present below)
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogpodautoscalers/status,verbs=*
+// +kubebuilder:rbac:groups=*,resources=*/scale,verbs=get;update
+
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get
@@ -99,6 +105,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=restricted,verbs=use
 
 // +kubebuilder:rbac:urls=/metrics,verbs=get
+// +kubebuilder:rbac:urls=/metrics/slis,verbs=get
 // +kubebuilder:rbac:groups="",resources=componentstatuses,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes/metrics,verbs=get
@@ -142,7 +149,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=list;watch
 // +kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
@@ -211,7 +217,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
-	if r.Options.V2Enabled && (r.Options.DatadogAgentProfileEnabled || r.Options.IntrospectionEnabled) {
+	if r.Options.DatadogAgentProfileEnabled || r.Options.IntrospectionEnabled {
 		builder.Watches(
 			&corev1.Node{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
@@ -243,7 +249,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	var metricForwarder datadog.MetricForwardersManager
 	var builderOptions []ctrlbuilder.ForOption
 	if r.Options.OperatorMetricsEnabled {
-		metricForwarder = datadog.NewForwardersManager(r.Client, r.Options.V2Enabled, &r.PlatformInfo)
+		metricForwarder = datadog.NewForwardersManager(r.Client, &r.PlatformInfo)
 		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
@@ -253,14 +259,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}))
 	}
 
-	if r.Options.V2Enabled {
-		if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
-			return err
-		}
-	} else {
-		if err := builder.For(&datadoghqv1alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
-			return err
-		}
+	if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
+		return err
 	}
 
 	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)

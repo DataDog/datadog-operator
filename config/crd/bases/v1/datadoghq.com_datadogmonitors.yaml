@@ -95,7 +95,7 @@ spec:
                       description: A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
                       type: boolean
                     locked:
-                      description: Whether or not the monitor is locked (only editable by creator and admins).
+                      description: 'DEPRECATED: Whether or not the monitor is locked (only editable by creator and admins). Use `restricted_roles` instead.'
                       type: boolean
                     newGroupDelay:
                       description: |-
@@ -126,6 +126,7 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     notifyNoData:
                       description: A Boolean indicating whether this monitor notifies when data stops reporting.
                       type: boolean
@@ -147,6 +148,13 @@ spec:
                       description: The number of times re-notification messages should be sent on the current status at the provided re-notification interval.
                       format: int64
                       type: integer
+                    renotifyStatuses:
+                      description: The types of statuses for which re-notification messages should be sent. Valid values are alert, warn, no data.
+                      items:
+                        description: MonitorRenotifyStatusType The different statuses for which renotification is supported.
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: set
                     requireFullWindow:
                       description: |-
                         A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly

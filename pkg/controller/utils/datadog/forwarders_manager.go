@@ -31,7 +31,6 @@ type MetricForwardersManager interface {
 type ForwardersManager struct {
 	k8sClient    client.Client
 	platformInfo *kubernetes.PlatformInfo
-	v2Enabled    bool
 	forwarders   map[string]*metricsForwarder
 	decryptor    secrets.Decryptor
 	wg           sync.WaitGroup
@@ -40,11 +39,10 @@ type ForwardersManager struct {
 
 // NewForwardersManager builds a new ForwardersManager object
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client, v2Enabled bool, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
 	return &ForwardersManager{
 		k8sClient:    k8sClient,
 		platformInfo: platformInfo,
-		v2Enabled:    v2Enabled,
 		forwarders:   make(map[string]*metricsForwarder),
 		decryptor:    secrets.NewSecretBackend(),
 		wg:           sync.WaitGroup{},
@@ -66,7 +64,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registered", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, obj.GetObjectKind(), f.v2Enabled, f.platformInfo)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, obj.GetObjectKind(), f.platformInfo)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}

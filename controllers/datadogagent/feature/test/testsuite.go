@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -32,8 +31,7 @@ type FeatureTestSuite []FeatureTest
 type FeatureTest struct {
 	Name string
 	// Inputs
-	DDAv2          *v2alpha1.DatadogAgent
-	DDAv1          *v1alpha1.DatadogAgent
+	DDA            *v2alpha1.DatadogAgent
 	Options        *Options
 	FeatureOptions *feature.Options
 	// Dependencies Store
@@ -83,12 +81,17 @@ func (ct *ComponentTest) WithWantFunc(f func(testing.TB, feature.PodTemplateMana
 
 // Run use to run the Feature test suite.
 func (suite FeatureTestSuite) Run(t *testing.T, buildFunc feature.BuildFunc) {
+	t.Helper()
+
 	for _, test := range suite {
-		runTest(t, test, buildFunc)
+		t.Run(test.Name, func(tt *testing.T) {
+			runTest(tt, test)
+		})
 	}
 }
 
-func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
+func runTest(t *testing.T, tt FeatureTest) {
+	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(tt.Name)
 
@@ -98,19 +101,14 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	var features []feature.Feature
 	var gotConfigure feature.RequiredComponents
 	var dda metav1.Object
-	var isV2 bool
 	featureOptions := &feature.Options{}
 	if tt.FeatureOptions != nil {
 		featureOptions = tt.FeatureOptions
 	}
 	featureOptions.Logger = logger
-	if tt.DDAv2 != nil {
-		features, gotConfigure = feature.BuildFeatures(tt.DDAv2, featureOptions)
-		dda = tt.DDAv2
-		isV2 = true
-	} else if tt.DDAv1 != nil {
-		features, gotConfigure = feature.BuildFeaturesV1(tt.DDAv1, featureOptions)
-		dda = tt.DDAv1
+	if tt.DDA != nil {
+		features, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		dda = tt.DDA
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
 	}
@@ -119,7 +117,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	verifyFeatures(t, tt, features, gotConfigure)
 
 	// dependencies
-	store, depsManager := initDependencies(tt, logger, isV2, dda)
+	store, depsManager := initDependencies(tt, logger, dda)
 
 	for _, feat := range features {
 		if err := feat.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
@@ -157,14 +155,14 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 }
 
-func initDependencies(tt FeatureTest, logger logr.Logger, isV2 bool, dda metav1.Object) (*dependencies.Store, feature.ResourceManagers) {
+func initDependencies(tt FeatureTest, logger logr.Logger, dda metav1.Object) (*dependencies.Store, feature.ResourceManagers) {
 	if tt.StoreOption == nil {
 		tt.StoreOption = &dependencies.StoreOptions{
 			Logger: logger,
 		}
 	}
 	if tt.StoreOption.Scheme == nil {
-		tt.StoreOption.Scheme = testutils.TestScheme(isV2)
+		tt.StoreOption.Scheme = testutils.TestScheme()
 	}
 
 	store := dependencies.NewStore(dda, tt.StoreOption)

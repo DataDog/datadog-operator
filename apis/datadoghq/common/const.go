@@ -23,8 +23,6 @@ const (
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
-	// MD5ChecksumAnnotationKey is part of the key name to identify custom seccomp configurations
-	MD5ChecksumSeccompProfileAnnotationName = "%s-seccomp"
 
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"
@@ -72,6 +70,8 @@ const (
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
 	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
 	DefaultOrchestratorExplorerConf string = "orchestrator-explorer-config"
+	// DefaultKubeAPIServerConf default Kubernetes APIServer ConfigMap name
+	DefaultKubeAPIServerConf string = "kube-apiserver-config"
 	// DefaultSystemProbeSocketPath default System Probe socket path
 	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
 	// DefaultCSPMConf default CSPM ConfigMap name
@@ -301,7 +301,8 @@ const (
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
 	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
-	HelmCheckConfigVolumeName = "helm-check-config"
+	HelmCheckConfigVolumeName                = "helm-check-config"
+	KubernetesAPIServerCheckConfigVolumeName = "kubernetes-apiserver-check-config"
 
 	FIPSProxyCustomConfigVolumeName = "fips-proxy-cfg"
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"

@@ -23,8 +23,6 @@ done
 $YQ -i 'del(.spec.validation.openAPIV3Schema.properties.status.properties.defaultOverride)' "$ROOT/$v1beta1/datadoghq.com_datadogagents.yaml"
 $YQ -i 'del(.spec.versions[].schema.openAPIV3Schema.properties.status.properties.defaultOverride)' "$ROOT/$v1/datadoghq.com_datadogagents.yaml"
 
-
-
 # Pretty print CRD files so they they all have same formatting
 for crd in "$ROOT/$v1beta1"/*.yaml
 do

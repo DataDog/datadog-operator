@@ -55,7 +55,6 @@ instances:
 		config = config + "    crd_collectors:\n"
 		for _, cr := range crs {
 			config = config + fmt.Sprintf("      - %s\n", cr)
-
 		}
 	}
 

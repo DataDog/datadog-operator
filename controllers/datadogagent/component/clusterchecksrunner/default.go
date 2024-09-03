@@ -11,23 +11,24 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
+
+// GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
+func GetClusterChecksRunnerName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+}
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, component.GetClusterChecksRunnerName(dda), component.GetAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
@@ -47,10 +48,10 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployme
 // NewDefaultClusterChecksRunnerPodTemplateSpec returns a default cluster-checks-runner for the cluster-agent deployment
 func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
-		component.GetVolumeInstallInfo(dda),
-		component.GetVolumeForConfig(),
-		component.GetVolumeForRmCorechecks(),
-		component.GetVolumeForLogs(),
+		common.GetVolumeInstallInfo(dda),
+		common.GetVolumeForConfig(),
+		common.GetVolumeForRmCorechecks(),
+		common.GetVolumeForLogs(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -59,15 +60,15 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 		// In some envs like Openshift, when running as non-root, the pod will
 		// not have permissions to write on /tmp, that's why we need to mount
 		// it with write perms.
-		component.GetVolumeForTmp(),
+		common.GetVolumeForTmp(),
 	}
 
 	volumeMounts := []corev1.VolumeMount{
-		component.GetVolumeMountForInstallInfo(),
-		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForTmp(),
-		component.GetVolumeMountForRmCorechecks(),
+		common.GetVolumeMountForInstallInfo(),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForRmCorechecks(),
 	}
 
 	template := &corev1.PodTemplateSpec{
@@ -81,125 +82,8 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 	return template
 }
 
-// GetDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner
-func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excludeNonResourceRules bool) []rbacv1.PolicyRule {
-	policyRule := []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ServicesResource,
-				rbac.EventsResource,
-				rbac.EndpointsResource,
-				rbac.PodsResource,
-				rbac.NodesResource,
-				rbac.ComponentStatusesResource,
-				rbac.ConfigMapsResource,
-				rbac.NamespaceResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ConfigMapsResource,
-			},
-			Verbs: []string{
-				rbac.CreateVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ConfigMapsResource,
-			},
-			ResourceNames: []string{
-				utils.GetDatadogLeaderElectionResourceName(dda),
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.UpdateVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
-			Resources: []string{
-				rbac.ClusterResourceQuotasResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-			},
-		},
-		{
-			NonResourceURLs: []string{
-				rbac.VersionURL,
-				rbac.HealthzURL,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-			},
-		},
-		// Leader election that uses Leases, such as kube-controller-manager
-		{
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{
-				rbac.LeasesResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-		// Horizontal Pod Autoscaling
-		{
-			APIGroups: []string{rbac.AutoscalingAPIGroup},
-			Resources: []string{
-				rbac.HorizontalPodAutoscalersRecource,
-			},
-			Verbs: []string{
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.NamespaceResource,
-			},
-			ResourceNames: []string{
-				common.KubeSystemResourceName,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-			},
-		},
-	}
-
-	if !excludeNonResourceRules {
-		policyRule = append(policyRule, rbacv1.PolicyRule{
-			NonResourceURLs: []string{
-				rbac.MetricsURL,
-				rbac.MetricsSLIsURL,
-			},
-			Verbs: []string{rbac.GetVerb},
-		})
-	}
-
-	return policyRule
-}
-
-// GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
-func GetDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
-}
-
-// GetCCRRbacResourcesName returns the Cluster Checks Runner RBAC resource name
-func GetCCRRbacResourcesName(dda metav1.Object) string {
+// getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
+func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
@@ -209,7 +93,7 @@ func clusterChecksRunnerImage() string {
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
-		ServiceAccountName: GetDefaultServiceAccountName(dda),
+		ServiceAccountName: getDefaultServiceAccountName(dda),
 		InitContainers: []corev1.Container{
 			{
 				Name:    "init-config",

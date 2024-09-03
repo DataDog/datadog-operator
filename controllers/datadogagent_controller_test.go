@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build integration
-// +build integration
+//go:build integration_v2
+// +build integration_v2
 
 package controllers
 
@@ -15,27 +15,214 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
-	// +kubebuilder:scaffold:imports
 )
 
 const (
-	timeout  = time.Second * 30
-	interval = time.Second * 2
-
-	confdConfigMapName   = "confd-config"
-	checksdConfigMapName = "checksd-config"
+	timeout  = 10 * time.Second
+	interval = 100 * time.Millisecond
 )
+
+// These tests verify that a DatadogAgent deployment is successful.
+//
+// The function that checks if a deployment is successful is
+// checkAgentDeployment(). At the moment, it checks these things:
+//   - The DatadogAgent status contains information about the agent and the DCA.
+//   - The Agent DaemonSet has been deployed.
+//   - The DCA Deployment has been deployed.
+//
+// These tests allow us to catch errors like the operator trying to create an
+// invalid Kubernetes resource (RBAC, deployment without a name, etc.). However,
+// these tests don't use a container runtime by default (they run with
+// USE_EXISTING_CLUSTER=false). Therefore, these tests are not useful to catch
+// errors that crash containers and keep them in "CrashLoopBackOff" state.
+var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
+	namespace := "default"
+
+	Context(
+		"with no features enabled",
+		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "basic")),
+	)
+
+	Context(
+		"with admission controller enabled",
+		testFunction(testutils.NewDatadogAgentWithAdmissionController(namespace, "with-admission-controller")),
+	)
+
+	Context(
+		"with admission controller enabled, CWS Instrumentation enabled",
+		testFunction(testutils.NewDatadogAgentWithCWSInstrumentation(namespace, "with-cws-instrumentation")),
+	)
+
+	Context(
+		"with APM enabled",
+		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "with-apm")),
+	)
+
+	Context(
+		"with cluster checks enabled",
+		testFunction(testutils.NewDatadogAgentWithClusterChecks(namespace, "with-cluster-checks")),
+	)
+
+	Context(
+		"with CSPM enabled",
+		testFunction(testutils.NewDatadogAgentWithCSPM(namespace, "with-cspm")),
+	)
+
+	Context(
+		"with CWS enabled",
+		testFunction(testutils.NewDatadogAgentWithCWS(namespace, "with-cws")),
+	)
+
+	Context(
+		"with Dogstatsd enabled",
+		testFunction(testutils.NewDatadogAgentWithDogstatsd(namespace, "with-dogstatsd")),
+	)
+
+	Context(
+		"with eBPF check enabled",
+		testFunction(testutils.NewDatadogAgentWithEBPFCheck(namespace, "with-ebpfcheck")),
+	)
+
+	Context(
+		"with Event Collection",
+		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "with-event-collection")),
+	)
+
+	Context(
+		"with External Metrics Server",
+		testFunction(testutils.NewDatadogAgentWithExternalMetrics(namespace, "with-external-metrics")),
+	)
+
+	Context(
+		"with KSM core",
+		testFunction(testutils.NewDatadogAgentWithKSM(namespace, "with-ksm")),
+	)
+
+	Context(
+		"with live container collection",
+		testFunction(testutils.NewDatadogAgentWithLiveContainerCollection(namespace, "with-live-container-collection")),
+	)
+
+	Context(
+		"with live process collection",
+		testFunction(testutils.NewDatadogAgentWithLiveProcessCollection(namespace, "with-live-process-collection")),
+	)
+
+	Context(
+		"with log collection",
+		testFunction(testutils.NewDatadogAgentWithLogCollection(namespace, "with-log-collection")),
+	)
+
+	Context(
+		"with NPM",
+		testFunction(testutils.NewDatadogAgentWithNPM(namespace, "with-npm")),
+	)
+
+	Context(
+		"with OOM Kill",
+		testFunction(testutils.NewDatadogAgentWithOOMKill(namespace, "with-oom-kill")),
+	)
+
+	Context(
+		"with orchestrator explorer",
+		testFunction(testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, "with-orchestrator-explorer")),
+	)
+
+	Context(
+		"with OTLP",
+		testFunction(testutils.NewDatadogAgentWithOTLP(namespace, "with-otlp")),
+	)
+
+	Context(
+		"with Prometheus scrape",
+		testFunction(testutils.NewDatadogAgentWithPrometheusScrape(namespace, "with-prometheus-scrape")),
+	)
+
+	Context(
+		"with TCP queue length",
+		testFunction(testutils.NewDatadogAgentWithTCPQueueLength(namespace, "with-tcp-queue-length")),
+	)
+
+	Context(
+		"with USM",
+		testFunction(testutils.NewDatadogAgentWithUSM(namespace, "with-usm")),
+	)
+
+	Context(
+		"with some global settings set",
+		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
+	)
+
+	Context(
+		"with overrides",
+		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
+	)
+})
+
+func testFunction(agent v2alpha1.DatadogAgent) func() {
+	return func() {
+		BeforeEach(func() {
+			createKubernetesObject(k8sClient, &agent)
+		})
+
+		AfterEach(func() {
+			deleteKubernetesObject(k8sClient, &agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(agent.Namespace, agent.Name)
+		})
+	}
+}
+
+func checkAgentDeployment(namespace string, name string) {
+	checkAgentStatus(namespace, name)
+	checkAgentDaemonSet(namespace, name)
+	checkDCADeployment(namespace, name)
+}
+
+func checkAgentStatus(namespace string, ddaName string) {
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      ddaName,
+	}
+
+	agent := &v2alpha1.DatadogAgent{}
+	getObjectAndCheck(agent, key, func() bool {
+		return agent.Status.Agent != nil && agent.Status.ClusterAgent != nil
+	})
+}
+
+func checkAgentDaemonSet(namespace string, ddaName string) {
+	daemonSet := &appsv1.DaemonSet{}
+	daemonSetKey := types.NamespacedName{
+		Namespace: namespace,
+		Name:      fmt.Sprintf("%s-%s", ddaName, "agent"),
+	}
+
+	getObjectAndCheck(daemonSet, daemonSetKey, func() bool {
+		// We just verify that it exists
+		return true
+	})
+}
+
+func checkDCADeployment(namespace string, ddaName string) {
+	deployment := &appsv1.Deployment{}
+	deploymentKey := types.NamespacedName{
+		Namespace: namespace,
+		Name:      fmt.Sprintf("%s-%s", ddaName, "cluster-agent"),
+	}
+	getObjectAndCheck(deployment, deploymentKey, func() bool {
+		// We just verify that it exists
+		return true
+	})
+}
 
 func getObjectAndCheck(obj client.Object, key types.NamespacedName, check func() bool) {
 	Eventually(func() bool {
@@ -49,216 +236,30 @@ func getObjectAndCheck(obj client.Object, key types.NamespacedName, check func()
 	}, timeout, interval).Should(BeTrue())
 }
 
-func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj client.Object,
-	getAgentHash func(agent *datadoghqv1alpha1.DatadogAgent) string,
-	getAnnotationHash func() string,
-	updateAgent func(agent *datadoghqv1alpha1.DatadogAgent),
-	check func(agent *datadoghqv1alpha1.DatadogAgent) bool,
-) {
-	var beforeHash string
-	var agent *datadoghqv1alpha1.DatadogAgent
+// createKubernetesObject creates a kubernetes object and waits until it is accessible
+func createKubernetesObject(k8sClient client.Client, obj client.Object) {
+	Expect(k8sClient.Create(context.TODO(), obj)).Should(Succeed())
 
 	Eventually(func() bool {
-		// Getting Agent object to fetch hash before update
-		agent = &datadoghqv1alpha1.DatadogAgent{}
-		err := k8sClient.Get(context.Background(), agentKey, agent)
-		if err != nil {
-			fmt.Fprint(GinkgoWriter, err)
-			return false
-		}
-		beforeHash = getAgentHash(agent)
-
-		// Update agent
-		updateAgent(agent)
-		err = k8sClient.Update(context.Background(), agent)
-		if err != nil {
-			fmt.Fprint(GinkgoWriter, err)
-			return false
-		}
-
-		return true
-	}, 5*time.Second, time.Second).Should(BeTrue())
-
-	getObjectAndCheck(obj, objKey, func() bool {
-		currentHash := getAnnotationHash()
-		if currentHash == beforeHash || currentHash == "" {
-			return false
-		}
-		if check != nil {
-			return check(agent)
-		}
-		return true
-	})
-}
-
-func checkAgentUpdateOnDaemonSet(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
-	obj := &appsv1.DaemonSet{}
-	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		if agent.Status.Agent != nil {
-			return agent.Status.Agent.CurrentHash
-		}
-		return ""
-	}, func() string {
-		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
-	}, updateAgent, check)
-}
-
-func checkAgentUpdateOnClusterAgent(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
-	obj := &appsv1.Deployment{}
-	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		if agent.Status.ClusterAgent != nil {
-			return agent.Status.ClusterAgent.CurrentHash
-		}
-		return ""
-	}, func() string {
-		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
-	}, updateAgent, check)
-}
-
-// This test may take ~30s to run, check you go test timeout
-var _ = Describe("DatadogAgent Controller", func() {
-	Context("Initial deployment", func() {
-		namespace := "default"
-		name := "foo"
 		key := types.NamespacedName{
-			Namespace: namespace,
-			Name:      name,
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
 		}
-		dsName := fmt.Sprintf("%s-%s", name, "agent")
-		dsKey := types.NamespacedName{
-			Namespace: namespace,
-			Name:      dsName,
-		}
+		err := k8sClient.Get(context.Background(), key, obj)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+}
 
-		It("It should create DaemonSet", func() {
-			options := &testutils.NewDatadogAgentOptions{
-				UseEDS:                       false,
-				ClusterAgentDisabled:         true,
-				APIKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg",
-				AppKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg-dsddsd",
-				OrchestratorExplorerDisabled: true,
-			}
+// deleteKubernetesObject deletes a kubernetes object and waits until it is no longer accessible
+func deleteKubernetesObject(k8sClient client.Client, obj client.Object) {
+	Expect(k8sClient.Delete(context.Background(), obj)).Should(Succeed())
 
-			agent := testutils.NewDatadogAgent(namespace, name, "", options)
-			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
-
-			agent = &datadoghqv1alpha1.DatadogAgent{}
-			getObjectAndCheck(agent, key, func() bool {
-				if agent.Status.Agent == nil || agent.Status.Agent.CurrentHash == "" {
-					return false
-				}
-				for _, condition := range agent.Status.Conditions {
-					if condition.Type == datadoghqv1alpha1.DatadogAgentConditionTypeActive && condition.Status == corev1.ConditionTrue {
-						return true
-					}
-				}
-				return false
-			})
-
-			ds := &appsv1.DaemonSet{}
-			getObjectAndCheck(ds, dsKey, func() bool {
-				// We just verify we are able to find a DS with ns/name
-				return true
-			})
-		})
-
-		It("Should update DaemonSet", func() {
-			agent := &datadoghqv1alpha1.DatadogAgent{}
-			Expect(k8sClient.Get(context.Background(), key, agent)).ToNot(HaveOccurred())
-
-			By("Updating on image change", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Image.Name = "datadog/agent:7.22.0"
-				}, nil)
-			})
-
-			By("Activating APM", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Apm.Enabled = apiutils.NewBoolPointer(true)
-				}, nil)
-			})
-
-			By("Disabling OrchestratorExplorer", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{
-						Enabled: apiutils.NewBoolPointer(false),
-					}
-				}, nil)
-			})
-
-			By("Activating System Probe", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.SystemProbe.Enabled = apiutils.NewBoolPointer(true)
-				}, nil)
-			})
-
-			By("Update the DatadogAgent with custom conf.d and checks.d", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Config.Confd = &datadoghqv1alpha1.ConfigDirSpec{
-						ConfigMapName: confdConfigMapName,
-					}
-					agent.Spec.Agent.Config.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
-						ConfigMapName: checksdConfigMapName,
-					}
-				}, nil)
-			})
-
-			By("Enabled Process", func() {
-				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Process.Enabled = apiutils.NewBoolPointer(true)
-				}, nil)
-			})
-		})
-	})
-
-	Context("Cluster Agent Deployment", func() {
-		namespace := "default"
-		name := "foo-dca"
+	Eventually(func() bool {
 		key := types.NamespacedName{
-			Namespace: namespace,
-			Name:      name,
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
 		}
-		dcaName := fmt.Sprintf("%s-%s", name, "cluster-agent")
-		dcaKey := types.NamespacedName{
-			Namespace: namespace,
-			Name:      dcaName,
-		}
-
-		It("It should create Deployment", func() {
-			options := &testutils.NewDatadogAgentOptions{APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg", AppKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg-23678264"}
-			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", options)
-			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
-
-			var agentClusterAgentHash string
-			agent = &datadoghqv1alpha1.DatadogAgent{}
-			getObjectAndCheck(agent, key, func() bool {
-				if agent.Status.ClusterAgent == nil {
-					return false
-				}
-				if agent.Status.ClusterAgent.CurrentHash == "" {
-					return false
-				}
-
-				agentClusterAgentHash = agent.Status.ClusterAgent.CurrentHash
-				return true
-			})
-
-			clusterAgent := &appsv1.Deployment{}
-			getObjectAndCheck(clusterAgent, dcaKey, func() bool {
-				return clusterAgent.Annotations[apicommon.MD5AgentDeploymentAnnotationKey] == agentClusterAgentHash
-			})
-		})
-
-		It("Should update ClusterAgent", func() {
-			checkAgentUpdateOnClusterAgent(key, dcaKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
-				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = apiutils.NewBoolPointer(true)
-				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-					Image: &commonv1.AgentImageConfig{
-						Name: "datadog/agent:7.22.0",
-					},
-				}
-			}, nil)
-		})
-	})
-})
+		err := k8sClient.Get(context.Background(), key, obj)
+		return client.IgnoreNotFound(err) == nil
+	}, timeout, interval).Should(BeTrue())
+}

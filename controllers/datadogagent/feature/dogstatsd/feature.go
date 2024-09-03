@@ -15,10 +15,9 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -100,49 +99,11 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	return reqComp
 }
 
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	config := dda.Spec.Agent.Config
-	f.owner = dda
-	if config.HostPort != nil {
-		f.hostPortEnabled = true
-		f.hostPortHostPort = *config.HostPort
-	}
-	if apiutils.BoolValue(config.Dogstatsd.UnixDomainSocket.Enabled) {
-		f.udsEnabled = true
-	}
-	if config.Dogstatsd.UnixDomainSocket.HostFilepath != nil {
-		f.udsHostFilepath = *config.Dogstatsd.UnixDomainSocket.HostFilepath
-	}
-	if apiutils.BoolValue(config.Dogstatsd.DogstatsdOriginDetection) {
-		f.originDetectionEnabled = true
-	}
-	f.useHostNetwork = v1alpha1.IsHostNetworkEnabled(dda)
-	if config.Dogstatsd.MapperProfiles != nil {
-		f.mapperProfiles = v1alpha1.ConvertCustomConfig(config.Dogstatsd.MapperProfiles)
-	}
-
-	if dda.Spec.Agent.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-	}
-	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-
-	reqComp = feature.RequiredComponents{
-		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
-			},
-		},
-	}
-	return reqComp
-}
-
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
-	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 		dsdPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolUDP,
 			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
@@ -157,7 +118,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 			}
 		}
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}

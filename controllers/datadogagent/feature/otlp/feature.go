@@ -15,14 +15,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
@@ -111,54 +110,11 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	otlp := dda.Spec.Agent.OTLP
-	f.owner = dda
-	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
-		f.grpcEnabled = true
-	}
-	if otlp.Receiver.Protocols.GRPC.Endpoint != nil {
-		f.grpcEndpoint = *otlp.Receiver.Protocols.GRPC.Endpoint
-	}
-
-	if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.Enabled) {
-		f.httpEnabled = true
-	}
-	if otlp.Receiver.Protocols.HTTP.Endpoint != nil {
-		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
-	}
-
-	f.usingAPM = apiutils.BoolValue(dda.Spec.Agent.Apm.Enabled)
-
-	if dda.Spec.Agent.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-	}
-	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-
-	if f.grpcEnabled || f.httpEnabled {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				},
-			},
-		}
-		// if using APM, require the Trace Agent too.
-		if f.usingAPM {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
-		}
-	}
-
-	return reqComp
-}
-
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	if f.grpcEnabled {
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.grpcEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -173,13 +129,13 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
 				return err
 			}
 		}
 	}
 	if f.httpEnabled {
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.httpEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")

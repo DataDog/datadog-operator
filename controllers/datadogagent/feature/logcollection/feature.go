@@ -10,7 +10,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -82,37 +81,6 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	return reqComp
 }
 
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *logCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	logCollection := dda.Spec.Features.LogCollection
-
-	if apiutils.BoolValue(logCollection.Enabled) {
-		if apiutils.BoolValue(logCollection.LogsConfigContainerCollectAll) {
-			f.containerCollectAll = true
-		}
-		if apiutils.BoolValue(logCollection.ContainerCollectUsingFiles) {
-			f.containerCollectUsingFiles = true
-		}
-		f.containerLogsPath = *logCollection.ContainerLogsPath
-		f.podLogsPath = *logCollection.PodLogsPath
-		f.containerSymlinksPath = *logCollection.ContainerSymlinksPath
-		f.tempStoragePath = *logCollection.TempStoragePath
-		if logCollection.OpenFilesLimit != nil {
-			f.openFilesLimit = *logCollection.OpenFilesLimit
-		}
-
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				},
-			},
-		}
-	}
-	return reqComp
-}
-
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
@@ -141,7 +109,6 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 }
 
 func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
-
 	// pointerdir volume mount
 	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, agentContainerName)

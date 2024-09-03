@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -25,23 +26,23 @@ import (
 func Test_liveProcessFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name: "v2alpha1 live process collection not enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection not enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 live process collection enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled with scrub and strip args",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled with scrub and strip args",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithLiveProcessScrubStrip(true, true).
 				Build(),
@@ -49,13 +50,13 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, true),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled in core agent via env vars",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled in core agent via env vars",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
@@ -64,13 +65,13 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true, false),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled in core agent via option",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled in core agent via option",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
 				Build(),
@@ -79,8 +80,8 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true, false),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled in core agent via option without min version",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled in core agent via option without min version",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -94,13 +95,13 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
 		},
 		{
-			Name: "v2alpha1 live process collection disabled in core agent via env var override",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection disabled in core agent via env var override",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
@@ -110,8 +111,8 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false, false),
 		},
 		{
-			Name: "v2alpha1 live process collection enabled on single container",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "live process collection enabled on single container",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),

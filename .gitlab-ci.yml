@@ -14,7 +14,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: a1d921006e35
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 3c7d2dc2d3dd
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
 
@@ -32,6 +32,7 @@ stages:
   - release
   - e2e
   - post-release
+  - deploy
 
 .new_e2e_template:
   stage: e2e
@@ -55,7 +56,7 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 16Gi
 
 .on_run_e2e:
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
     when: always
   - if: $CI_COMMIT_BRANCH
     changes:
@@ -63,9 +64,17 @@ stages:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
-  - if: $CI_COMMIT_BRANCH
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: never
+  # Temporarily disable on Conductor-triggered jobs
+  - if: '$DDR != "true"'
     when: manual
   - when: never
+
+.on_build_images:
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: never
+  - when: always
 
 build:
   stage: build
@@ -79,6 +88,10 @@ build:
 unit_tests:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -88,6 +101,10 @@ unit_tests:
 generate_code:
   stage: test
   tags: ["runner:main", "size:large"]
+  rules:
+    - if: '$DDR == "true"'
+      when: never
+    - when: on_success
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -97,6 +114,7 @@ generate_code:
 
 build_operator_image_amd64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -113,6 +131,7 @@ build_operator_image_amd64:
 
 build_operator_image_arm64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
@@ -129,6 +148,7 @@ build_operator_image_arm64:
 
 build_operator_check_image_amd64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:amd64"
   image: $JOB_DOCKER_IMAGE
@@ -145,6 +165,7 @@ build_operator_check_image_amd64:
 
 build_operator_check_image_arm64:
   stage: image
+  rules: !reference [.on_build_images]
   tags:
     - "arch:arm64"
   image: $JOB_DOCKER_IMAGE
@@ -176,7 +197,7 @@ build_bundle_image:
 publish_public_main:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR != "true"'
       when: on_success
     - when: never
   trigger:
@@ -293,7 +314,7 @@ trigger_internal_operator_check_image:
 trigger_internal_operator_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -312,7 +333,7 @@ trigger_internal_operator_nightly_image:
 trigger_internal_operator_check_nightly_image:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == "main" && $DDR == "true" && $CONDUCTOR_TARGET == "nightly-build"'
       when: on_success
     - when: never
   trigger:
@@ -458,3 +479,33 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
+
+
+# On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
+publish_nightly_workflow:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CONDUCTOR_TARGET == "nightly-build"'
+      when: on_success
+    - when: never
+  needs:
+    - trigger_internal_operator_nightly_image
+    - trigger_internal_operator_check_nightly_image
+  trigger:
+    project: DataDog/k8s-datadog-agent-ops
+    branch: main
+    strategy: depend
+    forward:
+      pipeline_variables: true
+  variables:
+    OPERATOR_NIGHTLY: "true"
+    SKIP_PLAN_CHECK: "true"
+    ENVIRONMENTS: "experimental"
+    CHART: "datadog-operator"
+    OPTION_AUTOMATIC_ROLLOUT: "true"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    BAZEL_TARGET: $BAZEL_TARGET
+    DDR: $DDR
+    TARGET_ENV: $TARGET_ENV
+    CONDUCTOR_TARGET: $CONDUCTOR_TARGET
+    DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID

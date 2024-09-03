@@ -59,13 +59,14 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
-| features.apm.instrumentation.languageDetection.enabled | Enabled enables language detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
+| features.apm.instrumentation.languageDetection.enabled | Enabled enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.asm.iast.enabled | Enabled enables Interactive Application Security Testing (IAST). Default: false |
 | features.asm.sca.enabled | Enabled enables Software Composition Analysis (SCA). Default: false |
 | features.asm.threats.enabled | Enabled enables ASM App & API Protection. Default: false |
+| features.autoscaling.workload.enabled | Enabled enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
@@ -93,6 +94,8 @@ spec:
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
+| features.eventCollection.collectedEventTypes | CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]}, {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]}, {"kind":"CronJob","reasons":["SawCompletedJob"]} ] |
+| features.eventCollection.unbundleEvents | UnbundleEvents enables collection of Kubernetes events as individual events. Default: false |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |

@@ -8,7 +8,6 @@ package v2alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
@@ -92,6 +91,8 @@ type DatadogFeatures struct {
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
 	// ExternalMetricsServer configuration.
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
+	// Autoscaling configuration.
+	Autoscaling *AutoscalingFeatureConfig `json:"autoscaling,omitempty"`
 	// ClusterChecks configuration.
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
@@ -155,15 +156,15 @@ type SingleStepInstrumentation struct {
 	// +optional
 	LibVersions map[string]string `json:"libVersions,omitempty"`
 
-	// Language detection currently only detects languages and adds them as annotations on deployments, but doesn't use these languages for injecting libraries to applicative pods.
+	// LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
 	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
 	// +optional
-	LanguageDetection *LanguageDetection `json:"languageDetection,omitempty"`
+	LanguageDetection *LanguageDetectionConfig `json:"languageDetection,omitempty"`
 }
 
-// LanguageDetection contains the config for the language detection feature.
-type LanguageDetection struct {
-	// Enabled enables language detection to automatically detect languages of user workloads (beta).
+// LanguageDetectionConfig contains the config for Language Detection.
+type LanguageDetectionConfig struct {
+	// Enabled enables Language Detection to automatically detect languages of user workloads (beta).
 	// Requires SingleStepInstrumentation.Enabled to be true.
 	// Default: true
 	// +optional
@@ -579,6 +580,32 @@ type EventCollectionFeatureConfig struct {
 	// CollectKubernetesEvents enables Kubernetes event collection.
 	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
+
+	// UnbundleEvents enables collection of Kubernetes events as individual events.
+	// Default: false
+	// +optional
+	UnbundleEvents *bool `json:"unbundleEvents,omitempty"`
+
+	// CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.
+	// Default:
+	// [
+	// {"kind":"Pod","reasons":["Failed","BackOff","Unhealthy","FailedScheduling","FailedMount","FailedAttachVolume"]},
+	// {"kind":"Node","reasons":["TerminatingEvictedPod","NodeNotReady","Rebooted","HostPortConflict"]},
+	// {"kind":"CronJob","reasons":["SawCompletedJob"]}
+	// ]
+	// +optional
+	// +listType=atomic
+	CollectedEventTypes []EventTypes `json:"collectedEventTypes,omitempty"`
+}
+
+// EventTypes defines the kind and reasons of events to collect.
+type EventTypes struct {
+	// Kind is the kind of event to collect. (ex: Pod, Node, CronJob)
+	Kind string `json:"kind"`
+
+	// Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)
+	// +listType=atomic
+	Reasons []string `json:"reasons"`
 }
 
 // OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
@@ -787,6 +814,20 @@ type ExternalMetricsServerFeatureConfig struct {
 	// URL Default: "https://app.datadoghq.com".
 	// +optional
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
+}
+
+// AutoscalingFeatureConfig contains the Autoscaling product configuration.
+type AutoscalingFeatureConfig struct {
+	// Workload contains the configuration for the workload autoscaling product.
+	Workload *WorkloadAutoscalingFeatureConfig `json:"workload,omitempty"`
+}
+
+// WorkloadAutoscalingFeatureConfig contains the configuration for the workload autoscaling product.
+type WorkloadAutoscalingFeatureConfig struct {
+	// Enabled enables the workload autoscaling product.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ClusterChecksFeatureConfig contains the Cluster Checks feature configuration.
@@ -1236,7 +1277,7 @@ type DatadogAgentComponentOverride struct {
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
-	UpdateStrategy *UpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy *commonv1.UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
@@ -1340,29 +1381,6 @@ const (
 	// processes in one container
 	SingleContainerStrategy ContainerStrategyType = "single"
 )
-
-// The deployment strategy to use to replace existing pods with new ones.
-// +k8s:openapi-gen=true
-type UpdateStrategy struct {
-	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
-	// or "Recreate" for Deployments
-	Type string `json:"type,omitempty"`
-	// Configure the rolling update strategy of the Deployment or DaemonSet.
-	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
-}
-
-// RollingUpdate describes how to replace existing pods with new ones.
-// +k8s:openapi-gen=true
-type RollingUpdate struct {
-	// The maximum number of pods that can be unavailable during the update.
-	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-	// Refer to the Kubernetes API documentation for additional details..
-	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
-
-	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
-	// Kubernetes API documentation for additional details.
-	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
-}
 
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true

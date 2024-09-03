@@ -15,15 +15,13 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
-	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
@@ -96,14 +94,14 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
 			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
+				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
 					// Disable if image is overridden to an unsupported version
 					f.collectAPIServiceMetrics = false
 					f.collectCRDMetrics = false
 				}
 			}
 		} else if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
+			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
 				// Disable if image is overridden to an unsupported version
 				f.collectAPIServiceMetrics = false
 				f.collectCRDMetrics = false
@@ -120,36 +118,6 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
-		}
-
-		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-	}
-
-	return output
-}
-
-// ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-	var output feature.RequiredComponents
-
-	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-
-		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
-			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
-				f.runInClusterChecksRunner = true
-				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
-			}
-		} else {
-			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
-		}
-
-		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-			f.customConfig = v1alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 		}
 
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)

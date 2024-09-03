@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	apiextensionclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,12 +19,12 @@ import (
 
 // Options encapsulates the common fields of command options
 type Options struct {
-	ConfigFlags  *genericclioptions.ConfigFlags
-	Client       client.Client
-	Clientset    *kubernetes.Clientset
-	APIExtClient *apiextensionclient.Clientset
+	ConfigFlags     *genericclioptions.ConfigFlags
+	Client          client.Client
+	Clientset       *kubernetes.Clientset
+	APIExtClient    *apiextensionclient.Clientset
+	DiscoveryClient discovery.DiscoveryInterface
 
-	isV2Available bool
 	UserNamespace string
 }
 
@@ -43,10 +44,6 @@ func (o *Options) Init(cmd *cobra.Command) error {
 	}
 	o.SetClientset(clientset)
 
-	if o.isV2Available, err = IsV2Available(o.Clientset); err != nil {
-		return err
-	}
-
 	restConfig, err := o.ConfigFlags.ToRESTConfig()
 	if err != nil {
 		return fmt.Errorf("unable to create restConfig for APIExtensionClient, err:%w", err)
@@ -56,6 +53,12 @@ func (o *Options) Init(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to create APIExtensionClient, err:%w", err)
 	}
 	o.SetApiExtensionClient(apiextClient)
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create DiscoveryClient, err:%w", err)
+	}
+	o.SetDiscoveryClient(discoveryClient)
 
 	nsConfig, _, err := clientConfig.Namespace()
 	if err != nil {
@@ -95,6 +98,11 @@ func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) {
 	o.APIExtClient = client
 }
 
+// SetDiscoveryClient configures the DiscoveryClient
+func (o *Options) SetDiscoveryClient(client discovery.DiscoveryInterface) {
+	o.DiscoveryClient = client
+}
+
 // GetClientConfig returns the client config
 func (o *Options) GetClientConfig() clientcmd.ClientConfig {
 	return o.ConfigFlags.ToRawKubeConfigLoader()
@@ -103,9 +111,4 @@ func (o *Options) GetClientConfig() clientcmd.ClientConfig {
 // SetConfigFlags configures the config flags
 func (o *Options) SetConfigFlags() {
 	o.ConfigFlags = genericclioptions.NewConfigFlags(false)
-}
-
-// IsDatadogAgentV2Available returns true if the v2Alpha1.DatadogAgent resource is available
-func (o *Options) IsDatadogAgentV2Available() bool {
-	return o.isV2Available
 }

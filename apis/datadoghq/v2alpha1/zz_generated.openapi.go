@@ -42,10 +42,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
-		"./apis/datadoghq/v2alpha1.RollingUpdate":                     schema__apis_datadoghq_v2alpha1_RollingUpdate(ref),
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
-		"./apis/datadoghq/v2alpha1.UpdateStrategy":                    schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref),
 	}
 }
 
@@ -561,6 +559,12 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig"),
 						},
 					},
+					"autoscaling": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Autoscaling configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.AutoscalingFeatureConfig"),
+						},
+					},
 					"clusterChecks": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ClusterChecks configuration.",
@@ -583,7 +587,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.ASMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.ASMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.AutoscalingFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OTLPFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./apis/datadoghq/v2alpha1.SBOMFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -648,9 +652,37 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 							Format:      "",
 						},
 					},
+					"unbundleEvents": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnbundleEvents enables collection of Kubernetes events as individual events. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"collectedEventTypes": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled. Default: [ {\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]}, {\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]}, {\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]} ]",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v2alpha1.EventTypes"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.EventTypes"},
 	}
 }
 
@@ -1173,33 +1205,6 @@ func schema__apis_datadoghq_v2alpha1_RemoteConfigConfiguration(ref common.Refere
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_RollingUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "RollingUpdate describes how to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-					"maxSurge": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.",
-							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/util/intstr.IntOrString"},
-	}
-}
-
 func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1252,33 +1257,5 @@ func schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.Reference
 				},
 			},
 		},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_UpdateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "The deployment strategy to use to replace existing pods with new ones.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"type": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Type can be \"RollingUpdate\" or \"OnDelete\" for DaemonSets and \"RollingUpdate\" or \"Recreate\" for Deployments",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"rollingUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Configure the rolling update strategy of the Deployment or DaemonSet.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.RollingUpdate"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.RollingUpdate"},
 	}
 }

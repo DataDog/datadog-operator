@@ -133,14 +133,18 @@ func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha
 	})
 
 	profileComponentOverride := v2alpha1.DatadogAgentComponentOverride{
-		Name:       &overrideDSName,
-		Affinity:   affinityOverride(profile),
-		Containers: containersOverride(profile),
-		Labels:     labelsOverride(profile),
+		Name:     &overrideDSName,
+		Affinity: affinityOverride(profile),
+		Labels:   labelsOverride(profile),
 	}
 
-	if priorityClassName := priorityClassNameOverride(profile); priorityClassName != nil {
-		profileComponentOverride.PriorityClassName = priorityClassName
+	if !IsDefaultProfile(profile.Namespace, profile.Name) && profile.Spec.Config != nil {
+		// We only support overrides for the node agent
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+			profileComponentOverride.Containers = containersOverride(nodeAgentOverride)
+			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
+			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
+		}
 	}
 
 	return profileComponentOverride
@@ -190,13 +194,24 @@ func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affini
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
 				{
-					MatchExpressions: profile.Spec.ProfileAffinity.ProfileNodeAffinity,
+					MatchExpressions: append(profile.Spec.ProfileAffinity.ProfileNodeAffinity, profileLabelKeyNSR(profile.Name)),
 				},
 			},
 		},
 	}
 
 	return affinity
+}
+
+// profileLabelKeyNSR returns the NodeSelectorRequirement for a profile to be
+// applied to nodes with the following label:
+// agent.datadoghq.com/datadogagentprofile:<profile-name>
+func profileLabelKeyNSR(profileName string) v1.NodeSelectorRequirement {
+	return v1.NodeSelectorRequirement{
+		Key:      ProfileLabelKey,
+		Operator: v1.NodeSelectorOpIn,
+		Values:   []string{profileName},
+	}
 }
 
 // affinityOverrideForDefaultProfile returns the affinity override that should
@@ -244,16 +259,7 @@ func podAntiAffinityOverride() *v1.PodAntiAffinity {
 	}
 }
 
-func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
-	if profile.Spec.Config == nil {
-		return nil
-	}
-
-	nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]
-	if !ok { // We only support overrides for the node agent, if there is no override for it, there's nothing to do
-		return nil
-	}
-
+func containersOverride(nodeAgentOverride *datadoghqv1alpha1.Override) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
 	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
@@ -285,26 +291,19 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 		return nil
 	}
 
-	return map[string]string{
-		ProfileLabelKey: profile.Name,
-	}
-}
+	labels := map[string]string{}
 
-func priorityClassNameOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *string {
-	if IsDefaultProfile(profile.Namespace, profile.Name) {
-		return nil
-	}
-
-	if profile.Spec.Config == nil {
-		return nil
+	if profile.Spec.Config != nil {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+			for labelName, labelVal := range nodeAgentOverride.Labels {
+				labels[labelName] = labelVal
+			}
+		}
 	}
 
-	nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]
-	if !ok { // We only support overrides for the node agent, if there is no override for it, there's nothing to do
-		return nil
-	}
+	labels[ProfileLabelKey] = profile.Name
 
-	return nodeAgentOverride.PriorityClassName
+	return labels
 }
 
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have

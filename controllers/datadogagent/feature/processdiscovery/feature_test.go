@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -19,39 +20,36 @@ import (
 
 func Test_processDiscoveryFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v2alpha1.DatadogAgent //
-		///////////////////////////
 		{
-			Name: "v2alpha1 process discovery enabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 		{
-			Name: "v2alpha1 process discovery disabled",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery disabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "v2alpha1 process discovery config missing",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery config missing",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 		{
-			Name: "v2alpha1 process discovery enabled in core agent via env vars",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery enabled in core agent via env vars",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
@@ -60,13 +58,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
 		},
 		{
-			Name: "v2alpha1 process discovery enabled in core agent via option",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery enabled in core agent via option",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
 				Build(),
@@ -75,8 +73,8 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
 		},
 		{
-			Name: "v2alpha1 process discovery enabled in core agent via option without min version",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery enabled in core agent via option without min version",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -90,13 +88,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 		{
-			Name: "v2alpha1 process discovery disabled in core agent via env var override",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery disabled in core agent via env var override",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.53.0"},
+						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
@@ -106,8 +104,8 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
 		},
 		{
-			Name: "v2alpha1 process discovery enabled on single container",
-			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+			Name: "process discovery enabled on single container",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),

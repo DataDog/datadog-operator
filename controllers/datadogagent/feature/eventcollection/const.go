@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	eventCollectionRBACPrefix = "event"
+	kubeAPIServerConfigFileName   = "kubernetes_apiserver.yaml"
+	kubeAPIServerConfigFolderName = "kubernetes_apiserver.d"
+	eventCollectionRBACPrefix     = "event"
 )
 
 // getRBACResourceName return the RBAC resources name

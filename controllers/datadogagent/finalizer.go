@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -63,28 +62,6 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) error {
-	dda := obj.(*datadoghqv1alpha1.DatadogAgent)
-	_, err := r.cleanupMetricsServerAPIService(reqLogger, dda)
-	if err != nil {
-		reqLogger.Error(err, "Could not delete Metrics Server API Service")
-	}
-
-	for _, rbacName := range rbacNamesForDda(dda, r.versionInfo) {
-		if _, err = r.cleanupClusterRoleBinding(reqLogger, dda, rbacName); err != nil {
-			reqLogger.Error(err, "Could not delete cluster role binding", "name", rbacName)
-		}
-
-		if _, err = r.cleanupClusterRole(reqLogger, dda, rbacName); err != nil {
-			reqLogger.Error(err, "Could not delete cluster role", "name", rbacName)
-		}
-	}
-
-	r.forwarders.Unregister(dda)
-	reqLogger.Info("Successfully finalized DatadogAgent")
-	return nil
 }
 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
@@ -180,13 +157,10 @@ func (r *Reconciler) profilesCleanup() error {
 			newLabels[k] = v
 		}
 
-		patch := corev1.Node{
-			TypeMeta:   node.TypeMeta,
-			ObjectMeta: node.ObjectMeta,
-		}
-		patch.Labels = newLabels
+		modifiedNode := node.DeepCopy()
+		modifiedNode.Labels = newLabels
 
-		err := r.client.Patch(context.TODO(), &patch, client.MergeFrom(&node))
+		err := r.client.Patch(context.TODO(), modifiedNode, client.MergeFrom(&node))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
