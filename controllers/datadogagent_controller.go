@@ -70,7 +70,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=pods/exec,verbs=create
 
 // Configure Admission Controller
-// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=*
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
@@ -172,7 +172,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=list;watch
-// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=list;watch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=list;watch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=list;watch
