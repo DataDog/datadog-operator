@@ -12,7 +12,7 @@ RUN go mod download
 
 # Copy the go source
 COPY cmd/check-operator/ cmd/check-operator/
-COPY apis/ apis/
+COPY api/ api/
 COPY pkg/ pkg/
 
 # Build
