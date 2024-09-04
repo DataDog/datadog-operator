@@ -177,7 +177,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if r.options.DatadogAgentProfileEnabled {
 			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now)
+			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, instance)
 			if err != nil {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
 			}
@@ -337,7 +337,7 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time, dda *datadoghqv2alpha1.DatadogAgent) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
@@ -349,8 +349,8 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
-
-		profileAppliedByNode, err = agentprofile.ProfileToApply(logger, &profile, nodeList, profileAppliedByNode, now)
+		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList))
+		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {
 			// profile is invalid or conflicts

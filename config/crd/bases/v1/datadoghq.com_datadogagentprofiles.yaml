@@ -404,6 +404,29 @@ spec:
                   description: LastUpdate is the last time the status was updated.
                   format: date-time
                   type: string
+                slowStart:
+                  description: SlowStart is the state of the slow start feature.
+                  properties:
+                    lastTransition:
+                      description: LastTransition is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    maxUnavailable:
+                      description: MaxUnavailable shows the number of pods that can be in an unready state.
+                      format: int32
+                      type: integer
+                    nodesLabeled:
+                      description: NodesLabeled shows the number of nodes currently labeled.
+                      format: int32
+                      type: integer
+                    podsReady:
+                      description: PodsReady shows the number of pods in the ready state.
+                      format: int32
+                      type: integer
+                    status:
+                      description: Status shows the current state of the feature.
+                      type: string
+                  type: object
                 valid:
                   description: Valid shows if the DatadogAgentProfile has a valid config spec.
                   type: string
