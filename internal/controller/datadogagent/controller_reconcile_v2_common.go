@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -123,7 +124,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDSStatusComponentFunc, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("daemonset.Namespace", daemonset.Namespace, "daemonset.Name", daemonset.Name)
 
 	var result reconcile.Result
@@ -154,6 +155,26 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
+		now := metav1.NewTime(time.Now())
+		if agentprofile.SlowStartEnabled() {
+			if profile.Status.SlowStart != nil {
+				profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
+			}
+			if shouldCheckSlowStartStatus(profile) {
+				newStatus := v1alpha1.WaitingStatus
+
+				if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.SlowStart.MaxUnavailable) {
+					newStatus = v1alpha1.InProgressStatus
+				}
+
+				if profile.Status.SlowStart.Status != newStatus {
+					profile.Status.SlowStart.LastTransition = &now
+				}
+				profile.Status.SlowStart.Status = newStatus
+			}
+			r.updateDAPStatus(logger, profile)
+		}
+
 		// When overriding node labels in <1.7.0, the hash could be updated
 		// without updating the pod template spec in <1.7.0 since pod template
 		// labels were copied over directly from the existing daemonset.
@@ -197,7 +218,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
-			now := metav1.NewTime(time.Now())
 			newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.AgentList, &now)
 			newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
@@ -220,7 +240,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		// won't filter labels with "datadoghq.com" in the key
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
-		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
 			updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
@@ -370,4 +389,20 @@ func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.Labe
 	}
 
 	return labels
+}
+
+func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
+	if profile == nil {
+		return false
+	}
+
+	if profile.Name == "" || profile.Name == "default" {
+		return false
+	}
+
+	if profile.Status.SlowStart == nil {
+		return false
+	}
+
+	return profile.Status.SlowStart.Status != v1alpha1.CompletedStatus
 }

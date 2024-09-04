@@ -8,6 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -564,7 +565,7 @@ func Test_profilesToApply(t *testing.T) {
 				},
 			}
 
-			profilesToApply, profileAppliedByNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1))
+			profilesToApply, profileAppliedByNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1), &v2alpha1.DatadogAgent{})
 			require.NoError(t, err)
 
 			wantProfilesToApply := tt.wantProfilesToApply()

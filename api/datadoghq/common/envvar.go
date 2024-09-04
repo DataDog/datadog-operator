@@ -180,3 +180,8 @@ const (
 	// version value in the Agent's install info
 	InstallInfoToolVersion = "DD_TOOL_VERSION"
 )
+
+// DatadogAgentProfile env var names
+const (
+	SlowStartEnabled = "DD_DAP_SLOW_START_ENABLED"
+)
