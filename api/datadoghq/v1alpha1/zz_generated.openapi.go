@@ -19,36 +19,36 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./apis/datadoghq/v1alpha1.DashboardTemplateVariable":             schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
-		"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset":       schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
-		"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":  schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
-		"./apis/datadoghq/v1alpha1.DatadogAgentProfile":                   schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref),
-		"./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus":             schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogDashboard":                      schema__apis_datadoghq_v1alpha1_DatadogDashboard(ref),
-		"./apis/datadoghq/v1alpha1.DatadogDashboardSpec":                  schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
-		"./apis/datadoghq/v1alpha1.DatadogDashboardStatus":                schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMetric":                         schema__apis_datadoghq_v1alpha1_DatadogMetric(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitor":                        schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorCondition":               schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions":       schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":          schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptions":                 schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows": schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":       schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorSpec":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorStatus":                  schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
-		"./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState":          schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLO":                            schema__apis_datadoghq_v1alpha1_DatadogSLO(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions":           schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOQuery":                       schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOSpec":                        schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref),
-		"./apis/datadoghq/v1alpha1.DatadogSLOStatus":                      schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref),
-		"./apis/datadoghq/v1alpha1.SlowStart":                             schema__apis_datadoghq_v1alpha1_SlowStart(ref),
+		"./api/datadoghq/v1alpha1.DashboardTemplateVariable":             schema__api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
+		"./api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":       schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
+		"./api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":  schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
+		"./api/datadoghq/v1alpha1.DatadogAgentProfile":                   schema__api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
+		"./api/datadoghq/v1alpha1.DatadogAgentProfileStatus":             schema__api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
+		"./api/datadoghq/v1alpha1.DatadogDashboard":                      schema__api_datadoghq_v1alpha1_DatadogDashboard(ref),
+		"./api/datadoghq/v1alpha1.DatadogDashboardSpec":                  schema__api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
+		"./api/datadoghq/v1alpha1.DatadogDashboardStatus":                schema__api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
+		"./api/datadoghq/v1alpha1.DatadogMetric":                         schema__api_datadoghq_v1alpha1_DatadogMetric(ref),
+		"./api/datadoghq/v1alpha1.DatadogMetricCondition":                schema__api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitor":                        schema__api_datadoghq_v1alpha1_DatadogMonitor(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorCondition":               schema__api_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorControllerOptions":       schema__api_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":          schema__api_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorOptions":                 schema__api_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows": schema__api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":       schema__api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorSpec":                    schema__api_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorStatus":                  schema__api_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
+		"./api/datadoghq/v1alpha1.DatadogMonitorTriggeredState":          schema__api_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
+		"./api/datadoghq/v1alpha1.DatadogSLO":                            schema__api_datadoghq_v1alpha1_DatadogSLO(ref),
+		"./api/datadoghq/v1alpha1.DatadogSLOControllerOptions":           schema__api_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
+		"./api/datadoghq/v1alpha1.DatadogSLOQuery":                       schema__api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
+		"./api/datadoghq/v1alpha1.DatadogSLOSpec":                        schema__api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
+		"./api/datadoghq/v1alpha1.DatadogSLOStatus":                      schema__api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
+		"./api/datadoghq/v1alpha1.SlowStart":                             schema__api_datadoghq_v1alpha1_SlowStart(ref),
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -112,7 +112,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariable(ref common.Refere
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -142,7 +142,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"),
+										Ref:     ref("./api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"),
 									},
 								},
 							},
@@ -153,11 +153,11 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref common.
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"},
+			"./api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -198,7 +198,7 @@ func schema__apis_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref co
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogAgentProfile(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -228,24 +228,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentProfile(ref common.ReferenceCal
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentProfileSpec"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogAgentProfileSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogAgentProfileStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogAgentProfileSpec", "./apis/datadoghq/v1alpha1.DatadogAgentProfileStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./api/datadoghq/v1alpha1.DatadogAgentProfileSpec", "./api/datadoghq/v1alpha1.DatadogAgentProfileStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -304,18 +304,18 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.Refere
 					"slowStart": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SlowStart is the state of the slow start feature.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.SlowStart"),
+							Ref:         ref("./api/datadoghq/v1alpha1.SlowStart"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.SlowStart", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"./api/datadoghq/v1alpha1.SlowStart", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogDashboard(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogDashboard(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -345,24 +345,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboard(ref common.ReferenceCallba
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogDashboardSpec"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogDashboardSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogDashboardStatus"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogDashboardStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogDashboardSpec", "./apis/datadoghq/v1alpha1.DatadogDashboardStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./api/datadoghq/v1alpha1.DatadogDashboardSpec", "./api/datadoghq/v1alpha1.DatadogDashboardStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -446,7 +446,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset"),
+										Ref:     ref("./api/datadoghq/v1alpha1.DashboardTemplateVariablePreset"),
 									},
 								},
 							},
@@ -468,7 +468,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DashboardTemplateVariable"),
+										Ref:     ref("./api/datadoghq/v1alpha1.DashboardTemplateVariable"),
 									},
 								},
 							},
@@ -492,11 +492,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardSpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DashboardTemplateVariable", "./apis/datadoghq/v1alpha1.DashboardTemplateVariablePreset"},
+			"./api/datadoghq/v1alpha1.DashboardTemplateVariable", "./api/datadoghq/v1alpha1.DashboardTemplateVariablePreset"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -573,7 +573,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.Reference
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -603,24 +603,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback)
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMetricSpec"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogMetricSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMetricStatus"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogMetricStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMetricSpec", "./apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./api/datadoghq/v1alpha1.DatadogMetricSpec", "./api/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -680,7 +680,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.Reference
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -710,24 +710,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorSpec"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogMonitorSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorStatus"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogMonitorStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorSpec", "./apis/datadoghq/v1alpha1.DatadogMonitorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./api/datadoghq/v1alpha1.DatadogMonitorSpec", "./api/datadoghq/v1alpha1.DatadogMonitorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -787,7 +787,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.Referenc
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -807,7 +807,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref common.
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -816,14 +816,16 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"isDowntimed": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
+							Description: "IsDowntimed shows the downtime status of the monitor.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
-					"downtimeId": {
+					"downtimeID": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Description: "DowntimeID is the downtime ID.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -832,7 +834,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.Ref
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -994,24 +996,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					"thresholds": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A struct of the different monitor threshold values.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"),
 						},
 					},
 					"thresholdWindows": {
 						SchemaProps: spec.SchemaProps{
 							Description: "A struct of the alerting time window options.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows", "./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"},
+			"./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows", "./api/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1038,7 +1040,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref c
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1093,7 +1095,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref common.
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1179,25 +1181,25 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Options are the optional parameters associated with your monitor",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptions"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogMonitorOptions"),
 						},
 					},
 					"controllerOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerOptions are the optional parameters in the DatadogMonitor controller",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogMonitorControllerOptions"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "./apis/datadoghq/v1alpha1.DatadogMonitorOptions"},
+			"./api/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "./api/datadoghq/v1alpha1.DatadogMonitorOptions"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1220,7 +1222,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorCondition"),
+										Ref:     ref("./api/datadoghq/v1alpha1.DatadogMonitorCondition"),
 									},
 								},
 							},
@@ -1271,7 +1273,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCa
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"syncStatus": {
+					"monitorStateSyncStatus": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MonitorStateSyncStatus shows the health of syncing the monitor state to Datadog",
 							Type:        []string{"string"},
@@ -1294,7 +1296,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCa
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState"),
+										Ref:     ref("./api/datadoghq/v1alpha1.DatadogMonitorTriggeredState"),
 									},
 								},
 							},
@@ -1304,7 +1306,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCa
 						SchemaProps: spec.SchemaProps{
 							Description: "DowntimeStatus defines whether the monitor is downtimed",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus"),
 						},
 					},
 					"primary": {
@@ -1325,11 +1327,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorCondition", "./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus", "./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"./api/datadoghq/v1alpha1.DatadogMonitorCondition", "./api/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus", "./api/datadoghq/v1alpha1.DatadogMonitorTriggeredState", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1365,7 +1367,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref common.Ref
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogSLO(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogSLO(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1395,24 +1397,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLO(ref common.ReferenceCallback) co
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogSLOSpec"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogSLOSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogSLOStatus"),
+							Ref:     ref("./api/datadoghq/v1alpha1.DatadogSLOStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogSLOSpec", "./apis/datadoghq/v1alpha1.DatadogSLOStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./api/datadoghq/v1alpha1.DatadogSLOSpec", "./api/datadoghq/v1alpha1.DatadogSLOStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1432,7 +1434,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref common.Refe
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogSLOQuery(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1461,7 +1463,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref common.ReferenceCallbac
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1545,7 +1547,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 					"query": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Query is the query for a metric-based SLO. Required if type is metric. Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOQuery"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogSLOQuery"),
 						},
 					},
 					"type": {
@@ -1580,7 +1582,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 					"controllerOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerOptions are the optional parameters in the DatadogSLO controller",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions"),
+							Ref:         ref("./api/datadoghq/v1alpha1.DatadogSLOControllerOptions"),
 						},
 					},
 				},
@@ -1588,11 +1590,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions", "./apis/datadoghq/v1alpha1.DatadogSLOQuery", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+			"./api/datadoghq/v1alpha1.DatadogSLOControllerOptions", "./api/datadoghq/v1alpha1.DatadogSLOQuery", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1669,7 +1671,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallba
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_SlowStart(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_datadoghq_v1alpha1_SlowStart(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{

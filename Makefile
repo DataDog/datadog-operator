@@ -286,8 +286,8 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./cmd" -i ./api/datadoghq/v1alpha1 -O zz_generated.openapi -p ./api/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./cmd" -i ./api/datadoghq/v2alpha1 -O zz_generated.openapi -p ./api/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v1alpha1 -O zz_generated.openapi -p ./api/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v2alpha1 -O zz_generated.openapi -p ./api/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
