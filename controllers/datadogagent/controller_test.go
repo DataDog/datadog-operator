@@ -100,12 +100,13 @@ func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
 
 func hasAdmissionRbacResources(clusterPolicyRules []rbacv1.PolicyRule, policyRules []rbacv1.PolicyRule) bool {
 	clusterLevelResources := map[string]bool{
-		"mutatingwebhookconfigurations": true,
-		"replicasets":                   true,
-		"deployments":                   true,
-		"statefulsets":                  true,
-		"cronjobs":                      true,
-		"jobs":                          true,
+		"validatingwebhookconfigurations": true,
+		"mutatingwebhookconfigurations":   true,
+		"replicasets":                     true,
+		"deployments":                     true,
+		"statefulsets":                    true,
+		"cronjobs":                        true,
+		"jobs":                            true,
 	}
 	roleResources := map[string]bool{
 		"secrets": true,
