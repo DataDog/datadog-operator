@@ -144,7 +144,7 @@ oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status
 
 **Note**: During these steps, the Datadog Agents will keep running, ensuring your observability is not disrupted.
 
-##### Situation 1: Identification before upgrading to 1.8.0
+##### Scenario 1: Presence of v1alpha1 CRD confirmed before upgrading to 1.8.0
 
 1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
 2. Proceed with the upgrade as usual from the OperatorHub UI.
