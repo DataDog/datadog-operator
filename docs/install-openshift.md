@@ -146,6 +146,8 @@ For more details, see [Removing an old version][8] from the Kubernetes Custom Re
 5. Proceed with the upgrade normally from the OperatorHub.
 ![Error after upgrading to 1.8.0 without removing the deprecated v1alpha1 from CRD](assets/openshift_1.8.0_upgrade.png)
 
+**Note**: During these steps, the Datadog Agents will keep running, ensuring your observability is not disrupted.
+
 [1]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12#deploy-instructions
 [2]: https://olm.operatorframework.io/
 [3]: https://olm.operatorframework.io/docs/tasks/install-operator-with-olm/
