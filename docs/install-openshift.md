@@ -154,7 +154,7 @@ oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status
 1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
 2. Remove both `ClusterServiceVersion` resources (current and failed upgrade): `oc delete csv datadog-operator.v1.7.0 datadog-operator.v1.8.0`
 3. Remove the status from the `Subscription` to force a new reconciliation: `oc patch sub <subscription name> --subresource='status' --type='json' -p='[{"op": "remove", "path": "/status"}]'`
-4. A new `ClusterServiceVersion` should be created (identical to the one preceding the upgrade). Depending on the `installPlanApproval` configuration, you may need to approve the `InstallPlan`.
+4. A new `ClusterServiceVersion` should automatically be created (identical to the one preceding the upgrade). Depending on the `installPlanApproval` configuration, you may need to approve the `InstallPlan`.
 5. Proceed with the upgrade as usual from OperatorHub.
 ![Error after upgrading to 1.8.0 without removing the deprecated v1alpha1 from CRD](assets/openshift_1.8.0_upgrade.png)
 
