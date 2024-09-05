@@ -149,7 +149,7 @@ oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status
 1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
 2. Proceed with the upgrade as usual from the OperatorHub UI.
 
-##### Situation 2: Identification after attempting to upgrade to 1.8.0
+##### Scenario 2: Presence of v1alpha1 CRD confirmed after attempting to upgrade to 1.8.0
 
 1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
 2. Remove both `ClusterServiceVersion` resources (current and failed upgrade): `oc delete csv datadog-operator.v1.7.0 datadog-operator.v1.8.0`
