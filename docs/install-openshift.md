@@ -139,7 +139,7 @@ You can identify whether or not you are impacted by running:
 oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status.storedVersions
 ```
 
-* If the returned array contains the entry `v1alpha1`, you are impacted and the rest of this guide should be followed. There are **two different courses of action**, depending on whether or not the upgrade was attempted.
+* If the returned array contains the entry `v1alpha1`, you are impacted and should follow the rest of this guide. There are **two different courses of action**, depending on whether or not the upgrade was attempted.
 * If not, ignore this guide and proceed with the installation/upgrade as usual.
 
 **Note**: During these steps, the Datadog Agents will keep running, ensuring your observability is not disrupted.
