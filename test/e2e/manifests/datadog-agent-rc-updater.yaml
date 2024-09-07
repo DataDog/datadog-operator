@@ -38,3 +38,27 @@ spec:
           env:
             - name: DD_SKIP_SSL_VALIDATION
               value: "true"
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterAgent:
+      labels:
+        agent.datadoghq.com/e2e-test: datadog-agent-minimum
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
+    clusterChecksRunner:
+      labels:
+        agent.datadoghq.com/e2e-test: datadog-agent-minimum
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME
