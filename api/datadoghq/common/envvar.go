@@ -147,6 +147,8 @@ const (
 	DDSBOMHostEnabled                                    = "DD_SBOM_HOST_ENABLED"
 	DDSBOMHostAnalyzers                                  = "DD_SBOM_HOST_ANALYZERS"
 	DDSecretBackendCommand                               = "DD_SECRET_BACKEND_COMMAND"
+	DDSecretBackendArguments                             = "DD_SECRET_BACKEND_ARGUMENTS"
+	DDSecretBackendTimeout                               = "DD_SECRET_BACKEND_TIMEOUT"
 	DDSite                                               = "DD_SITE"
 	DDSystemProbeAgentEnabled                            = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeBPFDebugEnabled                         = DDSystemProbeEnvPrefix + "BPF_DEBUG"
