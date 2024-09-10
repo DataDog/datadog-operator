@@ -137,6 +137,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	if config.Env != nil {
+		logger.Info(fmt.Sprintf("adding custom env var %s", config.Env))
+		for _, envVar := range config.Env {
+			manager.EnvVar().AddEnvVar(&envVar)
+		}
+	}
+
 	if config.OriginDetectionUnified != nil && config.OriginDetectionUnified.Enabled != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDOriginDetectionUnified,

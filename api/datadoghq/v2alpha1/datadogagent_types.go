@@ -1011,6 +1011,8 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
 	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
 	// +optional
 	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
