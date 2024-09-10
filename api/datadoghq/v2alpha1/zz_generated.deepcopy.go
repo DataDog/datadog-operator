@@ -1380,6 +1380,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ChecksTagCardinality != nil {
+		in, out := &in.ChecksTagCardinality, &out.ChecksTagCardinality
+		*out = new(string)
+		**out = **in
+	}
 	if in.OriginDetectionUnified != nil {
 		in, out := &in.OriginDetectionUnified, &out.OriginDetectionUnified
 		*out = new(OriginDetectionUnified)
