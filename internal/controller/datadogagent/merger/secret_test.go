@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +35,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -58,14 +58,14 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty Store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,
@@ -73,7 +73,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 				value:           "secret-value",
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.SecretsKind, secretNs, secretName); !found {
 					t.Errorf("missing Secret %s/%s", secretNs, secretName)
 				}
@@ -81,7 +81,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 		},
 		{
 			name:  "secret already exist",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,
@@ -89,7 +89,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 				value:           "secret-value",
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				obj, found := store.Get(kubernetes.SecretsKind, secretNs, secretName)
 				secret, ok := obj.(*corev1.Secret)
 				if !ok {

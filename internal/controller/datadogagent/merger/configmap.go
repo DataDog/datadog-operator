@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +20,7 @@ type ConfigMapManager interface {
 }
 
 // NewConfigMapManager returns a new ConfigMapManager instance
-func NewConfigMapManager(store dependencies.StoreClient) ConfigMapManager {
+func NewConfigMapManager(store store.StoreClient) ConfigMapManager {
 	manager := &configMapManagerImpl{
 		store: store,
 	}
@@ -29,7 +29,7 @@ func NewConfigMapManager(store dependencies.StoreClient) ConfigMapManager {
 
 // configMapManagerImpl is used to manage configmap resources.
 type configMapManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 // AddConfigMap creates or updates a kubernetes network policy

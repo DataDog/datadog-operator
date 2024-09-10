@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	netv1 "k8s.io/api/networking/v1"
@@ -92,7 +92,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -113,14 +113,14 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				namespace:   ns,
 				name:        name1,
@@ -130,7 +130,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 				egress:      egress1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.NetworkPoliciesKind, ns, name1); !found {
 					t.Errorf("missing NetworkPolicy %s/%s", ns, name1)
 				}
@@ -138,7 +138,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 		},
 		{
 			name:  "another NetworkPolicy already exists",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
 			args: args{
 				namespace:   ns,
 				name:        name1,
@@ -148,7 +148,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 				egress:      egress1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.NetworkPoliciesKind, ns, name1); !found {
 					t.Errorf("missing NetworkPolicy %s/%s", ns, name1)
 				}
@@ -156,7 +156,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 		},
 		{
 			name:  "update existing NetworkPolicy",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
 			args: args{
 				namespace:   ns,
 				name:        name2,
@@ -166,7 +166,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 				egress:      egress1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				obj, found := store.Get(kubernetes.NetworkPoliciesKind, ns, name2)
 				if !found {
 					t.Errorf("missing NetworkPolicy %s/%s", ns, name2)
