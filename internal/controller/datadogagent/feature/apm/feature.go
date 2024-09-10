@@ -275,6 +275,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
 
+		if f.singleStepInstrumentation.enabled {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAdmissionControllerAutoInstrumentationInitMem,
+				Value: "128Mi",
+			})
+		}
+
 		if f.shouldEnableLanguageDetection() {
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDLanguageDetectionEnabled,
