@@ -531,6 +531,10 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 					Value: "true",
 				},
 				{
+					Name:  apiCommon.DDAdmissionControllerAutoInstrumentationInitMem,
+					Value: "128Mi",
+				},
+				{
 					Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
 					Value: "[\"foo\",\"bar\"]",
 				},
@@ -605,6 +609,10 @@ func testAPMInstrumentation() *test.ComponentTest {
 					Name:  apicommon.DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
+				{
+					Name:  apiCommon.DDAdmissionControllerAutoInstrumentationInitMem,
+					Value: "128Mi",
+				},
 			}
 			assert.True(
 				t,
@@ -626,6 +634,10 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 				{
 					Name:  apicommon.DDAPMInstrumentationEnabled,
 					Value: "true",
+				},
+				{
+					Name:  apiCommon.DDAdmissionControllerAutoInstrumentationInitMem,
+					Value: "128Mi",
 				},
 				{
 					Name:  apicommon.DDLanguageDetectionEnabled,
@@ -695,6 +707,10 @@ func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName, hos
 				{
 					Name:  apicommon.DDAPMEnabled,
 					Value: "true",
+				},
+				{
+					Name:  apiCommon.DDAdmissionControllerAutoInstrumentationInitMem,
+					Value: "128Mi",
 				},
 				{
 					Name:  apicommon.DDAPMNonLocalTraffic,
