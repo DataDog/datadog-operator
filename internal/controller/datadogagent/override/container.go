@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 
@@ -19,7 +18,7 @@ import (
 )
 
 // Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
-func Container(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+func Container(containerName common.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override == nil {
 		return
 	}
@@ -54,7 +53,7 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 	}
 }
 
-func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
+func overrideLogLevel(containerName common.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
@@ -64,7 +63,7 @@ func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature
 	)
 }
 
-func addEnvsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+func addEnvsToContainer(containerName common.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
 	for _, env := range envs {
 		e := env
 		manager.EnvVar().AddEnvVarToContainer(containerName, &e)
@@ -72,21 +71,21 @@ func addEnvsToContainer(containerName commonv1.AgentContainerName, manager featu
 
 }
 
-func addEnvsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+func addEnvsToInitContainer(containerName common.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
 	for _, env := range envs {
 		e := env
 		manager.EnvVar().AddEnvVarToInitContainer(containerName, &e)
 	}
 }
 
-func addVolMountsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+func addVolMountsToContainer(containerName common.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
 	for _, mount := range mounts {
 		m := mount
 		manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
 	}
 }
 
-func addVolMountsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+func addVolMountsToInitContainer(containerName common.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
 	for _, mount := range mounts {
 		m := mount
 		manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
@@ -94,7 +93,7 @@ func addVolMountsToInitContainer(containerName commonv1.AgentContainerName, mana
 	}
 }
 
-func addHealthPort(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, healthPort int32) {
+func addHealthPort(containerName common.AgentContainerName, manager feature.PodTemplateManagers, healthPort int32) {
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
@@ -164,9 +163,9 @@ func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.D
 	}
 }
 
-func overrideSeccompProfile(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+func overrideSeccompProfile(containerName common.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	// NOTE: for now, only support custom Seccomp Profiles on the System Probe
-	if containerName == commonv1.SystemProbeContainerName {
+	if containerName == common.SystemProbeContainerName {
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomRootPath != nil {
 			vol := corev1.Volume{
 				Name: common.SeccompRootVolumeName,
@@ -207,7 +206,7 @@ func overrideSeccompProfile(containerName commonv1.AgentContainerName, manager f
 	}
 }
 
-func overrideAppArmorProfile(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+func overrideAppArmorProfile(containerName common.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override.AppArmorProfileName != nil {
 		var annotation string
 		if override.Name != nil {
@@ -224,8 +223,8 @@ func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe 
 	// Add default httpGet probeHandler if probeHandler is not configured in readinessProbe override
 	if !hasProbeHandler(readinessProbeOverride) {
 		readinessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: common.DefaultReadinessProbeHTTPPath,
-			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
+			Path: v2alpha1.DefaultReadinessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
 	}
 	return readinessProbeOverride
 }
@@ -234,8 +233,8 @@ func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
 	// Add default httpGet probeHandler if probeHandler is not configured in livenessProbe override
 	if !hasProbeHandler(livenessProbeOverride) {
 		livenessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: common.DefaultLivenessProbeHTTPPath,
-			Port: intstr.IntOrString{IntVal: common.DefaultAgentHealthPort}}
+			Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
 	}
 	return livenessProbeOverride
 }

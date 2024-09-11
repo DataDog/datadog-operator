@@ -8,7 +8,6 @@ package override
 import (
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
@@ -51,7 +50,7 @@ func TestDependencies(t *testing.T) {
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
 							ExtraConfd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &commonv1.ConfigMapConfig{
+								ConfigMap: &v2alpha1.ConfigMapConfig{
 									Name: "cmName",
 								},
 							},
@@ -85,7 +84,7 @@ func TestDependencies(t *testing.T) {
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
 							ExtraChecksd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &commonv1.ConfigMapConfig{
+								ConfigMap: &v2alpha1.ConfigMapConfig{
 									Name: "cmName",
 								},
 							},

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -251,7 +250,7 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 	if ddaStatus != nil {
 		for i, dsStatus := range ddaStatus.AgentList {
 			if dsStatus.DaemonsetName == name {
-				newStatus := make([]*common.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
+				newStatus := make([]*datadoghqv2alpha1.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
 				newStatus = append(newStatus, ddaStatus.AgentList[:i]...)
 				ddaStatus.AgentList = append(newStatus, ddaStatus.AgentList[i+1:]...)
 			}

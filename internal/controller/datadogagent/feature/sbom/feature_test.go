@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -70,7 +69,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			},
 		}
 
-		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
 	}
 
@@ -92,7 +91,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			},
 		}
 
-		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
 	}
 
@@ -114,8 +113,8 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			},
 		}
 
-		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+		nodeAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
+		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
 
 		wantEnvVars = []*corev1.EnvVar{{
@@ -150,8 +149,8 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			},
 		}
 
-		nodeAllAgentsEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+		nodeAllAgentsEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
+		nodeCoreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantCoreAgentHostEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantCoreAgentHostEnvVars))
 		assert.True(t, apiutils.IsEqualStruct(nodeAllAgentsEnvVars, wantAllAgentsEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAllAgentsEnvVars, wantAllAgentsEnvVars))
 
@@ -198,7 +197,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 			},
 		}
 
-		agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+		agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(agentVolumeMounts, wantVolumeMounts), "Agent volume mounts \ndiff = %s", cmp.Diff(agentVolumeMounts, wantVolumeMounts))
 
 		wantVolumes := []corev1.Volume{

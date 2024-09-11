@@ -17,7 +17,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
@@ -170,7 +169,7 @@ func helmCheckWantResourcesFunc(ccr bool, collectEvents bool) *test.ComponentTes
 				},
 			}
 
-			dcaVolMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ClusterAgentContainerName]
+			dcaVolMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
 
 			assert.True(
 				t,

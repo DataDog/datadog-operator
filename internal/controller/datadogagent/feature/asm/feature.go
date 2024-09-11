@@ -7,7 +7,6 @@ package asm
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -66,8 +65,8 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.ClusterAgentContainerName,
+			Containers: []apicommon.AgentContainerName{
+				apicommon.ClusterAgentContainerName,
 			},
 		},
 	}
@@ -83,7 +82,7 @@ func (f *asmFeature) ManageDependencies(_ feature.ResourceManagers, _ feature.Re
 // It should do nothing if the feature doesn't need to configure it.
 func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.threatsEnabled {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerAppsecEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
@@ -92,7 +91,7 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	}
 
 	if f.iastEnabled {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerIASTEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
@@ -101,7 +100,7 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	}
 
 	if f.scaEnabled {
-		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAdmissionControllerAppsecSCAEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {

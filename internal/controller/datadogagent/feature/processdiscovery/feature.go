@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -40,14 +39,14 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
 	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled) {
-		reqContainers := []apicommonv1.AgentContainerName{
-			apicommonv1.CoreAgentContainerName,
+		reqContainers := []apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
 		}
 
 		p.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, p.runInCoreAgent)
 
 		if !p.runInCoreAgent {
-			reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
+			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -74,12 +73,12 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 
-	containerName := apicommonv1.CoreAgentContainerName
+	containerName := apicommon.CoreAgentContainerName
 	if !p.runInCoreAgent {
-		containerName = apicommonv1.ProcessAgentContainerName
+		containerName = apicommon.ProcessAgentContainerName
 	}
 	p.manageNodeAgent(containerName, managers, provider)
 	return nil
@@ -90,12 +89,12 @@ func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature
 		Name:  apicommon.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
-	p.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
+	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
-func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)

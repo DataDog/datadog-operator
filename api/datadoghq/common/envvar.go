@@ -5,6 +5,8 @@
 
 package common
 
+// TODO move most of these out of common
+
 // Datadog env var names
 const (
 	DatadogHost                                          = "DATADOG_HOST"

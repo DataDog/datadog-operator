@@ -6,7 +6,6 @@
 package test
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -172,7 +171,7 @@ func (builder *DatadogAgentBuilder) initSidecarInjection() {
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
 	}
 	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &v2alpha1.AgentImageConfig{}
 	}
 }
 
@@ -720,7 +719,7 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.Kubelet = &common.KubeletConfig{
+	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
 		TLSVerify:   apiutils.NewBoolPointer(tlsVerify),
 		HostCAPath:  hostCAPath,
 		AgentCAPath: agentCAPath,

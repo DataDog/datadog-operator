@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -70,7 +69,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 
 func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
 	want := []*corev1.EnvVar{
 		{
@@ -141,7 +140,7 @@ func unbundledEventsClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 	}
 	assert.True(t, apiutils.IsEqualStruct(mgr.VolumeMgr.Volumes, expectedVolumes), "DCA volumes \ndiff = %s", cmp.Diff(mgr.VolumeMgr.Volumes, expectedVolumes))
 
-	volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ClusterAgentContainerName]
+	volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
 	expectedVolumeMounts := []*corev1.VolumeMount{
 		{
 			Name:      "kubernetes-apiserver-check-config",

@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -110,7 +110,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		ServiceAccountName: getDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
 			{
-				Name:  string(apicommonv1.ClusterAgentContainerName),
+				Name:  string(apicommon.ClusterAgentContainerName),
 				Image: fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
@@ -121,9 +121,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				},
 				Env:            envVars,
 				VolumeMounts:   volumeMounts,
-				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-				StartupProbe:   apicommon.GetDefaultStartupProbe(),
+				LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
+				ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+				StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
@@ -167,7 +167,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDHealthPort,
-			Value: strconv.Itoa(int(apicommon.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  apicommon.DDAPMInstrumentationInstallId,

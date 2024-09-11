@@ -11,7 +11,6 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -350,16 +349,16 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &common.UpdateStrategy{
+				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &common.RollingUpdate{
+					RollingUpdate: &apicommon.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
 					},
 				},
-				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					common.CoreAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.CoreAgentContainerName: {
 						Resources: &v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceCPU: resource.MustParse("100m"),
@@ -718,9 +717,9 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &common.UpdateStrategy{
+				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &common.RollingUpdate{
+					RollingUpdate: &apicommon.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
@@ -729,8 +728,8 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 				Labels: map[string]string{
 					"foo": "bar",
 				},
-				Containers: map[common.AgentContainerName]*v1alpha1.Container{
-					common.CoreAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					apicommon.CoreAgentContainerName: {
 						Env: []corev1.EnvVar{
 							{
 								Name:  "foo",
@@ -798,9 +797,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										IntVal: 5,
 									},
@@ -819,9 +818,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{},
 								},
 							},
@@ -838,9 +837,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										Type:   intstr.String,
 										StrVal: "10",
@@ -860,9 +859,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										IntVal: 5,
 									},
@@ -877,9 +876,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								UpdateStrategy: &common.UpdateStrategy{
+								UpdateStrategy: &apicommon.UpdateStrategy{
 									Type: "RollingUpdate",
-									RollingUpdate: &common.RollingUpdate{
+									RollingUpdate: &apicommon.RollingUpdate{
 										MaxUnavailable: &intstr.IntOrString{
 											Type:   intstr.String,
 											StrVal: "15%",

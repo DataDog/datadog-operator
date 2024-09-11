@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -138,7 +138,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 
 		if tt.Agent != nil {
 			tplManager, provider := tt.Agent.CreateFunc(t)
-			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName {
+			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == common.UnprivilegedSingleAgentContainerName {
 				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
 			} else {
 				_ = feat.ManageNodeAgent(tplManager, provider)

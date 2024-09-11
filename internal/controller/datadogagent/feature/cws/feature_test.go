@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -42,7 +41,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	{
 		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
 		ddaCWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
-			ConfigMap: &apicommonv1.ConfigMapConfig{
+			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
 					{
@@ -64,7 +63,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Enabled: apiutils.NewBoolPointer(true),
 		}
 		ddaCWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
-			ConfigMap: &apicommonv1.ConfigMapConfig{
+			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
 					{
@@ -107,7 +106,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// check security context capabilities
-			sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
+			sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()))
 
 			securityWant := []*corev1.EnvVar{
@@ -171,9 +170,9 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				},
 			)
 
-			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
+			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
-			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
+			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
 
 			// check volume mounts
@@ -242,9 +241,9 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				},
 			}
 
-			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SecurityAgentContainerName]
+			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, securityWantVolumeMount), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, securityWantVolumeMount))
-			sysProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
+			sysProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
 			assert.True(t, apiutils.IsEqualStruct(sysProbeVolumeMounts, sysprobeWantVolumeMount), "System probe volume mounts \ndiff = %s", cmp.Diff(sysProbeVolumeMounts, sysprobeWantVolumeMount))
 
 			// check volumes
@@ -342,8 +341,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 			// check annotations
-			customConfig := &apicommonv1.CustomConfig{
-				ConfigMap: &apicommonv1.ConfigMapConfig{
+			customConfig := &v2alpha1.CustomConfig{
+				ConfigMap: &v2alpha1.ConfigMapConfig{
 					Name: "custom_test",
 					Items: []corev1.KeyToPath{
 						{
