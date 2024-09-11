@@ -220,7 +220,7 @@ func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha
 		return err
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-	event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+	event := buildEventInfo(ds.Name, ds.Namespace, kubernetes.DaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	removeStaleStatus(newStatus, ds.Name)
 
@@ -233,7 +233,7 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 		return err
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-	event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+	event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	removeStaleStatus(newStatus, eds.Name)
 
