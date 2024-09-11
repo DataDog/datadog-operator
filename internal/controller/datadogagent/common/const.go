@@ -5,6 +5,8 @@
 
 package common
 
+// This file tracks constants used in features, component default code
+
 // Resource names
 const (
 	DatadogTokenOldResourceName          = "datadogtoken"            // Kept for backward compatibility with agent <7.37.0
