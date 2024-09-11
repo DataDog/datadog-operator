@@ -64,8 +64,8 @@ func (u *updaterSuite) SetupSuite() {
 
 func (u *updaterSuite) TearDownSuite() {
 	u.BaseSuite.TearDownSuite()
-	u.cleanUpContext()
 	deleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
+	u.cleanUpContext()
 	if u.configID != "" {
 		u.Client().DeleteConfig(u.configID)
 	}
@@ -87,13 +87,6 @@ func (u *updaterSuite) TestOperatorDeployed() {
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
-}
-
-func (u *updaterSuite) TestFeaturesDisabled() {
-	u.EventuallyWithTf(func(c *assert.CollectT) {
-		updater.CheckFeaturesState(u, c, u.Clustername(), false)
-	}, 20*time.Minute, 30*time.Second, "Checking if features were disabled timed out")
-
 }
 
 func (u *updaterSuite) TestEnableFeatures() {

@@ -30,7 +30,10 @@ func CheckFeaturesState(u testSuite, c assert.TestingT, clusterName string, stat
 		return
 	}
 	for _, column := range resp.Data[0].Attributes.Columns[1:] {
-		if !assert.Falsef(c, column.Values[0].(bool), "Feature should be in disabled state", column.Name) {
+		if !assert.True(c, len(column.Values) != 0, "Feature should be set", column.Name) {
+			return
+		}
+		if !assert.Equal(c, column.Values[0].(bool), state, "Feature", column.Name, "should be", state) {
 			return
 		}
 	}

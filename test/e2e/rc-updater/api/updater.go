@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -78,6 +79,14 @@ type ConfigContent struct {
 	SBOM SBOMContent `json:"sbom"`
 }
 
+type ErrorDetail struct {
+	Title string `json:"title"`
+}
+
+type ErrorResponse struct {
+	Errors []ErrorDetail `json:"errors"`
+}
+
 type SBOMContent struct {
 	Enabled        bool                  `json:"enabled"`
 	Host           HostContent           `json:"host"`
@@ -114,17 +123,92 @@ type ServiceMonitoringConfig struct {
 	Enabled bool `json:"enabled"`
 }
 
+func extractIDFromError(title string) string {
+	// Assuming the ID is always after the last ": " in the title
+	parts := strings.Split(title, ": ")
+	if len(parts) > 1 {
+		return parts[len(parts)-1] // Return the part after the last ": "
+	}
+	return ""
+}
+
 func (c *Client) ApplyConfig(configRequest ConfigurationRequest) (*ConfigurationResponse, error) {
+	var resp *http.Response
+	var err error
+
+	// Create
+	resp, err = c.makeRequest(configRequest, "POST", "")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusBadRequest {
+		return nil, fmt.Errorf("failed to create config, status code: %d, response: %s", resp.StatusCode, string(respBody))
+	}
+
+	if resp.StatusCode == http.StatusBadRequest {
+		var errorResponse ErrorResponse
+		err := json.Unmarshal(respBody, &errorResponse)
+		if err != nil {
+			fmt.Println("Error unmarshalling JSON:", err)
+			return nil, err
+		}
+		if strings.HasPrefix(errorResponse.Errors[0].Title, "configuration already exists") {
+			// Extract the ID from the error message
+			existingID := extractIDFromError(errorResponse.Errors[0].Title)
+			fmt.Println("using the policy that already exists:", existingID)
+			resp, err = c.makeRequest(configRequest, "PATCH", existingID)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+
+			respBody, err = io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("error reading response: %v", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to create config, status code: %d, response: %s", resp.StatusCode, string(respBody))
+		}
+	}
+
+	var configResp ConfigurationResponse
+	err = json.Unmarshal(respBody, &configResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &configResp, nil
+
+}
+
+func (c *Client) makeRequest(configRequest ConfigurationRequest, method string, existingPolicyID string) (*http.Response, error) {
+	var err error
+	var req *http.Request
 	url := "https://app.datadoghq.com/api/unstable/remote_config/products/configurator/configurations"
 	reqBody, err := json.Marshal(configRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error marshalling JSON: %v", err)
 	}
 
-	// Create a new HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+	// create new config
+	if method == "POST" {
+		req, err = http.NewRequest(method, url, bytes.NewBuffer(reqBody))
+		if err != nil {
+			return nil, fmt.Errorf("error creating request: %v", err)
+		}
+	} else {
+		url = fmt.Sprintf("%s/%s", url, existingPolicyID)
+		req, err = http.NewRequest(method, url, bytes.NewBuffer(reqBody))
+		if err != nil {
+			return nil, fmt.Errorf("error creating request: %v", err)
+		}
 	}
 
 	req.Header.Add("accept", "application/json")
@@ -137,24 +221,7 @@ func (c *Client) ApplyConfig(configRequest ConfigurationRequest) (*Configuration
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("failed to create config, status code: %d, response: %s", resp.StatusCode, string(respBody))
-	}
-
-	var configResp ConfigurationResponse
-	err = json.Unmarshal(respBody, &configResp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &configResp, nil
+	return resp, nil
 }
 
 func (c *Client) DeleteConfig(configID string) error {
