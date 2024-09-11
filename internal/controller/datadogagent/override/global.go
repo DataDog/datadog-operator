@@ -137,8 +137,8 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Env is a list of custom global variables that are set across all agents.
 	if config.Env != nil {
-		// do i need to unmarshal? there is an umarshal function in corev1.Env
 		logger.Info(fmt.Sprintf("adding custom env var %s", config.Env))
 		for _, envVar := range config.Env {
 			manager.EnvVar().AddEnvVar(&envVar)
