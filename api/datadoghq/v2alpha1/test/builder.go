@@ -72,6 +72,12 @@ func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 	return builder
 }
 
+// TODO: add generic with global env vars, takes in the test environment variables and add to DatadogAgentBuilder
+func (builder *DatadogAgentBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Env = envs
+	return builder
+}
+
 // Dogstatsd
 func (builder *DatadogAgentBuilder) initDogstatsd() {
 	if builder.datadogAgent.Spec.Features.Dogstatsd == nil {

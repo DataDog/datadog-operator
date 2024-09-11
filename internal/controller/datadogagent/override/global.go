@@ -138,6 +138,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	if config.Env != nil {
+		// do i need to unmarshal? there is an umarshal function in corev1.Env
 		logger.Info(fmt.Sprintf("adding custom env var %s", config.Env))
 		for _, envVar := range config.Env {
 			manager.EnvVar().AddEnvVar(&envVar)
