@@ -35,6 +35,7 @@ type ProfileAffinity struct {
 }
 
 type Config struct {
+	// Override the default configurations of the node agent.
 	Override map[ComponentName]*Override `json:"override,omitempty"`
 }
 
@@ -54,6 +55,7 @@ type Override struct {
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
 	// The deployment strategy to use to replace existing pods with new ones.
+	// Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
 	// +optional
 	UpdateStrategy *commonv1.UpdateStrategy `json:"updateStrategy,omitempty"`
 
