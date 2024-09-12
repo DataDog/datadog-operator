@@ -159,7 +159,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient, err := client.NewClient(
 		rcService,
 		client.WithAgent("datadog-operator", version.Version),
-		client.WithProducts(state.ProductAgentConfig),
+		client.WithProducts(state.ProductAgentConfig, crdRcProduct),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
 	)
@@ -176,6 +176,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.logger.Info("Remote Configuration client started")
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
+
 	rcClient.Subscribe(crdRcProduct, r.crdConfigUpdateCallback)
 
 	return nil
