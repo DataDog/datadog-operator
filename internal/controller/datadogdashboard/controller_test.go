@@ -77,7 +77,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, db); err != nil {
 					return err
 				}
-				assert.Contains(t, db.GetFinalizers(), "finalizer.dashboard.datadoghq.com")
+				assert.Contains(t, db.GetFinalizers(), "finalizer.datadoghq.com/dashboard")
 				return nil
 			},
 		},
