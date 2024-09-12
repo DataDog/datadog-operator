@@ -364,8 +364,16 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Registry: apiutils.NewStringPointer("my-custom-registry"),
 		LogLevel: apiutils.NewStringPointer("INFO"),
 		Tags:     []string{"tagA:valA", "tagB:valB"},
-		Env: []v1.EnvVar{{Name: "some-envA", Value: "some-valA"},
-			{Name: "some-envB", Value: "some-valB"}},
+		Env: []v1.EnvVar{
+			{
+				Name:  "some-envA",
+				Value: "some-valA",
+			},
+			{
+				Name:  "some-envB",
+				Value: "some-valB",
+			},
+		},
 		PodLabelsAsTags:            map[string]string{"some-label": "some-tag"},
 		PodAnnotationsAsTags:       map[string]string{"some-annotation": "some-tag"},
 		NodeLabelsAsTags:           map[string]string{"some-label": "some-tag"},

@@ -1011,6 +1011,10 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
+	//Env contains a list of environment variables that are set for all Agents.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// OriginDetectionUnified defines the origin detection unified mechanism behavior.

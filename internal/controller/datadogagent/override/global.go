@@ -139,7 +139,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// Env is a list of custom global variables that are set across all agents.
 	if config.Env != nil {
-		logger.Info(fmt.Sprintf("adding custom env var %s", config.Env))
+		logger.V(1).Info(fmt.Sprintf("Adding custom environment variable %s", config.Env))
 		for _, envVar := range config.Env {
 			manager.EnvVar().AddEnvVar(&envVar)
 		}
