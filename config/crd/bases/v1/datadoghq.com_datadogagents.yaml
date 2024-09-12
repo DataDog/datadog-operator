@@ -1537,6 +1537,7 @@ spec:
                           type: string
                       type: object
                     env:
+                      description: Env contains a list of environment variables that are set for all Agents.
                       items:
                         description: EnvVar represents an environment variable present in a Container.
                         properties:
@@ -1638,6 +1639,9 @@ spec:
                           - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                        - name
+                      x-kubernetes-list-type: map
                     fips:
                       description: FIPS contains configuration used to customize the FIPS proxy sidecar.
                       properties:
