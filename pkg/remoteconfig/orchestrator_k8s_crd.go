@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	crdRcProduct = "ORCHESTRATOR_K8S_CRD"
+	crdRcProduct = "ORCHESTRATOR_K8S_CRDS"
 )
 
 // CustomResourceDefinitionURLs defines model for CustomResourceDefinitionURLs.
@@ -22,17 +22,22 @@ type CustomResourceDefinitionURLs struct {
 func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 	ctx := context.Background()
 
+	r.logger.Info("Received CRD updates: %v\n", updates)
+
 	var configIDs []string
 	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 		configIDs = append(configIDs, id)
 	}
+	r.logger.Info("Applied status")
 
 	mergedUpdate, err := r.parseCRDReceivedUpdates(updates, applyStatus)
 	if err != nil {
 		r.logger.Error(err, "Failed to merge updates")
 		return
 	}
+
+	r.logger.Info("Merge updates")
 
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
