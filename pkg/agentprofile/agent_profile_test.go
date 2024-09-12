@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -784,6 +785,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 		name                   string
 		dda                    *v2alpha1.DatadogAgent
 		profile                *v1alpha1.DatadogAgentProfile
+		edsOptions             *agent.ExtendedDaemonsetOptions
 		expectedMaxUnavailable int
 	}{
 		{
@@ -891,14 +893,76 @@ func TestGetMaxUnavailable(t *testing.T) {
 					},
 				},
 			},
+			edsOptions: &agent.ExtendedDaemonsetOptions{
+				MaxPodSchedulerFailure: "5",
+			},
 			expectedMaxUnavailable: 15,
+		},
+		{
+			name: "empty dda, empty profile, non-empty edsOptions, string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Name: apiutils.NewStringPointer("test"),
+						},
+					},
+				},
+			},
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								PriorityClassName: apiutils.NewStringPointer("test"),
+							},
+						},
+					},
+				},
+			},
+			edsOptions: &agent.ExtendedDaemonsetOptions{
+				MaxPodUnavailable: "50%",
+			},
+			expectedMaxUnavailable: 50,
+		},
+		{
+			name: "non-empty dda, non-empty profile with empty updatestrategy, string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &common.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &common.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "20%",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								PriorityClassName: apiutils.NewStringPointer("test"),
+							},
+						},
+					},
+				},
+			},
+			expectedMaxUnavailable: 20,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100)
+			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100, tt.edsOptions)
 			assert.Equal(t, tt.expectedMaxUnavailable, actualMaxUnavailable)
 		})
 	}

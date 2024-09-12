@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"math/rand"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
 )
 
@@ -126,4 +127,10 @@ func YAMLToJSONString(yamlConfigs string) string {
 		return ""
 	}
 	return string(jsonValue)
+}
+
+// NewIntOrStringPointer converts a string value to an IntOrString pointer
+func NewIntOrStringPointer(str string) *intstr.IntOrString {
+	val := intstr.Parse(str)
+	return &val
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
@@ -469,7 +471,7 @@ func SlowStartEnabled() bool {
 
 // GetMaxUnavailable gets the maxUnavailable value as in int.
 // Priority is DAP > DDA > Kubernetes default value
-func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *v1alpha1.DatadogAgentProfile, numNodes int) int {
+func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
 	// Kubernetes default for DaemonSet MaxUnavailable is 1
 	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
 	defaultMaxUnavailable := 1
@@ -498,6 +500,16 @@ func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *
 			}
 			return numToScale
 		}
+	}
+
+	// maxUnavailable from EDS options
+	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
+		numToScale, err := intstr.GetScaledValueFromIntOrPercent(apiutils.NewIntOrStringPointer(edsOptions.MaxPodUnavailable), numNodes, true)
+		if err != nil {
+			logger.Error(err, "unable to get max unavailable pods from EDS options, defaulting to 1")
+			return defaultMaxUnavailable
+		}
+		return numToScale
 	}
 
 	// k8s default
