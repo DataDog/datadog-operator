@@ -156,21 +156,21 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 
 	if alreadyExists {
 		now := metav1.NewTime(time.Now())
-		if agentprofile.SlowStartEnabled() {
-			if profile.Status.SlowStart != nil {
-				profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
+		if agentprofile.CreateStrategyEnabled() {
+			if profile.Status.CreateStrategy != nil {
+				profile.Status.CreateStrategy.PodsReady = currentDaemonset.Status.NumberReady
 			}
-			if shouldCheckSlowStartStatus(profile) {
+			if shouldCheckCreateStrategyStatus(profile) {
 				newStatus := v1alpha1.WaitingStatus
 
-				if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.SlowStart.MaxUnavailable) {
+				if int(profile.Status.CreateStrategy.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.CreateStrategy.MaxUnavailable) {
 					newStatus = v1alpha1.InProgressStatus
 				}
 
-				if profile.Status.SlowStart.Status != newStatus {
-					profile.Status.SlowStart.LastTransition = &now
+				if profile.Status.CreateStrategy.Status != newStatus {
+					profile.Status.CreateStrategy.LastTransition = &now
 				}
-				profile.Status.SlowStart.Status = newStatus
+				profile.Status.CreateStrategy.Status = newStatus
 			}
 			r.updateDAPStatus(logger, profile)
 		}
@@ -391,7 +391,7 @@ func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.Labe
 	return labels
 }
 
-func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
+func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 	if profile == nil {
 		return false
 	}
@@ -400,9 +400,9 @@ func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 		return false
 	}
 
-	if profile.Status.SlowStart == nil {
+	if profile.Status.CreateStrategy == nil {
 		return false
 	}
 
-	return profile.Status.SlowStart.Status != v1alpha1.CompletedStatus
+	return profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus
 }

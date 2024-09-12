@@ -38,7 +38,7 @@ const (
 
 // ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-// When slow start is enabled, the profile is mapped to:
+// When create strategy is enabled, the profile is mapped to:
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
@@ -108,30 +108,30 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 	}
 
 	numNodesToLabel := 0
-	if SlowStartEnabled() {
-		profileStatus.SlowStart = &v1alpha1.SlowStart{}
-		if profile.Status.SlowStart != nil {
-			profileStatus.SlowStart.PodsReady = profile.Status.SlowStart.PodsReady
-			profileStatus.SlowStart.LastTransition = profile.Status.SlowStart.LastTransition
+	if CreateStrategyEnabled() {
+		profileStatus.CreateStrategy = &v1alpha1.CreateStrategy{}
+		if profile.Status.CreateStrategy != nil {
+			profileStatus.CreateStrategy.PodsReady = profile.Status.CreateStrategy.PodsReady
+			profileStatus.CreateStrategy.LastTransition = profile.Status.CreateStrategy.LastTransition
 		}
-		profileStatus.SlowStart.Status = getSlowStartStatus(profile.Status.SlowStart, toLabelNodeCount)
-		profileStatus.SlowStart.MaxUnavailable = int32(maxUnavailable)
+		profileStatus.CreateStrategy.Status = getCreateStrategyStatus(profile.Status.CreateStrategy, toLabelNodeCount)
+		profileStatus.CreateStrategy.MaxUnavailable = int32(maxUnavailable)
 
-		if canLabel(logger, profileStatus.SlowStart) {
-			numNodesToLabel = getNumNodesToLabel(profile.Status.SlowStart, maxUnavailable, toLabelNodeCount)
+		if canLabel(logger, profileStatus.CreateStrategy) {
+			numNodesToLabel = getNumNodesToLabel(profile.Status.CreateStrategy, maxUnavailable, toLabelNodeCount)
 		}
 	}
 
 	for node, hasCorrectProfileLabel := range matchingNodes {
-		if SlowStartEnabled() {
+		if CreateStrategyEnabled() {
 			if hasCorrectProfileLabel {
-				profileStatus.SlowStart.NodesLabeled++
+				profileStatus.CreateStrategy.NodesLabeled++
 			} else {
 				if numNodesToLabel <= 0 {
 					continue
 				}
 				numNodesToLabel--
-				profileStatus.SlowStart.NodesLabeled++
+				profileStatus.CreateStrategy.NodesLabeled++
 			}
 		}
 
@@ -417,12 +417,12 @@ func validateProfileName(profileName string) error {
 	return nil
 }
 
-func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
-	if slowStart == nil {
+func canLabel(logger logr.Logger, createStrategy *v1alpha1.CreateStrategy) bool {
+	if createStrategy == nil {
 		return false
 	}
 
-	switch slowStart.Status {
+	switch createStrategy.Status {
 	case v1alpha1.CompletedStatus:
 		return true
 	case v1alpha1.InProgressStatus:
@@ -430,25 +430,25 @@ func canLabel(logger logr.Logger, slowStart *v1alpha1.SlowStart) bool {
 	case v1alpha1.WaitingStatus:
 		return false
 	default:
-		logger.Error(fmt.Errorf("received unexpected slow start status condition"), string(slowStart.Status))
+		logger.Error(fmt.Errorf("received unexpected create strategy status condition"), string(createStrategy.Status))
 		return false
 	}
 }
 
-func getNumNodesToLabel(slowStartStatus *v1alpha1.SlowStart, maxUnavailable, toLabelNodeCount int) int {
-	if slowStartStatus == nil {
+func getNumNodesToLabel(createStrategyStatus *v1alpha1.CreateStrategy, maxUnavailable, toLabelNodeCount int) int {
+	if createStrategyStatus == nil {
 		return 0
 	}
 
-	// once slow start is completed, label all necessary nodes
-	if slowStartStatus.Status == v1alpha1.CompletedStatus {
+	// once create strategy status is completed, label all necessary nodes
+	if createStrategyStatus.Status == v1alpha1.CompletedStatus {
 		return toLabelNodeCount
 	}
 
-	return maxUnavailable - (int(slowStartStatus.NodesLabeled - slowStartStatus.PodsReady))
+	return maxUnavailable - (int(createStrategyStatus.NodesLabeled - createStrategyStatus.PodsReady))
 }
 
-func getSlowStartStatus(status *v1alpha1.SlowStart, toLabelNodeCount int) v1alpha1.SlowStartStatus {
+func getCreateStrategyStatus(status *v1alpha1.CreateStrategy, toLabelNodeCount int) v1alpha1.CreateStrategyStatus {
 	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
 	if status == nil {
 		return v1alpha1.WaitingStatus
@@ -462,9 +462,9 @@ func getSlowStartStatus(status *v1alpha1.SlowStart, toLabelNodeCount int) v1alph
 	return status.Status
 }
 
-// SlowStartEnabled returns true if the slow start enabled env var is set to true
-func SlowStartEnabled() bool {
-	return os.Getenv(apicommon.SlowStartEnabled) == "true"
+// CreateStrategyEnabled returns true if the create strategy enabled env var is set to true
+func CreateStrategyEnabled() bool {
+	return os.Getenv(apicommon.CreateStrategyEnabled) == "true"
 }
 
 // GetMaxUnavailable gets the maxUnavailable value as in int.
