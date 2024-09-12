@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	netv1 "k8s.io/api/networking/v1"
@@ -21,7 +21,7 @@ type NetworkPolicyManager interface {
 }
 
 // NewNetworkPolicyManager returns a new NetworkPolicyManager instance
-func NewNetworkPolicyManager(store dependencies.StoreClient) NetworkPolicyManager {
+func NewNetworkPolicyManager(store store.StoreClient) NetworkPolicyManager {
 	manager := &networkPolicyManagerImpl{
 		store: store,
 	}
@@ -30,7 +30,7 @@ func NewNetworkPolicyManager(store dependencies.StoreClient) NetworkPolicyManage
 
 // networkPolicyManagerImpl is used to manage network policy resources.
 type networkPolicyManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 // AddKubernetesNetworkPolicy creates or updates a kubernetes network policy

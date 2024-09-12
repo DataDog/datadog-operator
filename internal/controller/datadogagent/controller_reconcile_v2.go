@@ -14,9 +14,9 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -106,14 +106,14 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------
 	// Manage dependencies
 	// -----------------------
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		VersionInfo:   r.versionInfo,
 		PlatformInfo:  r.platformInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(instance, storeOptions)
+	depsStore := store.NewStore(instance, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error

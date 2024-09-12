@@ -10,8 +10,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 )
@@ -23,7 +23,7 @@ type SecretManager interface {
 }
 
 // NewSecretManager return new SecretManager instance
-func NewSecretManager(store dependencies.StoreClient) SecretManager {
+func NewSecretManager(store store.StoreClient) SecretManager {
 	manager := &secretManagerImpl{
 		store: store,
 	}
@@ -31,7 +31,7 @@ func NewSecretManager(store dependencies.StoreClient) SecretManager {
 }
 
 type secretManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 }
 
 func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value string) error {
