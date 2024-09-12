@@ -11,6 +11,8 @@ import (
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -47,7 +49,7 @@ func Test_handleFinalizer(t *testing.T) {
 	existingClusterRoles := []*rbacv1.ClusterRole{
 		{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       clusterRoleKind,
+				Kind:       rbac.ClusterRoleKind,
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -59,7 +61,7 @@ func Test_handleFinalizer(t *testing.T) {
 		},
 		{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       clusterRoleKind,
+				Kind:       rbac.ClusterRoleKind,
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -76,7 +78,7 @@ func Test_handleFinalizer(t *testing.T) {
 	existingClusterRoleBindings := []*rbacv1.ClusterRoleBinding{
 		{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       clusterRoleBindingKind,
+				Kind:       rbac.ClusterRoleBindingKind,
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -88,7 +90,7 @@ func Test_handleFinalizer(t *testing.T) {
 		},
 		{
 			TypeMeta: metav1.TypeMeta{
-				Kind:       clusterRoleBindingKind,
+				Kind:       rbac.ClusterRoleBindingKind,
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
