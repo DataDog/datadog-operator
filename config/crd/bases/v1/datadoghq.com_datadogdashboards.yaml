@@ -247,7 +247,7 @@ spec:
                   description: ID is the dashboard ID generated in Datadog.
                   type: string
                 lastForceSyncTime:
-                  description: LastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource
+                  description: LastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource
                   format: date-time
                   type: string
                 syncStatus:
