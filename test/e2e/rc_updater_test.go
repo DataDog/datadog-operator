@@ -89,6 +89,9 @@ func (u *updaterSuite) TestAgentReady() {
 	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
 }
 
+// Wait for the agent to be deployed
+time.Sleep(4 * time.Minute)
+
 func (u *updaterSuite) TestEnableFeatures() {
 	configRequest := api.ConfigurationRequest{
 		Data: api.ConfigurationData{
