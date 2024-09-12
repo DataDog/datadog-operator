@@ -559,9 +559,9 @@ func schema__api_datadoghq_v1alpha1_DatadogDashboardStatus(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"dashboardLastForceSyncTime": {
+					"lastForceSyncTime": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource",
+							Description: "LastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
