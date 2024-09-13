@@ -121,5 +121,5 @@ func (u *updaterSuite) TestEnableFeatures() {
 func (u *updaterSuite) TestFeaturesEnabled() {
 	u.EventuallyWithTf(func(c *assert.CollectT) {
 		updater.CheckFeaturesState(u, c, u.Clustername(), true)
-	}, 20*time.Minute, 30*time.Second, "Checking if features were disabled timed out")
+	}, 20*time.Minute, 30*time.Second, "Checking if features were enabled timed out")
 }
