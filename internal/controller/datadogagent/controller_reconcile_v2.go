@@ -349,7 +349,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList))
+		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {
