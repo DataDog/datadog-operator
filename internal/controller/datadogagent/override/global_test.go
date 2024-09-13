@@ -116,6 +116,35 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantVolumes:      emptyVolumes,
 			want:             assertAll,
 		},
+		{
+			name:                           "Global environment variable configured",
+			singleContainerStrategyEnabled: false,
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithEnvVars([]corev1.EnvVar{
+					{
+						Name:  "envA",
+						Value: "valueA",
+					},
+					{
+						Name:  "envB",
+						Value: "valueB",
+					},
+				}).
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  "envA",
+					Value: "valueA",
+				},
+				{
+					Name:  "envB",
+					Value: "valueB",
+				},
+			}...),
+			wantVolumeMounts: emptyVolumeMounts,
+			wantVolumes:      emptyVolumes,
+			want:             assertAll,
+		},
 	}
 
 	for _, tt := range tests {

@@ -137,6 +137,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Env is a list of custom global variables that are set across all agents.
+	if config.Env != nil {
+		for _, envVar := range config.Env {
+			manager.EnvVar().AddEnvVar(&envVar)
+		}
+	}
+
 	if config.OriginDetectionUnified != nil && config.OriginDetectionUnified.Enabled != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDOriginDetectionUnified,
