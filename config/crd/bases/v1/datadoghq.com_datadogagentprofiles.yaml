@@ -245,7 +245,9 @@ spec:
                               default.
                             type: string
                           updateStrategy:
-                            description: The deployment strategy to use to replace existing pods with new ones.
+                            description: |-
+                              The deployment strategy to use to replace existing pods with new ones.
+                              Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
                             properties:
                               rollingUpdate:
                                 description: Configure the rolling update strategy of the Deployment or DaemonSet.
@@ -275,6 +277,7 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      description: Override the default configurations of the node agent.
                       type: object
                   type: object
                 profileAffinity:
