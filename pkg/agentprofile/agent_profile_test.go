@@ -552,37 +552,37 @@ func Test_labelsOverride(t *testing.T) {
 
 func Test_canLabel(t *testing.T) {
 	tests := []struct {
-		name      string
-		slowStart *v1alpha1.SlowStart
-		expected  bool
+		name           string
+		createStrategy *v1alpha1.CreateStrategy
+		expected       bool
 	}{
 		{
-			name:      "nil slow start",
-			slowStart: nil,
-			expected:  false,
+			name:           "nil create strategy",
+			createStrategy: nil,
+			expected:       false,
 		},
 		{
-			name:      "empty slow start",
-			slowStart: &v1alpha1.SlowStart{},
-			expected:  false,
+			name:           "empty create strategy",
+			createStrategy: &v1alpha1.CreateStrategy{},
+			expected:       false,
 		},
 		{
-			name: "completed slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "completed create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.CompletedStatus,
 			},
 			expected: true,
 		},
 		{
-			name: "in progress slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "in progress create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.InProgressStatus,
 			},
 			expected: true,
 		},
 		{
-			name: "waiting slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "waiting create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.WaitingStatus,
 			},
 			expected: false,
@@ -592,19 +592,19 @@ func Test_canLabel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			actual := canLabel(testLogger, tt.slowStart)
+			actual := canLabel(testLogger, tt.createStrategy)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }
-func Test_getSlowStartStatus(t *testing.T) {
+func Test_getCreateStrategyStatus(t *testing.T) {
 	now := metav1.NewTime(time.Now())
 	oneSecBefore := metav1.NewTime(now.Add(time.Duration(-1) * time.Second))
 	tests := []struct {
 		name              string
-		status            *v1alpha1.SlowStart
+		status            *v1alpha1.CreateStrategy
 		nodesNeedingLabel int
-		expectedStatus    v1alpha1.SlowStartStatus
+		expectedStatus    v1alpha1.CreateStrategyStatus
 	}{
 		{
 			name:              "nil status",
@@ -614,13 +614,13 @@ func Test_getSlowStartStatus(t *testing.T) {
 		},
 		{
 			name:              "empty status",
-			status:            &v1alpha1.SlowStart{},
+			status:            &v1alpha1.CreateStrategy{},
 			nodesNeedingLabel: 1,
 			expectedStatus:    "",
 		},
 		{
 			name: "non-empty status, no nodes need labeling",
-			status: &v1alpha1.SlowStart{
+			status: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.InProgressStatus,
 			},
 			nodesNeedingLabel: 0,
@@ -628,7 +628,7 @@ func Test_getSlowStartStatus(t *testing.T) {
 		},
 		{
 			name: "non-empty status, waiting",
-			status: &v1alpha1.SlowStart{
+			status: &v1alpha1.CreateStrategy{
 				Status:         v1alpha1.WaitingStatus,
 				LastTransition: &oneSecBefore,
 			},
@@ -639,7 +639,7 @@ func Test_getSlowStartStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status := getSlowStartStatus(tt.status, tt.nodesNeedingLabel)
+			status := getCreateStrategyStatus(tt.status, tt.nodesNeedingLabel)
 			assert.Equal(t, tt.expectedStatus, status)
 		})
 	}
