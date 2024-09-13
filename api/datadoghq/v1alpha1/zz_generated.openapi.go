@@ -19,6 +19,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"./api/datadoghq/v1alpha1.CreateStrategy":                        schema__api_datadoghq_v1alpha1_CreateStrategy(ref),
 		"./api/datadoghq/v1alpha1.DashboardTemplateVariable":             schema__api_datadoghq_v1alpha1_DashboardTemplateVariable(ref),
 		"./api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":       schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
 		"./api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":  schema__api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
@@ -44,7 +45,58 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/datadoghq/v1alpha1.DatadogSLOQuery":                       schema__api_datadoghq_v1alpha1_DatadogSLOQuery(ref),
 		"./api/datadoghq/v1alpha1.DatadogSLOSpec":                        schema__api_datadoghq_v1alpha1_DatadogSLOSpec(ref),
 		"./api/datadoghq/v1alpha1.DatadogSLOStatus":                      schema__api_datadoghq_v1alpha1_DatadogSLOStatus(ref),
-		"./api/datadoghq/v1alpha1.SlowStart":                             schema__api_datadoghq_v1alpha1_SlowStart(ref),
+	}
+}
+
+func schema__api_datadoghq_v1alpha1_CreateStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status shows the current state of the feature.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"nodesLabeled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NodesLabeled shows the number of nodes currently labeled.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"podsReady": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodsReady shows the number of pods in the ready state.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxUnavailable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxUnavailable shows the number of pods that can be in an unready state.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastTransition": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastTransition is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -301,17 +353,17 @@ func schema__api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.Referen
 							Format:      "",
 						},
 					},
-					"slowStart": {
+					"CreateStrategy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SlowStart is the state of the slow start feature.",
-							Ref:         ref("./api/datadoghq/v1alpha1.SlowStart"),
+							Description: "CreateStrategy is the state of the create strategy feature.",
+							Ref:         ref("./api/datadoghq/v1alpha1.CreateStrategy"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/datadoghq/v1alpha1.SlowStart", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"./api/datadoghq/v1alpha1.CreateStrategy", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1668,57 +1720,5 @@ func schema__api_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-	}
-}
-
-func schema__api_datadoghq_v1alpha1_SlowStart(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "SlowStart defines the observed state of the slow start feature based on the agent deployment.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status shows the current state of the feature.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"nodesLabeled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "NodesLabeled shows the number of nodes currently labeled.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"podsReady": {
-						SchemaProps: spec.SchemaProps{
-							Description: "PodsReady shows the number of pods in the ready state.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"maxUnavailable": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxUnavailable shows the number of pods that can be in an unready state.",
-							Default:     0,
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"lastTransition": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LastTransition is the last time the status was updated.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }

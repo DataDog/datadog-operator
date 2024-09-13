@@ -13,15 +13,15 @@ import (
 )
 
 type ComponentName string
-type SlowStartStatus string
+type CreateStrategyStatus string
 
 const (
 	// NodeAgentComponentName is the name of the Datadog Node Agent
 	NodeAgentComponentName ComponentName = "nodeAgent"
 
-	CompletedStatus  SlowStartStatus = "Completed"
-	WaitingStatus    SlowStartStatus = "Waiting"
-	InProgressStatus SlowStartStatus = "In Progress"
+	CompletedStatus  CreateStrategyStatus = "Completed"
+	WaitingStatus    CreateStrategyStatus = "Waiting"
+	InProgressStatus CreateStrategyStatus = "In Progress"
 )
 
 // DatadogAgentProfileSpec defines the desired state of DatadogAgentProfile
@@ -105,18 +105,18 @@ type DatadogAgentProfileStatus struct {
 	// +optional
 	Applied metav1.ConditionStatus `json:"applied,omitempty"`
 
-	// SlowStart is the state of the slow start feature.
+	// CreateStrategy is the state of the create strategy feature.
 	// +optional
-	SlowStart *SlowStart `json:"slowStart,omitempty"`
+	CreateStrategy *CreateStrategy `json:"CreateStrategy,omitempty"`
 }
 
-// SlowStart defines the observed state of the slow start feature based on the agent deployment.
+// CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
-type SlowStart struct {
+type CreateStrategy struct {
 	// Status shows the current state of the feature.
 	// +optional
-	Status SlowStartStatus `json:"status,omitempty"`
+	Status CreateStrategyStatus `json:"status,omitempty"`
 
 	// NodesLabeled shows the number of nodes currently labeled.
 	// +optional

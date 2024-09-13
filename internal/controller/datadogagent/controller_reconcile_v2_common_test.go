@@ -105,30 +105,30 @@ func Test_ensureSelectorInPodTemplateLabels(t *testing.T) {
 	}
 }
 
-func Test_shouldCheckSlowStartStatus(t *testing.T) {
+func Test_shouldCheckCreateStrategyStatus(t *testing.T) {
 	tests := []struct {
-		name      string
-		profile   *v1alpha1.DatadogAgentProfile
-		slowStart string
-		expected  bool
+		name           string
+		profile        *v1alpha1.DatadogAgentProfile
+		CreateStrategy string
+		expected       bool
 	}{
 		{
-			name:      "nil profile",
-			profile:   nil,
-			slowStart: "true",
-			expected:  false,
+			name:           "nil profile",
+			profile:        nil,
+			CreateStrategy: "true",
+			expected:       false,
 		},
 		{
-			name:      "slow start false",
-			profile:   nil,
-			slowStart: "false",
-			expected:  false,
+			name:           "create strategy false",
+			profile:        nil,
+			CreateStrategy: "false",
+			expected:       false,
 		},
 		{
-			name:      "empty profile",
-			profile:   &v1alpha1.DatadogAgentProfile{},
-			slowStart: "true",
-			expected:  false,
+			name:           "empty profile",
+			profile:        &v1alpha1.DatadogAgentProfile{},
+			CreateStrategy: "true",
+			expected:       false,
 		},
 		{
 			name: "default profile",
@@ -137,8 +137,8 @@ func Test_shouldCheckSlowStartStatus(t *testing.T) {
 					Name: "default",
 				},
 			},
-			slowStart: "true",
-			expected:  false,
+			CreateStrategy: "true",
+			expected:       false,
 		},
 		{
 			name: "empty profile status",
@@ -148,75 +148,75 @@ func Test_shouldCheckSlowStartStatus(t *testing.T) {
 				},
 				Status: v1alpha1.DatadogAgentProfileStatus{},
 			},
-			slowStart: "true",
-			expected:  false,
+			CreateStrategy: "true",
+			expected:       false,
 		},
 		{
-			name: "completed slow start status",
+			name: "completed create strategy status",
 			profile: &v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: v1alpha1.DatadogAgentProfileStatus{
-					SlowStart: &v1alpha1.SlowStart{
+					CreateStrategy: &v1alpha1.CreateStrategy{
 						Status: v1alpha1.CompletedStatus,
 					},
 				},
 			},
-			slowStart: "true",
-			expected:  false,
+			CreateStrategy: "true",
+			expected:       false,
 		},
 		{
-			name: "in progress slow start status",
+			name: "in progress create strategy status",
 			profile: &v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: v1alpha1.DatadogAgentProfileStatus{
-					SlowStart: &v1alpha1.SlowStart{
+					CreateStrategy: &v1alpha1.CreateStrategy{
 						Status: v1alpha1.InProgressStatus,
 					},
 				},
 			},
-			slowStart: "true",
-			expected:  true,
+			CreateStrategy: "true",
+			expected:       true,
 		},
 		{
-			name: "waiting slow start status",
+			name: "waiting create strategy status",
 			profile: &v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: v1alpha1.DatadogAgentProfileStatus{
-					SlowStart: &v1alpha1.SlowStart{
+					CreateStrategy: &v1alpha1.CreateStrategy{
 						Status: v1alpha1.WaitingStatus,
 					},
 				},
 			},
-			slowStart: "true",
-			expected:  true,
+			CreateStrategy: "true",
+			expected:       true,
 		},
 		{
-			name: "empty status in slow start status",
+			name: "empty status in create strategy status",
 			profile: &v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: v1alpha1.DatadogAgentProfileStatus{
-					SlowStart: &v1alpha1.SlowStart{
+					CreateStrategy: &v1alpha1.CreateStrategy{
 						Status: "",
 					},
 				},
 			},
-			slowStart: "true",
-			expected:  true,
+			CreateStrategy: "true",
+			expected:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(common.SlowStartEnabled, tt.slowStart)
-			actual := shouldCheckSlowStartStatus(tt.profile)
+			t.Setenv(common.CreateStrategyEnabled, tt.CreateStrategy)
+			actual := shouldCheckCreateStrategyStatus(tt.profile)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
