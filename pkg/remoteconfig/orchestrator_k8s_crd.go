@@ -22,14 +22,11 @@ type CustomResourceDefinitionURLs struct {
 func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 	ctx := context.Background()
 
-	r.logger.Info("Received CRD updates: %v\n", updates)
-
 	var configIDs []string
 	for id := range updates {
 		applyStatus(id, state.ApplyStatus{State: state.ApplyStateUnacknowledged, Error: ""})
 		configIDs = append(configIDs, id)
 	}
-	r.logger.Info("Applied status")
 
 	mergedUpdate, err := r.parseCRDReceivedUpdates(updates, applyStatus)
 	if err != nil {
@@ -71,8 +68,14 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 			if err != nil {
 				return DatadogAgentRemoteConfig{}, err
 			}
-			crds = append(crds, *rcCRDs.Crds...)
+			if rcCRDs.Crds != nil {
+				crds = append(crds, *rcCRDs.Crds...)
+			}
 		}
+	}
+
+	if len(crds) == 0 {
+		return DatadogAgentRemoteConfig{}, nil
 	}
 
 	// Merge configs
@@ -80,6 +83,12 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 
 	// Cleanup CRD duplicates and add to final config
 	crds = removeDuplicateStr(crds)
+	if finalConfig.ClusterAgent == nil {
+		finalConfig.ClusterAgent = &ClusterAgentFeaturesConfig{}
+	}
+	if finalConfig.ClusterAgent.CRDs == nil {
+		finalConfig.ClusterAgent.CRDs = &CustomResourceDefinitionURLs{}
+	}
 	finalConfig.ClusterAgent.CRDs.Crds = &crds
 
 	return finalConfig, nil
@@ -94,6 +103,10 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 
 	if newddaStatus.RemoteConfigConfiguration.Features == nil {
 		newddaStatus.RemoteConfigConfiguration.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil {
+		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 
 	// Orchestrator Explorer

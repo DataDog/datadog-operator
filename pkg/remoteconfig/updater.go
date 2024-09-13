@@ -177,7 +177,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
 
-	rcClient.Subscribe(crdRcProduct, r.crdConfigUpdateCallback)
+	rcClient.Subscribe(string(crdRcProduct), r.crdConfigUpdateCallback)
 
 	return nil
 }

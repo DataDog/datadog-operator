@@ -36,12 +36,21 @@ spec:
       - command:
         - /manager
         args:
-        - --enable-leader-election
+          #- --enable-leader-election
+        - --remoteConfigEnabled=true
         - --pprof
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
         env:
+        - name: DD_API_KEY
+          value: 32310c14c88382fc501789ea56bf20ce 
+        - name: DD_APP_KEY
+          value: 24866caa896a66b019ce2747233a91e6802594b1
+        - name: DD_SITE
+          value: datad0g.com
+        - name: DD_CLUSTER_NAME
+          value: lineaweaver-gke
         - name: POD_NAME
           valueFrom:
             fieldRef:

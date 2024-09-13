@@ -63,8 +63,8 @@ github.com/DataDog/datadog-agent/pkg/obfuscate v0.43.0 h1:wWHh/c+AboewQcXQnCdyb3
 github.com/DataDog/datadog-agent/pkg/obfuscate v0.43.0/go.mod h1:o+rJy3B2o+Zb+wCgLSkMlkD7EiUEA5Q63cid53fZkQY=
 github.com/DataDog/datadog-agent/pkg/proto v0.55.0-rc.10 h1:ERkVmUoDPttyVKSCJM1fu3cXU107qDxb+/uvUjXdY2Q=
 github.com/DataDog/datadog-agent/pkg/proto v0.55.0-rc.10/go.mod h1:gHkSUTn6H6UEZQHY3XWBIGNjfI3Tdi0IxlrxIFBWDwU=
-github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10 h1:nwJ2JWfjCmf6tpJD1RYHh4JV5HO2Njg6smxOGi8MyOE=
-github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10/go.mod h1:3yFk56PJ57yS1GqI9HAsS4PSlAeGCC9RQA7jxKzYj6g=
+github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10.0.20240913172254-cc72f06f4d14 h1:GHzYmcVwEavbcTLjHR2RAXlgFL82mzlzMm/FEuTlhSw=
+github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10.0.20240913172254-cc72f06f4d14/go.mod h1:3yFk56PJ57yS1GqI9HAsS4PSlAeGCC9RQA7jxKzYj6g=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.10 h1:+CizlqZ6JyXqH8KAy8NVTZaeZXu+Rfa/o+FPNxNSTFU=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.10/go.mod h1:HcSwqoxWLfevi1vuDZuFeRHfSuHGakTN6/u42WbxQHE=
 github.com/DataDog/datadog-agent/pkg/util/cache v0.55.0-rc.10 h1:5S75F/6jCSUCqWhDQzPwPmuuOh3wkUPvkiPKnuKMyag=
