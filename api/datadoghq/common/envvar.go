@@ -183,5 +183,5 @@ const (
 
 // DatadogAgentProfile env var names
 const (
-	SlowStartEnabled = "DD_DAP_SLOW_START_ENABLED"
+	CreateStrategyEnabled = "DD_DAP_CREATE_STRATEGY_ENABLED"
 )
