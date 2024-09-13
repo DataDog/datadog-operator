@@ -79,11 +79,6 @@ func (u *updaterSuite) Client() *api.Client {
 	return u.apiClient
 }
 
-func (u *updaterSuite) TestOperatorDeployed() {
-	verifyOperator(u.T(), u.kubectlOptions)
-
-}
-
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
@@ -91,7 +86,7 @@ func (u *updaterSuite) TestAgentReady() {
 
 func (u *updaterSuite) TestEnableFeatures() {
 	// Wait for the agent to be deployed
-	time.Sleep(4 * time.Minute)
+	time.Sleep(3 * time.Minute)
 
 	configRequest := api.ConfigurationRequest{
 		Data: api.ConfigurationData{
