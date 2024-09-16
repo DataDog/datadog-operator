@@ -79,6 +79,11 @@ func (u *updaterSuite) Client() *api.Client {
 	return u.apiClient
 }
 
+func (u *updaterSuite) TestOperatorDeployed() {
+	verifyOperator(u.T(), u.kubectlOptions)
+
+}
+
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
