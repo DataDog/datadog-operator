@@ -37,7 +37,6 @@ func TestUpdaterSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion, []string{"rc-e2e-manager.yaml"})),
-		e2e.WithDevMode(),
 	}
 
 	apiKey, _ := api.GetAPIKey()
@@ -63,12 +62,13 @@ func (u *updaterSuite) SetupSuite() {
 }
 
 func (u *updaterSuite) TearDownSuite() {
-	u.BaseSuite.TearDownSuite()
 	deleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	u.cleanUpContext()
 	if u.configID != "" {
 		u.Client().DeleteConfig(u.configID)
 	}
+	u.BaseSuite.TearDownSuite()
+
 }
 
 func (u *updaterSuite) Clustername() string {
