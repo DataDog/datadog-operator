@@ -1,7 +1,7 @@
 {
 	"image": "mcr.microsoft.com/devcontainers/go:dev-1.22",
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
 	"runArgs": ["--name", "datadog-operator-devenv", "-w", "/workspaces/datadog-operator"],
 	"postStartCommand": ["git", "config", "--global", "--add", "safe.directory", "/workspaces/datadog-operator"]

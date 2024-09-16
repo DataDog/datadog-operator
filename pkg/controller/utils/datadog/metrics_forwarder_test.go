@@ -14,10 +14,10 @@ import (
 	"sync"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
