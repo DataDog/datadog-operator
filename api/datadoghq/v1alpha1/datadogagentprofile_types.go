@@ -107,7 +107,7 @@ type DatadogAgentProfileStatus struct {
 
 	// CreateStrategy is the state of the create strategy feature.
 	// +optional
-	CreateStrategy *CreateStrategy `json:"CreateStrategy,omitempty"`
+	CreateStrategy *CreateStrategy `json:"createStrategy,omitempty"`
 }
 
 // CreateStrategy defines the observed state of the create strategy feature based on the agent deployment.
