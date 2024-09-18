@@ -353,7 +353,7 @@ func schema__api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref common.Referen
 							Format:      "",
 						},
 					},
-					"CreateStrategy": {
+					"createStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CreateStrategy is the state of the create strategy feature.",
 							Ref:         ref("./api/datadoghq/v1alpha1.CreateStrategy"),
