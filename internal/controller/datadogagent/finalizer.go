@@ -10,9 +10,9 @@ import (
 	"fmt"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -81,13 +81,13 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	features, requiredComponents := feature.BuildFeatures(
 		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
 
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        reqLogger,
 		Scheme:        r.scheme,
 		PlatformInfo:  r.platformInfo,
 	}
-	depsStore := dependencies.NewStore(dda, storeOptions)
+	depsStore := store.NewStore(dda, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error

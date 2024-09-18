@@ -1380,6 +1380,13 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]corev1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.OriginDetectionUnified != nil {
 		in, out := &in.OriginDetectionUnified, &out.OriginDetectionUnified
 		*out = new(OriginDetectionUnified)
