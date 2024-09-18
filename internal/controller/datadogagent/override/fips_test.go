@@ -15,9 +15,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +32,7 @@ func Test_ApplyFIPSConfig(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -69,7 +69,7 @@ defaults
 		name            string
 		dda             *v2alpha1.DatadogAgent
 		existingManager func() *fake.PodTemplateManagers
-		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *dependencies.Store)
+		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *store.Store)
 	}{
 		{
 			name: "FIPS enabled",
@@ -85,7 +85,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *dependencies.Store) {
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -117,7 +117,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *dependencies.Store) {
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -149,7 +149,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *dependencies.Store) {
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -190,7 +190,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *dependencies.Store) {
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -222,7 +222,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *dependencies.Store) {
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -250,7 +250,7 @@ defaults
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			podTemplateManager := tt.existingManager()
-			store := dependencies.NewStore(tt.dda, storeOptions)
+			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 
 			applyFIPSConfig(logger, podTemplateManager, tt.dda, resourcesManager)

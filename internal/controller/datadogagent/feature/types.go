@@ -10,8 +10,8 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -162,7 +162,7 @@ type BuildFunc func(options *Options) Feature
 
 // ResourceManagers used to access the different resources manager.
 type ResourceManagers interface {
-	Store() dependencies.StoreClient
+	Store() store.StoreClient
 	RBACManager() merger.RBACManager
 	PodSecurityManager() merger.PodSecurityManager
 	SecretManager() merger.SecretManager
@@ -174,7 +174,7 @@ type ResourceManagers interface {
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
-func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
+func NewResourceManagers(store store.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
 		store:         store,
 		rbac:          merger.NewRBACManager(store),
@@ -189,7 +189,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 }
 
 type resourceManagersImpl struct {
-	store         dependencies.StoreClient
+	store         store.StoreClient
 	rbac          merger.RBACManager
 	podSecurity   merger.PodSecurityManager
 	secret        merger.SecretManager
@@ -200,7 +200,7 @@ type resourceManagersImpl struct {
 	apiService    merger.APIServiceManager
 }
 
-func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
+func (impl *resourceManagersImpl) Store() store.StoreClient {
 	return impl.store
 }
 

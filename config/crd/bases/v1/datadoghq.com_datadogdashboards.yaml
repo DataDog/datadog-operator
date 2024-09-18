@@ -243,12 +243,12 @@ spec:
                     CurrentHash tracks the hash of the current DatadogDashboardSpec to know
                     if the Spec has changed and needs an update.
                   type: string
-                dashboardLastForceSyncTime:
-                  description: DashboardLastForceSyncTime is the last time the API dashboard was last force synced with the Datadogdashboard resource
-                  format: date-time
-                  type: string
                 id:
                   description: ID is the dashboard ID generated in Datadog.
+                  type: string
+                lastForceSyncTime:
+                  description: LastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource
+                  format: date-time
                   type: string
                 syncStatus:
                   description: SyncStatus shows the health of syncing the dashboard state to Datadog.

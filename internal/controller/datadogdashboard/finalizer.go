@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	datadogDashboardFinalizer = "finalizer.dashboard.datadoghq.com"
+	datadogDashboardFinalizer = "finalizer.datadoghq.com/dashboard"
 )
 
 func (r *Reconciler) handleFinalizer(logger logr.Logger, db *datadoghqv1alpha1.DatadogDashboard) (ctrl.Result, error) {

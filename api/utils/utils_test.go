@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package agent
+package utils
 
 import (
 	"testing"
@@ -35,7 +35,7 @@ func Test_newIntOrStringPointer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			output := newIntOrStringPointer(tt.input)
+			output := NewIntOrStringPointer(tt.input)
 			if tt.want != *output {
 				t.Errorf("newIntOrStringPointer() result is %v but want %v", *output, tt.want)
 			}

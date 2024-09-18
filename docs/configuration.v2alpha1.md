@@ -180,6 +180,7 @@ spec:
 | global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.endpoint.url | URL defines the endpoint URL. |
+| global.env | Env contains a list of environment variables that are set for all Agents. |
 | global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
 | global.fips.customFIPSConfig.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | global.fips.customFIPSConfig.configMap.name | Name is the name of the ConfigMap. |

@@ -137,6 +137,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Env is a list of custom global variables that are set across all agents.
+	if config.Env != nil {
+		for _, envVar := range config.Env {
+			manager.EnvVar().AddEnvVar(&envVar)
+		}
+	}
+
 	// Configure checks tag cardinality if provided
 	if componentName == v2alpha1.NodeAgentComponentName {
 		if config.ChecksTagCardinality != nil {

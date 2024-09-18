@@ -143,25 +143,25 @@ func TestUpdateProfileStatus(t *testing.T) {
 		name            string
 		profile         *datadoghqv1alpha1.DatadogAgentProfile
 		newStatus       datadoghqv1alpha1.DatadogAgentProfileStatus
-		slowStart       string
+		createStrategy  string
 		expectedProfile *datadoghqv1alpha1.DatadogAgentProfile
 	}{
 		{
-			name:            "nil profile, slow start false",
+			name:            "nil profile, create strategy false",
 			profile:         nil,
 			newStatus:       datadoghqv1alpha1.DatadogAgentProfileStatus{},
-			slowStart:       "false",
+			createStrategy:  "false",
 			expectedProfile: nil,
 		},
 		{
-			name:            "nil profile, slow start true",
+			name:            "nil profile, create strategy true",
 			profile:         nil,
 			newStatus:       datadoghqv1alpha1.DatadogAgentProfileStatus{},
-			slowStart:       "true",
+			createStrategy:  "true",
 			expectedProfile: nil,
 		},
 		{
-			name:    "empty profile, non-empty new status, slow start false",
+			name:    "empty profile, non-empty new status, create strategy false",
 			profile: &datadoghqv1alpha1.DatadogAgentProfile{},
 			newStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &metav1.Time{},
@@ -169,15 +169,15 @@ func TestUpdateProfileStatus(t *testing.T) {
 				Conditions:  []metav1.Condition{},
 				Valid:       metav1.ConditionFalse,
 				Applied:     metav1.ConditionFalse,
-				SlowStart: &datadoghqv1alpha1.SlowStart{
+				CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 					Status: datadoghqv1alpha1.CompletedStatus,
 				},
 			},
-			slowStart:       "false",
+			createStrategy:  "false",
 			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{},
 		},
 		{
-			name:    "empty profile, non-empty new status, slow start true",
+			name:    "empty profile, non-empty new status, create strategy true",
 			profile: &datadoghqv1alpha1.DatadogAgentProfile{},
 			newStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{
 				LastUpdate:  &metav1.Time{},
@@ -185,15 +185,15 @@ func TestUpdateProfileStatus(t *testing.T) {
 				Conditions:  []metav1.Condition{},
 				Valid:       metav1.ConditionFalse,
 				Applied:     metav1.ConditionFalse,
-				SlowStart: &datadoghqv1alpha1.SlowStart{
+				CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 					Status: datadoghqv1alpha1.CompletedStatus,
 				},
 			},
-			slowStart:       "true",
+			createStrategy:  "true",
 			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{},
 		},
 		{
-			name: "non-empty profile, empty new status, slow start false",
+			name: "non-empty profile, empty new status, create strategy false",
 			profile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
@@ -204,30 +204,67 @@ func TestUpdateProfileStatus(t *testing.T) {
 					Conditions:  []metav1.Condition{},
 					Valid:       metav1.ConditionFalse,
 					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 						Status:         datadoghqv1alpha1.CompletedStatus,
 						LastTransition: &now,
 					},
 				},
 			},
-			newStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{},
-			slowStart: "false",
+			newStatus:      datadoghqv1alpha1.DatadogAgentProfileStatus{},
+			createStrategy: "false",
+			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					LastUpdate:     &now,
+					CurrentHash:    "",
+					Conditions:     nil,
+					Valid:          metav1.ConditionUnknown,
+					Applied:        metav1.ConditionUnknown,
+					CreateStrategy: nil,
+				},
+			},
+		},
+		{
+			name: "non-empty profile, empty new status, create strategy true",
+			profile: &datadoghqv1alpha1.DatadogAgentProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foo",
+				},
+				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
+					LastUpdate:  &now,
+					CurrentHash: "foo",
+					Conditions:  []metav1.Condition{},
+					Valid:       metav1.ConditionFalse,
+					Applied:     metav1.ConditionFalse,
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
+						Status:         datadoghqv1alpha1.CompletedStatus,
+						LastTransition: &now,
+					},
+				},
+			},
+			newStatus:      datadoghqv1alpha1.DatadogAgentProfileStatus{},
+			createStrategy: "true",
 			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
 					LastUpdate:  &now,
-					CurrentHash: "",
-					Conditions:  nil,
-					Valid:       metav1.ConditionUnknown,
-					Applied:     metav1.ConditionUnknown,
-					SlowStart:   nil,
+					CurrentHash: "foo",
+					Conditions:  []metav1.Condition{},
+					Valid:       metav1.ConditionFalse,
+					Applied:     metav1.ConditionFalse,
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
+						Status:         datadoghqv1alpha1.CompletedStatus,
+						LastTransition: &now,
+					},
 				},
 			},
 		},
 		{
-			name: "non-empty profile, empty new status, slow start true",
+			name: "non-empty profile, non-empty new status, create strategy false",
 			profile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
@@ -238,44 +275,7 @@ func TestUpdateProfileStatus(t *testing.T) {
 					Conditions:  []metav1.Condition{},
 					Valid:       metav1.ConditionFalse,
 					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
-						Status:         datadoghqv1alpha1.CompletedStatus,
-						LastTransition: &now,
-					},
-				},
-			},
-			newStatus: datadoghqv1alpha1.DatadogAgentProfileStatus{},
-			slowStart: "true",
-			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
-					LastUpdate:  &now,
-					CurrentHash: "foo",
-					Conditions:  []metav1.Condition{},
-					Valid:       metav1.ConditionFalse,
-					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
-						Status:         datadoghqv1alpha1.CompletedStatus,
-						LastTransition: &now,
-					},
-				},
-			},
-		},
-		{
-			name: "non-empty profile, non-empty new status, slow start false",
-			profile: &datadoghqv1alpha1.DatadogAgentProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
-					LastUpdate:  &now,
-					CurrentHash: "foo",
-					Conditions:  []metav1.Condition{},
-					Valid:       metav1.ConditionFalse,
-					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 						Status:         datadoghqv1alpha1.InProgressStatus,
 						LastTransition: &metav1.Time{},
 					},
@@ -287,29 +287,29 @@ func TestUpdateProfileStatus(t *testing.T) {
 				Conditions:  []metav1.Condition{},
 				Valid:       metav1.ConditionFalse,
 				Applied:     metav1.ConditionFalse,
-				SlowStart: &datadoghqv1alpha1.SlowStart{
+				CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 					Status:       datadoghqv1alpha1.InProgressStatus,
 					NodesLabeled: 32,
 					PodsReady:    21,
 				},
 			},
-			slowStart: "false",
+			createStrategy: "false",
 			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
 				Status: datadoghqv1alpha1.DatadogAgentProfileStatus{
-					LastUpdate:  &now,
-					CurrentHash: "bar",
-					Conditions:  []metav1.Condition{},
-					Valid:       metav1.ConditionFalse,
-					Applied:     metav1.ConditionFalse,
-					SlowStart:   nil,
+					LastUpdate:     &now,
+					CurrentHash:    "bar",
+					Conditions:     []metav1.Condition{},
+					Valid:          metav1.ConditionFalse,
+					Applied:        metav1.ConditionFalse,
+					CreateStrategy: nil,
 				},
 			},
 		},
 		{
-			name: "non-empty profile, non-empty new status, slow start true",
+			name: "non-empty profile, non-empty new status, create strategy true",
 			profile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
@@ -320,7 +320,7 @@ func TestUpdateProfileStatus(t *testing.T) {
 					Conditions:  []metav1.Condition{},
 					Valid:       metav1.ConditionFalse,
 					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 						Status:         datadoghqv1alpha1.CompletedStatus,
 						LastTransition: &now,
 					},
@@ -332,13 +332,13 @@ func TestUpdateProfileStatus(t *testing.T) {
 				Conditions:  []metav1.Condition{},
 				Valid:       metav1.ConditionFalse,
 				Applied:     metav1.ConditionFalse,
-				SlowStart: &datadoghqv1alpha1.SlowStart{
+				CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 					Status:       datadoghqv1alpha1.InProgressStatus,
 					NodesLabeled: 32,
 					PodsReady:    21,
 				},
 			},
-			slowStart: "true",
+			createStrategy: "true",
 			expectedProfile: &datadoghqv1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
@@ -349,7 +349,7 @@ func TestUpdateProfileStatus(t *testing.T) {
 					Conditions:  []metav1.Condition{},
 					Valid:       metav1.ConditionFalse,
 					Applied:     metav1.ConditionFalse,
-					SlowStart: &datadoghqv1alpha1.SlowStart{
+					CreateStrategy: &datadoghqv1alpha1.CreateStrategy{
 						LastTransition: &now,
 						Status:         datadoghqv1alpha1.WaitingStatus,
 						NodesLabeled:   32,
@@ -363,7 +363,7 @@ func TestUpdateProfileStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName("testUpdateProfileStatus")
-			t.Setenv(common.SlowStartEnabled, tt.slowStart)
+			t.Setenv(common.CreateStrategyEnabled, tt.createStrategy)
 			UpdateProfileStatus(logger, tt.profile, tt.newStatus, now)
 			assert.Equal(t, tt.expectedProfile, tt.profile)
 		})
