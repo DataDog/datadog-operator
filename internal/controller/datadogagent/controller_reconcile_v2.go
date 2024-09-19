@@ -13,9 +13,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -105,14 +105,14 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------
 	// Manage dependencies
 	// -----------------------
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		VersionInfo:   r.versionInfo,
 		PlatformInfo:  r.platformInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(instance, storeOptions)
+	depsStore := store.NewStore(instance, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
@@ -348,7 +348,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList))
+		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {

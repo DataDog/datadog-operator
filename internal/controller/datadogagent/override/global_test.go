@@ -15,9 +15,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,7 +34,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -114,12 +114,41 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantVolumes:      emptyVolumes,
 			want:             assertAll,
 		},
+		{
+			name:                           "Global environment variable configured",
+			singleContainerStrategyEnabled: false,
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithEnvVars([]corev1.EnvVar{
+					{
+						Name:  "envA",
+						Value: "valueA",
+					},
+					{
+						Name:  "envB",
+						Value: "valueB",
+					},
+				}).
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  "envA",
+					Value: "valueA",
+				},
+				{
+					Name:  "envB",
+					Value: "valueB",
+				},
+			}...),
+			wantVolumeMounts: emptyVolumeMounts,
+			wantVolumes:      emptyVolumes,
+			want:             assertAll,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-			store := dependencies.NewStore(tt.dda, storeOptions)
+			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 
 			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled)

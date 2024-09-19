@@ -13,7 +13,8 @@ import (
 
 // TODO move most of these constants out of common
 
-// Datadog const value
+// This file tracks constants related to setting up the Datadog Agents
+
 const (
 	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"

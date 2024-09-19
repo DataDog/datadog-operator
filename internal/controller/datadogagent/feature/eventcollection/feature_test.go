@@ -14,10 +14,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
@@ -92,7 +92,7 @@ func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 	assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 }
 
-func unbundledEventsDependencies(t testing.TB, store dependencies.StoreClient) {
+func unbundledEventsDependencies(t testing.TB, store store.StoreClient) {
 	// validate clusterRole policy rules
 	crObj, found := store.Get(kubernetes.ConfigMapKind, "", "ddaDCA-kube-apiserver-config")
 	if !found {
