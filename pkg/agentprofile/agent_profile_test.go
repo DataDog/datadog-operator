@@ -930,9 +930,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										Type:   intstr.String,
 										StrVal: "20%",
