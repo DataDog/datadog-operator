@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -32,20 +31,20 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 
 	// Add FIPS env vars to all containers except System Probe
 	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
-		if cont.Name != string(common.SystemProbeContainerName) {
-			manager.EnvVar().AddEnvVarToContainer(common.AgentContainerName(cont.Name), &corev1.EnvVar{
+		if cont.Name != string(apicommon.SystemProbeContainerName) {
+			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
 				Name:  apicommon.DDFIPSEnabled,
 				Value: "true",
 			})
-			manager.EnvVar().AddEnvVarToContainer(common.AgentContainerName(cont.Name), &corev1.EnvVar{
+			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
 				Name:  apicommon.DDFIPSPortRangeStart,
 				Value: strconv.Itoa(int(*fipsConfig.Port)),
 			})
-			manager.EnvVar().AddEnvVarToContainer(common.AgentContainerName(cont.Name), &corev1.EnvVar{
+			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
 				Name:  apicommon.DDFIPSUseHTTPS,
 				Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
 			})
-			manager.EnvVar().AddEnvVarToContainer(common.AgentContainerName(cont.Name), &corev1.EnvVar{
+			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
 				Name:  apicommon.DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			})
@@ -55,7 +54,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	// Configure FIPS container
 	fipsContainer := getFIPSProxyContainer(fipsConfig)
 
-	image := apicommon.GetImage(fipsConfig.Image, globalConfig.Registry)
+	image := v2alpha1.GetImage(fipsConfig.Image, globalConfig.Registry)
 	fipsContainer.Image = image
 	if fipsConfig.Image.PullPolicy != nil {
 		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
@@ -119,8 +118,8 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 				resourcesManager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
 			}
 		}
-		manager.VolumeMount().AddVolumeMountToContainer(&volMount, common.CoreAgentContainerName)
-		manager.VolumeMount().AddVolumeMountToContainer(&volMount, common.FIPSProxyContainerName)
+		manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.CoreAgentContainerName)
+		manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.FIPSProxyContainerName)
 	}
 	manager.Volume().AddVolume(&vol)
 
@@ -131,7 +130,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 
 func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
 	fipsContainer := corev1.Container{
-		Name:            string(common.FIPSProxyContainerName),
+		Name:            string(apicommon.FIPSProxyContainerName),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           getFIPSPorts(fipsConfig),
 		Env: []corev1.EnvVar{

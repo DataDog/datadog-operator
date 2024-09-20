@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	common "github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 func Test_merge(t *testing.T) {
@@ -83,15 +83,15 @@ func Test_merge(t *testing.T) {
 func Test_mergeSlices(t *testing.T) {
 	tests := []struct {
 		name string
-		a    []apicommonv1.AgentContainerName
-		b    []apicommonv1.AgentContainerName
-		want []apicommonv1.AgentContainerName
+		a    []common.AgentContainerName
+		b    []common.AgentContainerName
+		want []common.AgentContainerName
 	}{
 		{
 			name: "empty slices",
-			a:    []apicommonv1.AgentContainerName{},
-			b:    []apicommonv1.AgentContainerName{},
-			want: []apicommonv1.AgentContainerName{},
+			a:    []common.AgentContainerName{},
+			b:    []common.AgentContainerName{},
+			want: []common.AgentContainerName{},
 		},
 		{
 			name: "nil slices",
@@ -101,24 +101,24 @@ func Test_mergeSlices(t *testing.T) {
 		},
 		{
 			name: "a not empty, b empty",
-			a:    []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName},
-			b:    []apicommonv1.AgentContainerName{},
-			want: []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName},
+			a:    []common.AgentContainerName{common.ClusterAgentContainerName},
+			b:    []common.AgentContainerName{},
+			want: []common.AgentContainerName{common.ClusterAgentContainerName},
 		},
 		{
 			name: "a,b same data",
-			a:    []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName},
-			b:    []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName},
-			want: []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName},
+			a:    []common.AgentContainerName{common.ClusterAgentContainerName},
+			b:    []common.AgentContainerName{common.ClusterAgentContainerName},
+			want: []common.AgentContainerName{common.ClusterAgentContainerName},
 		},
 		{
 			name: "a,b merge data",
-			a:    []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName, apicommonv1.ClusterAgentContainerName},
-			b:    []apicommonv1.AgentContainerName{apicommonv1.ClusterAgentContainerName, apicommonv1.ProcessAgentContainerName},
-			want: []apicommonv1.AgentContainerName{
-				apicommonv1.ClusterAgentContainerName,
-				apicommonv1.ClusterAgentContainerName,
-				apicommonv1.ProcessAgentContainerName,
+			a:    []common.AgentContainerName{common.ClusterAgentContainerName, common.ClusterAgentContainerName},
+			b:    []common.AgentContainerName{common.ClusterAgentContainerName, common.ProcessAgentContainerName},
+			want: []common.AgentContainerName{
+				common.ClusterAgentContainerName,
+				common.ClusterAgentContainerName,
+				common.ProcessAgentContainerName,
 			},
 		},
 	}
@@ -137,7 +137,7 @@ func TestRequiredComponent_IsEnabled(t *testing.T) {
 
 	type fields struct {
 		IsRequired *bool
-		Containers []apicommonv1.AgentContainerName
+		Containers []common.AgentContainerName
 	}
 
 	tests := []struct {
@@ -189,7 +189,7 @@ func TestRequiredComponent_IsConfigured(t *testing.T) {
 
 	type fields struct {
 		IsRequired *bool
-		Containers []apicommonv1.AgentContainerName
+		Containers []common.AgentContainerName
 	}
 
 	tests := []struct {

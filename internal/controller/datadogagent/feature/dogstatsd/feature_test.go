@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -408,18 +407,18 @@ func getWantVolumeMounts() []*corev1.VolumeMount {
 func assertWants(t testing.TB, mgrInterface feature.PodTemplateManagers, testId string, wantVolumeMounts []*corev1.VolumeMount, wantVolumes []*corev1.Volume, wantEnvVars []*corev1.EnvVar, wantUDSEnvVars []*corev1.EnvVar, wantContainerPorts []*corev1.ContainerPort) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-	coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+	coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "%s. Volume mounts \ndiff = %s", testId, cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 
 	volumes := mgr.VolumeMgr.Volumes
 	assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "%s. Volumes \ndiff = %s", testId, cmp.Diff(volumes, wantVolumes))
 
-	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "%s. Agent Container envvars \ndiff = %s", testId, cmp.Diff(agentEnvVars, wantEnvVars))
 
-	allEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+	allEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 	assert.True(t, apiutils.IsEqualStruct(allEnvVars, wantUDSEnvVars), "%s. All Containers envvars \ndiff = %s", testId, cmp.Diff(allEnvVars, wantUDSEnvVars))
 
-	coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
+	coreAgentPorts := mgr.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "%s. Agent ports \ndiff = %s", testId, cmp.Diff(coreAgentPorts, wantContainerPorts))
 }

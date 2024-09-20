@@ -6,17 +6,17 @@
 package merger
 
 import (
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // PortManager use to manage adding ports to a container in a PodTemplateSpec
 type PortManager interface {
 	// AddPortToContainer use to add a port to a specific container present in the Pod.
-	AddPortToContainer(containerName commonv1.AgentContainerName, newPort *corev1.ContainerPort)
+	AddPortToContainer(containerName common.AgentContainerName, newPort *corev1.ContainerPort)
 	// AddPortWithMergeFunc use to add a port to a specific container present in the Pod.
 	// The way the Port is merge with an existing Port can be tune thank to the PortMergeFunction parameter.
-	AddPortToContainerWithMergeFunc(containerName commonv1.AgentContainerName, newPort *corev1.ContainerPort, mergeFunc PortMergeFunction) error
+	AddPortToContainerWithMergeFunc(containerName common.AgentContainerName, newPort *corev1.ContainerPort, mergeFunc PortMergeFunction) error
 }
 
 // NewPortManager return new instance of the PortManager
@@ -30,11 +30,11 @@ type portManagerImpl struct {
 	podTmpl *corev1.PodTemplateSpec
 }
 
-func (impl *portManagerImpl) AddPortToContainer(containerName commonv1.AgentContainerName, newPort *corev1.ContainerPort) {
+func (impl *portManagerImpl) AddPortToContainer(containerName common.AgentContainerName, newPort *corev1.ContainerPort) {
 	_ = impl.AddPortToContainerWithMergeFunc(containerName, newPort, DefaultPortMergeFunction)
 }
 
-func (impl *portManagerImpl) AddPortToContainerWithMergeFunc(containerName commonv1.AgentContainerName, newPort *corev1.ContainerPort, mergeFunc PortMergeFunction) error {
+func (impl *portManagerImpl) AddPortToContainerWithMergeFunc(containerName common.AgentContainerName, newPort *corev1.ContainerPort, mergeFunc PortMergeFunction) error {
 	for id := range impl.podTmpl.Spec.Containers {
 		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err := AddPortToContainer(&impl.podTmpl.Spec.Containers[id], newPort, mergeFunc)

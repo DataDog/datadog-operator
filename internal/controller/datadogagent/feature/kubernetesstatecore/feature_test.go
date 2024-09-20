@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -113,7 +113,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 
 			if hasCustomConfig {
-				customConfig := apicommonv1.CustomConfig{
+				customConfig := v2alpha1.CustomConfig{
 					ConfigData: apiutils.NewStringPointer(customData),
 				}
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
@@ -129,14 +129,14 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 }
 
 func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommonv1.CoreAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.CoreAgentContainerName)
 }
 
 func ksmAgentSingleAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommonv1.UnprivilegedSingleAgentContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommon.UnprivilegedSingleAgentContainerName)
 }
 
-func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommonv1.AgentContainerName) {
+func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommon.AgentContainerName) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 

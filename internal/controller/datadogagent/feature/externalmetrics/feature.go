@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -260,25 +259,25 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDExternalMetricsProviderEnabled,
 		Value: "true",
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDExternalMetricsProviderPort,
 		Value: strconv.FormatInt(int64(f.port), 10),
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 		Value: apiutils.BoolToString(&f.useDDM),
 	})
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDExternalMetricsProviderWPAController,
 		Value: apiutils.BoolToString(&f.useWPA),
 	})
 
 	if f.url != "" {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDExternalMetricsProviderEndpoint,
 			Value: f.url,
 		})
@@ -301,7 +300,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPIKeyKey),
 				)
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, apiKeyEnvVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, apiKeyEnvVar)
 		}
 		// app key
 		if s, ok := f.keySecret[apicommon.DefaultAPPKeyKey]; ok {
@@ -319,11 +318,11 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPPKeyKey),
 				)
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, appKeyEnvVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, appKeyEnvVar)
 		}
 	}
 
-	managers.Port().AddPortToContainer(apicommonv1.ClusterAgentContainerName, &corev1.ContainerPort{
+	managers.Port().AddPortToContainer(apicommon.ClusterAgentContainerName, &corev1.ContainerPort{
 		Name:          apicommon.ExternalMetricsPortName,
 		ContainerPort: f.port,
 		Protocol:      corev1.ProtocolTCP,

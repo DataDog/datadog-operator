@@ -20,7 +20,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -96,14 +95,14 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
 				},
 			},
 		}
 		// if using APM, require the Trace Agent too.
 		if f.usingAPM {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
 		}
 	}
 
@@ -220,8 +219,8 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	if f.httpEnabled {
@@ -240,8 +239,8 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	return nil
@@ -271,10 +270,10 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 		if f.usingAPM {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, envVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
 	}
 
@@ -294,10 +293,10 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 		if f.usingAPM {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, envVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
 	}
 

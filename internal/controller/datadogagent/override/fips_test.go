@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -37,13 +36,13 @@ func Test_ApplyFIPSConfig(t *testing.T) {
 	}
 
 	agentContainer := &corev1.Container{
-		Name: string(apicommonv1.CoreAgentContainerName),
+		Name: string(apicommon.CoreAgentContainerName),
 	}
 	processAgentContainer := &corev1.Container{
-		Name: string(apicommonv1.ProcessAgentContainerName),
+		Name: string(apicommon.ProcessAgentContainerName),
 	}
 	systemProbeContainer := &corev1.Container{
-		Name: string(apicommonv1.SystemProbeContainerName),
+		Name: string(apicommon.SystemProbeContainerName),
 	}
 
 	customConfig := `global
@@ -105,7 +104,7 @@ defaults
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
-					Image: &apicommonv1.AgentImageConfig{
+					Image: &v2alpha1.AgentImageConfig{
 						Name: "registry/custom:tag",
 					},
 				}).
@@ -170,7 +169,7 @@ defaults
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
-						ConfigMap: &apicommonv1.ConfigMapConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "foo",
 							Items: []corev1.KeyToPath{
 								{
@@ -333,9 +332,9 @@ func checkFIPSContainerEnvVars(t testing.TB, mgr *fake.PodTemplateManagers) {
 }
 
 func checkComponentContainerEnvVars(t testing.TB, mgr *fake.PodTemplateManagers, port int) {
-	coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-	processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
-	systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
+	coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+	processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
+	systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 	expectedEnvVars := getExpectedComponentContainerEnvVars(port)
 
 	assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, expectedEnvVars), "Core agent container envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, expectedEnvVars))
@@ -350,10 +349,10 @@ func checkVolume(t testing.TB, mgr *fake.PodTemplateManagers, customConfig bool)
 }
 
 func checkVolumeMounts(t testing.TB, mgr *fake.PodTemplateManagers, customConfig bool) {
-	coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-	processAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
-	systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
-	fipsVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.FIPSProxyContainerName]
+	coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
+	processAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
+	systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+	fipsVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.FIPSProxyContainerName]
 	expectedVolumeMounts := getExpectedFIPSVolumeMounts()
 	if !customConfig {
 		expectedVolumeMounts = nil

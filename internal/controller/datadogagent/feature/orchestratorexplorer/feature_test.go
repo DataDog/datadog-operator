@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -68,7 +67,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.51.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
@@ -84,7 +83,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.51.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.51.0"}}).
 				Build(),
 			WantConfigure:       true,
 			ClusterAgent:        orchestratorExplorerClusterAgentWantFuncV2(),
@@ -99,7 +98,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
-				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &apicommonv1.AgentImageConfig{Tag: "7.50.0"}}).
+				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{Image: &v2alpha1.AgentImageConfig{Tag: "7.50.0"}}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
@@ -112,23 +111,23 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 
 func orchestratorExplorerNodeAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
-	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Core agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
 }
 
 func orchestratorExplorerNodeAgentNoProcessAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, nil), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
-	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+	agentEnvVars = mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvsV2), "Core agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvsV2))
 }
 
 func orchestratorExplorerClusterChecksRunnerWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterChecksRunnersContainerName]
+	runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
 	assert.True(t, apiutils.IsEqualStruct(runnerEnvs, expectedOrchestratorEnvsV2), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, expectedOrchestratorEnvsV2))
 }
 
@@ -140,7 +139,7 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorEnvsV2), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorEnvsV2))
 
 			// check annotation
-			customConfig := apicommonv1.CustomConfig{
+			customConfig := v2alpha1.CustomConfig{
 				ConfigData: apiutils.NewStringPointer(customConfDataV2),
 			}
 			hash, err := comparison.GenerateMD5ForSpec(&customConfig)

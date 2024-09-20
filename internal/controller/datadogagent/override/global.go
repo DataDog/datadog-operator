@@ -13,7 +13,6 @@ import (
 	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
@@ -249,19 +248,19 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
-						[]apicommonv1.AgentContainerName{
-							apicommonv1.UnprivilegedSingleAgentContainerName,
+						[]apicommon.AgentContainerName{
+							apicommon.UnprivilegedSingleAgentContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&kubeletVol)
 				} else {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
-						[]apicommonv1.AgentContainerName{
-							apicommonv1.CoreAgentContainerName,
-							apicommonv1.ProcessAgentContainerName,
-							apicommonv1.TraceAgentContainerName,
-							apicommonv1.SecurityAgentContainerName,
+						[]apicommon.AgentContainerName{
+							apicommon.CoreAgentContainerName,
+							apicommon.ProcessAgentContainerName,
+							apicommon.TraceAgentContainerName,
+							apicommon.SecurityAgentContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&kubeletVol)
@@ -298,19 +297,19 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			if singleContainerStrategyEnabled {
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
-					[]apicommonv1.AgentContainerName{
-						apicommonv1.UnprivilegedSingleAgentContainerName,
+					[]apicommon.AgentContainerName{
+						apicommon.UnprivilegedSingleAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)
 			} else {
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
-					[]apicommonv1.AgentContainerName{
-						apicommonv1.CoreAgentContainerName,
-						apicommonv1.ProcessAgentContainerName,
-						apicommonv1.TraceAgentContainerName,
-						apicommonv1.SecurityAgentContainerName,
+					[]apicommon.AgentContainerName{
+						apicommon.CoreAgentContainerName,
+						apicommon.ProcessAgentContainerName,
+						apicommon.TraceAgentContainerName,
+						apicommon.SecurityAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)

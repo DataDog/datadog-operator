@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/api/utils"
@@ -100,7 +99,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentUDSOnly(apicommonv1.TraceAgentContainerName),
+			Agent:         testAgentUDSOnly(apicommon.TraceAgentContainerName),
 		},
 		{
 			Name: "apm enabled, use uds with single container strategy",
@@ -111,7 +110,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentUDSOnly(apicommonv1.UnprivilegedSingleAgentContainerName),
+			Agent:         testAgentUDSOnly(apicommon.UnprivilegedSingleAgentContainerName),
 		},
 		{
 			Name: "apm enabled, use uds and host port",
@@ -121,7 +120,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, false),
+			Agent:         testAgentHostPortUDS(apicommon.TraceAgentContainerName, 8126, false),
 		},
 		{
 			Name: "apm enabled, use uds and host port with single container strategy",
@@ -132,7 +131,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, false),
+			Agent:         testAgentHostPortUDS(apicommon.UnprivilegedSingleAgentContainerName, 8126, false),
 		},
 		{
 			Name: "apm enabled, use uds and custom host port",
@@ -142,7 +141,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 1234, false),
+			Agent:         testAgentHostPortUDS(apicommon.TraceAgentContainerName, 1234, false),
 		},
 		{
 			Name: "apm enabled, use uds and custom host port with single container strategy",
@@ -153,7 +152,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 1234, false),
+			Agent:         testAgentHostPortUDS(apicommon.UnprivilegedSingleAgentContainerName, 1234, false),
 		},
 		{
 			Name: "apm enabled, use uds and host port enabled but no custom host port",
@@ -163,7 +162,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, false),
+			Agent:         testAgentHostPortUDS(apicommon.TraceAgentContainerName, 8126, false),
 		},
 		{
 			Name: "apm enabled, use uds and host port enabled but no custom host port with single container strategy",
@@ -174,7 +173,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, false),
+			Agent:         testAgentHostPortUDS(apicommon.UnprivilegedSingleAgentContainerName, 8126, false),
 		},
 		{
 			Name: "apm enabled, host port enabled host network",
@@ -186,7 +185,7 @@ func TestAPMFeature(t *testing.T) {
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 8126, true),
+			Agent:         testAgentHostPortUDS(apicommon.TraceAgentContainerName, 8126, true),
 		},
 		{
 			Name: "apm enabled, host port enabled host network with single container strategy",
@@ -199,7 +198,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 8126, true),
+			Agent:         testAgentHostPortUDS(apicommon.UnprivilegedSingleAgentContainerName, 8126, true),
 		},
 		{
 			Name: "apm enabled, custom host port host network",
@@ -211,7 +210,7 @@ func TestAPMFeature(t *testing.T) {
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName, 1234, true),
+			Agent:         testAgentHostPortUDS(apicommon.TraceAgentContainerName, 1234, true),
 		},
 		{
 			Name: "apm enabled, custom host port host network with single container strategy",
@@ -224,7 +223,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.UnprivilegedSingleAgentContainerName, 1234, true),
+			Agent:         testAgentHostPortUDS(apicommon.UnprivilegedSingleAgentContainerName, 1234, true),
 		},
 		{
 			Name: "basic apm single step instrumentation",
@@ -285,7 +284,7 @@ func TestAPMFeature(t *testing.T) {
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
-			Agent:         testTraceAgentEnabled(apicommonv1.TraceAgentContainerName),
+			Agent:         testTraceAgentEnabled(apicommon.TraceAgentContainerName),
 			ClusterAgent:  testAPMInstrumentationDisabledWithAC(),
 		},
 		{
@@ -350,7 +349,7 @@ func TestAPMFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
@@ -371,7 +370,7 @@ func TestAPMFeature(t *testing.T) {
 	tests.Run(t, buildAPMFeature)
 }
 
-func testTraceAgentEnabled(containerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testTraceAgentEnabled(containerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -408,7 +407,7 @@ func testAgentHostPortOnly() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.TraceAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMEnabled,
@@ -429,7 +428,7 @@ func testAgentHostPortOnly() *test.ComponentTest {
 				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.TraceAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommon.TraceAgentContainerName]
 			expectedPorts := []*corev1.ContainerPort{
 				{
 					Name:          "traceport",
@@ -447,7 +446,7 @@ func testAgentHostPortOnly() *test.ComponentTest {
 	)
 }
 
-func testAgentUDSOnly(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -524,7 +523,7 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationEnabled,
@@ -554,7 +553,7 @@ func testAPMInstrumentationDisabledWithAC() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
 			assert.True(
 				t,
@@ -570,7 +569,7 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationEnabled,
@@ -599,7 +598,7 @@ func testAPMInstrumentation() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationEnabled,
@@ -621,7 +620,7 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 			// Test Cluster Agent Env Vars
-			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedClusterAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAPMInstrumentationEnabled,
@@ -646,8 +645,8 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-			processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 
 			var expectedEnvVars []*corev1.EnvVar
 			if languageDetectionEnabled {
@@ -680,7 +679,7 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 	)
 }
 
-func testAgentHostPortUDS(agentContainerName apicommonv1.AgentContainerName, hostPort int32, hostNetwork bool) *test.ComponentTest {
+func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostPort int32, hostNetwork bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
