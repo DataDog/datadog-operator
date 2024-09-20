@@ -14,7 +14,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -78,14 +77,14 @@ func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requi
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(f.enabled),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
 			},
 		},
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(f.enabled),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.ClusterAgentContainerName,
+			Containers: []apicommon.AgentContainerName{
+				apicommon.ClusterAgentContainerName,
 			},
 		},
 	}

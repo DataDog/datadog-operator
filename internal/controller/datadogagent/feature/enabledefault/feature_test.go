@@ -16,7 +16,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -86,7 +85,7 @@ func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
 
 func defaultFeatureManageClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 
 	want := &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentServiceAccountName,

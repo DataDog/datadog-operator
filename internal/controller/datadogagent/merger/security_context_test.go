@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -19,14 +19,14 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 		name                   string
 		existingContainers     []corev1.Container
 		capabilities           []corev1.Capability
-		addToContainerWithName commonv1.AgentContainerName
-		expectedCapabilities   map[commonv1.AgentContainerName][]corev1.Capability
+		addToContainerWithName common.AgentContainerName
+		expectedCapabilities   map[common.AgentContainerName][]corev1.Capability
 	}{
 		{
 			name: "Add to container without capabilities defined",
 			existingContainers: []corev1.Container{
 				{
-					Name:            string(commonv1.TraceAgentContainerName),
+					Name:            string(common.TraceAgentContainerName),
 					SecurityContext: nil,
 				},
 			},
@@ -34,9 +34,9 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 				"AUDIT_CONTROL",
 				"AUDIT_READ",
 			},
-			addToContainerWithName: commonv1.TraceAgentContainerName,
-			expectedCapabilities: map[commonv1.AgentContainerName][]corev1.Capability{
-				commonv1.TraceAgentContainerName: {
+			addToContainerWithName: common.TraceAgentContainerName,
+			expectedCapabilities: map[common.AgentContainerName][]corev1.Capability{
+				common.TraceAgentContainerName: {
 					"AUDIT_CONTROL",
 					"AUDIT_READ",
 				},
@@ -46,7 +46,7 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 			name: "Add to container with some capabilities already defined",
 			existingContainers: []corev1.Container{
 				{
-					Name: string(commonv1.TraceAgentContainerName),
+					Name: string(common.TraceAgentContainerName),
 					SecurityContext: &corev1.SecurityContext{
 						Capabilities: &corev1.Capabilities{
 							Add: []corev1.Capability{
@@ -59,9 +59,9 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 			capabilities: []corev1.Capability{
 				"AUDIT_READ",
 			},
-			addToContainerWithName: commonv1.TraceAgentContainerName,
-			expectedCapabilities: map[commonv1.AgentContainerName][]corev1.Capability{
-				commonv1.TraceAgentContainerName: {
+			addToContainerWithName: common.TraceAgentContainerName,
+			expectedCapabilities: map[common.AgentContainerName][]corev1.Capability{
+				common.TraceAgentContainerName: {
 					"AUDIT_CONTROL",
 					"AUDIT_READ",
 				},
@@ -71,11 +71,11 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 			name: "Add to specific container when there are multiple defined",
 			existingContainers: []corev1.Container{
 				{
-					Name:            string(commonv1.TraceAgentContainerName),
+					Name:            string(common.TraceAgentContainerName),
 					SecurityContext: nil,
 				},
 				{
-					Name:            string(commonv1.SystemProbeContainerName),
+					Name:            string(common.SystemProbeContainerName),
 					SecurityContext: nil,
 				},
 			},
@@ -83,10 +83,10 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 				"AUDIT_CONTROL",
 				"AUDIT_READ",
 			},
-			addToContainerWithName: commonv1.SystemProbeContainerName,
-			expectedCapabilities: map[commonv1.AgentContainerName][]corev1.Capability{
-				commonv1.TraceAgentContainerName: nil,
-				commonv1.SystemProbeContainerName: {
+			addToContainerWithName: common.SystemProbeContainerName,
+			expectedCapabilities: map[common.AgentContainerName][]corev1.Capability{
+				common.TraceAgentContainerName: nil,
+				common.SystemProbeContainerName: {
 					"AUDIT_CONTROL",
 					"AUDIT_READ",
 				},
@@ -107,7 +107,7 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 			securityContextManager.AddCapabilitiesToContainer(test.capabilities, test.addToContainerWithName)
 
 			for _, container := range securityContextManager.podTmpl.Spec.Containers {
-				expectedCapabilities := test.expectedCapabilities[commonv1.AgentContainerName(container.Name)]
+				expectedCapabilities := test.expectedCapabilities[common.AgentContainerName(container.Name)]
 				if len(expectedCapabilities) > 0 {
 					assert.Equal(t, expectedCapabilities, container.SecurityContext.Capabilities.Add)
 				} else {

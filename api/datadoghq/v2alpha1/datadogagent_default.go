@@ -7,7 +7,6 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -165,7 +164,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {
-			ddaSpec.Global.FIPS.Image = &commonv1.AgentImageConfig{}
+			ddaSpec.Global.FIPS.Image = &AgentImageConfig{}
 		}
 		if ddaSpec.Global.FIPS.Image.Name == "" {
 			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName

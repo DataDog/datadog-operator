@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/stretchr/testify/assert"
 
@@ -21,7 +21,7 @@ func TestBuilder(t *testing.T) {
 		name                   string
 		dda                    *v2alpha1.DatadogAgent
 		wantCoreAgentComponent bool
-		wantAgentContainer     map[apicommonv1.AgentContainerName]bool
+		wantAgentContainer     map[common.AgentContainerName]bool
 	}{
 		{
 			// This test relies on the fact that by default Live Container feature is enabled
@@ -29,13 +29,13 @@ func TestBuilder(t *testing.T) {
 			name: "Default DDA, Core and Process agent enabled",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             false,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -43,13 +43,13 @@ func TestBuilder(t *testing.T) {
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: true,
-				apicommonv1.CoreAgentContainerName:               false,
-				apicommonv1.ProcessAgentContainerName:            false,
-				apicommonv1.TraceAgentContainerName:              false,
-				apicommonv1.SystemProbeContainerName:             false,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: true,
+				common.CoreAgentContainerName:               false,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -57,13 +57,13 @@ func TestBuilder(t *testing.T) {
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             false,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -72,13 +72,13 @@ func TestBuilder(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: true,
-				apicommonv1.CoreAgentContainerName:               false,
-				apicommonv1.ProcessAgentContainerName:            false,
-				apicommonv1.TraceAgentContainerName:              false,
-				apicommonv1.SystemProbeContainerName:             false,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: true,
+				common.CoreAgentContainerName:               false,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              false,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -87,13 +87,13 @@ func TestBuilder(t *testing.T) {
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             true,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -103,13 +103,13 @@ func TestBuilder(t *testing.T) {
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             true,
-				apicommonv1.SecurityAgentContainerName:           false,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
 			},
 		},
 		{
@@ -119,13 +119,13 @@ func TestBuilder(t *testing.T) {
 				WithNPMEnabled(true).
 				WithCSPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             true,
-				apicommonv1.SecurityAgentContainerName:           true,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           true,
 			},
 		},
 		{
@@ -136,13 +136,13 @@ func TestBuilder(t *testing.T) {
 				WithNPMEnabled(true).
 				WithCSPMEnabled(true).
 				BuildWithDefaults(),
-			wantAgentContainer: map[apicommonv1.AgentContainerName]bool{
-				apicommonv1.UnprivilegedSingleAgentContainerName: false,
-				apicommonv1.CoreAgentContainerName:               true,
-				apicommonv1.ProcessAgentContainerName:            true,
-				apicommonv1.TraceAgentContainerName:              true,
-				apicommonv1.SystemProbeContainerName:             true,
-				apicommonv1.SecurityAgentContainerName:           true,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           true,
 			},
 		},
 	}
@@ -160,7 +160,7 @@ func TestBuilder(t *testing.T) {
 	}
 }
 
-func wantAgentContainer(wantedContainer apicommonv1.AgentContainerName, requiredComponents feature.RequiredComponents) bool {
+func wantAgentContainer(wantedContainer common.AgentContainerName, requiredComponents feature.RequiredComponents) bool {
 	for _, agentContainerName := range requiredComponents.Agent.Containers {
 		if agentContainerName == wantedContainer {
 			return true

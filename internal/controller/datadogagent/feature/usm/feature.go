@@ -13,7 +13,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
@@ -49,10 +48,10 @@ func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SystemProbeContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
+					apicommon.ProcessAgentContainerName,
+					apicommon.SystemProbeContainerName,
 				},
 			},
 		}
@@ -105,27 +104,27 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
-	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// volume mounts
 	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
 	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
-	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&debugfsVol)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
 	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketDirMount,
-		[]apicommonv1.AgentContainerName{
-			apicommonv1.SystemProbeContainerName,
+		[]apicommon.AgentContainerName{
+			apicommon.SystemProbeContainerName,
 		},
 	)
 	managers.Volume().AddVolume(&socketDirVol)
@@ -133,17 +132,17 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMountReadOnly,
-		[]apicommonv1.AgentContainerName{
-			apicommonv1.CoreAgentContainerName,
-			apicommonv1.ProcessAgentContainerName,
+		[]apicommon.AgentContainerName{
+			apicommon.CoreAgentContainerName,
+			apicommon.ProcessAgentContainerName,
 		},
 	)
 
 	// env vars for Core Agent, Process Agent and System Probe
-	containersForEnvVars := []apicommonv1.AgentContainerName{
-		apicommonv1.CoreAgentContainerName,
-		apicommonv1.ProcessAgentContainerName,
-		apicommonv1.SystemProbeContainerName,
+	containersForEnvVars := []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SystemProbeContainerName,
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
@@ -157,7 +156,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(
-		[]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		[]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		sysProbeEnableEnvVar,
 	)
 
@@ -172,7 +171,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Name:  apicommon.DDSystemProbeExternal,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeExternalEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)
 
 	return nil
 }

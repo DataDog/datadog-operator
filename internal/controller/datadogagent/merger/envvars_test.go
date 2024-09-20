@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
@@ -141,19 +141,19 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.CoreAgentContainerName),
+					Name: string(common.CoreAgentContainerName),
 				},
 				{
-					Name: string(commonv1.TraceAgentContainerName),
+					Name: string(common.TraceAgentContainerName),
 				},
 				{
-					Name: string(commonv1.ProcessAgentContainerName),
+					Name: string(common.ProcessAgentContainerName),
 				},
 				{
-					Name: string(commonv1.SecurityAgentContainerName),
+					Name: string(common.SecurityAgentContainerName),
 				},
 				{
-					Name: string(commonv1.SystemProbeContainerName),
+					Name: string(common.SystemProbeContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -163,13 +163,13 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers except fips should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.CoreAgentContainerName),
+					Name: string(common.CoreAgentContainerName),
 				},
 				{
-					Name: string(commonv1.TraceAgentContainerName),
+					Name: string(common.TraceAgentContainerName),
 				},
 				{
-					Name: string(commonv1.FIPSProxyContainerName),
+					Name: string(common.FIPSProxyContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -179,7 +179,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.ClusterAgentContainerName),
+					Name: string(common.ClusterAgentContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -189,10 +189,10 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers except fips should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.ClusterAgentContainerName),
+					Name: string(common.ClusterAgentContainerName),
 				},
 				{
-					Name: string(commonv1.FIPSProxyContainerName),
+					Name: string(common.FIPSProxyContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -202,7 +202,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.ClusterChecksRunnersContainerName),
+					Name: string(common.ClusterChecksRunnersContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -212,10 +212,10 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers except fips should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.ClusterChecksRunnersContainerName),
+					Name: string(common.ClusterChecksRunnersContainerName),
 				},
 				{
-					Name: string(commonv1.FIPSProxyContainerName),
+					Name: string(common.FIPSProxyContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -225,7 +225,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.UnprivilegedSingleAgentContainerName),
+					Name: string(common.UnprivilegedSingleAgentContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -235,10 +235,10 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			description: "all containers except fips should have env var added",
 			containers: []corev1.Container{
 				{
-					Name: string(commonv1.UnprivilegedSingleAgentContainerName),
+					Name: string(common.UnprivilegedSingleAgentContainerName),
 				},
 				{
-					Name: string(commonv1.FIPSProxyContainerName),
+					Name: string(common.FIPSProxyContainerName),
 				},
 			},
 			want: []corev1.EnvVar{*envvarFoo},
@@ -254,7 +254,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			assert.NoError(t, err)
 
 			for _, cont := range manager.podTmpl.Spec.Containers {
-				if cont.Name == string(commonv1.FIPSProxyContainerName) {
+				if cont.Name == string(common.FIPSProxyContainerName) {
 					assert.Len(t, cont.Env, 0)
 				} else {
 					assert.Contains(t, cont.Env, tt.want)

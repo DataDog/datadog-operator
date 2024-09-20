@@ -7,69 +7,104 @@ package v2alpha1
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
-	corev1 "k8s.io/api/core/v1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestConvertCustomConfig(t *testing.T) {
-	fakeData := "fake data"
-	cmName := "foo"
-	fileKey := "config.yaml"
+func Test_GetImage(t *testing.T) {
+	emptyRegistry := ""
 	tests := []struct {
-		name   string
-		config *CustomConfig
-		want   *commonv1.CustomConfig
+		name      string
+		imageSpec *AgentImageConfig
+		registry  *string
+		want      string
 	}{
 		{
-			name:   "nil customConfig",
-			config: nil,
-			want:   nil,
+			name: "backward compatible",
+			imageSpec: &AgentImageConfig{
+				Name: defaulting.GetLatestAgentImage(),
+			},
+			registry: nil,
+			want:     defaulting.GetLatestAgentImage(),
 		},
 		{
-			name: "simple configData",
-			config: &CustomConfig{
-				ConfigData: &fakeData,
+			name: "nominal case",
+			imageSpec: &AgentImageConfig{
+				Name: "agent",
+				Tag:  "7",
 			},
-			want: &commonv1.CustomConfig{
-				ConfigData: &fakeData,
-			},
+			registry: apiutils.NewStringPointer("public.ecr.aws/datadog"),
+			want:     "public.ecr.aws/datadog/agent:7",
 		},
 		{
-			name: "simple configma[",
-			config: &CustomConfig{
-				ConfigMap: &commonv1.ConfigMapConfig{
-					Name: cmName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  fileKey,
-							Path: fileKey,
-						},
-					},
-				},
+			name: "prioritize the full path",
+			imageSpec: &AgentImageConfig{
+				Name: "docker.io/datadog/agent:7.28.1-rc.3",
+				Tag:  "latest",
 			},
-			want: &commonv1.CustomConfig{
-				ConfigMap: &commonv1.ConfigMapConfig{
-					Name: cmName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  fileKey,
-							Path: fileKey,
-						},
-					},
-				},
+			registry: apiutils.NewStringPointer("gcr.io/datadoghq"),
+			want:     "docker.io/datadog/agent:7.28.1-rc.3",
+		},
+		{
+			name: "default registry",
+			imageSpec: &AgentImageConfig{
+				Name: "agent",
+				Tag:  "latest",
 			},
+			registry: &emptyRegistry,
+			want:     "gcr.io/datadoghq/agent:latest",
+		},
+		{
+			name: "add jmx",
+			imageSpec: &AgentImageConfig{
+				Name:       "agent",
+				Tag:        defaulting.AgentLatestVersion,
+				JMXEnabled: true,
+			},
+			registry: nil,
+			want:     defaulting.GetLatestAgentImageJMX(),
+		},
+		{
+			name: "cluster-agent",
+			imageSpec: &AgentImageConfig{
+				Name:       "cluster-agent",
+				Tag:        defaulting.ClusterAgentLatestVersion,
+				JMXEnabled: false,
+			},
+			registry: nil,
+			want:     defaulting.GetLatestClusterAgentImage(),
+		},
+		{
+			name: "do not duplicate jmx",
+			imageSpec: &AgentImageConfig{
+				Name:       "agent",
+				Tag:        "latest-jmx",
+				JMXEnabled: true,
+			},
+			registry: nil,
+			want:     "gcr.io/datadoghq/agent:latest-jmx",
+		},
+		{
+			name: "do not add jmx",
+			imageSpec: &AgentImageConfig{
+				Name:       "agent",
+				Tag:        "latest-jmx",
+				JMXEnabled: true,
+			},
+			registry: nil,
+			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ConvertCustomConfig(tt.config); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ConvertCustomConfig() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, GetImage(tt.imageSpec, tt.registry))
 		})
 	}
 }
