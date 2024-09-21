@@ -2077,6 +2077,11 @@ spec:
                   additionalProperties:
                     description: DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
                     properties:
+                      ServiceAccountAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: Sets the ServiceAccountAnnotations used by this component.
+                        type: object
                       affinity:
                         description: If specified, the pod's scheduling constraints.
                         properties:
