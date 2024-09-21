@@ -118,7 +118,7 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 		return fmt.Errorf("unable to get from the store the ClusterRole %s", roleName)
 	}
 
-	// TODO: can be improve by checking if the policies don't already existe.
+	// TODO: can be improve by checking if the policies don't already exist.
 	role.Rules = append(role.Rules, policies...)
 	if err := m.store.AddOrUpdate(kubernetes.RolesKind, role); err != nil {
 		return err
