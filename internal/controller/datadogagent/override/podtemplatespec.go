@@ -61,6 +61,11 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.EnvVar().AddEnvVar(&e)
 	}
 
+	for _, envFrom := range override.EnvFrom {
+		e := envFrom
+		manager.EnvFromVar().AddEnvFromVar(&e)
+	}
+
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
 	overrideCustomConfigVolumes(logger, manager, override.CustomConfigurations, componentName, ddaName)
 
