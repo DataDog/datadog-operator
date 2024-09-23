@@ -15,7 +15,7 @@ var (
 	MaxGoroutines = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "max_goroutines",
-			Help: "reports the maximum go routines set in the datadog operator",
+			Help: "reports the maximum number of goroutines set in the datadog operator",
 		},
 	)
 )
