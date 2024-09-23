@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	// introspection enabled
+	// maximum goroutines
 	MaxGoroutines = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "max_goroutines",
