@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -134,9 +133,9 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.TraceAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
+					apicommon.TraceAgentContainerName,
 				},
 			},
 		}
@@ -152,15 +151,15 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.ClusterAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.ClusterAgentContainerName,
 				},
 			}
 		}
 
 		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.processCheckRunsInCoreAgent)
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.ProcessAgentContainerName)
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
 	}
 
@@ -181,9 +180,9 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
 		apmPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(int(apicommon.DefaultApmPort)),
-			Port:       apicommon.DefaultApmPort,
-			Name:       apicommon.DefaultApmPortName,
+			TargetPort: intstr.FromInt(int(v2alpha1.DefaultApmPort)),
+			Port:       v2alpha1.DefaultApmPort,
+			Name:       v2alpha1.DefaultApmPortName,
 		}
 		if f.hostPortEnabled {
 			apmPort.Port = f.hostPortHostPort
@@ -270,13 +269,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			// This configuration is not supported
 			return fmt.Errorf("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
 
 		if f.shouldEnableLanguageDetection() {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDLanguageDetectionEnabled,
 				Value: "true",
 			})
@@ -287,7 +286,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			if err != nil {
 				return err
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
 				Value: string(ns),
 			})
@@ -297,7 +296,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			if err != nil {
 				return err
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
 				Value: string(ns),
 			})
@@ -307,7 +306,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			if err != nil {
 				return err
 			}
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDAPMInstrumentationLibVersions,
 				Value: string(libs),
 			})
@@ -321,18 +320,18 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.TraceAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.TraceAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
@@ -341,13 +340,13 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 
 	// udp
 	apmPort := &corev1.ContainerPort{
-		Name:          apicommon.DefaultApmPortName,
-		ContainerPort: apicommon.DefaultApmPort,
+		Name:          v2alpha1.DefaultApmPortName,
+		ContainerPort: v2alpha1.DefaultApmPort,
 		Protocol:      corev1.ProtocolTCP,
 	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
-		receiverPortEnvVarValue := apicommon.DefaultApmPort
+		receiverPortEnvVarValue := v2alpha1.DefaultApmPort
 		// if using host network, host port should be set and needs to match container port
 		if f.useHostNetwork {
 			apmPort.ContainerPort = f.hostPortHostPort
@@ -368,13 +367,13 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 	if f.shouldEnableLanguageDetection() {
 
 		// Enable language detection in core agent
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
 
 		// Enable language detection in process agent
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDLanguageDetectionEnabled,
 			Value: "true",
 		})
@@ -384,8 +383,8 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContain
 			Name:  apicommon.DDProcessConfigRunInCoreAgent,
 			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, runInCoreAgentEnvVar)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, runInCoreAgentEnvVar)
 	}
 
 	// uds

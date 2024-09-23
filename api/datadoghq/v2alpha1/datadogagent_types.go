@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 // ComponentName is the name of a Deployment Component
@@ -730,7 +730,7 @@ type AgentSidecarInjectionConfig struct {
 
 	// Image overrides the default Agent image name and tag for the Agent sidecar.
 	// +optional
-	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+	Image *AgentImageConfig `json:"image,omitempty"`
 
 	// Selectors define the pod selector for sidecar injection. Only one rule is supported.
 	// +optional
@@ -892,6 +892,78 @@ type HelmCheckFeatureConfig struct {
 
 // Generic support structs
 
+// SecretConfig contains a secret name and an included key.
+// +kubebuilder:object:generate=true
+type SecretConfig struct {
+	// SecretName is the name of the secret.
+	SecretName string `json:"secretName"`
+
+	// KeyName is the key of the secret to use.
+	// +optional
+	KeyName string `json:"keyName,omitempty"`
+}
+
+// ConfigMapConfig contains ConfigMap information used to store a configuration file.
+// +kubebuilder:object:generate=true
+type ConfigMapConfig struct {
+	// Name is the name of the ConfigMap.
+	Name string `json:"name,omitempty"`
+
+	// Items maps a ConfigMap data `key` to a file `path` mount.
+	// +listType=map
+	// +listMapKey=key
+	// +optional
+	Items []corev1.KeyToPath `json:"items,omitempty"`
+}
+
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+// Note: `ConfigData` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+type CustomConfig struct {
+	// ConfigData corresponds to the configuration file content.
+	ConfigData *string `json:"configData,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the configuration file content.
+	ConfigMap *ConfigMapConfig `json:"configMap,omitempty"`
+}
+
+// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
+// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
+// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+type MultiCustomConfig struct {
+	// ConfigDataMap corresponds to the content of the configuration files.
+	// The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+	ConfigDataMap map[string]string `json:"configDataMap,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the content of the configuration files.
+	ConfigMap *ConfigMapConfig `json:"configMap,omitempty"`
+}
+
+// KubeletConfig contains the kubelet configuration parameters.
+// +kubebuilder:object:generate=true
+type KubeletConfig struct {
+	// Host overrides the host used to contact kubelet API (default to status.hostIP).
+	// +optional
+	Host *corev1.EnvVarSource `json:"host,omitempty"`
+
+	// TLSVerify toggles kubelet TLS verification.
+	// Default: true
+	// +optional
+	TLSVerify *bool `json:"tlsVerify,omitempty"`
+
+	// HostCAPath is the host path where the kubelet CA certificate is stored.
+	// +optional
+	HostCAPath string `json:"hostCAPath,omitempty"`
+
+	// AgentCAPath is the container path where the kubelet CA certificate is stored.
+	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+	// +optional
+	AgentCAPath string `json:"agentCAPath,omitempty"`
+}
+
 // HostPortConfig contains host port configuration.
 type HostPortConfig struct {
 	// Enabled enables host port configuration
@@ -935,30 +1007,121 @@ type OriginDetectionUnified struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
-// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
-// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
-// Note: `ConfigData` and `ConfigMap` cannot be set together.
-// +k8s:openapi-gen=true
-type CustomConfig struct {
-	// ConfigData corresponds to the configuration file content.
-	ConfigData *string `json:"configData,omitempty"`
+// AgentImageConfig defines the agent container image config.
+// +kubebuilder:object:generate=true
+type AgentImageConfig struct {
+	// Define the image to use:
+	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
+	// Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
+	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
+	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
+	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+	// If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
+	// and `global.registry` values are ignored.
+	// Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
+	// image string is created using default registry unless `global.registry` is configured.
+	Name string `json:"name,omitempty"`
 
-	// ConfigMap references an existing ConfigMap with the configuration file content.
-	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
+	// Define the image tag to use.
+	// To be used if the Name field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// Define whether the Agent image should support JMX.
+	// To be used if the Name field does not correspond to a full image string.
+	// +optional
+	JMXEnabled bool `json:"jmxEnabled,omitempty"`
+
+	// The Kubernetes pull policy:
+	// Use Always, Never, or IfNotPresent.
+	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// It is possible to specify Docker registry credentials.
+	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+	// +optional
+	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
-// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
-// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// DaemonSetStatus defines the observed state of Agent running as DaemonSet.
 // +k8s:openapi-gen=true
-type MultiCustomConfig struct {
-	// ConfigDataMap corresponds to the content of the configuration files.
-	// The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
-	ConfigDataMap map[string]string `json:"configDataMap,omitempty"`
+// +kubebuilder:object:generate=true
+type DaemonSetStatus struct {
+	// Number of desired pods in the DaemonSet.
+	Desired int32 `json:"desired"`
 
-	// ConfigMap references an existing ConfigMap with the content of the configuration files.
-	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
+	// Number of current pods in the DaemonSet.
+	Current int32 `json:"current"`
+
+	// Number of ready pods in the DaemonSet.
+	Ready int32 `json:"ready"`
+
+	// Number of available pods in the DaemonSet.
+	Available int32 `json:"available"`
+
+	// Number of up to date pods in the DaemonSet.
+	UpToDate int32 `json:"upToDate"`
+
+	// LastUpdate is the last time the status was updated.
+	LastUpdate *metav1.Time `json:"lastUpdate,omitempty"`
+
+	// CurrentHash is the stored hash of the DaemonSet.
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// Status corresponds to the DaemonSet computed status.
+	Status string `json:"status,omitempty"`
+
+	// State corresponds to the DaemonSet state.
+	State string `json:"state,omitempty"`
+
+	// DaemonsetName corresponds to the name of the created DaemonSet.
+	DaemonsetName string `json:"daemonsetName,omitempty"`
+}
+
+// DeploymentStatus type representing a Deployment status.
+// +k8s:openapi-gen=true
+// +kubebuilder:object:generate=true
+type DeploymentStatus struct {
+	// Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+
+	// Total number of ready pods targeted by this Deployment.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+
+	// Total number of unavailable pods targeted by this Deployment. This is the total number of
+	// pods that are still required for the Deployment to have 100% available capacity. They may
+	// either be pods that are running but not yet available or pods that still have not been created.
+	// +optional
+	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
+
+	// LastUpdate is the last time the status was updated.
+	LastUpdate *metav1.Time `json:"lastUpdate,omitempty"`
+
+	// CurrentHash is the stored hash of the Deployment.
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+	// enabled.
+	// +optional
+	GeneratedToken string `json:"generatedToken,omitempty"`
+
+	// Status corresponds to the Deployment computed status.
+	Status string `json:"status,omitempty"`
+
+	// State corresponds to the Deployment state.
+	State string `json:"state,omitempty"`
+
+	// DeploymentName corresponds to the name of the Deployment.
+	DeploymentName string `json:"deploymentName,omitempty"`
 }
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
@@ -970,7 +1133,7 @@ type GlobalConfig struct {
 	ClusterAgentToken *string `json:"clusterAgentToken,omitempty"`
 
 	// ClusterAgentTokenSecret is the secret containing the Cluster Agent token.
-	ClusterAgentTokenSecret *commonv1.SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
+	ClusterAgentTokenSecret *SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
@@ -1056,7 +1219,7 @@ type GlobalConfig struct {
 
 	// Kubelet contains the kubelet configuration parameters.
 	// +optional
-	Kubelet *commonv1.KubeletConfig `json:"kubelet,omitempty"`
+	Kubelet *KubeletConfig `json:"kubelet,omitempty"`
 
 	// Path to the docker runtime socket.
 	// +optional
@@ -1090,7 +1253,7 @@ type DatadogCredentials struct {
 	// APISecret references an existing Secret which stores the API key instead of creating a new one.
 	// If set, this parameter takes precedence over "APIKey".
 	// +optional
-	APISecret *commonv1.SecretConfig `json:"apiSecret,omitempty"`
+	APISecret *SecretConfig `json:"apiSecret,omitempty"`
 
 	// AppKey configures your Datadog application key.
 	// If you are using features.externalMetricsServer.enabled = true, you must set
@@ -1101,7 +1264,7 @@ type DatadogCredentials struct {
 	// AppSecret references an existing Secret which stores the application key instead of creating a new one.
 	// If set, this parameter takes precedence over "AppKey".
 	// +optional
-	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
+	AppSecret *SecretConfig `json:"appSecret,omitempty"`
 }
 
 // SecretBackendConfig provides configuration for the secret backend.
@@ -1206,7 +1369,7 @@ type DatadogAgentComponentOverride struct {
 
 	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional
-	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+	Image *AgentImageConfig `json:"image,omitempty"`
 
 	// Specify additional environment variables for all containers in this component
 	// Priority is Container > Component.
@@ -1243,7 +1406,7 @@ type DatadogAgentComponentOverride struct {
 	// `security-agent`, `system-probe`, `trace-agent`, and `all`.
 	// Configuration under `all` applies to all configured containers.
 	// +optional
-	Containers map[commonv1.AgentContainerName]*DatadogAgentGenericContainer `json:"containers,omitempty"`
+	Containers map[common.AgentContainerName]*DatadogAgentGenericContainer `json:"containers,omitempty"`
 
 	// Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional
@@ -1288,7 +1451,7 @@ type DatadogAgentComponentOverride struct {
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	// +optional
-	UpdateStrategy *commonv1.UpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy *common.UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Configure the component tolerations.
 	// +optional
@@ -1401,7 +1564,7 @@ type FIPSConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// The container image of the FIPS sidecar.
 	// +optional
-	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
+	Image *AgentImageConfig `json:"image,omitempty"`
 	// Set the local IP address.
 	// Default: `127.0.0.1`
 	// +optional
@@ -1446,16 +1609,16 @@ type DatadogAgentStatus struct {
 	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
 	// +listType=atomic
-	AgentList []*commonv1.DaemonSetStatus `json:"agentList,omitempty"`
+	AgentList []*DaemonSetStatus `json:"agentList,omitempty"`
 	// The combined actual state of all Agents as daemonsets or extended daemonsets.
 	// +optional
-	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
+	Agent *DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
-	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
+	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
-	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
 	// +optional
 	RemoteConfigConfiguration *RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`

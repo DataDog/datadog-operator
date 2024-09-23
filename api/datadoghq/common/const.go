@@ -11,6 +11,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
+// TODO move most of these constants out of common
+
 // This file tracks constants related to setting up the Datadog Agents
 
 const (
@@ -61,10 +63,6 @@ const (
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
 	DefaultDogstatsdPortName = "dogstatsdport"
-	// DefaultApmPort default apm port
-	DefaultApmPort = 8126
-	// DefaultApmPortName default apm port name
-	DefaultApmPortName = "traceport"
 	// DefaultMetricsProviderPort default metrics provider port
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
@@ -81,33 +79,6 @@ const (
 	DefaultCWSConf string = "cws-config"
 	// DefaultHelmCheckConf default Helm Check ConfigMap name
 	DefaultHelmCheckConf string = "helm-check-config"
-
-	// DefaultAgentHealthPort default agent health port
-	DefaultAgentHealthPort int32 = 5555
-
-	// Liveness probe default config
-	DefaultLivenessProbeInitialDelaySeconds int32 = 15
-	DefaultLivenessProbePeriodSeconds       int32 = 15
-	DefaultLivenessProbeTimeoutSeconds      int32 = 5
-	DefaultLivenessProbeSuccessThreshold    int32 = 1
-	DefaultLivenessProbeFailureThreshold    int32 = 6
-	DefaultLivenessProbeHTTPPath                  = "/live"
-
-	// Readiness probe default config
-	DefaultReadinessProbeInitialDelaySeconds int32 = 15
-	DefaultReadinessProbePeriodSeconds       int32 = 15
-	DefaultReadinessProbeTimeoutSeconds      int32 = 5
-	DefaultReadinessProbeSuccessThreshold    int32 = 1
-	DefaultReadinessProbeFailureThreshold    int32 = 6
-	DefaultReadinessProbeHTTPPath                  = "/ready"
-
-	// Startup probe default config
-	DefaultStartupProbeInitialDelaySeconds int32 = 15
-	DefaultStartupProbePeriodSeconds       int32 = 15
-	DefaultStartupProbeTimeoutSeconds      int32 = 5
-	DefaultStartupProbeSuccessThreshold    int32 = 1
-	DefaultStartupProbeFailureThreshold    int32 = 6
-	DefaultStartupProbeHTTPPath                  = "/startup"
 
 	// Default Image name
 	DefaultAgentImageName        string = "agent"

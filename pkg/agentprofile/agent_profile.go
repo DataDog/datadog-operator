@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -300,20 +299,20 @@ func podAntiAffinityOverride() *v1.PodAntiAffinity {
 	}
 }
 
-func containersOverride(nodeAgentOverride *v1alpha1.Override) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
+func containersOverride(nodeAgentOverride *v1alpha1.Override) map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
 	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
 
-	containersInNodeAgent := []common.AgentContainerName{
-		common.CoreAgentContainerName,
-		common.TraceAgentContainerName,
-		common.ProcessAgentContainerName,
-		common.SecurityAgentContainerName,
-		common.SystemProbeContainerName,
+	containersInNodeAgent := []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName,
 	}
 
-	res := map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
+	res := map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
 
 	for _, containerName := range containersInNodeAgent {
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {

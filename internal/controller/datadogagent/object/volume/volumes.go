@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -62,7 +61,7 @@ func GetVolumesEmptyDir(volumeName, mountPath string, readOnly bool) (corev1.Vol
 // common ConfigMapConfig
 
 // GetVolumesFromConfigMap returns a Volume and VolumeMount from a ConfigMapConfig. It is only used in the features that are within the conf.d/ file path
-func GetVolumesFromConfigMap(configMap *apicommonv1.ConfigMapConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
+func GetVolumesFromConfigMap(configMap *v2alpha1.ConfigMapConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
 	volume := GetVolumeFromConfigMap(
 		configMap,
 		defaultCMName,
@@ -78,7 +77,7 @@ func GetVolumesFromConfigMap(configMap *apicommonv1.ConfigMapConfig, volumeName,
 }
 
 // GetVolumeFromConfigMap returns a Volume from a common ConfigMapConfig.
-func GetVolumeFromConfigMap(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
+func GetVolumeFromConfigMap(configMap *v2alpha1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
 	cmName := defaultConfigMapName
 	if configMap != nil && len(configMap.Name) > 0 {
 		cmName = configMap.Name

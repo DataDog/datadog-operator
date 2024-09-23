@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/google/go-cmp/cmp"
@@ -114,7 +113,7 @@ func Test_defaultGlobal(t *testing.T) {
 				Global: &GlobalConfig{
 					FIPS: &FIPSConfig{
 						Enabled: apiutils.NewBoolPointer(true),
-						Image: &common.AgentImageConfig{
+						Image: &AgentImageConfig{
 							Name: defaultFIPSImageName,
 							Tag:  defaultFIPSImageTag,
 						},

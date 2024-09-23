@@ -10,7 +10,6 @@ import (
 	"os"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -194,8 +193,8 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			},
 			Agent: feature.RequiredComponent{
 				IsRequired: &trueValue,
-				Containers: []commonv1.AgentContainerName{
-					commonv1.OtelAgent,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.OtelAgent,
 				},
 			},
 		}
@@ -282,7 +281,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 	// Create a configmap for the default seccomp profile in the System Probe.
 	// This is mounted in the init-volume container in the agent default code.
 	for _, containerName := range requiredComponent.Containers {
-		if containerName == commonv1.SystemProbeContainerName {
+		if containerName == apicommon.SystemProbeContainerName {
 			errs = append(errs, managers.ConfigMapManager().AddConfigMap(
 				common.GetDefaultSeccompConfigMapName(f.owner),
 				f.owner.GetNamespace(),

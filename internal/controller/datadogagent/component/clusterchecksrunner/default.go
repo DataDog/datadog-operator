@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -107,7 +107,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		},
 		Containers: []corev1.Container{
 			{
-				Name:         string(apicommonv1.ClusterChecksRunnersContainerName),
+				Name:         string(apicommon.ClusterChecksRunnersContainerName),
 				Image:        clusterChecksRunnerImage(),
 				Env:          envVars,
 				VolumeMounts: volumeMounts,
@@ -115,9 +115,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Args: []string{
 					"agent run",
 				},
-				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-				StartupProbe:   apicommon.GetDefaultStartupProbe(),
+				LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
+				ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+				StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
@@ -146,7 +146,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDHealthPort,
-			Value: strconv.Itoa(int(apicommon.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  apicommon.KubernetesEnvVar,

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -242,7 +241,7 @@ func testExpected(exp Expected) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -250,7 +249,7 @@ func testExpected(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.TraceAgentContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -258,7 +257,7 @@ func testExpected(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),
@@ -273,7 +272,7 @@ func testExpectedSingleContainer(exp Expected) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -281,7 +280,7 @@ func testExpectedSingleContainer(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.UnprivilegedSingleAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -289,7 +288,7 @@ func testExpectedSingleContainer(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.UnprivilegedSingleAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommon.UnprivilegedSingleAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),
