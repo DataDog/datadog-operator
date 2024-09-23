@@ -89,7 +89,7 @@ $ make test
 $ make integration-tests
 
 # Run v2 integration tests
-$ make integration-tests-v2
+$ make 
 ```
 
 ### End-to-End Tests
