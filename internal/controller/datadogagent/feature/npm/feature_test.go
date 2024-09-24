@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
@@ -64,7 +63,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "false",
 			},
 		}
-		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
 
 	}
@@ -78,7 +77,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 
 		// check security context capabilities
-		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()))
 
 		// check volume mounts
@@ -112,10 +111,10 @@ func Test_npmFeature_Configure(t *testing.T) {
 			ReadOnly:  false,
 		})
 
-		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantProcessAgentVolMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantProcessAgentVolMounts))
 
-		sysProbeAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
+		sysProbeAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantSystemProbeAgentVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantSystemProbeAgentVolMounts))
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
@@ -125,7 +124,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 		}
-		coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+		coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, coreWantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, coreWantVolumeMounts))
 
 		// check volumes
@@ -191,7 +190,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 		}
 		sysProbeWantEnvVarsNPM := append(sysProbeWantEnvVars, npmFeatureEnvVar...)
-		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeWantEnvVarsNPM, sysProbeWantEnvVarsNPM), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVarsNPM))
 
 		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
@@ -199,7 +198,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Value: "true",
 		})
 
-		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
 	}
 

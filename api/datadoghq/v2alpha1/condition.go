@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -115,9 +114,9 @@ func getIndexForConditionType(status *DatadogAgentStatus, t string) int {
 }
 
 // UpdateDeploymentStatus updates a deployment's DeploymentStatus
-func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *commonv1.DeploymentStatus, updateTime *metav1.Time) *commonv1.DeploymentStatus {
+func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus, updateTime *metav1.Time) *DeploymentStatus {
 	if depStatus == nil {
-		depStatus = &commonv1.DeploymentStatus{}
+		depStatus = &DeploymentStatus{}
 	}
 	if dep == nil {
 		depStatus.State = string(DatadogAgentStateFailed)
@@ -163,19 +162,19 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *commonv1.Deployme
 }
 
 // UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
-func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*commonv1.DaemonSetStatus, updateTime *metav1.Time) []*commonv1.DaemonSetStatus {
+func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = []*commonv1.DaemonSetStatus{}
+		dsStatus = []*DaemonSetStatus{}
 	}
 	if ds == nil {
-		dsStatus = append(dsStatus, &commonv1.DaemonSetStatus{
+		dsStatus = append(dsStatus, &DaemonSetStatus{
 			State:  string(DatadogAgentStateFailed),
 			Status: string(DatadogAgentStateFailed),
 		})
 		return dsStatus
 	}
 
-	newStatus := commonv1.DaemonSetStatus{
+	newStatus := DaemonSetStatus{
 		Desired:       ds.Status.DesiredNumberScheduled,
 		Current:       ds.Status.CurrentNumberScheduled,
 		Ready:         ds.Status.NumberReady,
@@ -220,12 +219,12 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*commonv1.DaemonSetS
 }
 
 // UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
-func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*commonv1.DaemonSetStatus, updateTime *metav1.Time) []*commonv1.DaemonSetStatus {
+func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = []*commonv1.DaemonSetStatus{}
+		dsStatus = []*DaemonSetStatus{}
 	}
 
-	newStatus := commonv1.DaemonSetStatus{
+	newStatus := DaemonSetStatus{
 		Desired:       eds.Status.Desired,
 		Current:       eds.Status.Current,
 		Ready:         eds.Status.Ready,
@@ -272,8 +271,8 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 }
 
 // UpdateCombinedDaemonSetStatus combines the status of multiple DaemonSetStatus
-func UpdateCombinedDaemonSetStatus(dsStatus []*commonv1.DaemonSetStatus) *commonv1.DaemonSetStatus {
-	combinedStatus := commonv1.DaemonSetStatus{}
+func UpdateCombinedDaemonSetStatus(dsStatus []*DaemonSetStatus) *DaemonSetStatus {
+	combinedStatus := DaemonSetStatus{}
 	if len(dsStatus) == 0 {
 		return &combinedStatus
 	}

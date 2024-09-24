@@ -14,7 +14,6 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -91,9 +90,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -119,9 +118,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -147,7 +146,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.UnprivilegedSingleAgentContainerName),
+					string(apicommon.UnprivilegedSingleAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -174,9 +173,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -203,7 +202,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.UnprivilegedSingleAgentContainerName),
+					string(apicommon.UnprivilegedSingleAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -231,11 +230,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
-					string(apicommonv1.SystemProbeContainerName),
-					string(apicommonv1.SecurityAgentContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
+					string(apicommon.SecurityAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -264,11 +263,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
-					string(apicommonv1.SystemProbeContainerName),
-					string(apicommonv1.SecurityAgentContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
+					string(apicommon.SecurityAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -296,10 +295,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
-					string(apicommonv1.SystemProbeContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -327,10 +326,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
-					string(apicommonv1.SystemProbeContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.SystemProbeContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -359,10 +358,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.CoreAgentContainerName),
-					string(apicommonv1.ProcessAgentContainerName),
-					string(apicommonv1.TraceAgentContainerName),
-					string(apicommonv1.FIPSProxyContainerName),
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+					string(apicommon.FIPSProxyContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)

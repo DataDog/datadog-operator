@@ -8,7 +8,7 @@ package v1alpha1
 import (
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -30,8 +30,8 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &Config{
 			Override: map[ComponentName]*Override{
 				NodeAgentComponentName: {
-					Containers: map[commonv1.AgentContainerName]*Container{
-						commonv1.CoreAgentContainerName: {
+					Containers: map[common.AgentContainerName]*Container{
+						common.CoreAgentContainerName: {
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
@@ -56,15 +56,15 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		Config: &Config{
 			Override: map[ComponentName]*Override{
 				NodeAgentComponentName: {
-					Containers: map[commonv1.AgentContainerName]*Container{
-						commonv1.CoreAgentContainerName: {
+					Containers: map[common.AgentContainerName]*Container{
+						common.CoreAgentContainerName: {
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
 								},
 							},
 						},
-						commonv1.TraceAgentContainerName: {},
+						common.TraceAgentContainerName: {},
 					},
 				},
 			},

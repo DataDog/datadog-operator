@@ -11,7 +11,7 @@ package v1alpha1
 
 import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -1677,7 +1677,7 @@ func (in *Override) DeepCopyInto(out *Override) {
 	*out = *in
 	if in.Containers != nil {
 		in, out := &in.Containers, &out.Containers
-		*out = make(map[commonv1.AgentContainerName]*Container, len(*in))
+		*out = make(map[common.AgentContainerName]*Container, len(*in))
 		for key, val := range *in {
 			var outVal *Container
 			if val == nil {
@@ -1698,7 +1698,7 @@ func (in *Override) DeepCopyInto(out *Override) {
 	}
 	if in.UpdateStrategy != nil {
 		in, out := &in.UpdateStrategy, &out.UpdateStrategy
-		*out = new(commonv1.UpdateStrategy)
+		*out = new(common.UpdateStrategy)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Labels != nil {

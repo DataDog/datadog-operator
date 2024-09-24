@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -66,7 +65,7 @@ func TestClusterChecksFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.CoreAgentContainerName),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommon.CoreAgentContainerName),
 		},
 		{
 			Name: "cluster checks enabled and runners not enabled with single container strategy",
@@ -77,7 +76,7 @@ func TestClusterChecksFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommon.UnprivilegedSingleAgentContainerName),
 		},
 		{
 			Name: "cluster checks enabled and runners enabled",
@@ -88,7 +87,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.CoreAgentContainerName),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.CoreAgentContainerName),
 		},
 		{
 			Name: "cluster checks enabled and runners enabled with single container strategy",
@@ -100,7 +99,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.UnprivilegedSingleAgentContainerName),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommon.UnprivilegedSingleAgentContainerName),
 		},
 	}
 
@@ -164,7 +163,7 @@ func wantClusterAgentHasExpectedEnvsAndChecksum(t testing.TB, mgrInterface featu
 func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 	expectedClusterAgentEnvs := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDClusterChecksEnabled,
@@ -199,7 +198,7 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterChecksRunnersContainerName]
+			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
 			expectedClusterRunnerEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDClusterChecksEnabled,
@@ -220,7 +219,7 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 	)
 }
 
-func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -242,7 +241,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommonv1.AgentCon
 	)
 }
 
-func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
+func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)

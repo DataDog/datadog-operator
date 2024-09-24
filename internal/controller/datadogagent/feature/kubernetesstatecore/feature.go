@@ -14,7 +14,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -56,7 +55,7 @@ type ksmFeature struct {
 	serviceAccountName string
 
 	owner                       metav1.Object
-	customConfig                *apicommonv1.CustomConfig
+	customConfig                *v2alpha1.CustomConfig
 	configConfigMapName         string
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -109,7 +108,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 		}
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
+			f.customConfig = dda.Spec.Features.KubeStateMetricsCore.Conf
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
@@ -120,7 +119,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
+		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
 
 	return output
@@ -190,7 +189,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -216,7 +215,7 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.UnprivilegedSingleAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
@@ -228,7 +227,7 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec

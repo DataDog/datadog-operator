@@ -16,7 +16,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -81,8 +80,8 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
 				},
 			},
 		}
@@ -161,19 +160,19 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 	if f.containerImageUncompressedLayersSupport {
 		if f.containerImageOverlayFSDirectScan {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
 				Value: "true",
 			})
 		} else {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDSBOMContainerUseMount,
 				Value: "true",
 			})
 
 			managers.SecurityContext().AddCapabilitiesToContainer(
 				[]corev1.Capability{"SYS_ADMIN"},
-				apicommonv1.CoreAgentContainerName,
+				apicommon.CoreAgentContainerName,
 			)
 
 			managers.Annotation().AddAnnotation(apicommon.AgentAppArmorAnnotationKey, apicommon.AgentAppArmorAnnotationValue)
@@ -183,7 +182,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMountMgr := managers.VolumeMount()
 
 		containerdLibVol, containerdLibVolMount := volume.GetVolumes(apicommon.ContainerdDirVolumeName, apicommon.ContainerdDirVolumePath, apicommon.ContainerdDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&containerdLibVol)
 	}
 
@@ -199,7 +198,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	if f.hostEnabled {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDHostRootEnvVar,
 			Value: "/host",
 		})
@@ -208,35 +207,35 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMountMgr := managers.VolumeMount()
 
 		osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&osReleaseVol)
 
 		hostApkVol, hostApkVolMount := volume.GetVolumes(apicommon.ApkDirVolumeName, apicommon.ApkDirVolumePath, apicommon.ApkDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostApkVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostApkVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostApkVol)
 
 		hostDpkgVol, hostDpkgVolMount := volume.GetVolumes(apicommon.DpkgDirVolumeName, apicommon.DpkgDirVolumePath, apicommon.DpkgDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostDpkgVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostDpkgVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostDpkgVol)
 
 		hostRpmVol, hostRpmVolMount := volume.GetVolumes(apicommon.RpmDirVolumeName, apicommon.RpmDirVolumePath, apicommon.RpmDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRpmVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostRpmVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostRpmVol)
 
 		hostRedhatReleaseVol, hostRedhatReleaseVolMount := volume.GetVolumes(apicommon.RedhatReleaseVolumeName, apicommon.RedhatReleaseVolumePath, apicommon.RedhatReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRedhatReleaseVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostRedhatReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostRedhatReleaseVol)
 
 		hostFedoraReleaseVol, hostFedoraReleaseVolMount := volume.GetVolumes(apicommon.FedoraReleaseVolumeName, apicommon.FedoraReleaseVolumePath, apicommon.FedoraReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostFedoraReleaseVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostFedoraReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostFedoraReleaseVol)
 
 		hostLsbReleaseVol, hostLsbReleaseVolMount := volume.GetVolumes(apicommon.LsbReleaseVolumeName, apicommon.LsbReleaseVolumePath, apicommon.LsbReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostLsbReleaseVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostLsbReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostLsbReleaseVol)
 
 		hostSystemReleaseVol, hostSystemReleaseVolMount := volume.GetVolumes(apicommon.SystemReleaseVolumeName, apicommon.SystemReleaseVolumePath, apicommon.SystemReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostSystemReleaseVolMount, apicommonv1.CoreAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&hostSystemReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostSystemReleaseVol)
 	}
 

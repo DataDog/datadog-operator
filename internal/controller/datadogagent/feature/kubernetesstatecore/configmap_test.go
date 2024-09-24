@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +38,7 @@ instances:
 		rbacSuffix               string
 		serviceAccountName       string
 		owner                    metav1.Object
-		customConfig             *apicommonv1.CustomConfig
+		customConfig             *v2alpha1.CustomConfig
 		configConfigMapName      string
 		collectorOpts            collectorOptions
 	}
@@ -64,7 +65,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				customConfig: &apicommonv1.CustomConfig{
+				customConfig: &v2alpha1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
 			},

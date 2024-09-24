@@ -8,14 +8,14 @@ package merger
 import (
 	"sort"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // SecurityContextManager use to add Security Context settings to containers.
 type SecurityContextManager interface {
 	// AddCapabilitiesToContainer Adds capabilities to a container in the PodTemplate.
-	AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName commonv1.AgentContainerName)
+	AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName common.AgentContainerName)
 }
 
 // NewSecurityContextManager returns a new instance of the SecurityContextManager
@@ -29,7 +29,7 @@ type securityContextManagerImpl struct {
 	podTmpl *corev1.PodTemplateSpec
 }
 
-func (impl *securityContextManagerImpl) AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName commonv1.AgentContainerName) {
+func (impl *securityContextManagerImpl) AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName common.AgentContainerName) {
 	for i, container := range impl.podTmpl.Spec.Containers {
 		if container.Name == string(containerName) {
 			if container.SecurityContext == nil {

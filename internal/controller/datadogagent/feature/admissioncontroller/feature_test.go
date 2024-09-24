@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -143,7 +142,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &apicommonv1.AgentImageConfig{
+					Image: &v2alpha1.AgentImageConfig{
 						Name: "overrideName",
 						Tag:  "overrideTag",
 					},
@@ -161,7 +160,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-					Image: &apicommonv1.AgentImageConfig{
+					Image: &v2alpha1.AgentImageConfig{
 						Name: "overrideName",
 						Tag:  "overrideTag",
 					},
@@ -195,7 +194,7 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDAdmissionControllerEnabled,
@@ -309,7 +308,7 @@ func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
 func admissionControllerWantFunc(acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 		want := getACEnvVars(acm, registry, cws)
 		assert.ElementsMatch(
 			t,
@@ -384,7 +383,7 @@ func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles
 func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageTag string, selectors, profiles bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles))
 		assert.ElementsMatch(
 			t,
