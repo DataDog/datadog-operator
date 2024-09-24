@@ -266,11 +266,14 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 }
 
 func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) {
-	if err := r.client.Status().Update(context.TODO(), profile); err != nil {
-		if apierrors.IsConflict(err) {
-			logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+	// update dap status for non-default profiles only
+	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		if err := r.client.Status().Update(context.TODO(), profile); err != nil {
+			if apierrors.IsConflict(err) {
+				logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
+			}
+			logger.Error(err, "unable to update DatadogAgentProfile status")
 		}
-		logger.Error(err, "unable to update DatadogAgentProfile status")
 	}
 }
 
