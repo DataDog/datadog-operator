@@ -46,7 +46,7 @@ func IsImageNameContainsTag(name string) bool {
 	return imageHasTag.MatchString(name)
 }
 
-// Image represent a container image information
+// Image represents a container image information
 type Image struct {
 	registry  ContainerRegistry
 	imageName string

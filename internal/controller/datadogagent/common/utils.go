@@ -120,7 +120,7 @@ const (
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultAgentResourceSuffix,
 	}
 }
 
