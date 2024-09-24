@@ -45,15 +45,15 @@ type Reconciler struct {
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboardClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
-		versionInfo:   versionInfo,
-		scheme:        scheme,
-		log:           log,
-		recorder:      recorder,
+		// versionInfo:   versionInfo,
+		scheme:   scheme,
+		log:      log,
+		recorder: recorder,
 	}
 }
 

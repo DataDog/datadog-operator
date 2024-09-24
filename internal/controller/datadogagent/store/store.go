@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,7 +39,7 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
-	GetVersionInfo() *version.Info
+	// GetVersionInfo() *version.Info
 	GetPlatformInfo() kubernetes.PlatformInfo
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
@@ -55,7 +54,7 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
-		store.versionInfo = options.VersionInfo
+		// store.versionInfo = options.VersionInfo
 		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
@@ -71,8 +70,8 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
-	versionInfo   *version.Info
-	platformInfo  kubernetes.PlatformInfo
+	// versionInfo   *version.Info
+	platformInfo kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -82,8 +81,8 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
-	VersionInfo   *version.Info
-	PlatformInfo  kubernetes.PlatformInfo
+	// VersionInfo   *version.Info
+	PlatformInfo kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
@@ -286,9 +285,9 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 }
 
 // GetVersionInfo returns the Kubernetes version
-func (ds *Store) GetVersionInfo() *version.Info {
-	return ds.versionInfo
-}
+// func (ds *Store) GetVersionInfo() *version.Info {
+// 	return ds.versionInfo
+// }
 
 // GetPlatformInfo returns api-resources info
 func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {

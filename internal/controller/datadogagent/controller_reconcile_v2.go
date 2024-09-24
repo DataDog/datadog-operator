@@ -107,7 +107,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
-		VersionInfo:   r.versionInfo,
 		PlatformInfo:  r.platformInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
