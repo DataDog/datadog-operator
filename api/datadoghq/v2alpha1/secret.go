@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"os"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,7 +28,7 @@ func GetDefaultDCATokenSecretName(dda metav1.Object) string {
 func GetAPIKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
 	isSet := false
 	secretName := defaultName
-	secretKey := apicommon.DefaultAPIKeyKey
+	secretKey := DefaultAPIKeyKey
 
 	if credentials.APISecret != nil {
 		isSet = true
@@ -51,7 +49,7 @@ func GetAPIKeySecret(credentials *DatadogCredentials, defaultName string) (bool,
 func GetAppKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
 	isSet := false
 	secretName := defaultName
-	secretKey := apicommon.DefaultAPPKeyKey
+	secretKey := DefaultAPPKeyKey
 
 	if credentials.AppSecret != nil {
 		isSet = true
@@ -71,10 +69,10 @@ func GetKeysFromCredentials(credentials *DatadogCredentials) map[string][]byte {
 	data := make(map[string][]byte)
 	// Create secret using DatadogAgent credentials if it exists
 	if credentials.APIKey != nil && *credentials.APIKey != "" {
-		data[apicommon.DefaultAPIKeyKey] = []byte(*credentials.APIKey)
+		data[DefaultAPIKeyKey] = []byte(*credentials.APIKey)
 	}
 	if credentials.AppKey != nil && *credentials.AppKey != "" {
-		data[apicommon.DefaultAPPKeyKey] = []byte(*credentials.AppKey)
+		data[DefaultAPPKeyKey] = []byte(*credentials.AppKey)
 	}
 
 	return data

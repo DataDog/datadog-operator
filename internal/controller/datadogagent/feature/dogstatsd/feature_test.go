@@ -182,7 +182,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						{
 							Name:          apicommon.DogstatsdHostPortName,
 							HostPort:      8125,
-							ContainerPort: apicommon.DefaultDogstatsdPort,
+							ContainerPort: v2alpha1.DefaultDogstatsdPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
@@ -367,7 +367,7 @@ func getWantUDPEnvVars() []*corev1.EnvVar {
 	wantUDPEnvVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdPort,
-			Value: strconv.Itoa(apicommon.DefaultDogstatsdPort),
+			Value: strconv.Itoa(v2alpha1.DefaultDogstatsdPort),
 		},
 		{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,

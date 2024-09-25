@@ -23,12 +23,12 @@ import (
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
 func GetClusterChecksRunnerName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, v2alpha1.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
@@ -40,7 +40,7 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployme
 	}
 
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(apicommon.DefaultClusterChecksRunnerReplicas)
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(v2alpha1.DefaultClusterChecksRunnerReplicas)
 
 	return deployment
 }
@@ -84,11 +84,11 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 func clusterChecksRunnerImage() string {
-	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
@@ -221,7 +221,7 @@ func DefaultAffinity() *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterChecksRunnerResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

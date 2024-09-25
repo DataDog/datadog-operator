@@ -8,7 +8,6 @@ package v2alpha1
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,7 +33,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -49,7 +48,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultEuropeSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultEuropeImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultEuropeImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -64,7 +63,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAsiaSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultAsiaImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultAsiaImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -79,7 +78,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAzureSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultAzureImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultAzureImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -94,7 +93,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultGovSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultGovImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -110,7 +109,7 @@ func Test_defaultGlobal(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -138,7 +137,7 @@ func Test_defaultGlobal(t *testing.T) {
 						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},

@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/equality"
 )
 
@@ -43,11 +43,11 @@ func Test_buildHelmCheckConfigMap(t *testing.T) {
 			fields: fields{
 				owner:         owner,
 				enable:        true,
-				configMapName: apicommon.DefaultHelmCheckConf,
+				configMapName: v2alpha1.DefaultHelmCheckConf,
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{
@@ -66,11 +66,11 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configMapName:            apicommon.DefaultHelmCheckConf,
+				configMapName:            v2alpha1.DefaultHelmCheckConf,
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{
@@ -89,12 +89,12 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configMapName:            apicommon.DefaultHelmCheckConf,
+				configMapName:            v2alpha1.DefaultHelmCheckConf,
 				collectEvents:            true,
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{
@@ -113,12 +113,12 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configMapName:            apicommon.DefaultHelmCheckConf,
+				configMapName:            v2alpha1.DefaultHelmCheckConf,
 				collectEvents:            true,
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{
@@ -137,12 +137,12 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configMapName:            apicommon.DefaultHelmCheckConf,
+				configMapName:            v2alpha1.DefaultHelmCheckConf,
 				valuesAsTags:             map[string]string{"zip": "zap", "foo": "bar"}, // tags map should get sorted alphabetically by key
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{
@@ -164,12 +164,12 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configMapName:            apicommon.DefaultHelmCheckConf,
+				configMapName:            v2alpha1.DefaultHelmCheckConf,
 				valuesAsTags:             map[string]string{"foo": "bar", "zip": "zap"},
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      apicommon.DefaultHelmCheckConf,
+					Name:      v2alpha1.DefaultHelmCheckConf,
 					Namespace: owner.GetNamespace(),
 				},
 				Data: map[string]string{

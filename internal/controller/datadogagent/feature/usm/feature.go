@@ -162,7 +162,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	sysProbeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
-		Value: apicommon.DefaultSystemProbeSocketPath,
+		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeSocketEnvVar)
 

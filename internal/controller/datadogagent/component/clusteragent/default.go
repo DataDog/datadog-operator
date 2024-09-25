@@ -25,12 +25,12 @@ import (
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
 func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
@@ -41,17 +41,17 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 
 // GetClusterAgentRbacResourcesName return the Cluster-Agent RBAC resource name
 func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
 }
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
 func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, v2alpha1.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
@@ -61,7 +61,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 		podTemplate.Annotations[key] = val
 	}
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(apicommon.DefaultClusterAgentReplicas)
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(v2alpha1.DefaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -111,7 +111,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
@@ -202,7 +202,7 @@ func DefaultAffinity() *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

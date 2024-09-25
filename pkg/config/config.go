@@ -105,7 +105,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 			Namespaces: agentNamespaces,
 
 			Label: labels.SelectorFromSet(map[string]string{
-				common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
+				common.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 			}),
 
 			Transform: func(obj interface{}) (interface{}, error) {
