@@ -50,7 +50,6 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogDashboard
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
-		// versionInfo:   versionInfo,
 		scheme:   scheme,
 		log:      log,
 		recorder: recorder,
