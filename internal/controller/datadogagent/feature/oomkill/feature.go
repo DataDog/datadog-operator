@@ -120,7 +120,7 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
-		Value: apicommon.DefaultSystemProbeSocketPath,
+		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, socketEnvVar)
 
