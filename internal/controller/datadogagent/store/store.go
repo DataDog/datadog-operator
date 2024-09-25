@@ -54,7 +54,6 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
-		// store.versionInfo = options.VersionInfo
 		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
@@ -70,7 +69,6 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
-	// versionInfo   *version.Info
 	platformInfo kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
@@ -81,7 +79,6 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
-	// VersionInfo   *version.Info
 	PlatformInfo kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
@@ -283,11 +280,6 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 
 	return errs
 }
-
-// GetVersionInfo returns the Kubernetes version
-// func (ds *Store) GetVersionInfo() *version.Info {
-// 	return ds.versionInfo
-// }
 
 // GetPlatformInfo returns api-resources info
 func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {
