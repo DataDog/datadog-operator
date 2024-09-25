@@ -84,6 +84,7 @@ const (
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
 	DefaultImageRegistry         string = "gcr.io/datadoghq"
+	DefaultAzureImageRegistry    string = "datadoghq.azurecr.io"
 	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
 	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
