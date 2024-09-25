@@ -70,7 +70,6 @@ type ReconcilerOptions struct {
 type Reconciler struct {
 	options ReconcilerOptions
 	client  client.Client
-	// versionInfo  *version.Info
 	platformInfo kubernetes.PlatformInfo
 	scheme       *runtime.Scheme
 	log          logr.Logger
@@ -85,7 +84,6 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 	return &Reconciler{
 		options: options,
 		client:  client,
-		// versionInfo:  versionInfo,
 		platformInfo: platformInfo,
 		scheme:       scheme,
 		log:          log,
