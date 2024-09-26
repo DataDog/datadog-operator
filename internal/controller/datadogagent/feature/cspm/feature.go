@@ -89,7 +89,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
-		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
+		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
 
 		// TODO add settings to configure f.createPSP
 

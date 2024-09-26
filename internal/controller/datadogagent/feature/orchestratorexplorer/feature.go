@@ -108,7 +108,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
+		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
