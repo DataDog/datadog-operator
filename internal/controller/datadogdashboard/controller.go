@@ -39,7 +39,6 @@ type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.DashboardsApi
 	datadogAuth   context.Context
-	versionInfo   *version.Info
 	scheme        *runtime.Scheme
 	log           logr.Logger
 	recorder      record.EventRecorder
@@ -62,7 +61,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	logger := r.log.WithValues("datadogdashboard", req.NamespacedName)
-	logger.Info("Reconciling Datadog Dashboard", "version", r.versionInfo.String())
+	logger.Info("Reconciling Datadog Dashboard")
 	now := metav1.NewTime(time.Now())
 
 	instance := &v1alpha1.DatadogDashboard{}
