@@ -82,6 +82,10 @@ const (
 	RpmDirVolumePath = "/var/lib/rpm"
 	RpmDirMountPath  = "/host/var/lib/rpm"
 
+	SysimageRpmDirVolumeName = "host-sysimage-rpm-dir"
+	SysimageRpmDirVolumePath = "/usr/lib/sysimage/rpm"
+	SysimageRpmDirMountPath  = "/host/usr/lib/sysimage/rpm"
+
 	RedhatReleaseVolumeName = "etc-redhat-release"
 	RedhatReleaseVolumePath = "/etc/redhat-release"
 	RedhatReleaseMountPath  = "/host/etc/redhat-release"
