@@ -549,7 +549,7 @@ type OTLPProtocolsConfig struct {
 // OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
 // +k8s:openapi-gen=true
 type OTLPGRPCConfig struct {
-	// Enable the OTLP/gRPC endpoint.
+	// Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -569,7 +569,7 @@ type OTLPGRPCConfig struct {
 // OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
 // +k8s:openapi-gen=true
 type OTLPHTTPConfig struct {
-	// Enable the OTLP/HTTP endpoint.
+	// Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -977,7 +977,6 @@ type KubeletConfig struct {
 // HostPortConfig contains host port configuration.
 type HostPortConfig struct {
 	// Enabled enables host port configuration
-	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
