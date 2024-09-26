@@ -199,8 +199,8 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 			return fmt.Errorf("error adding external metrics provider apiservice to store: %w", err)
 		}
 
-		platformInfo := managers.Store().GetPlatformInfo()
 		// RBAC
+		platformInfo := managers.Store().GetPlatformInfo()
 		if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, platformInfo.GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
 			return fmt.Errorf("error adding external metrics provider external metrics reader clusterrole and clusterrolebinding to store: %w", err)
 		}
