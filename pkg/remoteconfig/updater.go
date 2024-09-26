@@ -127,10 +127,6 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 
 }
 
-func (r *RemoteConfigUpdater) getTags() []string {
-	return []string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)}
-}
-
 func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName string, directorRoot string, configRoot string, endpoint string) error {
 
 	r.logger.Info("Starting Remote Configuration client and service")
@@ -146,7 +142,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		r.getTags,
+		[]string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)},
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),
