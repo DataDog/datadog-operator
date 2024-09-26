@@ -224,6 +224,48 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
+			Name: "[single container] gRPC and HTTP enabled, custom hostports",
+			DDA: newAgentSingleContainer(Settings{
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  4315,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  4316,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
+			}),
+			WantConfigure: true,
+			Agent: testExpectedSingleContainer(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          apicommon.OTLPGRPCPortName,
+						ContainerPort: 4317,
+						HostPort:      4315,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          apicommon.OTLPHTTPPortName,
+						ContainerPort: 4318,
+						HostPort:      4316,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
 			Name: "gRPC enabled, no APM",
 			DDA: newAgent(Settings{
 				EnabledGRPC:         true,

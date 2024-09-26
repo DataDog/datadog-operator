@@ -226,7 +226,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
 
-		if f.grpcHostPortEnabled {
+		if f.grpcHostPortEnabled && f.grpcCustomHostPort == 0 {
 			otlpgrpcPort := &corev1.ContainerPort{
 				Name:          apicommon.OTLPGRPCPortName,
 				ContainerPort: port,
@@ -266,7 +266,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
 
-		if f.httpHostPortEnabled {
+		if f.httpHostPortEnabled && f.httpCustomHostPort == 0 {
 			otlphttpPort := &corev1.ContainerPort{
 				Name:          apicommon.OTLPHTTPPortName,
 				ContainerPort: port,
@@ -274,14 +274,14 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 				Protocol:      corev1.ProtocolTCP,
 			}
 			managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
-		} else if f.grpcHostPortEnabled && f.httpCustomHostPort != 0 {
-			otlpgrpcPort := &corev1.ContainerPort{
-				Name:          apicommon.OTLPGRPCPortName,
+		} else if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
+			otlphttpPort := &corev1.ContainerPort{
+				Name:          apicommon.OTLPHTTPPortName,
 				ContainerPort: port,
 				HostPort:      f.httpCustomHostPort,
 				Protocol:      corev1.ProtocolTCP,
 			}
-			managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
+			managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
 		} else {
 			otlphttpPort := &corev1.ContainerPort{
 				Name:          apicommon.OTLPHTTPPortName,
