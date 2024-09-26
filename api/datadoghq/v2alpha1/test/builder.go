@@ -602,19 +602,27 @@ func (builder *DatadogAgentBuilder) initOTLP() {
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostportenabled bool, customhostport int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{
-		Enabled:  apiutils.NewBoolPointer(enabled),
+		Enabled: apiutils.NewBoolPointer(enabled),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: apiutils.NewBoolPointer(hostportenabled),
+			Port:    apiutils.NewInt32Pointer(customhostport),
+		},
 		Endpoint: apiutils.NewStringPointer(endpoint),
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, hostportenabled bool, customhostport int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.HTTP = &v2alpha1.OTLPHTTPConfig{
-		Enabled:  apiutils.NewBoolPointer(enabled),
+		Enabled: apiutils.NewBoolPointer(enabled),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: apiutils.NewBoolPointer(hostportenabled),
+			Port:    apiutils.NewInt32Pointer(customhostport),
+		},
 		Endpoint: apiutils.NewStringPointer(endpoint),
 	}
 	return builder

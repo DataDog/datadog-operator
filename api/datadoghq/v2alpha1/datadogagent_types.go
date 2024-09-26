@@ -553,6 +553,11 @@ type OTLPGRPCConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// Enable hostPort for OTLP/gRPC
+	// Default: true
+	// +optional
+	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`
+
 	// Endpoint for OTLP/gRPC.
 	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
 	// The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`).
@@ -567,6 +572,11 @@ type OTLPHTTPConfig struct {
 	// Enable the OTLP/HTTP endpoint.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enable hostPorts for OTLP/HTTP
+	// Default: true
+	// +optional
+	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`
 
 	// Endpoint for OTLP/HTTP.
 	// Default: '0.0.0.0:4318'.

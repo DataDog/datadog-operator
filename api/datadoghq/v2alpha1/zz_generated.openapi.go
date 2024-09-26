@@ -1156,6 +1156,12 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPort for OTLP/gRPC Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
+						},
+					},
 					"endpoint": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.",
@@ -1166,6 +1172,8 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
@@ -1183,6 +1191,12 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 							Format:      "",
 						},
 					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPorts for OTLP/HTTP Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
+						},
+					},
 					"endpoint": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'.",
@@ -1193,6 +1207,8 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
