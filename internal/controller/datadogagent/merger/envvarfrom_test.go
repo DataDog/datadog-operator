@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -87,36 +89,6 @@ func TestAddEnvFromSourceFromToContainer(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Container.EnvFrom already present, ignore override",
-			args: args{
-				container: &corev1.Container{
-					EnvFrom: []corev1.EnvFromSource{
-						*envFromSourceFoo,
-					},
-				},
-				envFromSource: envFromSourceFoo2,
-				mergeFunc:     IgnoreNewEnvFromSourceFromMergeFunction,
-			},
-			want: []corev1.EnvFromSource{
-				*envFromSourceFoo,
-			},
-			wantErr: false,
-		},
-		{
-			name: "Container.EnvFrom already present, avoid override",
-			args: args{
-				container: &corev1.Container{
-					EnvFrom: []corev1.EnvFromSource{
-						*envFromSourceFoo,
-					},
-				},
-				envFromSource: envFromSourceFoo2,
-				mergeFunc:     ErrorOnMergeAttemptdEnvFromSourceFromMergeFunction,
-			},
-			want:    nil,
-			wantErr: true,
-		},
 		// secret
 		{
 			name: "Container.EnvFrom(secret) already present, allow override",
@@ -134,36 +106,6 @@ func TestAddEnvFromSourceFromToContainer(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Container.EnvFrom(secret) already present, ignore override",
-			args: args{
-				container: &corev1.Container{
-					EnvFrom: []corev1.EnvFromSource{
-						*envFromSourceBar,
-					},
-				},
-				envFromSource: envFromSourceBar2,
-				mergeFunc:     IgnoreNewEnvFromSourceFromMergeFunction,
-			},
-			want: []corev1.EnvFromSource{
-				*envFromSourceBar,
-			},
-			wantErr: false,
-		},
-		{
-			name: "Container.EnvFrom(secret) already present, avoid override",
-			args: args{
-				container: &corev1.Container{
-					EnvFrom: []corev1.EnvFromSource{
-						*envFromSourceBar,
-					},
-				},
-				envFromSource: envFromSourceBar2,
-				mergeFunc:     ErrorOnMergeAttemptdEnvFromSourceFromMergeFunction,
-			},
-			want:    nil,
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -178,6 +120,91 @@ func TestAddEnvFromSourceFromToContainer(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("AddEnvFromSourceFromToContainer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAddEnvFromVarWithMergeFunc(t *testing.T) {
+	agentContainer := &corev1.Container{
+		Name: string(common.CoreAgentContainerName),
+	}
+	clusterAgentContainer := &corev1.Container{
+		Name: string(common.ClusterAgentContainerName),
+	}
+	clusterChecksContainer := &corev1.Container{
+		Name: string(common.ClusterChecksRunnersContainerName),
+	}
+	podTmpl := corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{*agentContainer, *clusterAgentContainer, *clusterChecksContainer},
+		}}
+	envFromVarFoo := &corev1.EnvFromSource{
+		Prefix: "FOO",
+		ConfigMapRef: &corev1.ConfigMapEnvSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: "foo",
+			},
+		},
+	}
+	tests := []struct {
+		name        string
+		description string
+		containers  []corev1.Container
+		want        []corev1.EnvFromSource
+	}{
+		{
+			name:        "overrides for nodeAgent, clusterAgent, clusterChecks",
+			description: "all containers should have env var added",
+			containers: []corev1.Container{
+				{
+					Name: string(common.ClusterChecksRunnersContainerName),
+				},
+				{
+					Name: string(common.CoreAgentContainerName),
+				},
+				{
+					Name: string(common.ClusterAgentContainerName),
+				},
+			},
+			want: []corev1.EnvFromSource{*envFromVarFoo},
+		},
+		{
+			name:        "extra containers shouldn't be overridden",
+			description: "only agent containers should have env var added",
+			containers: []corev1.Container{
+				{
+					Name: string(common.ClusterChecksRunnersContainerName),
+				},
+				{
+					Name: string(common.CoreAgentContainerName),
+				},
+				{
+					Name: string(common.ClusterAgentContainerName),
+				},
+				{
+					Name: string(common.InitVolumeContainerName),
+				},
+			},
+			want: []corev1.EnvFromSource{*envFromVarFoo},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("description: %s", tt.description)
+			podTmpl.Spec.Containers = tt.containers
+			manager := &envFromVarManagerImpl{
+				podTmpl: &podTmpl,
+			}
+			err := manager.AddEnvFromVarWithMergeFunc(envFromVarFoo, DefaultEnvFromSourceFromMergeFunction)
+			assert.NoError(t, err)
+
+			for _, cont := range manager.podTmpl.Spec.Containers {
+				if cont.Name == string(common.InitVolumeContainerName) {
+					assert.Len(t, cont.EnvFrom, 0)
+				} else {
+					assert.Equal(t, cont.EnvFrom, tt.want)
+				}
 			}
 		})
 	}

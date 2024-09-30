@@ -107,16 +107,6 @@ func OverrideCurrentEnvFromSourceFromMergeFunction(current, newEnv *corev1.EnvFr
 	return newEnv.DeepCopy(), nil
 }
 
-// IgnoreNewEnvFromSourceFromMergeFunction used when the existing corev1.EnvFromSource needs to be kept.
-func IgnoreNewEnvFromSourceFromMergeFunction(current, newEnv *corev1.EnvFromSource) (*corev1.EnvFromSource, error) {
-	return current.DeepCopy(), nil
-}
-
-// ErrorOnMergeAttemptdEnvFromSourceFromMergeFunction used to avoid replacing an existing corev1.EnvFromSource
-func ErrorOnMergeAttemptdEnvFromSourceFromMergeFunction(current, newEnv *corev1.EnvFromSource) (*corev1.EnvFromSource, error) {
-	return nil, errMergeAttempted
-}
-
 // AddEnvFromSourceFromToContainer use to add an EnvFromSource to container.
 func AddEnvFromSourceFromToContainer(container *corev1.Container, envFromSource *corev1.EnvFromSource, mergeFunc EnvFromSourceFromMergeFunction) ([]corev1.EnvFromSource, error) {
 	var found bool
