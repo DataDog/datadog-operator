@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
@@ -21,7 +22,7 @@ import (
 
 // GetClusterAgentService returns the Cluster-Agent service
 func GetClusterAgentService(dda metav1.Object) *corev1.Service {
-	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
+	labels := object.GetDefaultLabels(dda, v2alpha1.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
 	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
@@ -35,13 +36,13 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
-					Port:       apicommon.DefaultClusterAgentServicePort,
+					TargetPort: intstr.FromInt(v2alpha1.DefaultClusterAgentServicePort),
+					Port:       v2alpha1.DefaultClusterAgentServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
@@ -54,7 +55,7 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 
 // GetMetricsServerServiceName returns the external metrics provider service name
 func GetMetricsServerServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultMetricsServerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultMetricsServerResourceSuffix)
 }
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name

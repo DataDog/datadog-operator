@@ -8,7 +8,7 @@ package enabledefault
 import (
 	"fmt"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -177,7 +177,7 @@ func getLeaderElectionPolicyRuleDCA(dda metav1.Object) []rbacv1.PolicyRule {
 
 // getCCRRbacResourcesName returns the Cluster Checks Runner RBAC resource name
 func getCCRRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 // getDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner

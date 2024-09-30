@@ -166,7 +166,7 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "-metrics-server", // from default secret name
 								},
-								Key: apicommon.DefaultAPPKeyKey,
+								Key: v2alpha1.DefaultAPPKeyKey,
 							},
 						},
 					},

@@ -119,7 +119,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
+		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultKubeStateMetricsCoreConf)
 	}
 
 	return output

@@ -135,7 +135,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDSystemProbeSocket,
-				Value: apicommon.DefaultSystemProbeSocketPath,
+				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]

@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,9 +52,9 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, []string{})),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, []string{})),
 		},
 		{
 			name: "override",
@@ -63,22 +62,22 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
 				customConfig: &v2alpha1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, overrideConf),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, overrideConf),
 		}, {
 			name: "default config with crs",
 			fields: fields{
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
 				crCollection:             crs,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, crs)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, crs)),
 		},
 	}
 	for _, tt := range tests {

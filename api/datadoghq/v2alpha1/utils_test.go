@@ -11,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -136,7 +135,7 @@ func TestServiceAccountOverride(t *testing.T) {
 			},
 			want: map[ComponentName]string{
 				ClusterAgentComponentName:        customServiceAccount,
-				NodeAgentComponentName:           fmt.Sprintf("%s-%s", ddaName, common.DefaultAgentResourceSuffix),
+				NodeAgentComponentName:           fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
 				ClusterChecksRunnerComponentName: customServiceAccount,
 			},
 		},
