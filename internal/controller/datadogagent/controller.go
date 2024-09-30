@@ -68,8 +68,8 @@ type ReconcilerOptions struct {
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options ReconcilerOptions
-	client  client.Client
+	options      ReconcilerOptions
+	client       client.Client
 	platformInfo kubernetes.PlatformInfo
 	scheme       *runtime.Scheme
 	log          logr.Logger
@@ -82,8 +82,8 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
 ) (*Reconciler, error) {
 	return &Reconciler{
-		options: options,
-		client:  client,
+		options:      options,
+		client:       client,
 		platformInfo: platformInfo,
 		scheme:       scheme,
 		log:          log,

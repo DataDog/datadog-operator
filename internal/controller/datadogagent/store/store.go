@@ -68,7 +68,7 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
-	platformInfo kubernetes.PlatformInfo
+	platformInfo  kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -78,7 +78,7 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
-	PlatformInfo kubernetes.PlatformInfo
+	PlatformInfo  kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
