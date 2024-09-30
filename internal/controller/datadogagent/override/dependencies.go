@@ -33,7 +33,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		}
 
 		// Handle custom agent configurations (datadog.yaml, cluster-agent.yaml, etc.)
-		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, dda.Name, namespace)...)
+		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, component, dda.Name, namespace)...)
 
 		// Handle custom check configurations
 		confdCMName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(component))))
@@ -64,13 +64,13 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	return errors.NewAggregate(errs)
 }
 
-func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, ddaName, namespace string) (errs []error) {
+func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName, namespace string) (errs []error) {
 	for fileName, customConfig := range customConfigMap {
 		// Favor ConfigMap setting; if it is specified, then move on
 		if customConfig.ConfigMap != nil {
 			continue
 		} else if customConfig.ConfigData != nil {
-			configMapName := getDefaultConfigMapName(ddaName, string(fileName))
+			configMapName := fmt.Sprintf("%s-%s", getDefaultConfigMapName(ddaName, string(fileName)), strings.ToLower(string(componentName)))
 			cm, err := configmap.BuildConfigMapConfigData(namespace, customConfig.ConfigData, configMapName, string(fileName))
 			if err != nil {
 				errs = append(errs, err)
