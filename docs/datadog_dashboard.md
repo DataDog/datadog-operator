@@ -14,9 +14,9 @@ Tests were performed on Kubernetes versions >= `v1.30.0`
 
 ## Adding a DatadogDashboard
 
-To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-operator` Helm chart][3].
+To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-operator` Helm chart][4].
 
-1. Install the [Datadog Operator][4]:
+1. Install the [Datadog Operator][5]:
 
    First, add the Datadog Helm chart with
 
@@ -24,20 +24,20 @@ To deploy a `DatadogDashboard` with the Datadog Operator, use the [`datadog-oper
     helm repo add datadog https://helm.datadoghq.com
     ```
 
-    1. Run the following command, substituting your [Datadog API and application keys][5]:
+    1. Run the following command, substituting your [Datadog API and application keys][6]:
 
         ```shell
         helm install my-datadog-operator datadog/datadog-operator --set apiKey=<DATADOG_API_KEY> --set appKey=<DATADOG_APP_KEY> --set datadogDashboard.enabled=true
         ```
 
-    1. Alternatively, update the [`values.yaml`][6] file of the Datadog Operator Helm chart to include your [Datadog API and application keys][5] and enable `DatadogDashboard`.
+    1. Alternatively, update the [`values.yaml`][7] file of the Datadog Operator Helm chart to include your [Datadog API and application keys][6] and enable `DatadogDashboard`.
        Then, run
 
         ```shell
         helm install my-datadog-operator datadog/datadog-operator -f values.yaml
         ```
 
-1. Create a file with the spec of your `DatadogDashboard` deployment configuration. An example configuration is:
+2. Create a file with the spec of your `DatadogDashboard` deployment configuration. An example configuration is:
 
 
 ```
@@ -109,13 +109,13 @@ spec:
          }]'
 ```
 
-1. Deploy the `DatadogDashboard` with the above configuration file:
+3. Deploy the `DatadogDashboard` with the above configuration file:
 
     ```shell
     kubectl apply -f /path/to/your/datadog-dashboard.yaml
     ```
 
-    This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][5] page of your Datadog account.
+    This automatically creates a new dashboard in Datadog. You can find it on the [Dashboards][8] page of your Datadog account.
 
 
 ## Cleanup
@@ -132,4 +132,7 @@ helm delete my-datadog-operator
 [2]: https://helm.sh
 [3]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [4]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator
-[5]: https://app.datadoghq.com/dashboard/lists
+[5]: https://artifacthub.io/packages/helm/datadog/datadog-operator
+[6]: https://app.datadoghq.com/account/settings#api
+[7]: https://github.com/DataDog/helm-charts/blob/main/charts/datadog-operator/values.yaml
+[8]: https://app.datadoghq.com/dashboard/lists
