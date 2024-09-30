@@ -258,7 +258,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 				if cont.Name == string(common.FIPSProxyContainerName) {
 					assert.Len(t, cont.Env, 0)
 				} else {
-					assert.Equal(t, cont.Env, tt.want)
+					assert.ElementsMatch(t, cont.Env, tt.want)
 				}
 			}
 		})

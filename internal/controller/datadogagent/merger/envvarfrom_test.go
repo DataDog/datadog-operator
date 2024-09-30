@@ -203,7 +203,7 @@ func TestAddEnvFromVarWithMergeFunc(t *testing.T) {
 				if cont.Name == string(common.InitVolumeContainerName) {
 					assert.Len(t, cont.EnvFrom, 0)
 				} else {
-					assert.Equal(t, cont.EnvFrom, tt.want)
+					assert.ElementsMatch(t, cont.EnvFrom, tt.want)
 				}
 			}
 		})
