@@ -250,6 +250,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 			manager := &envVarManagerImpl{
 				podTmpl: &podTmpl,
 			}
+			manager.podTmpl.Spec.Containers = tt.containers
 			err := manager.AddEnvVarWithMergeFunc(envvarFoo, DefaultEnvVarMergeFunction)
 			assert.NoError(t, err)
 
@@ -257,7 +258,7 @@ func TestAddEnvVarWithMergeFunc(t *testing.T) {
 				if cont.Name == string(common.FIPSProxyContainerName) {
 					assert.Len(t, cont.Env, 0)
 				} else {
-					assert.Contains(t, cont.Env, tt.want)
+					assert.Equal(t, cont.Env, tt.want)
 				}
 			}
 		})
