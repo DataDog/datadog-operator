@@ -24,7 +24,7 @@ const (
 	defaultLogContainerLogsPath          string = "/var/lib/docker/containers"
 	defaultLogPodLogsPath                string = "/var/log/pods"
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
-	defaultLogTempStoragePath            string = "/var/lib/datadog-agent/logs"
+	DefaultLogTempStoragePath            string = "/var/lib/datadog-agent/logs"
 
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
@@ -200,7 +200,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, defaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature

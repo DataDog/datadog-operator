@@ -124,7 +124,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(port)),
 					Port:       port,
-					Name:       apicommon.OTLPGRPCPortName,
+					Name:       otlpGRPCPortName,
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
@@ -145,7 +145,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(port)),
 					Port:       port,
-					Name:       apicommon.OTLPHTTPPortName,
+					Name:       otlpHTTPPortName,
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
@@ -210,7 +210,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
 		otlpgrpcPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPGRPCPortName,
+			Name:          otlpGRPCPortName,
 			ContainerPort: port,
 			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
@@ -230,7 +230,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
 		otlphttpPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPHTTPPortName,
+			Name:          otlpHTTPPortName,
 			ContainerPort: port,
 			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
@@ -261,7 +261,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
 		otlpgrpcPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPGRPCPortName,
+			Name:          otlpGRPCPortName,
 			ContainerPort: port,
 			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
@@ -284,7 +284,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
 		otlphttpPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPHTTPPortName,
+			Name:          otlpHTTPPortName,
 			ContainerPort: port,
 			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,

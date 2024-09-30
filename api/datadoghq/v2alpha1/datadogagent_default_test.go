@@ -598,7 +598,7 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
 						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
+						TempStoragePath:            apiutils.NewStringPointer(DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),

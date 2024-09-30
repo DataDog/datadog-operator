@@ -235,7 +235,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	policiesDirEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
-		Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+		Value: securityAgentRuntimePoliciesDirVolumePath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
@@ -254,12 +254,12 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr.AddVolume(&debugfsVol)
 
 	// tracefs volume mount
-	tracefsVol, tracefsVolMount := volume.GetVolumes(apicommon.TracefsVolumeName, apicommon.TracefsPath, apicommon.TracefsPath, false)
+	tracefsVol, tracefsVolMount := volume.GetVolumes(tracefsVolumeName, tracefsPath, tracefsPath, false)
 	volMountMgr.AddVolumeMountToContainer(&tracefsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&tracefsVol)
 
 	// securityfs volume mount
-	securityfsVol, securityfsVolMount := volume.GetVolumes(apicommon.SecurityfsVolumeName, apicommon.SecurityfsVolumePath, apicommon.SecurityfsMountPath, true)
+	securityfsVol, securityfsVolMount := volume.GetVolumes(securityfsVolumeName, securityfsVolumePath, securityfsMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&securityfsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&securityfsVol)
 
@@ -317,7 +317,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 			vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cwsConfigVolumeName)
 			volMount = corev1.VolumeMount{
 				Name:      cwsConfigVolumeName,
-				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
+				MountPath: securityAgentRuntimeCustomPoliciesVolumePath,
 				ReadOnly:  true,
 			}
 		} else {
@@ -326,7 +326,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 			volMount = corev1.VolumeMount{
 				Name:      cwsConfigVolumeName,
-				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
+				MountPath: securityAgentRuntimeCustomPoliciesVolumePath,
 				ReadOnly:  true,
 			}
 		}
@@ -346,13 +346,13 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 		// Add policies directory envvar to Security Agent, and empty volume to System Probe and Security Agent.
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, policiesDirEnvVar)
 
-		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentRuntimePoliciesDirVolumeName, apicommon.SecurityAgentRuntimePoliciesDirVolumePath, true)
+		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(securityAgentRuntimePoliciesDirVolumeName, securityAgentRuntimePoliciesDirVolumePath, true)
 		volMgr.AddVolume(&policiesVol)
 		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommon.AgentContainerName{apicommon.SecurityAgentContainerName, apicommon.SystemProbeContainerName})
 
 		// Add runtime-security.d volume mount to init-volume container at different path
 		policiesVolMountInitVol := corev1.VolumeMount{
-			Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name:      securityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/opt/datadog-agent/runtime-security.d",
 			ReadOnly:  false,
 		}
