@@ -381,24 +381,30 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC = &OTLPGRPCConfig{}
 	}
 
-	if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig == nil {
-		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &HostPortConfig{}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
+
+	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled) {
+		if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig == nil {
+			ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &HostPortConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig.Enabled, defaultOTLPGRPCHostPortEnabled)
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig.Enabled, defaultOTLPGRPCHostPortEnabled)
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Endpoint, defaultOTLPGRPCEndpoint)
 
 	if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP == nil {
 		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP = &OTLPHTTPConfig{}
 	}
 
-	if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig == nil {
-		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &HostPortConfig{}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
+
+	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled) {
+		if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig == nil {
+			ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &HostPortConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig.Enabled, defaultOTLPHTTPHostPortEnabled)
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig.Enabled, defaultOTLPHTTPHostPortEnabled)
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Endpoint, defaultOTLPHTTPEndpoint)
 
 	// RemoteConfiguration feature
