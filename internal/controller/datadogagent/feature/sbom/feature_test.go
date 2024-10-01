@@ -176,6 +176,11 @@ func Test_sbomFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
+				Name:      apicommon.SysimageRpmDirVolumeName,
+				MountPath: apicommon.SysimageRpmDirMountPath,
+				ReadOnly:  true,
+			},
+			{
 				Name:      apicommon.RedhatReleaseVolumeName,
 				MountPath: apicommon.RedhatReleaseMountPath,
 				ReadOnly:  true,

@@ -222,6 +222,10 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMountMgr.AddVolumeMountToContainer(&hostRpmVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostRpmVol)
 
+		hostSysimageRpmVol, hostSysimageRpmVolMount := volume.GetVolumes(apicommon.SysimageRpmDirVolumeName, apicommon.SysimageRpmDirVolumePath, apicommon.SysimageRpmDirMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&hostSysimageRpmVolMount, apicommonv1.CoreAgentContainerName)
+		volMgr.AddVolume(&hostSysimageRpmVol)
+
 		hostRedhatReleaseVol, hostRedhatReleaseVolMount := volume.GetVolumes(apicommon.RedhatReleaseVolumeName, apicommon.RedhatReleaseVolumePath, apicommon.RedhatReleaseMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&hostRedhatReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&hostRedhatReleaseVol)
