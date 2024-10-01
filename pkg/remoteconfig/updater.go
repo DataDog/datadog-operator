@@ -42,7 +42,7 @@ const (
 type RemoteConfigUpdater struct {
 	kubeClient  kubeclient.Client
 	rcClient    *client.Client
-	rcService   *service.Service
+	rcService   *service.CoreAgentService
 	serviceConf RcServiceConfiguration
 	logger      logr.Logger
 }
@@ -138,7 +138,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		[]string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)},
+		func() []string { return []string{"cluster_name:" + r.serviceConf.clusterName} },
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),

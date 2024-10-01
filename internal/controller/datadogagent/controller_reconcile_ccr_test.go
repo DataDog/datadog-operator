@@ -104,10 +104,6 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 				},
 			},
 			wantDeployment: &appsv1.DeploymentList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DeploymentList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.Deployment{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -155,10 +151,6 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 				},
 			},
 			wantDeployment: &appsv1.DeploymentList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DeploymentList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.Deployment{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -203,10 +195,6 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 				},
 			},
 			wantDeployment: &appsv1.DeploymentList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DeploymentList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.Deployment{
 					{
 						ObjectMeta: metav1.ObjectMeta{
