@@ -8,7 +8,7 @@ package merger
 import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 )
 
 // PodSecurityManager use to manage Security resources.

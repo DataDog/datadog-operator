@@ -6,6 +6,7 @@
 package equality
 
 import (
+	psppolicyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -216,8 +217,8 @@ func IsEqualNetworkPolicies(objA, objB client.Object) bool {
 
 // IsEqualPodSecurityPolicies return true if the two PodSecurityPolicies are equal
 func IsEqualPodSecurityPolicies(objA, objB client.Object) bool {
-	a, okA := objA.(*policyv1beta1.PodSecurityPolicy)
-	b, okB := objB.(*policyv1beta1.PodSecurityPolicy)
+	a, okA := objA.(*psppolicyv1beta1.PodSecurityPolicy)
+	b, okB := objB.(*psppolicyv1beta1.PodSecurityPolicy)
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
 	}
