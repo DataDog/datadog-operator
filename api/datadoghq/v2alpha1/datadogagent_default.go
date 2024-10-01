@@ -16,6 +16,7 @@ const (
 	defaultSite       string = "datadoghq.com"
 	defaultEuropeSite string = "datadoghq.eu"
 	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultAzureSite  string = "us3.datadoghq.com"
 	defaultGovSite    string = "ddog-gov.com"
 	defaultLogLevel   string = "info"
 
@@ -140,6 +141,8 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAsiaImageRegistry)
+		case defaultAzureSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAzureImageRegistry)
 		case defaultGovSite:
 			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultGovImageRegistry)
 		default:
