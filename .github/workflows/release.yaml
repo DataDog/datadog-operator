@@ -131,17 +131,17 @@ jobs:
           mkdir -p ./dist/darwin
           mkdir -p ./dist/windows
       - name: Download linux binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: kubectl-datadog-linux
           path: ./tmp-build/linux
       - name: Download darwin binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: kubectl-datadog-darwin
           path: ./tmp-build/darwin
       - name: Download windows binaries
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: kubectl-datadog-windows
           path: ./tmp-build/windows
