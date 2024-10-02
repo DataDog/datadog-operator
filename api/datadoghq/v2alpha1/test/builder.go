@@ -602,7 +602,7 @@ func (builder *DatadogAgentBuilder) initOTLP() {
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostportenabled bool, customhostport int32, endpoint string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostPortEnabled bool, customHostPort int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{
 		Enabled: apiutils.NewBoolPointer(enabled),
