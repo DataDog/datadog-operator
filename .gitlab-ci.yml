@@ -387,35 +387,35 @@ trigger_custom_operator_check_image_staging:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
 
-# trigger_e2e_operator_image:
-#   stage: release
-#   rules: !reference [.on_run_e2e]
-#   trigger:
-#     project: DataDog/public-images
-#     branch: main
-#     strategy: depend
-#   variables:
-#     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-#     IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-#     IMG_REGISTRIES: agent-qa
+trigger_e2e_operator_image:
+  stage: release
+  rules: !reference [.on_run_e2e]
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
 
-# e2e:
-#   extends: .new_e2e_template
-#   variables:
-#     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-#   needs:
-#     - "trigger_e2e_operator_image"
-#   rules: !reference [.on_run_e2e]
-#   parallel:
-#     matrix:
-#       - K8S_VERSION:
-#           - "1.19"
-#           - "1.22"
-#           - "1.24"
-#           - "1.25"
-#           - "1.26"
-#   script:
-#     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
+e2e:
+  extends: .new_e2e_template
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  needs:
+    - "trigger_e2e_operator_image"
+  rules: !reference [.on_run_e2e]
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+  script:
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 
 # Preflight now supports multiarch image checks
@@ -514,16 +514,15 @@ publish_nightly_workflow:
 publish_release_candidate_workflow:
   stage: deploy
   rules:
-    # - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG'
-    - if: '$CI_COMMIT_BRANCH == "celene/rc_deploy"'
-      when: manual
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_TAG'
+      when: manual # TODO: change this to on_success when feeling confident
     - when: never
-  # needs:
-  #   - trigger_internal_operator_image
-  #   - trigger_internal_operator_check_image
+  needs:
+    - trigger_internal_operator_image
+    - trigger_internal_operator_check_image
   trigger:
     project: DataDog/k8s-datadog-agent-ops
-    branch: celene/trigger_operator_rc
+    branch: main
     strategy: depend
     forward:
       pipeline_variables: true
@@ -534,9 +533,4 @@ publish_release_candidate_workflow:
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
-    OPERATOR_IMAGE_TAG: "v1-9-0-rc-3" #$CI_COMMIT_REF_NAME
-    # BAZEL_TARGET: $BAZEL_TARGET
-    # DDR: $DDR
-    # TARGET_ENV: $TARGET_ENV
-    # CONDUCTOR_TARGET: $CONDUCTOR_TARGET
-    # DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
+    OPERATOR_IMAGE_TAG: $CI_COMMIT_REF_SLUG
