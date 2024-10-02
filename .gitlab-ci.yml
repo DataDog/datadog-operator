@@ -533,7 +533,7 @@ publish_release_candidate_workflow:
     ENVIRONMENTS: "experimental"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
-    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_rc"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
     OPERATOR_IMAGE_TAG: "v1-9-0-rc-3" #$CI_COMMIT_REF_NAME
     # BAZEL_TARGET: $BAZEL_TARGET
     # DDR: $DDR
