@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -137,13 +136,13 @@ func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.Componen
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
 		policyName = componentagent.GetAgentName(dda)
-		suffix = apicommon.DefaultAgentResourceSuffix
+		suffix = v2alpha1.DefaultAgentResourceSuffix
 	case v2alpha1.ClusterAgentComponentName:
 		policyName = componentdca.GetClusterAgentName(dda)
-		suffix = apicommon.DefaultClusterAgentResourceSuffix
+		suffix = v2alpha1.DefaultClusterAgentResourceSuffix
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policyName = componentccr.GetClusterChecksRunnerName(dda)
-		suffix = apicommon.DefaultClusterChecksRunnerResourceSuffix
+		suffix = v2alpha1.DefaultClusterChecksRunnerResourceSuffix
 	}
 	podSelector = metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -169,7 +168,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 	return netv1.NetworkPolicyPort{
 		Port: &intstr.IntOrString{
 			Type:   intstr.Int,
-			IntVal: apicommon.DefaultClusterAgentServicePort,
+			IntVal: v2alpha1.DefaultClusterAgentServicePort,
 		},
 	}
 }
@@ -405,7 +404,7 @@ func ingressDogstatsd(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec
 					{
 						Ports: []cilium.PortProtocol{
 							{
-								Port:     strconv.Itoa(apicommon.DefaultDogstatsdPort),
+								Port:     strconv.Itoa(v2alpha1.DefaultDogstatsdPort),
 								Protocol: cilium.ProtocolUDP,
 							},
 						},
@@ -556,7 +555,7 @@ func egressCCRToDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.
 				ToEndpoints: []metav1.LabelSelector{
 					{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+							kubernetes.AppKubernetesInstanceLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
 							kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
 						},
 					},

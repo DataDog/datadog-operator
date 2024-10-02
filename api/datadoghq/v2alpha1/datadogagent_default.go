@@ -16,6 +16,7 @@ const (
 	defaultSite       string = "datadoghq.com"
 	defaultEuropeSite string = "datadoghq.eu"
 	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultAzureSite  string = "us3.datadoghq.com"
 	defaultGovSite    string = "ddog-gov.com"
 	defaultLogLevel   string = "info"
 
@@ -57,7 +58,6 @@ const (
 
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
-	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.DogstatsdSocketName
 
@@ -138,13 +138,15 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAsiaImageRegistry)
+		case defaultAzureSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultImageRegistry)
 		}
 	}
 
@@ -359,7 +361,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, defaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, DefaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {

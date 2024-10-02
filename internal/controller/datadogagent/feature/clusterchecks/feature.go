@@ -89,7 +89,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 					{
 						Port: &intstr.IntOrString{
 							Type:   intstr.Int,
-							IntVal: apicommon.DefaultClusterAgentServicePort,
+							IntVal: v2alpha1.DefaultClusterAgentServicePort,
 						},
 					},
 				},
@@ -149,7 +149,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  apicommon.DDExtraConfigProviders,
-			Value: apicommon.KubeServicesAndEndpointsConfigProviders,
+			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 	)
 
@@ -157,7 +157,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  apicommon.DDExtraListeners,
-			Value: apicommon.KubeServicesAndEndpointsListeners,
+			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	)
 
@@ -187,7 +187,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: apicommon.EndpointsChecksConfigProvider,
+				Value: v2alpha1.EndpointsChecksConfigProvider,
 			},
 		)
 	} else {
@@ -195,7 +195,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: apicommon.ClusterAndEndpointsConfigProviders,
+				Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 			},
 		)
 	}

@@ -171,11 +171,11 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 		},
 		{
 			Name:  apicommon.DDExtraConfigProviders,
-			Value: apicommon.KubeServicesAndEndpointsConfigProviders,
+			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 		{
 			Name:  apicommon.DDExtraListeners,
-			Value: apicommon.KubeServicesAndEndpointsListeners,
+			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	}
 
@@ -228,7 +228,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: apicommon.EndpointsChecksConfigProvider,
+					Value: v2alpha1.EndpointsChecksConfigProvider,
 				},
 			}
 
@@ -250,7 +250,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: apicommon.ClusterAndEndpointsConfigProviders,
+					Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 				},
 			}
 

@@ -2050,6 +2050,10 @@ spec:
                       description: |-
                         Registry is the image registry to use for all Agent images.
                         Use 'public.ecr.aws/datadog' for AWS ECR.
+                        Use 'datadoghq.azurecr.io' for Azure Container Registry.
+                        Use 'gcr.io/datadoghq' for Google Container Registry.
+                        Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region.
+                        Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region.
                         Use 'docker.io/datadog' for DockerHub.
                         Default: 'gcr.io/datadoghq'
                       type: string
@@ -3783,6 +3787,46 @@ spec:
                         x-kubernetes-list-map-keys:
                           - name
                         x-kubernetes-list-type: map
+                      envFrom:
+                        description: |-
+                          EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables.
+                          Priority is env > envFrom.
+                        items:
+                          description: EnvFromSource represents the source of a set of ConfigMaps
+                          properties:
+                            configMapRef:
+                              description: The ConfigMap to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap must be defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            prefix:
+                              description: An optional identifier to prepend to each key in the ConfigMap. Must be a C_IDENTIFIER.
+                              type: string
+                            secretRef:
+                              description: The Secret to select from
+                              properties:
+                                name:
+                                  description: |-
+                                    Name of the referent.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind, uid?
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret must be defined
+                                  type: boolean
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
                       extraChecksd:
                         description: |-
                           Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
