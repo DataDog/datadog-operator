@@ -126,19 +126,7 @@ func TestAddEnvFromSourceFromToContainer(t *testing.T) {
 }
 
 func TestAddEnvFromVarWithMergeFunc(t *testing.T) {
-	agentContainer := &corev1.Container{
-		Name: string(common.CoreAgentContainerName),
-	}
-	clusterAgentContainer := &corev1.Container{
-		Name: string(common.ClusterAgentContainerName),
-	}
-	clusterChecksContainer := &corev1.Container{
-		Name: string(common.ClusterChecksRunnersContainerName),
-	}
-	podTmpl := corev1.PodTemplateSpec{
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{*agentContainer, *clusterAgentContainer, *clusterChecksContainer},
-		}}
+	podTmpl := corev1.PodTemplateSpec{}
 	envFromVarFoo := &corev1.EnvFromSource{
 		Prefix: "FOO",
 		ConfigMapRef: &corev1.ConfigMapEnvSource{
