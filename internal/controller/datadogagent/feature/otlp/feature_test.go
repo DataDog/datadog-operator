@@ -270,6 +270,7 @@ func TestOTLPFeature(t *testing.T) {
 			DDA: newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  0,
 				EndpointGRPC:        "0.0.0.0:4317",
 			}),
 			WantConfigure: true,
@@ -295,6 +296,7 @@ func TestOTLPFeature(t *testing.T) {
 			DDA: newAgentSingleContainer(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  0,
 				EndpointGRPC:        "0.0.0.0:4317",
 			}),
 			WantConfigure: true,
@@ -320,6 +322,7 @@ func TestOTLPFeature(t *testing.T) {
 			DDA: newAgent(Settings{
 				EnabledHTTP:         true,
 				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  0,
 				EndpointHTTP:        "somehostname:4318",
 				APM:                 true,
 			}),
@@ -347,6 +350,7 @@ func TestOTLPFeature(t *testing.T) {
 			DDA: newAgentSingleContainer(Settings{
 				EnabledHTTP:         true,
 				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  0,
 				EndpointHTTP:        "somehostname:4318",
 				APM:                 true,
 			}),
