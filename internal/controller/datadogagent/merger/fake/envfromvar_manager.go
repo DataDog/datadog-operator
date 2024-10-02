@@ -54,7 +54,6 @@ func (_m *EnvFromVarManager) AddEnvFromVarToInitContainer(containerName common.A
 	}
 }
 
-// TODO: FIX
 // AddEnvFromVarToContainerWithMergeFunc provides a mock function with given fields: containerName, newEnvFromVar, mergeFunc
 func (_m *EnvFromVarManager) AddEnvFromVarToContainerWithMergeFunc(containerName common.AgentContainerName, newEnvFromVar *v1.EnvFromSource, mergeFunc merger.EnvFromSourceFromMergeFunction) error {
 	found := false
