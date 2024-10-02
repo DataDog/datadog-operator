@@ -75,9 +75,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.grpcEnabled = true
 	}
 	if otlp.Receiver.Protocols.GRPC.HostPortConfig != nil {
-		if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled) {
-			f.grpcHostPortEnabled = *otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled
-		}
+		f.grpcHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled)
 		if otlp.Receiver.Protocols.GRPC.HostPortConfig.Port != nil {
 			f.grpcCustomHostPort = *otlp.Receiver.Protocols.GRPC.HostPortConfig.Port
 		}
@@ -90,9 +88,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.httpEnabled = true
 	}
 	if otlp.Receiver.Protocols.HTTP.HostPortConfig != nil {
-		if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled) {
-			f.httpHostPortEnabled = *otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled
-		}
+		f.httpHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled)
 		if otlp.Receiver.Protocols.HTTP.HostPortConfig.Port != nil {
 			f.httpCustomHostPort = *otlp.Receiver.Protocols.HTTP.HostPortConfig.Port
 		}
@@ -294,9 +290,9 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Protocol:      corev1.ProtocolTCP,
 		}
 		if f.grpcHostPortEnabled {
-			otlpgrpcPort.HostPort = f.grpcCustomHostPort
-			if f.grpcCustomHostPort == 0 {
-				otlpgrpcPort.HostPort = port
+			otlpgrpcPort.HostPort = port
+			if f.grpcCustomHostPort != 0 {
+				otlpgrpcPort.HostPort = f.grpcCustomHostPort
 			}
 		}
 		envVar := &corev1.EnvVar{
@@ -322,17 +318,16 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Protocol:      corev1.ProtocolTCP,
 		}
 		if f.httpHostPortEnabled {
-			otlphttpPort.HostPort = f.httpCustomHostPort
-			if f.httpCustomHostPort == 0 {
-				otlphttpPort.HostPort = port
+			otlphttpPort.HostPort = port
+			if f.httpCustomHostPort != 0 {
+				otlphttpPort.HostPort = f.httpCustomHostPort
 			}
 		}
-		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-
+		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 		if f.usingAPM {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
