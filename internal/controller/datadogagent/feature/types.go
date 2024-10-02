@@ -241,6 +241,8 @@ type PodTemplateManagers interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
 	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
+	// EnvVarFrom used to access the EnvVarFromManager to manage the Environment variable defined in the PodTemplateSpec.
+	EnvFromVar() merger.EnvFromVarManager
 	// Volume used to access the VolumeManager to manage the Volume defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
 	// VolumeMount used to access the VolumeMountManager to manage the VolumeMount defined in the PodTemplateSpec.
@@ -259,6 +261,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 	return &podTemplateManagerImpl{
 		podTmpl:                podTmpl,
 		envVarManager:          merger.NewEnvVarManager(podTmpl),
+		envFromVarManager:      merger.NewEnvFromVarManager(podTmpl),
 		volumeManager:          merger.NewVolumeManager(podTmpl),
 		volumeMountManager:     merger.NewVolumeMountManager(podTmpl),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
@@ -270,6 +273,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 type podTemplateManagerImpl struct {
 	podTmpl                *corev1.PodTemplateSpec
 	envVarManager          merger.EnvVarManager
+	envFromVarManager      merger.EnvFromVarManager
 	volumeManager          merger.VolumeManager
 	volumeMountManager     merger.VolumeMountManager
 	securityContextManager merger.SecurityContextManager
@@ -283,6 +287,10 @@ func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
 
 func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 	return impl.envVarManager
+}
+
+func (impl *podTemplateManagerImpl) EnvFromVar() merger.EnvFromVarManager {
+	return impl.envFromVarManager
 }
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {

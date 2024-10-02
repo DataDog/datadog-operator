@@ -79,7 +79,7 @@ The following commands delete the monitor from your Datadog account and all the 
 
 ```shell
 kubectl delete datadogmonitor datadog-monitor-test
-helm delete datadog
+helm delete my-datadog-operator
 ```
 
 ## Usage and Troubleshooting

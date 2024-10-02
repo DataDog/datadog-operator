@@ -85,7 +85,7 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
-		Value: apicommon.DefaultSystemProbeSocketPath,
+		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)

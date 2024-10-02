@@ -74,7 +74,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = v2alpha1.GetConfName(dda, nil, apicommon.DefaultKubeAPIServerConf)
+				f.configMapName = v2alpha1.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
 			} else {

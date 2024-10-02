@@ -108,7 +108,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.failurePolicy = *ac.FailurePolicy
 		}
 
-		f.webhookName = apicommon.DefaultAdmissionControllerWebhookName
+		f.webhookName = v2alpha1.DefaultAdmissionControllerWebhookName
 		if ac.WebhookName != nil {
 			f.webhookName = *ac.WebhookName
 		}
@@ -141,7 +141,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
-			f.agentSidecarConfig.imageName = apicommon.DefaultAgentImageName
+			f.agentSidecarConfig.imageName = v2alpha1.DefaultAgentImageName
 			f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
@@ -206,14 +206,14 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	// service
 	selector := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      f.owner.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
 	}
 	port := []corev1.ServicePort{
 		{
 			Name:       apicommon.AdmissionControllerPortName,
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(apicommon.DefaultAdmissionControllerTargetPort),
-			Port:       apicommon.DefaultAdmissionControllerServicePort,
+			TargetPort: intstr.FromInt(v2alpha1.DefaultAdmissionControllerTargetPort),
+			Port:       v2alpha1.DefaultAdmissionControllerServicePort,
 		},
 	}
 	if err := managers.ServiceManager().AddService(f.serviceName, ns, selector, port, nil); err != nil {
