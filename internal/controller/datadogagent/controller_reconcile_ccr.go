@@ -132,8 +132,8 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.L
 	deploymentList := appsv1.DeploymentList{}
 	validDeploymentNames := map[string]struct{}{}
 
-	for provider := range providerList {
-		validDeploymentNames[kubernetes.GetAgentNameWithProvider(deploymentName, provider)] = struct{}{}
+	validDeploymentNames = map[string]struct{}{
+		deploymentName: {},
 	}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err
