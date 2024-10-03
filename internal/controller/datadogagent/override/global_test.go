@@ -355,7 +355,7 @@ func assertSecretBackendGlobalPerms(t testing.TB, resourcesManager feature.Resou
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + apicommon.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
@@ -414,7 +414,7 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + apicommon.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
