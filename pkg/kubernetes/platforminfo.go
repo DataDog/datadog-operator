@@ -120,3 +120,7 @@ func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string,
 	other = platformInfo.apiOtherVersions[name]
 	return preferred, other
 }
+
+func (platformInfo *PlatformInfo) GetVersionInfo() *version.Info {
+	return platformInfo.versionInfo
+}
