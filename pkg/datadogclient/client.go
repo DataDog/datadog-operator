@@ -111,8 +111,10 @@ func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) 
 	)
 
 	apiURL := ""
-	if os.Getenv(config.DDURLEnvVar) != "" {
-		apiURL = os.Getenv(config.DDURLEnvVar)
+	if os.Getenv(apicommon.DDddURL) != "" {
+		apiURL = os.Getenv(apicommon.DDddURL)
+	} else if os.Getenv(apicommon.DDURL) != "" {
+		apiURL = os.Getenv(apicommon.DDURL)
 	} else if site := os.Getenv(apicommon.DDSite); site != "" {
 		apiURL = prefix + strings.TrimSpace(site)
 	}

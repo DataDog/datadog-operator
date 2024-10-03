@@ -70,11 +70,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Registry is the image registry to use for all Agent images.
-	if *config.Registry != apicommon.DefaultImageRegistry {
-		image := apicommon.DefaultAgentImageName
+	if *config.Registry != v2alpha1.DefaultImageRegistry {
+		image := v2alpha1.DefaultAgentImageName
 		version := defaulting.AgentLatestVersion
 		if componentName == v2alpha1.ClusterAgentComponentName {
-			image = apicommon.DefaultClusterAgentImageName
+			image = v2alpha1.DefaultClusterAgentImageName
 			version = defaulting.ClusterAgentLatestVersion
 		}
 		fullImage := fmt.Sprintf("%s/%s:%s", *config.Registry, image, version)

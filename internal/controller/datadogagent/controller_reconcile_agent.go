@@ -347,7 +347,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		ctx,
 		agentPods,
 		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+			apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 		}),
 		client.InNamespace(ddaNamespace),
 	)
@@ -394,7 +394,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
 	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
 	matchLabels := client.MatchingLabels{
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 
