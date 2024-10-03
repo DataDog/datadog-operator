@@ -136,7 +136,7 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2a
 }
 
 // cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
-func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, providerList map[string]struct{}) error {
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",

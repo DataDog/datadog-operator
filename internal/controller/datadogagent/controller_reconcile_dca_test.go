@@ -89,7 +89,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 		name           string
 		description    string
 		existingAgents []client.Object
-		providerList   map[string]struct{}
 		wantDeployment *appsv1.DeploymentList
 	}{
 		{
@@ -106,7 +105,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 					},
 				},
 			},
-			providerList: map[string]struct{}{},
 			wantDeployment: &appsv1.DeploymentList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "DeploymentList",
@@ -158,7 +156,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 					},
 				},
 			},
-			providerList: map[string]struct{}{},
 			wantDeployment: &appsv1.DeploymentList{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "DeploymentList",
@@ -206,9 +203,6 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 						},
 					},
 				},
-			},
-			providerList: map[string]struct{}{
-				kubernetes.LegacyProvider: {},
 			},
 			wantDeployment: &appsv1.DeploymentList{
 				TypeMeta: metav1.TypeMeta{
@@ -282,7 +276,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 			}
 			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
 
-			err := r.cleanupOldDCADeployments(ctx, logger, &dda, resourcesManager, &ddaStatus, tt.providerList)
+			err := r.cleanupOldDCADeployments(ctx, logger, &dda, resourcesManager, &ddaStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

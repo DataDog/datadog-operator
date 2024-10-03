@@ -200,11 +200,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DaemonSets")
 	}
-	if err = r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus, providerList); err != nil {
+	if err = r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DCA Deployments")
 	}
-	if err = r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus, providerList); err != nil {
+	if err = r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old CCR Deployments")
 	}

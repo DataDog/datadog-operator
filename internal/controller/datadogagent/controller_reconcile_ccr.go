@@ -123,7 +123,7 @@ func deleteStatusWithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAge
 }
 
 // cleanupOldCCRDeployments deletes CCR deployments when a CCR Deployment's name is changed using clusterChecksRunner name override
-func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, providerList map[string]struct{}) error {
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
