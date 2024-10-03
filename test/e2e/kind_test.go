@@ -138,9 +138,6 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		if extraKustomizeResources == nil {
-			extraKustomizeResources = []string{defaultMgrFileName}
-		}
 		updateKustomization(kustomizeDirPath, extraKustomizeResources)
 
 		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
