@@ -8,7 +8,7 @@ Remote Configuration in the Datadog Operator allows you to enable features in a 
 
 You can create a policy on the Fleet Automation page to enable a feature for an eligible scope. The Datadog Operator then updates the Agents with the necessary configuration.
 
-## Prerequisites
+## Prerequisites 
 
 * Datadog Operator v1.7.0+
 
