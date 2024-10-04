@@ -1965,6 +1965,11 @@ func (in *OTLPGRPCConfig) DeepCopyInto(out *OTLPGRPCConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.HostPortConfig != nil {
+		in, out := &in.HostPortConfig, &out.HostPortConfig
+		*out = new(HostPortConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Endpoint != nil {
 		in, out := &in.Endpoint, &out.Endpoint
 		*out = new(string)
@@ -1989,6 +1994,11 @@ func (in *OTLPHTTPConfig) DeepCopyInto(out *OTLPHTTPConfig) {
 		in, out := &in.Enabled, &out.Enabled
 		*out = new(bool)
 		**out = **in
+	}
+	if in.HostPortConfig != nil {
+		in, out := &in.HostPortConfig, &out.HostPortConfig
+		*out = new(HostPortConfig)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Endpoint != nil {
 		in, out := &in.Endpoint, &out.Endpoint

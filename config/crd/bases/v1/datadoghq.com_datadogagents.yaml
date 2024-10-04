@@ -454,9 +454,7 @@ spec:
                             Port Default: 8126
                           properties:
                             enabled:
-                              description: |-
-                                Enabled enables host port configuration
-                                Default: false
+                              description: Enabled enables host port configuration
                               type: boolean
                             hostPort:
                               description: |-
@@ -760,9 +758,7 @@ spec:
                             Port Default: 8125
                           properties:
                             enabled:
-                              description: |-
-                                Enabled enables host port configuration
-                                Default: false
+                              description: Enabled enables host port configuration
                               type: boolean
                             hostPort:
                               description: |-
@@ -1270,7 +1266,7 @@ spec:
                                   description: GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
                                   properties:
                                     enabled:
-                                      description: Enable the OTLP/gRPC endpoint.
+                                      description: Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.
                                       type: boolean
                                     endpoint:
                                       description: |-
@@ -1279,18 +1275,48 @@ spec:
                                         The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`).
                                         Default: `0.0.0.0:4317`.
                                       type: string
+                                    hostPortConfig:
+                                      description: |-
+                                        Enable hostPort for OTLP/gRPC
+                                        Default: true
+                                      properties:
+                                        enabled:
+                                          description: Enabled enables host port configuration
+                                          type: boolean
+                                        hostPort:
+                                          description: |-
+                                            Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+                                            If HostNetwork is enabled, this value must match the ContainerPort.
+                                          format: int32
+                                          type: integer
+                                      type: object
                                   type: object
                                 http:
                                   description: HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
                                   properties:
                                     enabled:
-                                      description: Enable the OTLP/HTTP endpoint.
+                                      description: Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.
                                       type: boolean
                                     endpoint:
                                       description: |-
                                         Endpoint for OTLP/HTTP.
                                         Default: '0.0.0.0:4318'.
                                       type: string
+                                    hostPortConfig:
+                                      description: |-
+                                        Enable hostPorts for OTLP/HTTP
+                                        Default: true
+                                      properties:
+                                        enabled:
+                                          description: Enabled enables host port configuration
+                                          type: boolean
+                                        hostPort:
+                                          description: |-
+                                            Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+                                            If HostNetwork is enabled, this value must match the ContainerPort.
+                                          format: int32
+                                          type: integer
+                                      type: object
                                   type: object
                               type: object
                           type: object
@@ -6503,9 +6529,7 @@ spec:
                                 Port Default: 8126
                               properties:
                                 enabled:
-                                  description: |-
-                                    Enabled enables host port configuration
-                                    Default: false
+                                  description: Enabled enables host port configuration
                                   type: boolean
                                 hostPort:
                                   description: |-
@@ -6809,9 +6833,7 @@ spec:
                                 Port Default: 8125
                               properties:
                                 enabled:
-                                  description: |-
-                                    Enabled enables host port configuration
-                                    Default: false
+                                  description: Enabled enables host port configuration
                                   type: boolean
                                 hostPort:
                                   description: |-
@@ -7319,7 +7341,7 @@ spec:
                                       description: GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
                                       properties:
                                         enabled:
-                                          description: Enable the OTLP/gRPC endpoint.
+                                          description: Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.
                                           type: boolean
                                         endpoint:
                                           description: |-
@@ -7328,18 +7350,48 @@ spec:
                                             The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`).
                                             Default: `0.0.0.0:4317`.
                                           type: string
+                                        hostPortConfig:
+                                          description: |-
+                                            Enable hostPort for OTLP/gRPC
+                                            Default: true
+                                          properties:
+                                            enabled:
+                                              description: Enabled enables host port configuration
+                                              type: boolean
+                                            hostPort:
+                                              description: |-
+                                                Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+                                                If HostNetwork is enabled, this value must match the ContainerPort.
+                                              format: int32
+                                              type: integer
+                                          type: object
                                       type: object
                                     http:
                                       description: HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
                                       properties:
                                         enabled:
-                                          description: Enable the OTLP/HTTP endpoint.
+                                          description: Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.
                                           type: boolean
                                         endpoint:
                                           description: |-
                                             Endpoint for OTLP/HTTP.
                                             Default: '0.0.0.0:4318'.
                                           type: string
+                                        hostPortConfig:
+                                          description: |-
+                                            Enable hostPorts for OTLP/HTTP
+                                            Default: true
+                                          properties:
+                                            enabled:
+                                              description: Enabled enables host port configuration
+                                              type: boolean
+                                            hostPort:
+                                              description: |-
+                                                Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+                                                If HostNetwork is enabled, this value must match the ContainerPort.
+                                              format: int32
+                                              type: integer
+                                          type: object
                                       type: object
                                   type: object
                               type: object

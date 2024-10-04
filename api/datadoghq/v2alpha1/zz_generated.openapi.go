@@ -1153,9 +1153,15 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the OTLP/gRPC endpoint.",
+							Description: "Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPort for OTLP/gRPC Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
 					"endpoint": {
@@ -1168,6 +1174,8 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
@@ -1180,9 +1188,15 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the OTLP/HTTP endpoint.",
+							Description: "Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPorts for OTLP/HTTP Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
 					"endpoint": {
@@ -1195,6 +1209,8 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
