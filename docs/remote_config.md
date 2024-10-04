@@ -2,13 +2,13 @@
 
 This feature was introduced in Datadog Operator v1.7.0 and is currently in beta.
 
-## Overview 
+## Overview
 
 Remote Configuration in the Datadog Operator allows you to enable features in a Kubernetes cluster from Datadog.
 
 You can create a policy on the Fleet Automation page to enable a feature for an eligible scope. The Datadog Operator then updates the Agents with the necessary configuration.
 
-## Prerequisites 
+## Prerequisites
 
 * Datadog Operator v1.7.0+
 
