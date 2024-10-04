@@ -1,4 +1,4 @@
-# How to contribute 
+# How to contribute
 
 # Testing the Operator for development 
 
