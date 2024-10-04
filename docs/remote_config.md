@@ -2,7 +2,7 @@
 
 This feature was introduced in Datadog Operator v1.7.0 and is currently in beta.
 
-## Overview
+## Overview 
 
 Remote Configuration in the Datadog Operator allows you to enable features in a Kubernetes cluster from Datadog.
 
