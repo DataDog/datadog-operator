@@ -1,6 +1,6 @@
 # How to contribute
 
-# Testing the Operator for development
+# Testing the Operator for development 
 
 The recommended way to test the Operator is by creating a [kind](https://kind.sigs.k8s.io/) cluster.
 
