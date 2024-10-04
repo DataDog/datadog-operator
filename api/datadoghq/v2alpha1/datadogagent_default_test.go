@@ -69,6 +69,21 @@ func Test_defaultGlobal(t *testing.T) {
 			},
 		},
 		{
+			name: "test registry defaulting based on site - Azure",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site: apiutils.NewStringPointer(defaultAzureSite),
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site:     apiutils.NewStringPointer(defaultAzureSite),
+					Registry: apiutils.NewStringPointer(DefaultAzureImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
 			name: "test registry defaulting based on site - Gov",
 			ddaSpec: &DatadogAgentSpec{
 				Global: &GlobalConfig{

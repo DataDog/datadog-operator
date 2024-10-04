@@ -128,8 +128,10 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	platformInfo := managers.Store().GetPlatformInfo()
+	versionInfo := platformInfo.GetVersionInfo()
 	if f.grpcEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.grpcEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -150,7 +152,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 		}
 	}
 	if f.httpEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.httpEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
