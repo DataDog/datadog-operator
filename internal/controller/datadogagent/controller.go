@@ -47,6 +47,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/sbom"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/usm"
 )

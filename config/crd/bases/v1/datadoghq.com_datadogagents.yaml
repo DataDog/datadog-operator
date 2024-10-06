@@ -1410,6 +1410,15 @@ spec:
                               type: boolean
                           type: object
                       type: object
+                    serviceDiscovery:
+                      description: ServiceDiscovery
+                      properties:
+                        enabled:
+                          description: |-
+                            Enables the service discover check.
+                            Default: false
+                          type: boolean
+                      type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
                       properties:
@@ -7484,6 +7493,15 @@ spec:
                                     Default: false
                                   type: boolean
                               type: object
+                          type: object
+                        serviceDiscovery:
+                          description: ServiceDiscovery
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the service discover check.
+                                Default: false
+                              type: boolean
                           type: object
                         tcpQueueLength:
                           description: TCPQueueLength configuration.
