@@ -490,7 +490,7 @@ type USMFeatureConfig struct {
 
 // ServiceDiscoveryFeatureConfig configures the service discovery check feature.
 type ServiceDiscoveryFeatureConfig struct {
-	// Enables the service discover check.
+	// Enables the service discovery check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`

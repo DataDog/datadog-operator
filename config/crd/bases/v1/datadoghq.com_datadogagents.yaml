@@ -1415,7 +1415,7 @@ spec:
                       properties:
                         enabled:
                           description: |-
-                            Enables the service discover check.
+                            Enables the service discovery check.
                             Default: false
                           type: boolean
                       type: object
@@ -7499,7 +7499,7 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Enables the service discover check.
+                                Enables the service discovery check.
                                 Default: false
                               type: boolean
                           type: object
