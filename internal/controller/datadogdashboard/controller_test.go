@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubectl/pkg/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -77,7 +76,7 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, db); err != nil {
 					return err
 				}
-				assert.Contains(t, db.GetFinalizers(), "finalizer.dashboard.datadoghq.com")
+				assert.Contains(t, db.GetFinalizers(), "finalizer.datadoghq.com/dashboard")
 				return nil
 			},
 		},
@@ -188,7 +187,6 @@ func TestReconcileDatadogDashboard_Reconcile(t *testing.T) {
 				scheme:        s,
 				recorder:      recorder,
 				log:           logf.Log.WithName(tt.name),
-				versionInfo:   &version.Info{},
 			}
 
 			// First dashboard action

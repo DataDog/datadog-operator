@@ -6,7 +6,6 @@
 package test
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -69,6 +68,12 @@ func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
 // Common
 func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 	builder.datadogAgent.Name = name
+	return builder
+}
+
+// Global environment variable
+func (builder *DatadogAgentBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Env = envs
 	return builder
 }
 
@@ -172,7 +177,7 @@ func (builder *DatadogAgentBuilder) initSidecarInjection() {
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection = &v2alpha1.AgentSidecarInjectionConfig{}
 	}
 	if builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image == nil {
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &common.AgentImageConfig{}
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image = &v2alpha1.AgentImageConfig{}
 	}
 }
 
@@ -597,19 +602,27 @@ func (builder *DatadogAgentBuilder) initOTLP() {
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, hostPortEnabled bool, customHostPort int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{
-		Enabled:  apiutils.NewBoolPointer(enabled),
+		Enabled: apiutils.NewBoolPointer(enabled),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: apiutils.NewBoolPointer(hostPortEnabled),
+			Port:    apiutils.NewInt32Pointer(customHostPort),
+		},
 		Endpoint: apiutils.NewStringPointer(endpoint),
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, hostPortEnabled bool, customHostPort int32, endpoint string) *DatadogAgentBuilder {
 	builder.initOTLP()
 	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.HTTP = &v2alpha1.OTLPHTTPConfig{
-		Enabled:  apiutils.NewBoolPointer(enabled),
+		Enabled: apiutils.NewBoolPointer(enabled),
+		HostPortConfig: &v2alpha1.HostPortConfig{
+			Enabled: apiutils.NewBoolPointer(hostPortEnabled),
+			Port:    apiutils.NewInt32Pointer(customHostPort),
+		},
 		Endpoint: apiutils.NewStringPointer(endpoint),
 	}
 	return builder
@@ -720,7 +733,7 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.Kubelet = &common.KubeletConfig{
+	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
 		TLSVerify:   apiutils.NewBoolPointer(tlsVerify),
 		HostCAPath:  hostCAPath,
 		AgentCAPath: agentCAPath,
@@ -775,6 +788,34 @@ func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *Da
 func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Registry = apiutils.NewStringPointer(registry)
 
+	return builder
+}
+
+// Global SecretBackend
+
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
+		Command:                 apiutils.NewStringPointer(command),
+		Args:                    apiutils.NewStringPointer(args),
+		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		EnableGlobalPermissions: apiutils.NewBoolPointer(true),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
+		Command:                 apiutils.NewStringPointer(command),
+		Args:                    apiutils.NewStringPointer(args),
+		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		EnableGlobalPermissions: apiutils.NewBoolPointer(false),
+		Roles: []*v2alpha1.SecretBackendRolesConfig{
+			{
+				Namespace: apiutils.NewStringPointer(secretNs),
+				Secrets:   secretNames,
+			},
+		},
+	}
 	return builder
 }
 

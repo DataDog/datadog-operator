@@ -46,19 +46,19 @@ func UpdateProfileStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogA
 		newStatus.Applied = metav1.ConditionUnknown
 	}
 
-	if os.Getenv(common.SlowStartEnabled) == "true" {
-		if newStatus.SlowStart == nil {
-			logger.Error(fmt.Errorf("new slow start status empty"), "Unable to update profile status")
+	if os.Getenv(common.CreateStrategyEnabled) == "true" {
+		if newStatus.CreateStrategy == nil {
+			logger.Error(fmt.Errorf("new create strategy status empty"), "Unable to update profile status")
 			return
 		}
-		if newStatus.SlowStart.Status == datadoghqv1alpha1.InProgressStatus {
-			newStatus.SlowStart.Status = datadoghqv1alpha1.WaitingStatus
+		if newStatus.CreateStrategy.Status == datadoghqv1alpha1.InProgressStatus {
+			newStatus.CreateStrategy.Status = datadoghqv1alpha1.WaitingStatus
 		}
-		if profile.Status.SlowStart == nil || profile.Status.SlowStart.Status == "" || profile.Status.SlowStart.Status != newStatus.SlowStart.Status {
-			newStatus.SlowStart.LastTransition = &now
+		if profile.Status.CreateStrategy == nil || profile.Status.CreateStrategy.Status == "" || profile.Status.CreateStrategy.Status != newStatus.CreateStrategy.Status {
+			newStatus.CreateStrategy.LastTransition = &now
 		}
 	} else {
-		newStatus.SlowStart = nil
+		newStatus.CreateStrategy = nil
 	}
 
 	profile.Status = newStatus

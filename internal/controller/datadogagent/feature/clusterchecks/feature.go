@@ -7,7 +7,6 @@ package clusterchecks
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
@@ -90,7 +89,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 					{
 						Port: &intstr.IntOrString{
 							Type:   intstr.Int,
-							IntVal: apicommon.DefaultClusterAgentServicePort,
+							IntVal: v2alpha1.DefaultClusterAgentServicePort,
 						},
 					},
 				},
@@ -139,7 +138,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 
 func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(
-		commonv1.ClusterAgentContainerName,
+		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  apicommon.DDClusterChecksEnabled,
 			Value: "true",
@@ -147,18 +146,18 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	)
 
 	managers.EnvVar().AddEnvVarToContainer(
-		commonv1.ClusterAgentContainerName,
+		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  apicommon.DDExtraConfigProviders,
-			Value: apicommon.KubeServicesAndEndpointsConfigProviders,
+			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 	)
 
 	managers.EnvVar().AddEnvVarToContainer(
-		commonv1.ClusterAgentContainerName,
+		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  apicommon.DDExtraListeners,
-			Value: apicommon.KubeServicesAndEndpointsListeners,
+			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	)
 
@@ -173,22 +172,22 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *clusterChecksFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(commonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(commonv1.CoreAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *clusterChecksFeature) manageNodeAgent(agentContainerName commonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: apicommon.EndpointsChecksConfigProvider,
+				Value: v2alpha1.EndpointsChecksConfigProvider,
 			},
 		)
 	} else {
@@ -196,7 +195,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName commonv1.Agent
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: apicommon.ClusterAndEndpointsConfigProviders,
+				Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 			},
 		)
 	}
@@ -207,7 +206,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName commonv1.Agent
 func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
-			commonv1.ClusterChecksRunnersContainerName,
+			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDClusterChecksEnabled,
 				Value: "true",
@@ -215,7 +214,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 		)
 
 		managers.EnvVar().AddEnvVarToContainer(
-			commonv1.ClusterChecksRunnersContainerName,
+			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
 				Value: apicommon.ClusterChecksConfigProvider,

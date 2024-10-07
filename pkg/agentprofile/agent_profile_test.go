@@ -11,10 +11,10 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -350,16 +350,16 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &common.UpdateStrategy{
+				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &common.RollingUpdate{
+					RollingUpdate: &apicommon.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
 					},
 				},
-				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					common.CoreAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.CoreAgentContainerName: {
 						Resources: &v1.ResourceRequirements{
 							Requests: v1.ResourceList{
 								v1.ResourceCPU: resource.MustParse("100m"),
@@ -551,37 +551,37 @@ func Test_labelsOverride(t *testing.T) {
 
 func Test_canLabel(t *testing.T) {
 	tests := []struct {
-		name      string
-		slowStart *v1alpha1.SlowStart
-		expected  bool
+		name           string
+		createStrategy *v1alpha1.CreateStrategy
+		expected       bool
 	}{
 		{
-			name:      "nil slow start",
-			slowStart: nil,
-			expected:  false,
+			name:           "nil create strategy",
+			createStrategy: nil,
+			expected:       false,
 		},
 		{
-			name:      "empty slow start",
-			slowStart: &v1alpha1.SlowStart{},
-			expected:  false,
+			name:           "empty create strategy",
+			createStrategy: &v1alpha1.CreateStrategy{},
+			expected:       false,
 		},
 		{
-			name: "completed slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "completed create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.CompletedStatus,
 			},
 			expected: true,
 		},
 		{
-			name: "in progress slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "in progress create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.InProgressStatus,
 			},
 			expected: true,
 		},
 		{
-			name: "waiting slow start status",
-			slowStart: &v1alpha1.SlowStart{
+			name: "waiting create strategy status",
+			createStrategy: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.WaitingStatus,
 			},
 			expected: false,
@@ -591,19 +591,19 @@ func Test_canLabel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			actual := canLabel(testLogger, tt.slowStart)
+			actual := canLabel(testLogger, tt.createStrategy)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }
-func Test_getSlowStartStatus(t *testing.T) {
+func Test_getCreateStrategyStatus(t *testing.T) {
 	now := metav1.NewTime(time.Now())
 	oneSecBefore := metav1.NewTime(now.Add(time.Duration(-1) * time.Second))
 	tests := []struct {
 		name              string
-		status            *v1alpha1.SlowStart
+		status            *v1alpha1.CreateStrategy
 		nodesNeedingLabel int
-		expectedStatus    v1alpha1.SlowStartStatus
+		expectedStatus    v1alpha1.CreateStrategyStatus
 	}{
 		{
 			name:              "nil status",
@@ -613,13 +613,13 @@ func Test_getSlowStartStatus(t *testing.T) {
 		},
 		{
 			name:              "empty status",
-			status:            &v1alpha1.SlowStart{},
+			status:            &v1alpha1.CreateStrategy{},
 			nodesNeedingLabel: 1,
 			expectedStatus:    "",
 		},
 		{
 			name: "non-empty status, no nodes need labeling",
-			status: &v1alpha1.SlowStart{
+			status: &v1alpha1.CreateStrategy{
 				Status: v1alpha1.InProgressStatus,
 			},
 			nodesNeedingLabel: 0,
@@ -627,7 +627,7 @@ func Test_getSlowStartStatus(t *testing.T) {
 		},
 		{
 			name: "non-empty status, waiting",
-			status: &v1alpha1.SlowStart{
+			status: &v1alpha1.CreateStrategy{
 				Status:         v1alpha1.WaitingStatus,
 				LastTransition: &oneSecBefore,
 			},
@@ -638,7 +638,7 @@ func Test_getSlowStartStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status := getSlowStartStatus(tt.status, tt.nodesNeedingLabel)
+			status := getCreateStrategyStatus(tt.status, tt.nodesNeedingLabel)
 			assert.Equal(t, tt.expectedStatus, status)
 		})
 	}
@@ -718,9 +718,9 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
 				PriorityClassName: apiutils.NewStringPointer("foo"),
-				UpdateStrategy: &common.UpdateStrategy{
+				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
-					RollingUpdate: &common.RollingUpdate{
+					RollingUpdate: &apicommon.RollingUpdate{
 						MaxUnavailable: &intstr.IntOrString{
 							IntVal: 10,
 						},
@@ -729,8 +729,8 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 				Labels: map[string]string{
 					"foo": "bar",
 				},
-				Containers: map[common.AgentContainerName]*v1alpha1.Container{
-					common.CoreAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					apicommon.CoreAgentContainerName: {
 						Env: []corev1.EnvVar{
 							{
 								Name:  "foo",
@@ -784,6 +784,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 		name                   string
 		dda                    *v2alpha1.DatadogAgent
 		profile                *v1alpha1.DatadogAgentProfile
+		edsOptions             *agent.ExtendedDaemonsetOptions
 		expectedMaxUnavailable int
 	}{
 		{
@@ -798,9 +799,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										IntVal: 5,
 									},
@@ -819,9 +820,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{},
 								},
 							},
@@ -838,9 +839,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										Type:   intstr.String,
 										StrVal: "10",
@@ -860,9 +861,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							UpdateStrategy: &common.UpdateStrategy{
+							UpdateStrategy: &apicommon.UpdateStrategy{
 								Type: "RollingUpdate",
-								RollingUpdate: &common.RollingUpdate{
+								RollingUpdate: &apicommon.RollingUpdate{
 									MaxUnavailable: &intstr.IntOrString{
 										IntVal: 5,
 									},
@@ -877,9 +878,9 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								UpdateStrategy: &common.UpdateStrategy{
+								UpdateStrategy: &apicommon.UpdateStrategy{
 									Type: "RollingUpdate",
-									RollingUpdate: &common.RollingUpdate{
+									RollingUpdate: &apicommon.RollingUpdate{
 										MaxUnavailable: &intstr.IntOrString{
 											Type:   intstr.String,
 											StrVal: "15%",
@@ -891,14 +892,76 @@ func TestGetMaxUnavailable(t *testing.T) {
 					},
 				},
 			},
+			edsOptions: &agent.ExtendedDaemonsetOptions{
+				MaxPodSchedulerFailure: "5",
+			},
 			expectedMaxUnavailable: 15,
+		},
+		{
+			name: "empty dda, empty profile, non-empty edsOptions, string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Name: apiutils.NewStringPointer("test"),
+						},
+					},
+				},
+			},
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								PriorityClassName: apiutils.NewStringPointer("test"),
+							},
+						},
+					},
+				},
+			},
+			edsOptions: &agent.ExtendedDaemonsetOptions{
+				MaxPodUnavailable: "50%",
+			},
+			expectedMaxUnavailable: 50,
+		},
+		{
+			name: "non-empty dda, non-empty profile with empty updatestrategy, string value",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							UpdateStrategy: &apicommon.UpdateStrategy{
+								Type: "RollingUpdate",
+								RollingUpdate: &apicommon.RollingUpdate{
+									MaxUnavailable: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "20%",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			profile: &v1alpha1.DatadogAgentProfile{
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								PriorityClassName: apiutils.NewStringPointer("test"),
+							},
+						},
+					},
+				},
+			},
+			expectedMaxUnavailable: 20,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testLogger := zap.New(zap.UseDevMode(true))
-			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100)
+			actualMaxUnavailable := GetMaxUnavailable(testLogger, tt.dda, tt.profile, 100, tt.edsOptions)
 			assert.Equal(t, tt.expectedMaxUnavailable, actualMaxUnavailable)
 		})
 	}

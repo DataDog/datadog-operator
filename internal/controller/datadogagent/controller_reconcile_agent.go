@@ -10,7 +10,6 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -220,7 +219,7 @@ func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha
 		return err
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-	event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+	event := buildEventInfo(ds.Name, ds.Namespace, kubernetes.DaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	removeStaleStatus(newStatus, ds.Name)
 
@@ -233,7 +232,7 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 		return err
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-	event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+	event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	removeStaleStatus(newStatus, eds.Name)
 
@@ -251,7 +250,7 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 	if ddaStatus != nil {
 		for i, dsStatus := range ddaStatus.AgentList {
 			if dsStatus.DaemonsetName == name {
-				newStatus := make([]*common.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
+				newStatus := make([]*datadoghqv2alpha1.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
 				newStatus = append(newStatus, ddaStatus.AgentList[:i]...)
 				ddaStatus.AgentList = append(newStatus, ddaStatus.AgentList[i+1:]...)
 			}
@@ -348,7 +347,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		ctx,
 		agentPods,
 		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+			apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 		}),
 		client.InNamespace(ddaNamespace),
 	)
@@ -395,7 +394,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
 	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
 	matchLabels := client.MatchingLabels{
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 

@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -26,8 +25,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var customConfig = &apicommonv1.CustomConfig{
-	ConfigMap: &apicommonv1.ConfigMapConfig{
+var customConfig = &v2alpha1.CustomConfig{
+	ConfigMap: &v2alpha1.ConfigMapConfig{
 		Name: "custom_test",
 		Items: []corev1.KeyToPath{
 			{
@@ -52,7 +51,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 	{
 		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
 		ddaCSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
-			ConfigMap: &apicommonv1.ConfigMapConfig{
+			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
 					{
@@ -89,7 +88,7 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
-			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 
 			want := []*corev1.EnvVar{
 				{
@@ -112,7 +111,7 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 				},
 			}
 
-			volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ClusterAgentContainerName]
+			volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ClusterAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(volumeMounts, wantVolumeMounts), "Cluster Agent volume mounts \ndiff = %s", cmp.Diff(volumeMounts, wantVolumeMounts))
 
 			wantVolumes := []corev1.Volume{
@@ -168,7 +167,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 				},
 			}
 
-			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
+			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))
 
 			// check volume mounts
@@ -205,7 +204,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 				},
 			}
 
-			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SecurityAgentContainerName]
+			securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, wantVolumeMounts), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, wantVolumeMounts))
 
 			// check volumes

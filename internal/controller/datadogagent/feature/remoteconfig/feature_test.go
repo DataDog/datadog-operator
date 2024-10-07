@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -67,7 +66,7 @@ func rcAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 					Value: apiutils.BoolToString(&rcEnabled),
 				},
 			}
-			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 			checkEqual(t, "Core agent env var", expectedEnvVars, actualEnvVars)
 		},
 	)
@@ -85,7 +84,7 @@ func rcClusterAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 					Value: apiutils.BoolToString(&rcEnabled),
 				},
 			}
-			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 			checkEqual(t, "Cluster agent env var", expectedEnvVars, actualEnvVars)
 
 			// Check cluster agent volume
@@ -101,7 +100,7 @@ func rcClusterAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 			if rcEnabled {
 				expectedVolumeMounts = append(expectedVolumeMounts, rcVolumeMount)
 			}
-			actualVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.AllContainers]
+			actualVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.AllContainers]
 			checkEqual(t, "Cluster agent volume mount", expectedVolumeMounts, actualVolumeMounts)
 		},
 	)

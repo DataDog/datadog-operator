@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -73,7 +72,7 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
-		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), apicommon.DefaultHelmCheckConf)
+		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), v2alpha1.DefaultHelmCheckConf)
 		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
 		f.valuesAsTags = helmCheck.ValuesAsTags
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
@@ -141,7 +140,7 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 		ReadOnly:  true,
 	}
 
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 
 	// Add md5 hash annotation for configMap

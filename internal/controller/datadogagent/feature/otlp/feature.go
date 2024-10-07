@@ -20,7 +20,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
@@ -45,11 +44,15 @@ func buildOTLPFeature(options *feature.Options) feature.Feature {
 type otlpFeature struct {
 	logger logr.Logger
 
-	grpcEnabled  bool
-	grpcEndpoint string
+	grpcEnabled         bool
+	grpcHostPortEnabled bool
+	grpcCustomHostPort  int32
+	grpcEndpoint        string
 
-	httpEnabled  bool
-	httpEndpoint string
+	httpEnabled         bool
+	httpHostPortEnabled bool
+	httpCustomHostPort  int32
+	httpEndpoint        string
 
 	usingAPM bool
 
@@ -71,12 +74,24 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
 	}
+	if otlp.Receiver.Protocols.GRPC.HostPortConfig != nil {
+		f.grpcHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled)
+		if otlp.Receiver.Protocols.GRPC.HostPortConfig.Port != nil {
+			f.grpcCustomHostPort = *otlp.Receiver.Protocols.GRPC.HostPortConfig.Port
+		}
+	}
 	if otlp.Receiver.Protocols.GRPC.Endpoint != nil {
 		f.grpcEndpoint = *otlp.Receiver.Protocols.GRPC.Endpoint
 	}
 
 	if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.Enabled) {
 		f.httpEnabled = true
+	}
+	if otlp.Receiver.Protocols.HTTP.HostPortConfig != nil {
+		f.httpHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled)
+		if otlp.Receiver.Protocols.HTTP.HostPortConfig.Port != nil {
+			f.httpCustomHostPort = *otlp.Receiver.Protocols.HTTP.HostPortConfig.Port
+		}
 	}
 	if otlp.Receiver.Protocols.HTTP.Endpoint != nil {
 		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
@@ -96,14 +111,14 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
 				},
 			},
 		}
 		// if using APM, require the Trace Agent too.
 		if f.usingAPM {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
 		}
 	}
 
@@ -113,8 +128,10 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	platformInfo := managers.Store().GetPlatformInfo()
+	versionInfo := platformInfo.GetVersionInfo()
 	if f.grpcEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.grpcEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -135,7 +152,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 		}
 	}
 	if f.httpEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			port, err := extractPortEndpoint(f.httpEndpoint)
 			if err != nil {
 				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
@@ -204,7 +221,6 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
 			return fmt.Errorf("invalid OTLP/gRPC endpoint: %w", err)
 		}
-
 		port, err := extractPortEndpoint(f.grpcEndpoint)
 		if err != nil {
 			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -213,15 +229,20 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 		otlpgrpcPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPGRPCPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.grpcHostPortEnabled {
+			otlpgrpcPort.HostPort = f.grpcCustomHostPort
+			if f.grpcCustomHostPort == 0 {
+				otlpgrpcPort.HostPort = port
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	if f.httpEnabled {
@@ -233,15 +254,20 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 		otlphttpPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPHTTPPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.httpHostPortEnabled {
+			otlphttpPort.HostPort = f.httpCustomHostPort
+			if f.httpCustomHostPort == 0 {
+				otlphttpPort.HostPort = port
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
 	return nil
@@ -255,7 +281,6 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
 			return fmt.Errorf("invalid OTLP/gRPC endpoint: %w", err)
 		}
-
 		port, err := extractPortEndpoint(f.grpcEndpoint)
 		if err != nil {
 			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
@@ -264,17 +289,22 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		otlpgrpcPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPGRPCPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.grpcHostPortEnabled {
+			otlpgrpcPort.HostPort = port
+			if f.grpcCustomHostPort != 0 {
+				otlpgrpcPort.HostPort = f.grpcCustomHostPort
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 		if f.usingAPM {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, envVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
 	}
 
@@ -287,17 +317,22 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		otlphttpPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPHTTPPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.httpHostPortEnabled {
+			otlphttpPort.HostPort = port
+			if f.httpCustomHostPort != 0 {
+				otlphttpPort.HostPort = f.httpCustomHostPort
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 		if f.usingAPM {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, envVar)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
 	}
 

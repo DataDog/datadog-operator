@@ -5,63 +5,33 @@
 
 package common
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"k8s.io/apimachinery/pkg/util/intstr"
+)
 
-// SecretConfig contains a secret name and an included key.
+// The deployment strategy to use to replace existing pods with new ones.
+// +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
-type SecretConfig struct {
-	// SecretName is the name of the secret.
-	SecretName string `json:"secretName"`
-
-	// KeyName is the key of the secret to use.
-	// +optional
-	KeyName string `json:"keyName,omitempty"`
+type UpdateStrategy struct {
+	// Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
+	// or "Recreate" for Deployments
+	Type string `json:"type,omitempty"`
+	// Configure the rolling update strategy of the Deployment or DaemonSet.
+	RollingUpdate *RollingUpdate `json:"rollingUpdate,omitempty"`
 }
 
-// ConfigMapConfig contains ConfigMap information used to store a configuration file.
+// RollingUpdate describes how to replace existing pods with new ones.
+// +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
-type ConfigMapConfig struct {
-	// Name is the name of the ConfigMap.
-	Name string `json:"name,omitempty"`
+type RollingUpdate struct {
+	// The maximum number of pods that can be unavailable during the update.
+	// Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+	// Refer to the Kubernetes API documentation for additional details..
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
 
-	// Items maps a ConfigMap data `key` to a file `path` mount.
-	// +listType=map
-	// +listMapKey=key
-	// +optional
-	Items []corev1.KeyToPath `json:"items,omitempty"`
-}
-
-// CustomConfig allows one to put custom configurations for the agent.
-// +kubebuilder:object:generate=true
-type CustomConfig struct {
-	// ConfigData corresponds to the configuration file content.
-	// +optional
-	ConfigData *string
-	// Enable to specify a reference to an already existing ConfigMap.
-	// +optional
-	ConfigMap *ConfigMapConfig
-}
-
-// KubeletConfig contains the kubelet configuration parameters.
-// +kubebuilder:object:generate=true
-type KubeletConfig struct {
-	// Host overrides the host used to contact kubelet API (default to status.hostIP).
-	// +optional
-	Host *corev1.EnvVarSource `json:"host,omitempty"`
-
-	// TLSVerify toggles kubelet TLS verification.
-	// Default: true
-	// +optional
-	TLSVerify *bool `json:"tlsVerify,omitempty"`
-
-	// HostCAPath is the host path where the kubelet CA certificate is stored.
-	// +optional
-	HostCAPath string `json:"hostCAPath,omitempty"`
-
-	// AgentCAPath is the container path where the kubelet CA certificate is stored.
-	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-	// +optional
-	AgentCAPath string `json:"agentCAPath,omitempty"`
+	// MaxSurge behaves differently based on the Kubernetes resource. Refer to the
+	// Kubernetes API documentation for additional details.
+	MaxSurge *intstr.IntOrString `json:"maxSurge,omitempty"`
 }
 
 // AgentContainerName is the name of a container inside an Agent component

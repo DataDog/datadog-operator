@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package dependencies
+package store
 
 import (
 	"context"
@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,7 +39,6 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
-	GetVersionInfo() *version.Info
 	GetPlatformInfo() kubernetes.PlatformInfo
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
@@ -55,7 +53,6 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
-		store.versionInfo = options.VersionInfo
 		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
@@ -71,7 +68,6 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
-	versionInfo   *version.Info
 	platformInfo  kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
@@ -82,7 +78,6 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
-	VersionInfo   *version.Info
 	PlatformInfo  kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
@@ -211,7 +206,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
-				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				ds.logger.V(2).Info("store.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToCreate = append(objsToCreate, objStore)
 				continue
 			} else if err != nil {
@@ -231,25 +226,25 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
-				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
 		}
 	}
 
-	ds.logger.V(2).Info("dependencies.store objsToCreate", "nb", len(objsToCreate))
+	ds.logger.V(2).Info("store.store objsToCreate", "nb", len(objsToCreate))
 	for _, obj := range objsToCreate {
 		if err := k8sClient.Create(ctx, obj); err != nil {
-			ds.logger.Error(err, "dependencies.store Create", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
+			ds.logger.Error(err, "store.store Create", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}
 
-	ds.logger.V(2).Info("dependencies.store objsToUpdate", "nb", len(objsToUpdate))
+	ds.logger.V(2).Info("store.store objsToUpdate", "nb", len(objsToUpdate))
 	for _, obj := range objsToUpdate {
 		if err := k8sClient.Update(ctx, obj); err != nil {
-			ds.logger.Error(err, "dependencies.store Update", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
+			ds.logger.Error(err, "store.store Update", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}
@@ -283,11 +278,6 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 	}
 
 	return errs
-}
-
-// GetVersionInfo returns the Kubernetes version
-func (ds *Store) GetVersionInfo() *version.Info {
-	return ds.versionInfo
 }
 
 // GetPlatformInfo returns api-resources info

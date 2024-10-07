@@ -8,7 +8,7 @@ package merger
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -21,7 +21,7 @@ import (
 type RBACManager interface {
 	AddServiceAccount(namespace string, name string) error
 	AddServiceAccountByComponent(namespace, name, component string) error
-	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
+	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, saNamespace ...string) error
 	AddPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
 	AddRoleBinding(roleNamespace, roleName, saNamespace, saName string, roleRef rbacv1.RoleRef) error
 	AddClusterPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
@@ -33,7 +33,7 @@ type RBACManager interface {
 }
 
 // NewRBACManager return new RBACManager instance
-func NewRBACManager(store dependencies.StoreClient) RBACManager {
+func NewRBACManager(store store.StoreClient) RBACManager {
 	manager := &rbacManagerImpl{
 		store:                     store,
 		serviceAccountByComponent: make(map[string][]string),
@@ -45,7 +45,7 @@ func NewRBACManager(store dependencies.StoreClient) RBACManager {
 
 // rbacManagerImpl use to manage RBAC resources.
 type rbacManagerImpl struct {
-	store dependencies.StoreClient
+	store store.StoreClient
 
 	serviceAccountByComponent map[string][]string
 	roleByComponent           map[string][]string
@@ -87,7 +87,7 @@ func (m *rbacManagerImpl) DeleteServiceAccountByComponent(component, namespace s
 }
 
 // AddPolicyRules is used to add PolicyRules to a Role. It also creates the RoleBinding.
-func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error {
+func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, saNamespace ...string) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.RolesKind, namespace, roleName)
 	role, ok := obj.(*rbacv1.Role)
 	if !ok {
@@ -106,7 +106,13 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 		Name:     roleName,
 	}
 
-	return m.AddRoleBinding(namespace, roleName, namespace, saName, roleRef)
+	// If saNamespace is not provided, defaults to using role namespace.
+	targetSaNamespace := namespace
+	if len(saNamespace) > 0 {
+		targetSaNamespace = saNamespace[0]
+	}
+
+	return m.AddRoleBinding(namespace, roleName, targetSaNamespace, saName, roleRef)
 }
 
 // AddPolicyRulesByComponent is used to add PolicyRules to a Role, create a RoleBinding, and associate them with a component

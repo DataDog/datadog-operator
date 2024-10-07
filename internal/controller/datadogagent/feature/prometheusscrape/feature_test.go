@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -63,7 +62,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "false",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.CoreAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.CoreAgentContainerName, wantEnvVars)
 				},
 			),
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -78,7 +77,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "false",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.ClusterAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.ClusterAgentContainerName, wantEnvVars)
 				},
 			),
 		},
@@ -101,7 +100,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "true",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.CoreAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.CoreAgentContainerName, wantEnvVars)
 				},
 			),
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -116,7 +115,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "true",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.ClusterAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.ClusterAgentContainerName, wantEnvVars)
 				},
 			),
 		},
@@ -143,7 +142,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: jsonConfigs,
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.CoreAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.CoreAgentContainerName, wantEnvVars)
 				},
 			),
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -162,7 +161,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: jsonConfigs,
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.ClusterAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.ClusterAgentContainerName, wantEnvVars)
 				},
 			),
 		},
@@ -189,7 +188,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "1",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.CoreAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.CoreAgentContainerName, wantEnvVars)
 				},
 			),
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -208,7 +207,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 							Value: "1",
 						},
 					}
-					assertContainerEnvVars(t, mgrInterface, apicommonv1.ClusterAgentContainerName, wantEnvVars)
+					assertContainerEnvVars(t, mgrInterface, apicommon.ClusterAgentContainerName, wantEnvVars)
 				},
 			),
 		},
@@ -217,7 +216,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 	tests.Run(t, buildPrometheusScrapeFeature)
 }
 
-func assertContainerEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, containerName apicommonv1.AgentContainerName, wantEnvVars []*corev1.EnvVar) {
+func assertContainerEnvVars(t testing.TB, mgrInterface feature.PodTemplateManagers, containerName apicommon.AgentContainerName, wantEnvVars []*corev1.EnvVar) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 	envVars := mgr.EnvVarMgr.EnvVarsByC[containerName]
 	assert.True(t, apiutils.IsEqualStruct(envVars, wantEnvVars), "%s envvars \ndiff = %s", containerName, cmp.Diff(envVars, wantEnvVars))

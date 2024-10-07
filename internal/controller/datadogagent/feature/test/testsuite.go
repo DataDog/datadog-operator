@@ -3,11 +3,11 @@ package test
 import (
 	"testing"
 
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -35,8 +35,8 @@ type FeatureTest struct {
 	Options        *Options
 	FeatureOptions *feature.Options
 	// Dependencies Store
-	StoreOption        *dependencies.StoreOptions
-	StoreInitFunc      func(store dependencies.StoreClient)
+	StoreOption        *store.StoreOptions
+	StoreInitFunc      func(store store.StoreClient)
 	RequiredComponents feature.RequiredComponents
 	// Test configuration
 	Agent               *ComponentTest
@@ -45,7 +45,7 @@ type FeatureTest struct {
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
-	WantDependenciesFunc      func(testing.TB, dependencies.StoreClient)
+	WantDependenciesFunc      func(testing.TB, store.StoreClient)
 }
 
 // Options use to provide some option to the test.
@@ -138,7 +138,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 
 		if tt.Agent != nil {
 			tplManager, provider := tt.Agent.CreateFunc(t)
-			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName {
+			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == common.UnprivilegedSingleAgentContainerName {
 				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
 			} else {
 				_ = feat.ManageNodeAgent(tplManager, provider)
@@ -155,9 +155,9 @@ func runTest(t *testing.T, tt FeatureTest) {
 	}
 }
 
-func initDependencies(tt FeatureTest, logger logr.Logger, dda metav1.Object) (*dependencies.Store, feature.ResourceManagers) {
+func initDependencies(tt FeatureTest, logger logr.Logger, dda metav1.Object) (*store.Store, feature.ResourceManagers) {
 	if tt.StoreOption == nil {
-		tt.StoreOption = &dependencies.StoreOptions{
+		tt.StoreOption = &store.StoreOptions{
 			Logger: logger,
 		}
 	}
@@ -165,7 +165,7 @@ func initDependencies(tt FeatureTest, logger logr.Logger, dda metav1.Object) (*d
 		tt.StoreOption.Scheme = testutils.TestScheme()
 	}
 
-	store := dependencies.NewStore(dda, tt.StoreOption)
+	store := store.NewStore(dda, tt.StoreOption)
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}

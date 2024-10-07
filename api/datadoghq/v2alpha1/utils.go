@@ -8,10 +8,12 @@ package v2alpha1
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
+
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
@@ -26,7 +28,7 @@ func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) st
 
 // GetClusterAgentServiceAccount return the cluster-agent serviceAccountName
 func GetClusterAgentServiceAccount(dda *DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultClusterAgentResourceSuffix)
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultClusterAgentResourceSuffix)
 	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName != nil {
 		return *dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName
 	}
@@ -35,7 +37,7 @@ func GetClusterAgentServiceAccount(dda *DatadogAgent) string {
 
 // GetAgentServiceAccount returns the agent service account name
 func GetAgentServiceAccount(dda *DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultAgentResourceSuffix)
 	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountName != nil {
 		return *dda.Spec.Override[NodeAgentComponentName].ServiceAccountName
 	}
@@ -44,29 +46,11 @@ func GetAgentServiceAccount(dda *DatadogAgent) string {
 
 // GetClusterChecksRunnerServiceAccount return the cluster-checks-runner service account name
 func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultClusterChecksRunnerResourceSuffix)
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultClusterChecksRunnerResourceSuffix)
 	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName != nil {
 		return *dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName
 	}
 	return saDefault
-}
-
-// ConvertCustomConfig use to convert a CustomConfig to a common.CustomConfig.
-func ConvertCustomConfig(config *CustomConfig) *commonv1.CustomConfig {
-	if config == nil {
-		return nil
-	}
-	var configMap *commonv1.ConfigMapConfig
-	if config.ConfigMap != nil {
-		configMap = &commonv1.ConfigMapConfig{
-			Name:  config.ConfigMap.Name,
-			Items: config.ConfigMap.Items,
-		}
-	}
-	return &commonv1.CustomConfig{
-		ConfigData: config.ConfigData,
-		ConfigMap:  configMap,
-	}
 }
 
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
@@ -94,7 +78,7 @@ func GetLocalAgentServiceName(dda *DatadogAgent) string {
 	if dda.Spec.Global.LocalService != nil && dda.Spec.Global.LocalService.NameOverride != nil {
 		return *dda.Spec.Global.LocalService.NameOverride
 	}
-	return fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, DefaultAgentResourceSuffix)
 }
 
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
@@ -106,4 +90,88 @@ func IsNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
 		return true, NetworkPolicyFlavorKubernetes
 	}
 	return false, ""
+}
+
+// GetDefaultLivenessProbe creates a defaulted LivenessProbe
+func GetDefaultLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultLivenessProbeSuccessThreshold,
+		FailureThreshold:    DefaultLivenessProbeFailureThreshold,
+	}
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultLivenessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultAgentHealthPort,
+		},
+	}
+	return livenessProbe
+}
+
+// GetDefaultReadinessProbe creates a defaulted ReadinessProbe
+func GetDefaultReadinessProbe() *corev1.Probe {
+	readinessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultReadinessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultReadinessProbeSuccessThreshold,
+		FailureThreshold:    DefaultReadinessProbeFailureThreshold,
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultReadinessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultAgentHealthPort,
+		},
+	}
+	return readinessProbe
+}
+
+// GetDefaultStartupProbe creates a defaulted StartupProbe
+func GetDefaultStartupProbe() *corev1.Probe {
+	startupProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultStartupProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultStartupProbePeriodSeconds,
+		TimeoutSeconds:      DefaultStartupProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultStartupProbeSuccessThreshold,
+		FailureThreshold:    DefaultStartupProbeFailureThreshold,
+	}
+	startupProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultStartupProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultAgentHealthPort,
+		},
+	}
+	return startupProbe
+}
+
+// GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent
+func GetDefaultTraceAgentProbe() *corev1.Probe {
+	probe := &corev1.Probe{
+		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
+	}
+	probe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{
+			IntVal: DefaultApmPort,
+		},
+	}
+	return probe
+}
+
+// GetImage builds the image string based on ImageConfig and the registry configuration.
+func GetImage(imageSpec *AgentImageConfig, registry *string) string {
+	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
+		return imageSpec.Name
+	}
+
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
+
+	if registry != nil && *registry != "" {
+		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
+	}
+
+	return img.String()
 }

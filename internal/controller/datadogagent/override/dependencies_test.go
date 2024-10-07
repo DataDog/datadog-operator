@@ -8,11 +8,10 @@ package override
 import (
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,7 +23,7 @@ func TestDependencies(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -51,7 +50,7 @@ func TestDependencies(t *testing.T) {
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
 							ExtraConfd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &commonv1.ConfigMapConfig{
+								ConfigMap: &v2alpha1.ConfigMapConfig{
 									Name: "cmName",
 								},
 							},
@@ -85,7 +84,7 @@ func TestDependencies(t *testing.T) {
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
 							ExtraChecksd: &v2alpha1.MultiCustomConfig{
-								ConfigMap: &commonv1.ConfigMapConfig{
+								ConfigMap: &v2alpha1.ConfigMapConfig{
 									Name: "cmName",
 								},
 							},
@@ -129,7 +128,7 @@ func TestDependencies(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := dependencies.NewStore(&test.dda, storeOptions)
+			store := store.NewStore(&test.dda, storeOptions)
 			manager := feature.NewResourceManagers(store)
 
 			errs := Dependencies(testLogger, manager, &test.dda)

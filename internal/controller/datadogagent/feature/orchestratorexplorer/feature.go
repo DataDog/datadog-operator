@@ -19,7 +19,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -53,7 +52,7 @@ type orchestratorExplorerFeature struct {
 	rbacSuffix               string
 	serviceAccountName       string
 	owner                    metav1.Object
-	customConfig             *apicommonv1.CustomConfig
+	customConfig             *v2alpha1.CustomConfig
 	customResources          []string
 	configConfigMapName      string
 
@@ -78,13 +77,13 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqContainers := []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName}
+		reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		// Process Agent is not required as of agent version 7.51.0
 		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
 				f.processAgentRequired = true
-				reqContainers = append(reqContainers, apicommonv1.ProcessAgentContainerName)
+				reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
 			}
 		}
 
@@ -94,7 +93,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		if orchestratorExplorer.Conf != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
+			f.customConfig = orchestratorExplorer.Conf
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
@@ -105,7 +104,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
+		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
@@ -177,7 +176,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 		}
 	}
 
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 
 	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
@@ -196,7 +195,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.UnprivilegedSingleAgentContainerName, env)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, env)
 	}
 
 	return nil
@@ -207,9 +206,9 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	for _, env := range f.getEnvVars() {
 		if f.processAgentRequired {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, env)
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, env)
 	}
 
 	return nil
@@ -220,7 +219,7 @@ func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTempla
 func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	if f.runInClusterChecksRunner {
 		for _, env := range f.getEnvVars() {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, env)
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterChecksRunnersContainerName, env)
 		}
 	}
 

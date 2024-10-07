@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,13 +22,12 @@ import (
 
 // DatadogDashboardReconciler reconciles a DatadogDashboard object
 type DatadogDashboardReconciler struct {
-	Client      client.Client
-	DDClient    datadogclient.DatadogDashboardClient
-	VersionInfo *version.Info
-	Log         logr.Logger
-	Scheme      *runtime.Scheme
-	Recorder    record.EventRecorder
-	internal    *datadogdashboard.Reconciler
+	Client   client.Client
+	DDClient datadogclient.DatadogDashboardClient
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
+	internal *datadogdashboard.Reconciler
 }
 
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadogdashboards,verbs=get;list;watch;create;update;patch;delete
@@ -43,7 +41,7 @@ func (r *DatadogDashboardReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogDashboardReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogdashboard.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
+	r.internal = datadogdashboard.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogDashboard{}).

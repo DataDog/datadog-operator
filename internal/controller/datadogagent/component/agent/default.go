@@ -12,7 +12,6 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -29,7 +28,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -37,7 +36,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOp
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -89,29 +88,29 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
 }
 
 // GetAgentRoleName returns the name of the role for the Agent
 func GetAgentRoleName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
 }
 
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
 }
 
 func agentImage() string {
-	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
-func initContainers(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Container {
+func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
 		initConfigContainer(dda),
 	}
 	for _, containerName := range requiredContainers {
-		if containerName == commonv1.SystemProbeContainerName {
+		if containerName == apicommon.SystemProbeContainerName {
 			initContainers = append(initContainers, initSeccompSetupContainer())
 		}
 	}
@@ -121,12 +120,12 @@ func initContainers(dda metav1.Object, requiredContainers []commonv1.AgentContai
 
 func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	agentSingleContainer := corev1.Container{
-		Name:           string(commonv1.UnprivilegedSingleAgentContainerName),
+		Name:           string(apicommon.UnprivilegedSingleAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
+		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -136,22 +135,22 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 	return containers
 }
 
-func agentOptimizedContainers(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Container {
+func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	containers := []corev1.Container{coreAgentContainer(dda)}
 
 	for _, containerName := range requiredContainers {
 		switch containerName {
-		case commonv1.CoreAgentContainerName:
+		case apicommon.CoreAgentContainerName:
 			// Nothing to do. It's always required.
-		case commonv1.TraceAgentContainerName:
+		case apicommon.TraceAgentContainerName:
 			containers = append(containers, traceAgentContainer(dda))
-		case commonv1.ProcessAgentContainerName:
+		case apicommon.ProcessAgentContainerName:
 			containers = append(containers, processAgentContainer(dda))
-		case commonv1.SecurityAgentContainerName:
+		case apicommon.SecurityAgentContainerName:
 			containers = append(containers, securityAgentContainer(dda))
-		case commonv1.SystemProbeContainerName:
+		case apicommon.SystemProbeContainerName:
 			containers = append(containers, systemProbeContainer(dda))
-		case commonv1.OtelAgent:
+		case apicommon.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
 		}
 	}
@@ -161,20 +160,20 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []commonv1.A
 
 func coreAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:           string(commonv1.CoreAgentContainerName),
+		Name:           string(apicommon.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
-		StartupProbe:   apicommon.GetDefaultStartupProbe(),
+		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
+		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
 	}
 }
 
 func traceAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(commonv1.TraceAgentContainerName),
+		Name:  string(apicommon.TraceAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"trace-agent",
@@ -182,13 +181,13 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
-		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
+		LivenessProbe: v2alpha1.GetDefaultTraceAgentProbe(),
 	}
 }
 
 func processAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(commonv1.ProcessAgentContainerName),
+		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
@@ -201,7 +200,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 
 func otelAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(commonv1.OtelAgent),
+		Name:  string(apicommon.OtelAgent),
 		Image: agentImage(),
 		Command: []string{
 			"/otel-agent",
@@ -228,7 +227,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 
 func securityAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(commonv1.SecurityAgentContainerName),
+		Name:  string(apicommon.SecurityAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"security-agent",
@@ -241,7 +240,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 
 func systemProbeContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
-		Name:  string(commonv1.SystemProbeContainerName),
+		Name:  string(apicommon.SystemProbeContainerName),
 		Image: agentImage(),
 		Command: []string{
 			"system-probe",
@@ -332,7 +331,7 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDHealthPort,
-			Value: strconv.Itoa(int(apicommon.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  apicommon.DDLeaderElection,
@@ -399,7 +398,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 	}
 }
 
-func volumesForAgent(dda metav1.Object, requiredContainers []commonv1.AgentContainerName) []corev1.Volume {
+func volumesForAgent(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Volume {
 	volumes := []corev1.Volume{
 		common.GetVolumeForLogs(),
 		common.GetVolumeForAuth(),
@@ -414,7 +413,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []commonv1.AgentConta
 	}
 
 	for _, containerName := range requiredContainers {
-		if containerName == commonv1.SystemProbeContainerName {
+		if containerName == apicommon.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
 				common.GetVolumeForSecurity(dda),
 				common.GetVolumeForSeccomp(),

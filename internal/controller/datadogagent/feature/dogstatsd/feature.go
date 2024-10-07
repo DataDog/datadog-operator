@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -46,7 +45,7 @@ type dogstatsdFeature struct {
 	useHostNetwork         bool
 	originDetectionEnabled bool
 	tagCardinality         string
-	mapperProfiles         *apicommonv1.CustomConfig
+	mapperProfiles         *v2alpha1.CustomConfig
 
 	forceEnableLocalService bool
 	localServiceName        string
@@ -80,7 +79,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	}
 	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
-		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
+		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
 
 	if dda.Spec.Global.LocalService != nil {
@@ -91,8 +90,8 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
+			Containers: []apicommon.AgentContainerName{
+				apicommon.CoreAgentContainerName,
 			},
 		},
 	}
@@ -102,13 +101,14 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
-	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
 		dsdPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolUDP,
-			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
-			Port:       apicommon.DefaultDogstatsdPort,
-			Name:       apicommon.DefaultDogstatsdPortName,
+			TargetPort: intstr.FromInt(int(v2alpha1.DefaultDogstatsdPort)),
+			Port:       v2alpha1.DefaultDogstatsdPort,
+			Name:       v2alpha1.DefaultDogstatsdPortName,
 		}
 		if f.hostPortEnabled {
 			dsdPort.Port = f.hostPortHostPort
@@ -136,28 +136,28 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
-		Name:          apicommon.DefaultDogstatsdPortName,
-		ContainerPort: apicommon.DefaultDogstatsdPort,
+		Name:          v2alpha1.DefaultDogstatsdPortName,
+		ContainerPort: v2alpha1.DefaultDogstatsdPort,
 		Protocol:      corev1.ProtocolUDP,
 	}
 	if f.hostPortEnabled {
 		// f.hostPortHostPort will be 0 if HostPort is not set in v1alpha1
 		// f.hostPortHostPort will default to 8125 in v2alpha1
-		dsdPortEnvVarValue := apicommon.DefaultDogstatsdPort
+		dsdPortEnvVarValue := v2alpha1.DefaultDogstatsdPort
 		if f.hostPortHostPort != 0 {
 			dogstatsdPort.HostPort = f.hostPortHostPort
 			// if using host network, host port should be set and needs to match container port
@@ -209,7 +209,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentC
 		// Tag cardinality is only configured if origin detection is enabled.
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,
 			})
@@ -220,7 +220,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentC
 	if f.mapperProfiles != nil {
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdMapperProfiles,
 				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
 			})
@@ -232,7 +232,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommonv1.AgentC
 			cmSelector := corev1.ConfigMapKeySelector{}
 			cmSelector.Name = f.mapperProfiles.ConfigMap.Name
 			cmSelector.Key = f.mapperProfiles.ConfigMap.Items[0].Key
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 				Name:      apicommon.DDDogstatsdMapperProfiles,
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})

@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,7 +37,7 @@ instances:
 		rbacSuffix               string
 		serviceAccountName       string
 		owner                    metav1.Object
-		customConfig             *apicommonv1.CustomConfig
+		customConfig             *v2alpha1.CustomConfig
 		configConfigMapName      string
 		collectorOpts            collectorOptions
 	}
@@ -53,9 +53,9 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
 		},
 		{
 			name: "override",
@@ -63,12 +63,12 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				customConfig: &apicommonv1.CustomConfig{
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
+				customConfig: &v2alpha1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, overrideConf),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, overrideConf),
 		},
 		{
 			name: "no cluster check runners",
@@ -76,9 +76,9 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
 		},
 		{
 			name: "with vpa",
@@ -86,10 +86,10 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithVPA,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
 		},
 		{
 			name: "with CRDs",
@@ -97,10 +97,10 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithCRD,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRD)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRD)),
 		},
 		{
 			name: "with APIServices",
@@ -108,10 +108,10 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				configConfigMapName:      v2alpha1.DefaultKubeStateMetricsCoreConf,
 				collectorOpts:            optionsWithAPIService,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
 		},
 	}
 	for _, tt := range tests {

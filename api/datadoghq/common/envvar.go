@@ -5,6 +5,8 @@
 
 package common
 
+// TODO move most of these out of common
+
 // Datadog env var names
 const (
 	DatadogHost                                          = "DATADOG_HOST"
@@ -63,6 +65,7 @@ const (
 	DDContainerCollectionEnabled                         = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"
 	DDCriSocketPath                                      = "DD_CRI_SOCKET_PATH"
 	DDddURL                                              = "DD_DD_URL"
+	DDURL                                                = "DD_URL"
 	DDDogstatsdEnabled                                   = "DD_USE_DOGSTATSD"
 	DDDogstatsdMapperProfiles                            = "DD_DOGSTATSD_MAPPER_PROFILES"
 	DDDogstatsdNonLocalTraffic                           = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
@@ -147,6 +150,8 @@ const (
 	DDSBOMHostEnabled                                    = "DD_SBOM_HOST_ENABLED"
 	DDSBOMHostAnalyzers                                  = "DD_SBOM_HOST_ANALYZERS"
 	DDSecretBackendCommand                               = "DD_SECRET_BACKEND_COMMAND"
+	DDSecretBackendArguments                             = "DD_SECRET_BACKEND_ARGUMENTS"
+	DDSecretBackendTimeout                               = "DD_SECRET_BACKEND_TIMEOUT"
 	DDSite                                               = "DD_SITE"
 	DDSystemProbeAgentEnabled                            = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeBPFDebugEnabled                         = DDSystemProbeEnvPrefix + "BPF_DEBUG"
@@ -183,5 +188,5 @@ const (
 
 // DatadogAgentProfile env var names
 const (
-	SlowStartEnabled = "DD_DAP_SLOW_START_ENABLED"
+	CreateStrategyEnabled = "DD_DAP_CREATE_STRATEGY_ENABLED"
 )

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -87,7 +87,7 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 
 	testScheme := runtime.NewScheme()
 	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	storeOptions := &dependencies.StoreOptions{
+	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
@@ -105,21 +105,21 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		store        *dependencies.Store
+		store        *store.Store
 		args         args
 		wantErr      bool
-		validateFunc func(*testing.T, *dependencies.Store)
+		validateFunc func(*testing.T, *store.Store)
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: store.NewStore(owner, storeOptions),
 			args: args{
 				namespace:  ns,
 				name:       name1,
 				policySpec: policySpec1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.CiliumNetworkPoliciesKind, ns, name1); !found {
 					t.Errorf("missing CiliumPolicy %s/%s", ns, name1)
 				}
@@ -127,14 +127,14 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 		},
 		{
 			name:  "another CiliumPolicy already exists",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
 			args: args{
 				namespace:  ns,
 				name:       name1,
 				policySpec: policySpec1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				if _, found := store.Get(kubernetes.CiliumNetworkPoliciesKind, ns, name1); !found {
 					t.Errorf("missing CiliumPolicy %s/%s", ns, name1)
 				}
@@ -142,14 +142,14 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 		},
 		{
 			name:  "update existing CiliumPolicy",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
 			args: args{
 				namespace:  ns,
 				name:       name2,
 				policySpec: policySpec1,
 			},
 			wantErr: false,
-			validateFunc: func(t *testing.T, store *dependencies.Store) {
+			validateFunc: func(t *testing.T, store *store.Store) {
 				obj, found := store.Get(kubernetes.CiliumNetworkPoliciesKind, ns, name2)
 				if !found {
 					t.Errorf("missing CiliumPolicy %s/%s", ns, name2)

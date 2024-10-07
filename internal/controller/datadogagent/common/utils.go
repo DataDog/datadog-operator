@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -80,7 +80,7 @@ func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 }
 
 // GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
-func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
+func GetAgentVersionFromImage(imageConfig v2alpha1.AgentImageConfig) string {
 	version := ""
 	if imageConfig.Name != "" {
 		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
@@ -120,7 +120,7 @@ const (
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultAgentResourceSuffix,
 	}
 }
 

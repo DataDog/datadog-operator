@@ -10,13 +10,12 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
@@ -78,7 +77,7 @@ func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
 	}
 }
 
-func testRBACResources(t testing.TB, store dependencies.StoreClient) {
+func testRBACResources(t testing.TB, store store.StoreClient) {
 	// RBAC
 	rbacName := fmt.Sprintf("%s-%s", ddaName, "cluster-agent-autoscaling")
 
@@ -148,7 +147,7 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			var expectedAgentEnvs []*corev1.EnvVar
 			if enabled {
 				expectedAgentEnvs = append(expectedAgentEnvs,

@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogslo"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,13 +23,12 @@ import (
 )
 
 type DatadogSLOReconciler struct {
-	Client      client.Client
-	DDClient    datadogclient.DatadogSLOClient
-	VersionInfo *version.Info
-	Log         logr.Logger
-	Scheme      *runtime.Scheme
-	Recorder    record.EventRecorder
-	internal    *datadogslo.Reconciler
+	Client   client.Client
+	DDClient datadogclient.DatadogSLOClient
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
+	internal *datadogslo.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogslos,verbs=get;list;watch;create;update;patch;delete
@@ -43,7 +41,7 @@ func (r *DatadogSLOReconciler) Reconcile(ctx context.Context, req reconcile.Requ
 }
 
 func (r *DatadogSLOReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Log, r.Recorder)
+	r.internal = datadogslo.NewReconciler(r.Client, r.DDClient, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogSLO{}).

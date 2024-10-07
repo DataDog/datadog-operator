@@ -103,7 +103,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Deployment")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
+		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, kubernetes.DeploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Deployment updated")
 	} else {
@@ -114,7 +114,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
+		event := buildEventInfo(deployment.Name, deployment.Namespace, kubernetes.DeploymentKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, createSucceeded, "Deployment created")
 	}
@@ -156,21 +156,21 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 
 	if alreadyExists {
 		now := metav1.NewTime(time.Now())
-		if agentprofile.SlowStartEnabled() {
-			if profile.Status.SlowStart != nil {
-				profile.Status.SlowStart.PodsReady = currentDaemonset.Status.NumberReady
+		if agentprofile.CreateStrategyEnabled() {
+			if profile.Status.CreateStrategy != nil {
+				profile.Status.CreateStrategy.PodsReady = currentDaemonset.Status.NumberReady
 			}
-			if shouldCheckSlowStartStatus(profile) {
+			if shouldCheckCreateStrategyStatus(profile) {
 				newStatus := v1alpha1.WaitingStatus
 
-				if int(profile.Status.SlowStart.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.SlowStart.MaxUnavailable) {
+				if int(profile.Status.CreateStrategy.NodesLabeled-currentDaemonset.Status.NumberReady) < int(profile.Status.CreateStrategy.MaxUnavailable) {
 					newStatus = v1alpha1.InProgressStatus
 				}
 
-				if profile.Status.SlowStart.Status != newStatus {
-					profile.Status.SlowStart.LastTransition = &now
+				if profile.Status.CreateStrategy.Status != newStatus {
+					profile.Status.CreateStrategy.LastTransition = &now
 				}
-				profile.Status.SlowStart.Status = newStatus
+				profile.Status.CreateStrategy.Status = newStatus
 			}
 			r.updateDAPStatus(logger, profile)
 		}
@@ -245,7 +245,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, daemonSetKind, datadog.UpdateEvent)
+		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
 	} else {
@@ -262,7 +262,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
+		event := buildEventInfo(daemonset.Name, daemonset.Namespace, kubernetes.DaemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, createSucceeded, "Daemonset created")
 	}
@@ -342,7 +342,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
+		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, updateSucceeded, "ExtendedDaemonSet updated")
 	} else {
@@ -353,7 +353,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
+		event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
 		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, createSucceeded, "ExtendedDaemonSet created")
 	}
@@ -391,7 +391,7 @@ func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.Labe
 	return labels
 }
 
-func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
+func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 	if profile == nil {
 		return false
 	}
@@ -400,9 +400,9 @@ func shouldCheckSlowStartStatus(profile *v1alpha1.DatadogAgentProfile) bool {
 		return false
 	}
 
-	if profile.Status.SlowStart == nil {
+	if profile.Status.CreateStrategy == nil {
 		return false
 	}
 
-	return profile.Status.SlowStart.Status != v1alpha1.CompletedStatus
+	return profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus
 }

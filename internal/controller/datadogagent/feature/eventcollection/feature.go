@@ -16,7 +16,6 @@ import (
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -75,7 +74,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = apicommonv1.GetConfName(dda, nil, apicommon.DefaultKubeAPIServerConf)
+				f.configMapName = v2alpha1.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
 			} else {
@@ -143,22 +142,22 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 // It should do nothing if the feature doesn't need to configure it.
 func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Env vars
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDCollectKubernetesEvents,
 		Value: "true",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderElection,
 		Value: "true",
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderLeaseName,
 		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
 		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
@@ -172,7 +171,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 			ReadOnly:  true,
 		}
 
-		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 		managers.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for configMap
@@ -188,18 +187,18 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
 func (f *eventCollectionFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommonv1.CoreAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
 	return nil
 }
 
-func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers, _ string) error {
+func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, _ string) error {
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDCollectKubernetesEvents,
 		Value: "true",
