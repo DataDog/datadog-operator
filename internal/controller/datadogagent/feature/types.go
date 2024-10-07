@@ -6,8 +6,7 @@
 package feature
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
@@ -51,7 +50,7 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 //   - false: the feature does not need the corresponding component, but if it runs the feature needs to be configured (e.g. explicitly disabled).
 type RequiredComponent struct {
 	IsRequired *bool
-	Containers []apicommonv1.AgentContainerName
+	Containers []common.AgentContainerName
 }
 
 // IsEnabled returns true if the Feature needs the current RequiredComponent
@@ -76,7 +75,7 @@ func (rc *RequiredComponent) IsPrivileged() bool {
 
 func (rc *RequiredComponent) SingleContainerStrategyEnabled() bool {
 	return len(rc.Containers) == 1 &&
-		rc.Containers[0] == apicommonv1.UnprivilegedSingleAgentContainerName
+		rc.Containers[0] == common.UnprivilegedSingleAgentContainerName
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -102,7 +101,7 @@ func merge(a, b *bool) *bool {
 	return apiutils.NewBoolPointer(true)
 }
 
-func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {
+func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
 	out := a
 	for _, containerB := range b {
 		found := false
@@ -242,6 +241,8 @@ type PodTemplateManagers interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
 	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
+	// EnvVarFrom used to access the EnvVarFromManager to manage the Environment variable defined in the PodTemplateSpec.
+	EnvFromVar() merger.EnvFromVarManager
 	// Volume used to access the VolumeManager to manage the Volume defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
 	// VolumeMount used to access the VolumeMountManager to manage the VolumeMount defined in the PodTemplateSpec.
@@ -260,6 +261,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 	return &podTemplateManagerImpl{
 		podTmpl:                podTmpl,
 		envVarManager:          merger.NewEnvVarManager(podTmpl),
+		envFromVarManager:      merger.NewEnvFromVarManager(podTmpl),
 		volumeManager:          merger.NewVolumeManager(podTmpl),
 		volumeMountManager:     merger.NewVolumeMountManager(podTmpl),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
@@ -271,6 +273,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 type podTemplateManagerImpl struct {
 	podTmpl                *corev1.PodTemplateSpec
 	envVarManager          merger.EnvVarManager
+	envFromVarManager      merger.EnvFromVarManager
 	volumeManager          merger.VolumeManager
 	volumeMountManager     merger.VolumeMountManager
 	securityContextManager merger.SecurityContextManager
@@ -284,6 +287,10 @@ func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
 
 func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 	return impl.envVarManager
+}
+
+func (impl *podTemplateManagerImpl) EnvFromVar() merger.EnvFromVarManager {
+	return impl.envFromVarManager
 }
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {

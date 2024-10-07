@@ -14,7 +14,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -59,6 +58,11 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	for _, env := range override.Env {
 		e := env
 		manager.EnvVar().AddEnvVar(&e)
+	}
+
+	for _, envFrom := range override.EnvFrom {
+		e := envFrom
+		manager.EnvFromVar().AddEnvFromVar(&e)
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
@@ -203,7 +207,7 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 	}
 }
 
-func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) string {
+func overrideImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) string {
 	splitImg := strings.Split(currentImg, "/")
 	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
 
@@ -220,7 +224,7 @@ func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) stri
 		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
 	}
 
-	return apicommon.GetImage(&overrideImgCopy, &registry)
+	return v2alpha1.GetImage(&overrideImgCopy, &registry)
 }
 
 func mergeAffinities(affinity1 *v1.Affinity, affinity2 *v1.Affinity) *v1.Affinity {

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/api/utils"
@@ -26,7 +25,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery disabled",
@@ -40,7 +39,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled in core agent via env vars",
@@ -49,13 +48,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "process discovery enabled in core agent via option",
@@ -64,13 +63,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
 				Build(),
 			WantConfigure:  true,
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommonv1.CoreAgentContainerName, true),
+			Agent:          testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
 			Name: "process discovery enabled in core agent via option without min version",
@@ -79,13 +78,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.52.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
 					},
 				).
 				Build(),
 			WantConfigure:  true,
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery disabled in core agent via env var override",
@@ -94,14 +93,14 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &apicommonv1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
 				Build(),
 			WantConfigure:  true,
 			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommonv1.ProcessAgentContainerName, false),
+			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled on single container",
@@ -110,13 +109,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 				WithSingleContainerStrategy(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.UnprivilegedSingleAgentContainerName, false),
+			Agent:         testExpectedAgent(apicommon.UnprivilegedSingleAgentContainerName, false),
 		},
 	}
 	tests.Run(t, buildProcessDiscoveryFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommonv1.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCoreAgent bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)

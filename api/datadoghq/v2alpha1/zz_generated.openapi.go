@@ -21,11 +21,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"./api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
 		"./api/datadoghq/v2alpha1.CustomConfig":                      schema__api_datadoghq_v2alpha1_CustomConfig(ref),
+		"./api/datadoghq/v2alpha1.DaemonSetStatus":                   schema__api_datadoghq_v2alpha1_DaemonSetStatus(ref),
 		"./api/datadoghq/v2alpha1.DatadogAgent":                      schema__api_datadoghq_v2alpha1_DatadogAgent(ref),
 		"./api/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
 		"./api/datadoghq/v2alpha1.DatadogAgentStatus":                schema__api_datadoghq_v2alpha1_DatadogAgentStatus(ref),
 		"./api/datadoghq/v2alpha1.DatadogCredentials":                schema__api_datadoghq_v2alpha1_DatadogCredentials(ref),
 		"./api/datadoghq/v2alpha1.DatadogFeatures":                   schema__api_datadoghq_v2alpha1_DatadogFeatures(ref),
+		"./api/datadoghq/v2alpha1.DeploymentStatus":                  schema__api_datadoghq_v2alpha1_DeploymentStatus(ref),
 		"./api/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema__api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"./api/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
 		"./api/datadoghq/v2alpha1.FIPSConfig":                        schema__api_datadoghq_v2alpha1_FIPSConfig(ref),
@@ -43,6 +45,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__api_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
 		"./api/datadoghq/v2alpha1.RemoteConfigConfiguration":         schema__api_datadoghq_v2alpha1_RemoteConfigConfiguration(ref),
 		"./api/datadoghq/v2alpha1.SeccompConfig":                     schema__api_datadoghq_v2alpha1_SeccompConfig(ref),
+		"./api/datadoghq/v2alpha1.SecretBackendConfig":               schema__api_datadoghq_v2alpha1_SecretBackendConfig(ref),
+		"./api/datadoghq/v2alpha1.SecretBackendRolesConfig":          schema__api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref),
 		"./api/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__api_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
@@ -84,14 +88,104 @@ func schema__api_datadoghq_v2alpha1_CustomConfig(ref common.ReferenceCallback) c
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap references an existing ConfigMap with the configuration file content.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.ConfigMapConfig"),
+							Ref:         ref("./api/datadoghq/v2alpha1.ConfigMapConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/common/v1.ConfigMapConfig"},
+			"./api/datadoghq/v2alpha1.ConfigMapConfig"},
+	}
+}
+
+func schema__api_datadoghq_v2alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"desired": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of desired pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"current": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of current pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"ready": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of ready pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"available": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of available pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"upToDate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of up to date pods in the DaemonSet.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdate is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash is the stored hash of the DaemonSet.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status corresponds to the DaemonSet computed status.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State corresponds to the DaemonSet state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"daemonsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DaemonsetName corresponds to the name of the created DaemonSet.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"desired", "current", "ready", "available", "upToDate"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -341,7 +435,7 @@ func schema__api_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DaemonSetStatus"),
+										Ref: ref("./api/datadoghq/v2alpha1.DaemonSetStatus"),
 									},
 								},
 							},
@@ -350,19 +444,19 @@ func schema__api_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCallb
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The combined actual state of all Agents as daemonsets or extended daemonsets.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DaemonSetStatus"),
+							Ref:         ref("./api/datadoghq/v2alpha1.DaemonSetStatus"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Agent as a deployment.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DeploymentStatus"),
+							Ref:         ref("./api/datadoghq/v2alpha1.DeploymentStatus"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Checks Runner as a deployment.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DeploymentStatus"),
+							Ref:         ref("./api/datadoghq/v2alpha1.DeploymentStatus"),
 						},
 					},
 					"remoteConfigConfiguration": {
@@ -375,7 +469,7 @@ func schema__api_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"./api/datadoghq/v2alpha1.RemoteConfigConfiguration", "github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DaemonSetStatus", "github.com/DataDog/datadog-operator/api/datadoghq/common/v1.DeploymentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
+			"./api/datadoghq/v2alpha1.DaemonSetStatus", "./api/datadoghq/v2alpha1.DeploymentStatus", "./api/datadoghq/v2alpha1.RemoteConfigConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
@@ -396,7 +490,7 @@ func schema__api_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCallb
 					"apiSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APISecret references an existing Secret which stores the API key instead of creating a new one. If set, this parameter takes precedence over \"APIKey\".",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.SecretConfig"),
+							Ref:         ref("./api/datadoghq/v2alpha1.SecretConfig"),
 						},
 					},
 					"appKey": {
@@ -409,14 +503,14 @@ func schema__api_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCallb
 					"appSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over \"AppKey\".",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.SecretConfig"),
+							Ref:         ref("./api/datadoghq/v2alpha1.SecretConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/common/v1.SecretConfig"},
+			"./api/datadoghq/v2alpha1.SecretConfig"},
 	}
 }
 
@@ -591,6 +685,97 @@ func schema__api_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallback
 	}
 }
 
+func schema__api_datadoghq_v2alpha1_DeploymentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DeploymentStatus type representing a Deployment status.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"replicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this Deployment (their labels match the selector).",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"updatedReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of non-terminated pods targeted by this Deployment that have the desired template spec.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readyReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of ready pods targeted by this Deployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"availableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"unavailableReplicas": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total number of unavailable pods targeted by this Deployment. This is the total number of pods that are still required for the Deployment to have 100% available capacity. They may either be pods that are running but not yet available or pods that still have not been created.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastUpdate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastUpdate is the last time the status was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash is the stored hash of the Deployment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"generatedToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status corresponds to the Deployment computed status.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State corresponds to the Deployment state.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeploymentName corresponds to the name of the Deployment.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
 func schema__api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -703,7 +888,7 @@ func schema__api_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) com
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the FIPS sidecar.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.AgentImageConfig"),
+							Ref:         ref("./api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
 					"localAddress": {
@@ -750,7 +935,7 @@ func schema__api_datadoghq_v2alpha1_FIPSConfig(ref common.ReferenceCallback) com
 			},
 		},
 		Dependencies: []string{
-			"./api/datadoghq/v2alpha1.CustomConfig", "github.com/DataDog/datadog-operator/api/datadoghq/common/v1.AgentImageConfig", "k8s.io/api/core/v1.ResourceRequirements"},
+			"./api/datadoghq/v2alpha1.AgentImageConfig", "./api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
@@ -878,14 +1063,14 @@ func schema__api_datadoghq_v2alpha1_MultiCustomConfig(ref common.ReferenceCallba
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap references an existing ConfigMap with the content of the configuration files.",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/common/v1.ConfigMapConfig"),
+							Ref:         ref("./api/datadoghq/v2alpha1.ConfigMapConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/common/v1.ConfigMapConfig"},
+			"./api/datadoghq/v2alpha1.ConfigMapConfig"},
 	}
 }
 
@@ -968,9 +1153,15 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the OTLP/gRPC endpoint.",
+							Description: "Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPort for OTLP/gRPC Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
 					"endpoint": {
@@ -983,6 +1174,8 @@ func schema__api_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
@@ -995,9 +1188,15 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the OTLP/HTTP endpoint.",
+							Description: "Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+					"hostPortConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable hostPorts for OTLP/HTTP Default: true",
+							Ref:         ref("./api/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
 					"endpoint": {
@@ -1010,6 +1209,8 @@ func schema__api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.HostPortConfig"},
 	}
 }
 
@@ -1230,6 +1431,107 @@ func schema__api_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) 
 		},
 		Dependencies: []string{
 			"./api/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema__api_datadoghq_v2alpha1_SecretBackendConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretBackendConfig provides configuration for the secret backend.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"command": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"args": {
+						SchemaProps: spec.SchemaProps{
+							Description: "List of arguments to pass to the command (space-separated strings).",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The command timeout in seconds. Default: `30`.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"enableGlobalPermissions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"roles": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("./api/datadoghq/v2alpha1.SecretBackendRolesConfig"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./api/datadoghq/v2alpha1.SecretBackendRolesConfig"},
+	}
+}
+
+func schema__api_datadoghq_v2alpha1_SecretBackendRolesConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace defines the namespace in which the secrets reside.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"secrets": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Secrets defines the list of secrets for which a role should be created.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

@@ -7,7 +7,6 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -17,6 +16,7 @@ const (
 	defaultSite       string = "datadoghq.com"
 	defaultEuropeSite string = "datadoghq.eu"
 	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultAzureSite  string = "us3.datadoghq.com"
 	defaultGovSite    string = "ddog-gov.com"
 	defaultLogLevel   string = "info"
 
@@ -58,14 +58,15 @@ const (
 
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
-	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.DogstatsdSocketName
 
-	defaultOTLPGRPCEnabled  bool   = false
-	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
-	defaultOTLPHTTPEnabled  bool   = false
-	defaultOTLPHTTPEndpoint string = "0.0.0.0:4318"
+	defaultOTLPGRPCEnabled         bool   = false
+	defaultOTLPGRPCHostPortEnabled bool   = true
+	defaultOTLPGRPCEndpoint        string = "0.0.0.0:4317"
+	defaultOTLPHTTPEnabled         bool   = false
+	defaultOTLPHTTPHostPortEnabled bool   = true
+	defaultOTLPHTTPEndpoint        string = "0.0.0.0:4318"
 
 	defaultRemoteConfigurationEnabled bool = true
 
@@ -139,13 +140,15 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAsiaImageRegistry)
+		case defaultAzureSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultImageRegistry)
 		}
 	}
 
@@ -165,7 +168,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {
-			ddaSpec.Global.FIPS.Image = &commonv1.AgentImageConfig{}
+			ddaSpec.Global.FIPS.Image = &AgentImageConfig{}
 		}
 		if ddaSpec.Global.FIPS.Image.Name == "" {
 			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName
@@ -360,7 +363,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, defaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, DefaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {
@@ -380,13 +383,31 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC == nil {
 		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC = &OTLPGRPCConfig{}
 	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
+
+	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled) {
+		if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig == nil {
+			ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &HostPortConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig.Enabled, defaultOTLPGRPCHostPortEnabled)
+	}
+
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Endpoint, defaultOTLPGRPCEndpoint)
 
 	if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP == nil {
 		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP = &OTLPHTTPConfig{}
 	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
+
+	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled) {
+		if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig == nil {
+			ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &HostPortConfig{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig.Enabled, defaultOTLPHTTPHostPortEnabled)
+	}
+
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Endpoint, defaultOTLPHTTPEndpoint)
 
 	// RemoteConfiguration feature

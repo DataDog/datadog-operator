@@ -9,7 +9,6 @@ import (
 	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -51,7 +50,7 @@ type cspmFeature struct {
 	owner  metav1.Object
 	logger logr.Logger
 
-	customConfig                *apicommonv1.CustomConfig
+	customConfig                *v2alpha1.CustomConfig
 	configMapName               string
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -80,7 +79,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 
 		if cspmConfig.CustomBenchmarks != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(cspmConfig.CustomBenchmarks)
+			f.customConfig = cspmConfig.CustomBenchmarks
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
@@ -90,7 +89,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
-		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
+		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
 
 		// TODO add settings to configure f.createPSP
 
@@ -102,8 +101,8 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.SecurityAgentContainerName,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.SecurityAgentContainerName,
 				},
 			},
 		}
@@ -195,7 +194,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 					ReadOnly:  true,
 				}
 
-				managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+				managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 			}
 		} else {
 			// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
@@ -207,7 +206,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 				apicommon.SecurityAgentComplianceConfigDirVolumePath+"/"+cspmConfFileName,
 				cspmConfFileName,
 			)
-			managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+			managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
 		}
 		// Mount custom policies to cluster agent container.
 		managers.Volume().AddVolume(&vol)
@@ -217,14 +216,14 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 		Name:  apicommon.DDComplianceConfigEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, enabledEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, intervalEnvVar)
 	}
 
 	return nil
@@ -245,7 +244,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		"AUDIT_CONTROL",
 		"AUDIT_READ",
 	}
-	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SecurityAgentContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommon.SecurityAgentContainerName)
 
 	volMountMgr := managers.VolumeMount()
 	VolMgr := managers.Volume()
@@ -279,7 +278,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 		// Mount custom policies to init-volume container.
-		managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommonv1.InitVolumeContainerName)
+		managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommon.InitVolumeContainerName)
 		managers.Volume().AddVolume(&vol)
 
 		// Add workaround command to init-volume container
@@ -294,7 +293,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		// Add empty volume to Security Agent
 		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentComplianceConfigDirVolumeName, apicommon.SecurityAgentComplianceConfigDirVolumePath, true)
 		managers.Volume().AddVolume(&benchmarksVol)
-		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommonv1.SecurityAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommon.SecurityAgentContainerName)
 
 		// Add compliance.d volume mount to init-volume container at different path
 		benchmarkVolMountInitVol := corev1.VolumeMount{
@@ -302,32 +301,32 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			MountPath: "/opt/datadog-agent/compliance.d",
 			ReadOnly:  false,
 		}
-		volMountMgr.AddVolumeMountToInitContainer(&benchmarkVolMountInitVol, apicommonv1.InitVolumeContainerName)
+		volMountMgr.AddVolumeMountToInitContainer(&benchmarkVolMountInitVol, apicommon.InitVolumeContainerName)
 	}
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
 	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
 	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
@@ -335,27 +334,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		Name:  apicommon.DDComplianceConfigEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SecurityAgentContainerName}, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SecurityAgentContainerName}, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDHostRootEnvVar,
 		Value: apicommon.HostRootMountPath,
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostRootEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
 
 	return nil
 }

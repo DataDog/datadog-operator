@@ -10,7 +10,6 @@ import (
 	"os"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -134,18 +133,18 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			}
 
 			if creds.APIKey != nil {
-				f.credentialsInfo.secretCreation.data[apicommon.DefaultAPIKeyKey] = *creds.APIKey
+				f.credentialsInfo.secretCreation.data[v2alpha1.DefaultAPIKeyKey] = *creds.APIKey
 				f.credentialsInfo.apiKey.SecretName = f.credentialsInfo.secretCreation.name
-				f.credentialsInfo.apiKey.SecretKey = apicommon.DefaultAPIKeyKey
+				f.credentialsInfo.apiKey.SecretKey = v2alpha1.DefaultAPIKeyKey
 			} else if creds.APISecret != nil {
 				f.credentialsInfo.apiKey.SecretName = creds.APISecret.SecretName
 				f.credentialsInfo.apiKey.SecretKey = creds.APISecret.KeyName
 			}
 
 			if creds.AppKey != nil {
-				f.credentialsInfo.secretCreation.data[apicommon.DefaultAPPKeyKey] = *creds.AppKey
+				f.credentialsInfo.secretCreation.data[v2alpha1.DefaultAPPKeyKey] = *creds.AppKey
 				f.credentialsInfo.appKey.SecretName = f.credentialsInfo.secretCreation.name
-				f.credentialsInfo.appKey.SecretKey = apicommon.DefaultAPPKeyKey
+				f.credentialsInfo.appKey.SecretKey = v2alpha1.DefaultAPPKeyKey
 			} else if creds.AppSecret != nil {
 				f.credentialsInfo.appKey.SecretName = creds.AppSecret.SecretName
 				f.credentialsInfo.appKey.SecretKey = creds.AppSecret.KeyName
@@ -154,12 +153,12 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 		// DCA Token management
 		f.dcaTokenInfo.token.SecretName = v2alpha1.GetDefaultDCATokenSecretName(dda)
-		f.dcaTokenInfo.token.SecretKey = apicommon.DefaultTokenKey
+		f.dcaTokenInfo.token.SecretKey = v2alpha1.DefaultTokenKey
 		if dda.Spec.Global.ClusterAgentToken != nil {
 			// User specifies token
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
-			f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
+			f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
 		} else if dda.Spec.Global.ClusterAgentTokenSecret != nil {
 			// User specifies token secret
 			f.dcaTokenInfo.token.SecretName = dda.Spec.Global.ClusterAgentTokenSecret.SecretName
@@ -169,9 +168,9 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
 			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
-				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = apiutils.GenerateRandomString(32)
+				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = apiutils.GenerateRandomString(32)
 			} else {
-				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
+				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
 		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
@@ -194,8 +193,8 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			},
 			Agent: feature.RequiredComponent{
 				IsRequired: &trueValue,
-				Containers: []commonv1.AgentContainerName{
-					commonv1.OtelAgent,
+				Containers: []apicommon.AgentContainerName{
+					apicommon.OtelAgent,
 				},
 			},
 		}
@@ -282,7 +281,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 	// Create a configmap for the default seccomp profile in the System Probe.
 	// This is mounted in the init-volume container in the agent default code.
 	for _, containerName := range requiredComponent.Containers {
-		if containerName == commonv1.SystemProbeContainerName {
+		if containerName == apicommon.SystemProbeContainerName {
 			errs = append(errs, managers.ConfigMapManager().AddConfigMap(
 				common.GetDefaultSeccompConfigMapName(f.owner),
 				f.owner.GetNamespace(),

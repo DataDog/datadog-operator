@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -32,7 +31,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 
 	secret := v2alpha1.DatadogCredentials{
 		APIKey: apiutils.NewStringPointer("12345"),
-		APISecret: &apicommonv1.SecretConfig{
+		APISecret: &v2alpha1.SecretConfig{
 			SecretName: secretName,
 			KeyName:    apiKeyName,
 		},
@@ -128,7 +127,7 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDExternalMetricsProviderEnabled,
@@ -167,7 +166,7 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "-metrics-server", // from default secret name
 								},
-								Key: apicommon.DefaultAPPKeyKey,
+								Key: v2alpha1.DefaultAPPKeyKey,
 							},
 						},
 					},
@@ -180,7 +179,7 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.ClusterAgentContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommon.ClusterAgentContainerName]
 			expectedPorts := []*corev1.ContainerPort{
 				{
 					Name:          "metricsapi",

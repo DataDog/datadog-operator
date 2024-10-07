@@ -23,7 +23,6 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -387,7 +386,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 			NameOverride:            apiutils.NewStringPointer("my-local-service"),
 			ForceEnableLocalService: apiutils.NewBoolPointer(true),
 		},
-		Kubelet: &common.KubeletConfig{
+		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathSpecNodeName,
@@ -417,7 +416,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		Replicas:           nil, // Does not apply for the node agent
 		CreateRbac:         apiutils.NewBoolPointer(true),
 		ServiceAccountName: apiutils.NewStringPointer("an-overridden-sa"),
-		Image: &common.AgentImageConfig{
+		Image: &v2alpha1.AgentImageConfig{
 			Name:       "an-overridden-image-name",
 			Tag:        "7",
 			JMXEnabled: true,
@@ -431,8 +430,8 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		CustomConfigurations: nil, // This option requires creating a configmap. Set to nil here to simplify the test
 		ExtraConfd:           nil, // Also requires creating a configmap
 		ExtraChecksd:         nil, // Also requires creating a configmap
-		Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-			common.CoreAgentContainerName: {
+		Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+			apicommon.CoreAgentContainerName: {
 				Name:     apiutils.NewStringPointer("my-container-name"),
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
@@ -456,9 +455,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				ReadinessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: apicommon.DefaultLivenessProbeHTTPPath,
+							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: apicommon.DefaultAgentHealthPort,
+								IntVal: v2alpha1.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -471,9 +470,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LivenessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: apicommon.DefaultLivenessProbeHTTPPath,
+							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: apicommon.DefaultAgentHealthPort,
+								IntVal: v2alpha1.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -489,7 +488,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				SeccompConfig: &v2alpha1.SeccompConfig{
 					CustomRootPath: apiutils.NewStringPointer("/some/path"),
 					CustomProfile: &v2alpha1.CustomConfig{
-						ConfigMap: &common.ConfigMapConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "custom-seccomp-cm",
 						},
 					},

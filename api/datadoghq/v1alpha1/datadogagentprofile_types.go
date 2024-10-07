@@ -6,7 +6,7 @@
 package v1alpha1
 
 import (
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +43,7 @@ type Override struct {
 	// Configure the basic configurations for an Agent container
 	// Valid Agent container names are: `agent`
 	// +optional
-	Containers map[commonv1.AgentContainerName]*Container `json:"containers,omitempty"`
+	Containers map[common.AgentContainerName]*Container `json:"containers,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and
 	// "system-cluster-critical" are two special keywords which indicate the
@@ -57,7 +57,7 @@ type Override struct {
 	// The deployment strategy to use to replace existing pods with new ones.
 	// Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
 	// +optional
-	UpdateStrategy *commonv1.UpdateStrategy `json:"updateStrategy,omitempty"`
+	UpdateStrategy *common.UpdateStrategy `json:"updateStrategy,omitempty"`
 
 	// Labels provide labels that are added to the Datadog Agent pods.
 	// +optional

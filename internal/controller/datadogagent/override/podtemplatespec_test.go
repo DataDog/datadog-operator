@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -55,7 +54,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "custom-agent",
 					Tag:        "latest",
 					JMXEnabled: true,
@@ -75,7 +74,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "custom-agent",
 					Tag:  "latest",
 				},
@@ -94,7 +93,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Tag: "latest",
 				},
 			},
@@ -112,7 +111,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "agent:9.99.9",
 					Tag:        "latest",
 					JMXEnabled: true,
@@ -132,7 +131,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "custom-agent",
 					JMXEnabled: true,
 				},
@@ -151,7 +150,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Tag:        "latest-jmx",
 					JMXEnabled: true,
 				},
@@ -170,7 +169,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0-jmx"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					JMXEnabled: false,
 				},
 			},
@@ -188,7 +187,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "someregistry.com/datadog/agent:9.99.9",
 					Tag:        "latest",
 					JMXEnabled: true,
@@ -208,7 +207,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "agent",
 					Tag:        "latest",
 					JMXEnabled: true,
@@ -228,7 +227,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "agent:latest",
 				},
 			},
@@ -247,7 +246,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "repo/agent:latest",
 				},
 			},
@@ -265,7 +264,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "someregistry.com/agent:latest",
 				},
 			},
@@ -283,7 +282,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "agent",
 					Tag:  "latest",
 				},
@@ -302,7 +301,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/a/b/c/agent:7.38.0"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name:       "cluster-agent",
 					JMXEnabled: true,
 				},
@@ -321,7 +320,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:9.99"}, t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					Name: "otherregistry.com/agent",
 				},
 			},
@@ -341,7 +340,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					PullPolicy: &never,
 				},
 			},
@@ -365,7 +364,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
+				Image: &v2alpha1.AgentImageConfig{
 					PullPolicy:  &ifNotPresent,
 					PullSecrets: &pullSecret,
 				},
@@ -440,7 +439,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			override: v2alpha1.DatadogAgentComponentOverride{
 				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig{
 					v2alpha1.AgentGeneralConfigFile: {
-						ConfigMap: &commonv1.ConfigMapConfig{
+						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "custom-config",
 						},
 					},
@@ -464,7 +463,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraConfd: &v2alpha1.MultiCustomConfig{
-					ConfigMap: &commonv1.ConfigMapConfig{
+					ConfigMap: &v2alpha1.ConfigMapConfig{
 						Name: "extra-confd",
 					},
 				},
@@ -510,7 +509,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraChecksd: &v2alpha1.MultiCustomConfig{
-					ConfigMap: &commonv1.ConfigMapConfig{
+					ConfigMap: &v2alpha1.ConfigMapConfig{
 						Name: "extra-checksd",
 					},
 				},
@@ -556,17 +555,17 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
 					Spec: v1.PodSpec{
 						Containers: []v1.Container{
-							{Name: string(commonv1.CoreAgentContainerName)},
-							{Name: string(commonv1.ClusterAgentContainerName)},
+							{Name: string(common.CoreAgentContainerName)},
+							{Name: string(common.ClusterAgentContainerName)},
 						},
 						InitContainers: []v1.Container{
-							{Name: string(commonv1.InitConfigContainerName)},
+							{Name: string(common.InitConfigContainerName)},
 						},
 					},
 				})
 
 				manager.EnvVarMgr.AddEnvVarToContainer(
-					commonv1.ClusterAgentContainerName,
+					common.ClusterAgentContainerName,
 					&v1.EnvVar{
 						Name:  common.DDLogLevel,
 						Value: "info",
@@ -576,8 +575,8 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Containers: map[commonv1.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					commonv1.ClusterAgentContainerName: {
+				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					common.ClusterAgentContainerName: {
 						LogLevel: apiutils.NewStringPointer("trace"),
 					},
 				},
@@ -585,7 +584,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				envSet := false
 
-				for _, env := range manager.EnvVarMgr.EnvVarsByC[commonv1.ClusterAgentContainerName] {
+				for _, env := range manager.EnvVarMgr.EnvVarsByC[common.ClusterAgentContainerName] {
 					if env.Name == common.DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
