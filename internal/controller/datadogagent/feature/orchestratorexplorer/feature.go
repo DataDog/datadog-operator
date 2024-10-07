@@ -75,7 +75,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	f.owner = dda
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	f.mergeConfigs(&dda.Spec, &dda.Status)
 
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
@@ -98,15 +98,18 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		if orchestratorExplorer.Conf != nil {
 			f.customConfig = orchestratorExplorer.Conf
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
-			} else {
-				f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
+
+		// Used to force restart of DCA
+		hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
+		} else {
+			f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
+		}
+		f.customConfigAnnotationValue = hash
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
+
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
 		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
@@ -129,8 +132,8 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.Enabled == nil {
+func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil {
 		return
 	}
 

@@ -34,8 +34,6 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 		return
 	}
 
-	r.logger.Info("Merge updates")
-
 	dda, err := r.getDatadogAgentInstance(ctx)
 	if err != nil {
 		r.logger.Error(err, "Failed to get updatable agents")
@@ -75,6 +73,7 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 	}
 
 	if len(crds) == 0 {
+		r.logger.Info("No CRDs received")
 		return DatadogAgentRemoteConfig{}, nil
 	}
 
@@ -120,7 +119,7 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 		ddaUpdate.Status = *newddaStatus
 		if err := r.kubeClient.Status().Update(context.TODO(), ddaUpdate); err != nil {
 			if apierrors.IsConflict(err) {
-				r.logger.Info("unable to update DatadogAgent status due to update conflict")
+				r.logger.Info("unable to update DatadogAgent CRD status due to update conflict")
 				return nil
 			}
 			r.logger.Error(err, "unable to update DatadogAgent status")
