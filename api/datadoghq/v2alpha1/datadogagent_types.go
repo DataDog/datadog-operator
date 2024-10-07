@@ -1245,6 +1245,11 @@ type GlobalConfig struct {
 
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
 	FIPS *FIPSConfig `json:"fips,omitempty"`
+
+	// PodDisruptionBudget enables the creation of a PodDisruptionBudget.
+	// Default: false
+	// +optional
+	PodDisruptionBudget *bool `json:"podDisruptionBudget,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
