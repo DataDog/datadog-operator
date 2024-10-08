@@ -187,7 +187,7 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 		if f.hostPortEnabled {
 			apmPort.Port = f.hostPortHostPort
-			apmPort.Name = apicommon.APMHostPortName
+			apmPort.Name = apmHostPortName
 			if f.useHostNetwork {
 				apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
 			}
@@ -394,9 +394,9 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		sockName := filepath.Base(f.udsHostFilepath)
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverSocket,
-			Value: filepath.Join(apicommon.APMSocketVolumeLocalPath, sockName),
+			Value: filepath.Join(apmSocketVolumeLocalPath, sockName),
 		})
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
+		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)

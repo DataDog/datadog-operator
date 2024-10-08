@@ -164,9 +164,9 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 	// ConfigMap for event collection if required
 	if f.configMapName != "" {
-		vol := volume.GetBasicVolume(f.configMapName, apicommon.KubernetesAPIServerCheckConfigVolumeName)
+		vol := volume.GetBasicVolume(f.configMapName, kubernetesAPIServerCheckConfigVolumeName)
 		volMount := corev1.VolumeMount{
-			Name:      apicommon.KubernetesAPIServerCheckConfigVolumeName,
+			Name:      kubernetesAPIServerCheckConfigVolumeName,
 			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, kubeAPIServerConfigFolderName),
 			ReadOnly:  true,
 		}

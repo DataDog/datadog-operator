@@ -173,15 +173,15 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		// Custom config is referenced via ConfigMap
 		vol, volMount = volume.GetVolumesFromConfigMap(
 			f.customConfig.ConfigMap,
-			apicommon.KubeStateMetricCoreVolumeName,
+			ksmCoreVolumeName,
 			f.configConfigMapName,
 			ksmCoreCheckFolderName,
 		)
 	} else {
 		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(f.configConfigMapName, apicommon.KubeStateMetricCoreVolumeName)
+		vol = volume.GetBasicVolume(f.configConfigMapName, ksmCoreVolumeName)
 		volMount = corev1.VolumeMount{
-			Name:      apicommon.KubeStateMetricCoreVolumeName,
+			Name:      ksmCoreVolumeName,
 			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}

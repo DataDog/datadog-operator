@@ -51,13 +51,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -91,13 +91,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -131,12 +131,12 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
@@ -169,12 +169,12 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
@@ -209,13 +209,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4315,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4316,
 						Protocol:      corev1.ProtocolTCP,
@@ -251,13 +251,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4315,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4316,
 						Protocol:      corev1.ProtocolTCP,
@@ -283,7 +283,7 @@ func TestOTLPFeature(t *testing.T) {
 				},
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
@@ -309,7 +309,7 @@ func TestOTLPFeature(t *testing.T) {
 				},
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
@@ -337,7 +337,7 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -365,7 +365,7 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,

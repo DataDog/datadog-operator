@@ -161,16 +161,16 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 		// Custom config is referenced via ConfigMap
 		vol, volMount = volume.GetVolumesFromConfigMap(
 			f.customConfig.ConfigMap,
-			apicommon.OrchestratorExplorerVolumeName,
+			orchestratorExplorerVolumeName,
 			f.configConfigMapName,
 			orchestratorExplorerFolderName,
 		)
 	} else {
 		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(f.configConfigMapName, apicommon.OrchestratorExplorerVolumeName)
+		vol = volume.GetBasicVolume(f.configConfigMapName, orchestratorExplorerVolumeName)
 
 		volMount = corev1.VolumeMount{
-			Name:      apicommon.OrchestratorExplorerVolumeName,
+			Name:      orchestratorExplorerVolumeName,
 			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, orchestratorExplorerFolderName),
 			ReadOnly:  true,
 		}
