@@ -176,8 +176,9 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
-	if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
 		apmPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(int(v2alpha1.DefaultApmPort)),
