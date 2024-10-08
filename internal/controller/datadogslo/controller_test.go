@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -147,7 +146,6 @@ func TestReconciler_Reconcile(t *testing.T) {
 				datadogAuth:   testAuth,
 				recorder:      recorder,
 				log:           testLogger,
-				versionInfo:   &version.Info{},
 			}
 
 			res, _ := r.Reconcile(ctx, tt.request)
