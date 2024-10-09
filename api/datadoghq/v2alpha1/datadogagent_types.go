@@ -1420,7 +1420,7 @@ type DatadogAgentComponentOverride struct {
 
 	// Sets the ServiceAccountAnnotations used by this component.
 	// +optional
-	ServiceAccountAnnotations map[string]string `json:"ServiceAccountAnnotations,omitempty"`
+	ServiceAccountAnnotations map[string]string `json:"serviceAccountAnnotations,omitempty"`
 
 	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional

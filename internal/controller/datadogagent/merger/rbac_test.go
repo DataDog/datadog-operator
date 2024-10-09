@@ -372,6 +372,36 @@ func TestRBACManager_AddServiceAccountAnnotations(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "duplicate annotation keys",
+			store: testStore.AddOrUpdateStore(kubernetes.ServiceAccountsKind, &corev1.ServiceAccount{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: ns,
+					Name:      name + "sa",
+					Annotations: map[string]string{
+						"key2": "oldValue2",
+						"key3": "value3",
+					},
+				},
+			}),
+			namespace: ns,
+			saName:    name + "sa",
+			annotations: map[string]string{
+				"key1": "value1",
+				"key2": "newValue2",
+			},
+			wantErr: false,
+			validateFunc: func(t *testing.T, store *store.Store) {
+				obj, found := store.Get(kubernetes.ServiceAccountsKind, ns, name+"sa")
+				if !found {
+					t.Errorf("missing ServiceAccount %s/%s", ns, name+"sa")
+				}
+				sa, ok := obj.(*corev1.ServiceAccount)
+				if !ok || sa.Annotations["key1"] != "value1" || sa.Annotations["key2"] != "newValue2" || sa.Annotations["key3"] != "value3" {
+					t.Errorf("expected annotations key1=value1, key2=newValue2, key3=value3 got %v", sa.Annotations)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {
