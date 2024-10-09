@@ -196,18 +196,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		}
 	}
 
-	if err = r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old DaemonSets")
-	}
-	if err = r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old DCA Deployments")
-	}
-	if err = r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old CCR Deployments")
-	}
 	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
 	} else {
@@ -221,6 +209,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	} else {
 		// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	}
+
+	// ------------------------------
+	// Cleanup old agents/DCA/CCR components
+	// ------------------------------
+	if err = r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
+		errs = append(errs, err)
+		logger.Error(err, "Error cleaning up old DaemonSets")
+	}
+	if err = r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
+		errs = append(errs, err)
+		logger.Error(err, "Error cleaning up old DCA Deployments")
+	}
+	if err = r.cleanupOldCCRDeployments(ctx, logger, instance, newStatus); err != nil {
+		errs = append(errs, err)
+		logger.Error(err, "Error cleaning up old CCR Deployments")
 	}
 
 	// ------------------------------

@@ -129,15 +129,12 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 	deploymentName := getDeploymentNameFromCCR(dda)
-	validDeploymentNames := map[string]struct{}{
-		deploymentName: {},
-	}
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err
 	}
 	for _, deployment := range deploymentList.Items {
-		if _, ok := validDeploymentNames[deployment.Name]; !ok {
+		if deploymentName != deployment.Name {
 			if _, err := r.cleanupV2ClusterChecksRunner(logger, dda, &deployment, newStatus); err != nil {
 				return err
 			}

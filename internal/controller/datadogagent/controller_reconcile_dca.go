@@ -142,15 +142,12 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 	deploymentName := getDeploymentNameFromDCA(dda)
-	validDeploymentNames := map[string]struct{}{
-		deploymentName: {},
-	}
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err
 	}
 	for _, deployment := range deploymentList.Items {
-		if _, ok := validDeploymentNames[deployment.Name]; !ok {
+		if deploymentName != deployment.Name {
 			if _, err := r.cleanupV2ClusterAgent(logger, dda, &deployment, resourcesManager, newStatus); err != nil {
 				return err
 			}

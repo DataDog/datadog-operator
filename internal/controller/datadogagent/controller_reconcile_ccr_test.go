@@ -90,7 +90,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 		wantDeployment *appsv1.DeploymentList
 	}{
 		{
-			name:        "no unused DCA deployments",
+			name:        "no unused CCR deployments",
 			description: "DCA deployment `dda-foo-cluster-checks-runner` should not be deleted",
 			existingAgents: []client.Object{
 				&appsv1.Deployment{
@@ -242,9 +242,9 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(sch).WithObjects(tt.existingAgents...).Build()
-			logger := logf.Log.WithName("Test_cleanupOldDCADeployments")
+			logger := logf.Log.WithName("Test_cleanupOldCCRDeployments")
 			eventBroadcaster := record.NewBroadcaster()
-			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Test_cleanupOldDCADeployments"})
+			recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "Test_cleanupOldCCRDeployments"})
 
 			r := &Reconciler{
 				client:   fakeClient,
