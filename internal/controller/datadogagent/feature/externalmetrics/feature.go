@@ -149,7 +149,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		{
 			Protocol: corev1.ProtocolTCP,
 			Port:     f.port,
-			Name:     apicommon.ExternalMetricsPortName,
+			Name:     externalMetricsPortName,
 		},
 	}
 	selector := map[string]string{
@@ -200,7 +200,8 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		}
 
 		// RBAC
-		if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, managers.Store().GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
+		platformInfo := managers.Store().GetPlatformInfo()
+		if err := managers.RBACManager().AddClusterPolicyRules("kube-system", componentdca.GetExternalMetricsReaderClusterRoleName(f.owner, platformInfo.GetVersionInfo()), "horizontal-pod-autoscaler", getExternalMetricsReaderPolicyRules()); err != nil {
 			return fmt.Errorf("error adding external metrics provider external metrics reader clusterrole and clusterrolebinding to store: %w", err)
 		}
 	}
@@ -323,7 +324,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 	}
 
 	managers.Port().AddPortToContainer(apicommon.ClusterAgentContainerName, &corev1.ContainerPort{
-		Name:          apicommon.ExternalMetricsPortName,
+		Name:          externalMetricsPortName,
 		ContainerPort: f.port,
 		Protocol:      corev1.ProtocolTCP,
 	})

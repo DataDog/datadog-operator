@@ -37,6 +37,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
@@ -202,6 +203,9 @@ func run(opts *options) error {
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)
+
+	//submits the maximum go routine setting as a metric
+	metrics.MaxGoroutines.Set(float64(opts.maximumGoroutines))
 
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")

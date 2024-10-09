@@ -49,7 +49,7 @@ extensions:
           branch: "main"
           schedule: "30 23 * * SUN-THU"
           workflows:
-            - "k8s-datadog-agent-ops/workflows/deploy_operator.operator_nightly"
+            - "k8s-datadog-agent-ops/workflows/deploy_operator_nightly.operator_nightly"
           options:
             disable_failure_notifications: true
         - name: "conductor-test"

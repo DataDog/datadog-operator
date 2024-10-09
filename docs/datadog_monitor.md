@@ -71,7 +71,10 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
     ```
 
     This automatically creates a new monitor in Datadog. You can find it on the [Manage Monitors][7] page of your Datadog account.
+
     *Note*: All monitors created from `DatadogMonitor` are automatically tagged with `generated:kubernetes`.
+
+By default, the Operator ensures that the API monitor definition stays in sync with the DatadogMonitor resource every **60** minutes (per monitor). This interval can be adjusted using the environment variable `DD_MONITOR_FORCE_SYNC_PERIOD`, which specifies the number of minutes. For example, setting this variable to `"30"` changes the interval to 30 minutes.
 
 ## Cleanup
 
@@ -79,7 +82,7 @@ The following commands delete the monitor from your Datadog account and all the 
 
 ```shell
 kubectl delete datadogmonitor datadog-monitor-test
-helm delete datadog
+helm delete my-datadog-operator
 ```
 
 ## Usage and Troubleshooting

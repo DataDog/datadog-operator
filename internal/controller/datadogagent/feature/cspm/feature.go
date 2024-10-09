@@ -189,7 +189,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 			for _, item := range f.customConfig.ConfigMap.Items {
 				volMount = corev1.VolumeMount{
 					Name:      cspmConfigVolumeName,
-					MountPath: apicommon.SecurityAgentComplianceConfigDirVolumePath + "/" + item.Path,
+					MountPath: securityAgentComplianceConfigDirVolumePath + "/" + item.Path,
 					SubPath:   item.Path,
 					ReadOnly:  true,
 				}
@@ -203,7 +203,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 			// Need to use subpaths so that existing configurations are not overwritten
 			volMount = volume.GetVolumeMountWithSubPath(
 				cspmConfigVolumeName,
-				apicommon.SecurityAgentComplianceConfigDirVolumePath+"/"+cspmConfFileName,
+				securityAgentComplianceConfigDirVolumePath+"/"+cspmConfFileName,
 				cspmConfFileName,
 			)
 			managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
@@ -291,13 +291,13 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		}
 
 		// Add empty volume to Security Agent
-		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentComplianceConfigDirVolumeName, apicommon.SecurityAgentComplianceConfigDirVolumePath, true)
+		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(securityAgentComplianceConfigDirVolumeName, securityAgentComplianceConfigDirVolumePath, true)
 		managers.Volume().AddVolume(&benchmarksVol)
 		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommon.SecurityAgentContainerName)
 
 		// Add compliance.d volume mount to init-volume container at different path
 		benchmarkVolMountInitVol := corev1.VolumeMount{
-			Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+			Name:      securityAgentComplianceConfigDirVolumeName,
 			MountPath: "/opt/datadog-agent/compliance.d",
 			ReadOnly:  false,
 		}

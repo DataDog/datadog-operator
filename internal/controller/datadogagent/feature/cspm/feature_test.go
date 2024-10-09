@@ -173,7 +173,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+					Name:      securityAgentComplianceConfigDirVolumeName,
 					MountPath: "/etc/datadog-agent/compliance.d",
 					ReadOnly:  true,
 				},
@@ -221,7 +221,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 					},
 				},
 				{
-					Name: apicommon.SecurityAgentComplianceConfigDirVolumeName,
+					Name: securityAgentComplianceConfigDirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},

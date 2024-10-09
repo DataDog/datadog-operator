@@ -96,7 +96,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			dsd := dda.Spec.Features.Dogstatsd
 			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
 				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
-				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode
+				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
 			}
 			// otherwise don't set to fall back to default agent setting `hostip`
 		}
@@ -210,7 +210,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	}
 	port := []corev1.ServicePort{
 		{
-			Name:       apicommon.AdmissionControllerPortName,
+			Name:       admissionControllerPortName,
 			Protocol:   corev1.ProtocolTCP,
 			TargetPort: intstr.FromInt(v2alpha1.DefaultAdmissionControllerTargetPort),
 			Port:       v2alpha1.DefaultAdmissionControllerServicePort,
