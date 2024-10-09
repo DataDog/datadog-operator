@@ -97,18 +97,16 @@ fi
 echo "Running go work sync..."
 go work sync
 
-# Run go mod tidy
-echo "Running go mod tidy..."
-go mod tidy
-
-# Update go.work
-test_go_mod_file="$ROOT/test/e2e/go.mod"
-if [[ -f $test_go_mod_file ]]; then
-    echo "Processing $test_go_mod_file..."
-    sed -i -E "s/^go [^ ].*/go $GOVERSION/gm" "$test_go_mod_file"
-else
-    echo "Warning: $test_go_mod_file not found, skipping."
-fi
-# Run go mod tidy
-echo "Running go mod tidy with $test_go_mod_file..."
-cd $ROOT/test/e2e/ && go mod tidy && cd $ROOT
+# Update go.mod files
+go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod"
+for file in $go_mod_files; do
+    if [[ -f $file ]]; then
+        echo "Processing $file..."
+        go mod edit -go $new_minor_version $file
+        go mod edit -toolchain go$GOVERSION $file
+        parent_dir=$(dirname "$file")
+        cd $parent_dir && go mod tidy -v; cd $ROOT
+    else
+        echo "Warning: $file not found, skipping."
+    fi
+done
