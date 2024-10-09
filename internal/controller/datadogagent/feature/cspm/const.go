@@ -15,6 +15,9 @@ const (
 	cspmRBACPrefix       = "cspm"
 	cspmConfigVolumeName = "complianceconfigdir"
 	cspmConfFileName     = "compliance.yaml"
+
+	securityAgentComplianceConfigDirVolumeName = "compliancedir"
+	securityAgentComplianceConfigDirVolumePath = "/etc/datadog-agent/compliance.d"
 )
 
 func getPSPName(owner metav1.Object) string {

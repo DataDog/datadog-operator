@@ -13,6 +13,10 @@ import (
 
 const (
 	apmRBACPrefix = "apm"
+
+	apmHostPortName          = "traceport"
+	apmSocketVolumeName      = "apmsocket"
+	apmSocketVolumeLocalPath = "/var/run/datadog"
 )
 
 // getRBACResourceName return the RBAC resources name
