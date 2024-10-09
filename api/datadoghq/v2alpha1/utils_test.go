@@ -194,11 +194,11 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 					"annotations": customServiceAccountAnnotations,
 				},
 				NodeAgentComponentName: {
-					"name":        fmt.Sprintf("%s-%s", ddaName, common.DefaultAgentResourceSuffix),
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
 					"annotations": customServiceAccountAnnotations,
 				},
 				ClusterChecksRunnerComponentName: {
-					"name":        fmt.Sprintf("%s-%s", ddaName, common.DefaultClusterChecksRunnerResourceSuffix),
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
 					"annotations": customServiceAccountAnnotations,
 				},
 			},
@@ -220,7 +220,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 			},
 			want: map[ComponentName]map[string]interface{}{
 				NodeAgentComponentName: {
-					"name":        fmt.Sprintf("%s-%s", ddaName, common.DefaultAgentResourceSuffix),
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
 					"annotations": map[string]string{},
 				},
 				ClusterAgentComponentName: {
@@ -228,7 +228,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 					"annotations": customServiceAccountAnnotations,
 				},
 				ClusterChecksRunnerComponentName: {
-					"name":        fmt.Sprintf("%s-%s", ddaName, common.DefaultClusterChecksRunnerResourceSuffix),
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
 					"annotations": map[string]string{},
 				},
 			},
