@@ -34,13 +34,7 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 		return
 	}
 
-	dda, err := r.getDatadogAgentInstance(ctx)
-	if err != nil {
-		r.logger.Error(err, "Failed to get updatable agents")
-		return
-	}
-
-	if err := r.crdUpdateInstanceStatus(dda, mergedUpdate); err != nil {
+	if err := r.getAndPatchDatadogAgent(ctx, mergedUpdate, r.crdUpdateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
@@ -56,7 +50,6 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 }
 
 func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
-
 	// Unmarshal configs and config order
 	crds := []string{}
 	for _, c := range updates {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -45,6 +46,7 @@ type RemoteConfigUpdater struct {
 	rcService   *service.Service
 	serviceConf RcServiceConfiguration
 	logger      logr.Logger
+	mu          sync.RWMutex
 }
 
 type RcServiceConfiguration struct {
@@ -226,6 +228,21 @@ func getEndpoint(prefix, site string) string {
 	return prefix + defaultSite
 }
 
+//dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig
+
+func (r *RemoteConfigUpdater) getAndPatchDatadogAgent(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
+	// Only one instance of this can run at a time
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	dda, err := r.getDatadogAgentWithRetry(ctx)
+	if err != nil {
+		return err
+	}
+
+	return f(dda, cfg)
+}
+
 func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 
 	ctx := context.Background()
@@ -249,13 +266,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Info("Merged", "update", mergedUpdate)
 	}
 
-	dda, err := r.getDatadogAgentWithRetry(ctx)
-	if err != nil {
-		r.logger.Error(err, "Failed to get updatable agents")
-		return
-	}
-
-	if err := r.updateInstanceStatus(dda, mergedUpdate); err != nil {
+	if err := r.getAndPatchDatadogAgent(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
@@ -389,6 +400,7 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 
 }
 
+// TODO: We only want this called in getAndPatchDatadogAgent
 func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
 	ddaList := &v2alpha1.DatadogAgentList{}
 	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
@@ -403,6 +415,7 @@ func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2al
 	return ddaList.Items[0], nil
 }
 
+// TODO: We only want this called in getAndPatchDatadogAgent
 func (r *RemoteConfigUpdater) getDatadogAgentWithRetry(ctx context.Context) (v2alpha1.DatadogAgent, error) {
 	var dda v2alpha1.DatadogAgent
 	var err error
