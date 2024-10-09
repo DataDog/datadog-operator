@@ -41,7 +41,7 @@ require (
 require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.55.0-rc.10
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.55.0-rc.10
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-devel.0.20240926200342-7fa44ed01295
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.60.0-devel.0.20241009181454-ac54aa74833a
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
@@ -160,7 +160,7 @@ require (
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/term v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
