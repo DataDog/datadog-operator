@@ -124,11 +124,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
 			f.disableNonResourceRules = true
 		}
-		if dda.Spec.Global.PodDisruptionBudget != nil {
-			if dda.Status.ClusterAgent.Replicas != 0 && dda.Status.ClusterAgent.Replicas > 1 {
-				f.PodDisruptionBudget = true
-			}
-		}
 		if dda.Spec.Global.Credentials != nil {
 			creds := dda.Spec.Global.Credentials
 
@@ -219,8 +214,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 // Feature's dependencies should be added in the store.
 func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	var errs []error
-	fmt.Println("manage dependencies")
-	f.logger.Info("manage dependencies")
 	// manage credential secret
 	if f.credentialsInfo.secretCreation.createSecret {
 		for key, value := range f.credentialsInfo.secretCreation.data {
@@ -325,18 +318,6 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 	if err := managers.Store().AddOrUpdate(kubernetes.ServicesKind, dcaService); err != nil {
 		return err
 	}
-
-	pdb := componentdca.GetClusterAgentPodDisruptionBudget(f.owner)
-	fmt.Println("got cluster agent pdb, min available is ", pdb.Spec.MinAvailable)
-	f.logger.Info("test, logging for PDB")
-	if err := managers.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
-		f.logger.Error(err, "error with created pod disruption budget")
-		fmt.Println("error with created pod disruption budget")
-		return err
-	}
-	// similar to ^ but for pdb
-	// add pdb creation when dca is enabled
-	// what to add as matchlabels?
 
 	return errors.NewAggregate(errs)
 }

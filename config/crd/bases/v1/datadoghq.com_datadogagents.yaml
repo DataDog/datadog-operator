@@ -3567,6 +3567,9 @@ spec:
                           `security-agent`, `system-probe`, `trace-agent`, and `all`.
                           Configuration under `all` applies to all configured containers.
                         type: object
+                      createPodDisruptionBudget:
+                        description: Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+                        type: boolean
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
                         type: boolean

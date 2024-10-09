@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -42,6 +44,28 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		// Handle custom check files
 		checksdCMName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(component))))
 		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
+
+		if override.CreatePodDisruptionBudget != nil {
+			fmt.Println("override.CreatePodDisruptionBudget is not nil for", component)
+			if component == v2alpha1.ClusterAgentComponentName {
+				pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda)
+				if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
+					fmt.Println("error with created pod disruption budget")
+					errs = append(errs, err)
+				} else {
+					fmt.Println("created pod disruption budget")
+				}
+
+			} else if component == v2alpha1.ClusterChecksRunnerComponentName {
+				pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda)
+				if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
+					fmt.Println("error with created pod disruption budget")
+					errs = append(errs, err)
+				} else {
+					fmt.Println("created pod disruption budget")
+				}
+			}
+		}
 	}
 
 	return errs

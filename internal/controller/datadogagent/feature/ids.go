@@ -65,8 +65,6 @@ const (
 	SBOMIDType = "sbom"
 	// HelmCheckIDType Helm Check feature.
 	HelmCheckIDType = "helm_check"
-	// PodDisruptionBudgetIDType Pod Disruption Budget feature.
-	PodDisruptionBudgetIDType = "pdb"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

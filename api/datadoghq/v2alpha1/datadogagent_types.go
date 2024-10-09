@@ -1245,11 +1245,6 @@ type GlobalConfig struct {
 
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
 	FIPS *FIPSConfig `json:"fips,omitempty"`
-
-	// PodDisruptionBudget enables the creation of a PodDisruptionBudget.
-	// Default: false
-	// +optional
-	PodDisruptionBudget *bool `json:"podDisruptionBudget,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1366,6 +1361,10 @@ type DatadogAgentComponentOverride struct {
 	// Not applicable for a DaemonSet/ExtendedDaemonSet deployment
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+	// +optional
+	CreatePodDisruptionBudget *bool `json:"createPodDisruptionBudget,omitempty"`
 
 	// Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
 	// +optional
