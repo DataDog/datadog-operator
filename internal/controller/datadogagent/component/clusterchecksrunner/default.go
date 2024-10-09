@@ -105,7 +105,6 @@ func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodD
 			},
 		},
 	}
-	fmt.Println("in GetClusterAgentPodDisruptionBudget, ", dda.GetNamespace())
 	return pdb
 }
 

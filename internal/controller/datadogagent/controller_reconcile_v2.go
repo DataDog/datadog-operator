@@ -99,11 +99,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
-	// logger = logger.WithValues("datadogagent", instance.Name, "namespace", instance.Namespace)
-	fmt.Println("ReconcileInstanceV2")
-	logger.Info("ReconcileInstanceV2")
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	logger.Info("ReconcileInstanceV2", "features", features)
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, features)
 
@@ -124,9 +120,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// Set up dependencies required by enabled features
 	for _, feat := range features {
-		fmt.Println("Dependency ManageDependencies", "featureID", feat.ID())
-		logger.Info("Dependency ManageDependencies", "featureID", feat.ID())
-		logger.V(1).Info("Dependency ManageDependencies", "featureID", feat.ID())
 		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}

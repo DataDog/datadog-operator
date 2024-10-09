@@ -249,8 +249,6 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 	}
 
 	if components.ClusterAgent.IsEnabled() {
-		f.logger.Info("Cluster Agent is enabled")
-		fmt.Println("Cluster Agent is enabled")
 		if err := f.clusterAgentDependencies(managers, components.ClusterAgent); err != nil {
 			errs = append(errs, err)
 		}

@@ -46,23 +46,15 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
 
 		if override.CreatePodDisruptionBudget != nil {
-			fmt.Println("override.CreatePodDisruptionBudget is not nil for", component)
 			if component == v2alpha1.ClusterAgentComponentName {
 				pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda)
 				if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
-					fmt.Println("error with created pod disruption budget")
 					errs = append(errs, err)
-				} else {
-					fmt.Println("created pod disruption budget")
 				}
-
 			} else if component == v2alpha1.ClusterChecksRunnerComponentName {
 				pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda)
 				if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
-					fmt.Println("error with created pod disruption budget")
 					errs = append(errs, err)
-				} else {
-					fmt.Println("created pod disruption budget")
 				}
 			}
 		}
