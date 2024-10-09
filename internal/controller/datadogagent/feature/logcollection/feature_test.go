@@ -100,29 +100,29 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantVolumeMounts := []*corev1.VolumeMount{
 						{
-							Name:      apicommon.PointerVolumeName,
-							MountPath: apicommon.PointerVolumePath,
+							Name:      pointerVolumeName,
+							MountPath: pointerVolumePath,
 							ReadOnly:  false,
 						},
 						{
-							Name:      apicommon.PodLogVolumeName,
-							MountPath: apicommon.PodLogVolumePath,
+							Name:      podLogVolumeName,
+							MountPath: podLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
-							Name:      apicommon.ContainerLogVolumeName,
-							MountPath: apicommon.ContainerLogVolumePath,
+							Name:      containerLogVolumeName,
+							MountPath: containerLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
-							Name:      apicommon.SymlinkContainerVolumeName,
-							MountPath: apicommon.SymlinkContainerVolumePath,
+							Name:      symlinkContainerVolumeName,
+							MountPath: symlinkContainerVolumePath,
 							ReadOnly:  true,
 						},
 					}
 					wantVolumes := []*corev1.Volume{
 						{
-							Name: apicommon.PointerVolumeName,
+							Name: pointerVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/temp/storage",
@@ -130,7 +130,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.PodLogVolumeName,
+							Name: podLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/pod/logs",
@@ -138,7 +138,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.ContainerLogVolumeName,
+							Name: containerLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/container/logs",
@@ -146,7 +146,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.SymlinkContainerVolumeName,
+							Name: symlinkContainerVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/symlink",
@@ -168,34 +168,34 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 func getWantVolumes() []*corev1.Volume {
 	wantVolumes := []*corev1.Volume{
 		{
-			Name: apicommon.PointerVolumeName,
+			Name: pointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.LogTempStoragePath,
+					Path: apicommon.DefaultLogTempStoragePath,
 				},
 			},
 		},
 		{
-			Name: apicommon.PodLogVolumeName,
+			Name: podLogVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.PodLogVolumePath,
+					Path: podLogVolumePath,
 				},
 			},
 		},
 		{
-			Name: apicommon.ContainerLogVolumeName,
+			Name: containerLogVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.ContainerLogVolumePath,
+					Path: containerLogVolumePath,
 				},
 			},
 		},
 		{
-			Name: apicommon.SymlinkContainerVolumeName,
+			Name: symlinkContainerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.SymlinkContainerVolumePath,
+					Path: symlinkContainerVolumePath,
 				},
 			},
 		},
@@ -206,23 +206,23 @@ func getWantVolumes() []*corev1.Volume {
 func getWantVolumeMounts() []*corev1.VolumeMount {
 	wantVolumeMounts := []*corev1.VolumeMount{
 		{
-			Name:      apicommon.PointerVolumeName,
-			MountPath: apicommon.PointerVolumePath,
+			Name:      pointerVolumeName,
+			MountPath: pointerVolumePath,
 			ReadOnly:  false,
 		},
 		{
-			Name:      apicommon.PodLogVolumeName,
-			MountPath: apicommon.PodLogVolumePath,
+			Name:      podLogVolumeName,
+			MountPath: podLogVolumePath,
 			ReadOnly:  true,
 		},
 		{
-			Name:      apicommon.ContainerLogVolumeName,
-			MountPath: apicommon.ContainerLogVolumePath,
+			Name:      containerLogVolumeName,
+			MountPath: containerLogVolumePath,
 			ReadOnly:  true,
 		},
 		{
-			Name:      apicommon.SymlinkContainerVolumeName,
-			MountPath: apicommon.SymlinkContainerVolumePath,
+			Name:      symlinkContainerVolumeName,
+			MountPath: symlinkContainerVolumePath,
 			ReadOnly:  true,
 		},
 	}

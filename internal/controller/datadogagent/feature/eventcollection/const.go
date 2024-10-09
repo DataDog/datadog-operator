@@ -15,6 +15,8 @@ const (
 	kubeAPIServerConfigFileName   = "kubernetes_apiserver.yaml"
 	kubeAPIServerConfigFolderName = "kubernetes_apiserver.d"
 	eventCollectionRBACPrefix     = "event"
+
+	kubernetesAPIServerCheckConfigVolumeName = "kubernetes-apiserver-check-config"
 )
 
 // getRBACResourceName return the RBAC resources name

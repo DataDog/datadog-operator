@@ -14,6 +14,8 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
+// This file contains definitions of volumes used in the agent specs
+
 // GetVolumeForConfig return the volume that contains the agent config
 func GetVolumeForConfig() corev1.Volume {
 	return corev1.Volume{

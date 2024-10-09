@@ -26,11 +26,15 @@ func TestOTLPFeature(t *testing.T) {
 		{
 			Name: "gRPC and HTTP enabled, APM",
 			DDA: newAgent(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
-				EnabledHTTP:  true,
-				EndpointHTTP: "0.0.0.0:4318",
-				APM:          true,
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  4317,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  4318,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
 			}),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
@@ -47,13 +51,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -64,11 +68,13 @@ func TestOTLPFeature(t *testing.T) {
 		{
 			Name: "[single container] gRPC and HTTP enabled, APM",
 			DDA: newAgentSingleContainer(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
-				EnabledHTTP:  true,
-				EndpointHTTP: "0.0.0.0:4318",
-				APM:          true,
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
 			}),
 			WantConfigure: true,
 			Agent: testExpectedSingleContainer(Expected{
@@ -85,13 +91,13 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -100,10 +106,172 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
+			Name: "gRPC and HTTP enabled, hostPorts disabled",
+			DDA: newAgent(Settings{
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: false,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: false,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
+			}),
+			WantConfigure: true,
+			Agent: testExpected(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          otlpGRPCPortName,
+						ContainerPort: 4317,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          otlpHTTPPortName,
+						ContainerPort: 4318,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
+			Name: "[single container] gRPC and HTTP enabled, hostPorts disabled",
+			DDA: newAgentSingleContainer(Settings{
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: false,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: false,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
+			}),
+			WantConfigure: true,
+			Agent: testExpectedSingleContainer(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          otlpGRPCPortName,
+						ContainerPort: 4317,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          otlpHTTPPortName,
+						ContainerPort: 4318,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
+			Name: "gRPC and HTTP enabled, custom hostports",
+			DDA: newAgent(Settings{
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  4315,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  4316,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
+			}),
+			WantConfigure: true,
+			Agent: testExpected(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          otlpGRPCPortName,
+						ContainerPort: 4317,
+						HostPort:      4315,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          otlpHTTPPortName,
+						ContainerPort: 4318,
+						HostPort:      4316,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
+			Name: "[single container] gRPC and HTTP enabled, custom hostports",
+			DDA: newAgentSingleContainer(Settings{
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  4315,
+				EndpointGRPC:        "0.0.0.0:4317",
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  4316,
+				EndpointHTTP:        "0.0.0.0:4318",
+				APM:                 true,
+			}),
+			WantConfigure: true,
+			Agent: testExpectedSingleContainer(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          otlpGRPCPortName,
+						ContainerPort: 4317,
+						HostPort:      4315,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          otlpHTTPPortName,
+						ContainerPort: 4318,
+						HostPort:      4316,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
 			Name: "gRPC enabled, no APM",
 			DDA: newAgent(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  0,
+				EndpointGRPC:        "0.0.0.0:4317",
 			}),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
@@ -115,7 +283,7 @@ func TestOTLPFeature(t *testing.T) {
 				},
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
@@ -126,8 +294,10 @@ func TestOTLPFeature(t *testing.T) {
 		{
 			Name: "[single container] gRPC enabled, no APM",
 			DDA: newAgentSingleContainer(Settings{
-				EnabledGRPC:  true,
-				EndpointGRPC: "0.0.0.0:4317",
+				EnabledGRPC:         true,
+				EnabledGRPCHostPort: true,
+				CustomGRPCHostPort:  0,
+				EndpointGRPC:        "0.0.0.0:4317",
 			}),
 			WantConfigure: true,
 			Agent: testExpectedSingleContainer(Expected{
@@ -139,7 +309,7 @@ func TestOTLPFeature(t *testing.T) {
 				},
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPGRPCPortName,
+						Name:          otlpGRPCPortName,
 						ContainerPort: 4317,
 						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
@@ -150,9 +320,11 @@ func TestOTLPFeature(t *testing.T) {
 		{
 			Name: "HTTP enabled, APM",
 			DDA: newAgent(Settings{
-				EnabledHTTP:  true,
-				EndpointHTTP: "somehostname:4318",
-				APM:          true,
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  0,
+				EndpointHTTP:        "somehostname:4318",
+				APM:                 true,
 			}),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
@@ -165,7 +337,7 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -176,9 +348,11 @@ func TestOTLPFeature(t *testing.T) {
 		{
 			Name: "[single container] HTTP enabled, APM",
 			DDA: newAgentSingleContainer(Settings{
-				EnabledHTTP:  true,
-				EndpointHTTP: "somehostname:4318",
-				APM:          true,
+				EnabledHTTP:         true,
+				EnabledHTTPHostPort: true,
+				CustomHTTPHostPort:  0,
+				EndpointHTTP:        "somehostname:4318",
+				APM:                 true,
 			}),
 			WantConfigure: true,
 			Agent: testExpectedSingleContainer(Expected{
@@ -191,7 +365,7 @@ func TestOTLPFeature(t *testing.T) {
 				CheckTraceAgent: true,
 				Ports: []*corev1.ContainerPort{
 					{
-						Name:          apicommon.OTLPHTTPPortName,
+						Name:          otlpHTTPPortName,
 						ContainerPort: 4318,
 						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
@@ -205,26 +379,30 @@ func TestOTLPFeature(t *testing.T) {
 }
 
 type Settings struct {
-	EnabledGRPC  bool
-	EndpointGRPC string
-	EnabledHTTP  bool
-	EndpointHTTP string
+	EnabledGRPC         bool
+	CustomGRPCHostPort  int32
+	EnabledGRPCHostPort bool
+	EndpointGRPC        string
+	EnabledHTTP         bool
+	CustomHTTPHostPort  int32
+	EnabledHTTPHostPort bool
+	EndpointHTTP        string
 
 	APM bool
 }
 
 func newAgent(set Settings) *v2alpha1.DatadogAgent {
 	return v2alpha1test.NewDatadogAgentBuilder().
-		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
-		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
+		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
+		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
 		Build()
 }
 
 func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
 	return v2alpha1test.NewDatadogAgentBuilder().
-		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
-		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
+		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
+		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
 		WithSingleContainerStrategy(true).
 		Build()
