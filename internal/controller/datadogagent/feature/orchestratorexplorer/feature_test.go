@@ -142,7 +142,10 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			customConfig := v2alpha1.CustomConfig{
 				ConfigData: apiutils.NewStringPointer(customConfDataV2),
 			}
-			hash, err := comparison.GenerateMD5ForSpec(&customConfig)
+			orchExp := v2alpha1.OrchestratorExplorerFeatureConfig{
+				Conf: &customConfig,
+			}
+			hash, err := comparison.GenerateMD5ForSpec(&orchExp)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
 				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
