@@ -96,19 +96,20 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			Containers: reqContainers,
 		}
 
-		if orchestratorExplorer.Conf != nil {
+		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
-		}
 
-		// Used to force restart of DCA
-		hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
-		if err != nil {
-			f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
-		} else {
-			f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
+			// Used to force restart of DCA
+			// use entire orchestratorExplorer to handle custom config and CRDs
+			hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
+			} else {
+				f.logger.V(2).Info("built orchestrator explorer from custom config", "hash", hash)
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
-		f.customConfigAnnotationValue = hash
-		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
 		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
