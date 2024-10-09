@@ -228,19 +228,53 @@ func getEndpoint(prefix, site string) string {
 	return prefix + defaultSite
 }
 
-// getAndPatchDatadogAgent is used to prevent race conditions when update the DDA's status
+// getAndUpdateDatadogAgent is used to prevent race conditions when update the DDA's status
 // we do not want to modify the status without using this function or we could have conflicts
-func (r *RemoteConfigUpdater) getAndPatchDatadogAgent(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
 	// Only one instance of this can run at a time
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	dda, err := r.getDatadogAgentWithRetry(ctx)
-	if err != nil {
-		return err
+	ddaList := &v2alpha1.DatadogAgentList{}
+	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
+		fmt.Errorf("unable to list DatadogAgents: %w", err)
 	}
 
+	if len(ddaList.Items) == 0 {
+		errors.New("cannot find any DatadogAgent")
+	}
+
+	// Return first DatadogAgent as only one is supported
+	dda := ddaList.Items[0]
+
 	return f(dda, cfg)
+}
+
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
+	var err error
+
+	operation := func() error {
+		err = r.getAndUpdateDatadogAgent(ctx, cfg, f)
+		if err != nil {
+			r.logger.Error(err, "Failed to get and patch agents, retrying...")
+			return err
+		}
+		return nil
+	}
+
+	// Create a backoff strategy
+	expBackoff := backoff.NewExponentialBackOff()
+	expBackoff.InitialInterval = 1 * time.Second
+	expBackoff.MaxInterval = 10 * time.Second
+	expBackoff.MaxElapsedTime = 3 * time.Minute
+
+	err = backoff.Retry(operation, expBackoff)
+	if err != nil {
+		r.logger.Error(err, "Failed to get and patch agents after retries")
+		return err
+	}
+	return nil
+
 }
 
 func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
@@ -266,7 +300,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Info("Merged", "update", mergedUpdate)
 	}
 
-	if err := r.getAndPatchDatadogAgent(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
+	if err := r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
@@ -398,50 +432,6 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 		}
 	}
 
-}
-
-// TODO: We only want this called in getAndPatchDatadogAgent
-func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
-	ddaList := &v2alpha1.DatadogAgentList{}
-	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
-		return v2alpha1.DatadogAgent{}, fmt.Errorf("unable to list DatadogAgents: %w", err)
-	}
-
-	if len(ddaList.Items) == 0 {
-		return v2alpha1.DatadogAgent{}, errors.New("cannot find any DatadogAgent")
-	}
-
-	// Return first DatadogAgent as only one is supported
-	return ddaList.Items[0], nil
-}
-
-// TODO: We only want this called in getAndPatchDatadogAgent
-func (r *RemoteConfigUpdater) getDatadogAgentWithRetry(ctx context.Context) (v2alpha1.DatadogAgent, error) {
-	var dda v2alpha1.DatadogAgent
-	var err error
-
-	operation := func() error {
-		dda, err = r.getDatadogAgentInstance(ctx)
-		if err != nil {
-			r.logger.Error(err, "Failed to get updatable agents, retrying...")
-			return err
-		}
-		return nil
-	}
-
-	// Create a backoff strategy
-	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = 1 * time.Second
-	expBackoff.MaxInterval = 10 * time.Second
-	expBackoff.MaxElapsedTime = 3 * time.Minute
-
-	err = backoff.Retry(operation, expBackoff)
-	if err != nil {
-		r.logger.Error(err, "Failed to get updatable agents after retries")
-		return dda, err
-	}
-
-	return dda, nil
 }
 
 func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {

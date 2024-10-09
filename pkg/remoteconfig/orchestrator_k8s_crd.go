@@ -34,7 +34,7 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 		return
 	}
 
-	if err := r.getAndPatchDatadogAgent(ctx, mergedUpdate, r.crdUpdateInstanceStatus); err != nil {
+	if err := r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.crdUpdateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
