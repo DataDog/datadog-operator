@@ -165,11 +165,11 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 	sortedKeys := sortKeys(customConfs)
 	for _, fileName := range sortedKeys {
 		customConfig := customConfs[fileName]
+		defaultConfigMapName := fmt.Sprintf("%s-%s", getDefaultConfigMapName(ddaName, string(fileName)), strings.ToLower(string(componentName)))
 		switch componentName {
 		case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
 			// For the NodeAgent, there are a few possible config files and each need their own volume.
 			// Use a volumeName that matches the defaultConfigMapName.
-			defaultConfigMapName := getDefaultConfigMapName(ddaName, string(fileName))
 			volumeName := defaultConfigMapName
 			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
@@ -183,7 +183,6 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		case v2alpha1.ClusterAgentComponentName:
 			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
 			volumeName := apicommon.ClusterAgentCustomConfigVolumeName
-			defaultConfigMapName := getDefaultConfigMapName(ddaName, string(fileName))
 			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 
