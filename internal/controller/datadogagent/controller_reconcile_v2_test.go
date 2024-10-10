@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	policyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,7 @@ func Test_profilesToApply(t *testing.T) {
 	sch := runtime.NewScheme()
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
+	_ = policyv1beta1.AddToScheme(sch)
 	ctx := context.Background()
 
 	testCases := []struct {
