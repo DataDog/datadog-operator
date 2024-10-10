@@ -3568,7 +3568,9 @@ spec:
                           Configuration under `all` applies to all configured containers.
                         type: object
                       createPodDisruptionBudget:
-                        description: Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+                        description: |-
+                          Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+                          Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 min available pod, and a Cluster Checks Runner PDB is set with 1 max unavailable pod.
                         type: boolean
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component

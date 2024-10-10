@@ -32,7 +32,7 @@ import (
 
 func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := r.log.WithValues("datadogagent", request.NamespacedName)
-	reqLogger.Info("Reconciling DatadogAgent1")
+	reqLogger.Info("Reconciling DatadogAgent")
 
 	// Fetch the DatadogAgent instance
 	instance := &datadoghqv2alpha1.DatadogAgent{}
@@ -46,12 +46,10 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 			return result, nil
 		}
 		// Error reading the object - requeue the request.
-		reqLogger.Error(err, "unable to fetch DatadogAgent")
 		return result, err
 	}
 
 	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
-		reqLogger.Info("credentials not configured in the DatadogAgent, can't reconcile")
 		return result, fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
 	}
 
@@ -76,7 +74,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	}*/
 
 	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
-		reqLogger.V(1).Info("finalizer error", "error", err)
 		return result, err
 	}
 
@@ -91,7 +88,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	// Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
 	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
-	reqLogger.Info("reconcile instance")
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
@@ -120,6 +116,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// Set up dependencies required by enabled features
 	for _, feat := range features {
+		logger.V(1).Info("Dependency ManageDependencies", "featureID", feat.ID())
 		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}
