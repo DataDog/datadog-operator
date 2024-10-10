@@ -66,6 +66,7 @@ func TestLiveContainerFeature(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
