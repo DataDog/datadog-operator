@@ -26,11 +26,6 @@ func init() {
 
 func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 	liveProcessFeat := &liveProcessFeature{}
-
-	if options != nil {
-		liveProcessFeat.runInCoreAgent = options.ProcessChecksInCoreAgentEnabled
-	}
-
 	return liveProcessFeat
 }
 
@@ -59,7 +54,7 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, f.runInCoreAgent)
+		f.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.ProcessChecksInCoreAgentEnabled))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

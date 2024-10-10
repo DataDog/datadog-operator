@@ -1,3 +1,4 @@
+
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -32,19 +33,10 @@ spec:
           description: DatadogAgentProfile is the Schema for the datadogagentprofiles API
           properties:
             apiVersion:
-              description: |-
-                APIVersion defines the versioned schema of this representation of an object.
-                Servers should convert recognized schemas to the latest internal value, and
-                may reject unrecognized values.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             kind:
-              description: |-
-                Kind is a string value representing the REST resource this object represents.
-                Servers may infer this from the endpoint the client submits requests to.
-                Cannot be updated.
-                In CamelCase.
-                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
               type: string
             metadata:
               type: object
@@ -60,9 +52,7 @@ spec:
                             additionalProperties:
                               properties:
                                 env:
-                                  description: |-
-                                    Specify additional environment variables in the container.
-                                    See also: https://docs.datadoghq.com/agent/guide/environment-variables/
+                                  description: 'Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/guide/environment-variables/'
                                   items:
                                     description: EnvVar represents an environment variable present in a Container.
                                     properties:
@@ -70,16 +60,7 @@ spec:
                                         description: Name of the environment variable. Must be a C_IDENTIFIER.
                                         type: string
                                       value:
-                                        description: |-
-                                          Variable references $(VAR_NAME) are expanded
-                                          using the previously defined environment variables in the container and
-                                          any service environment variables. If a variable cannot be resolved,
-                                          the reference in the input string will be unchanged. Double $$ are reduced
-                                          to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
-                                          "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
-                                          Escaped references will never be expanded, regardless of whether the variable
-                                          exists or not.
-                                          Defaults to "".
+                                        description: 'Variable references $(VAR_NAME) are expanded using the previously defined environment variables in the container and any service environment variables. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)". Escaped references will never be expanded, regardless of whether the variable exists or not. Defaults to "".'
                                         type: string
                                       valueFrom:
                                         description: Source for the environment variable's value. Cannot be used if value is not empty.
@@ -105,11 +86,8 @@ spec:
                                             required:
                                               - key
                                             type: object
-                                            x-kubernetes-map-type: atomic
                                           fieldRef:
-                                            description: |-
-                                              Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
-                                              spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+                                            description: 'Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`, `metadata.annotations[''<KEY>'']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.'
                                             properties:
                                               apiVersion:
                                                 description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -120,11 +98,8 @@ spec:
                                             required:
                                               - fieldPath
                                             type: object
-                                            x-kubernetes-map-type: atomic
                                           resourceFieldRef:
-                                            description: |-
-                                              Selects a resource of the container: only resources limits and requests
-                                              (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+                                            description: 'Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.'
                                             properties:
                                               containerName:
                                                 description: 'Container name: required for volumes, optional for env vars'
@@ -142,7 +117,6 @@ spec:
                                             required:
                                               - resource
                                             type: object
-                                            x-kubernetes-map-type: atomic
                                           secretKeyRef:
                                             description: Selects a key of a secret in the pod's namespace
                                             properties:
@@ -164,7 +138,6 @@ spec:
                                             required:
                                               - key
                                             type: object
-                                            x-kubernetes-map-type: atomic
                                         type: object
                                     required:
                                       - name
@@ -174,10 +147,7 @@ spec:
                                     - name
                                   x-kubernetes-list-type: map
                                 resources:
-                                  description: |-
-                                    Specify the Request and Limits of the pods.
-                                    To get guaranteed QoS class, specify requests and limits equal.
-                                    See also: http://kubernetes.io/docs/user-guide/compute-resources/
+                                  description: 'Specify the Request and Limits of the pods. To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                                   properties:
                                     claims:
                                       description: |-
@@ -217,9 +187,7 @@ spec:
                                           - type: string
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
-                                      description: |-
-                                        Limits describes the maximum amount of compute resources allowed.
-                                        More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                      description: 'Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                       type: object
                                     requests:
                                       additionalProperties:
@@ -228,17 +196,11 @@ spec:
                                           - type: string
                                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                         x-kubernetes-int-or-string: true
-                                      description: |-
-                                        Requests describes the minimum amount of compute resources required.
-                                        If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                                        otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                                        More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                                      description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                       type: object
                                   type: object
                               type: object
-                            description: |-
-                              Configure the basic configurations for an Agent container
-                              Valid Agent container names are: `agent`
+                            description: 'Configure the basic configurations for an Agent container Valid Agent container names are: `agent`'
                             type: object
                           labels:
                             additionalProperties:
@@ -246,18 +208,10 @@ spec:
                             description: Labels provide labels that are added to the Datadog Agent pods.
                             type: object
                           priorityClassName:
-                            description: |-
-                              If specified, indicates the pod's priority. "system-node-critical" and
-                              "system-cluster-critical" are two special keywords which indicate the
-                              highest priorities with the former being the highest priority. Any other
-                              name must be defined by creating a PriorityClass object with that name.
-                              If not specified, the pod priority will be default or zero if there is no
-                              default.
+                            description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.
                             type: string
                           updateStrategy:
-                            description: |-
-                              The deployment strategy to use to replace existing pods with new ones.
-                              Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
+                            description: The deployment strategy to use to replace existing pods with new ones. Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
                             properties:
                               rollingUpdate:
                                 description: Configure the rolling update strategy of the Deployment or DaemonSet.
@@ -266,24 +220,17 @@ spec:
                                     anyOf:
                                       - type: integer
                                       - type: string
-                                    description: |-
-                                      MaxSurge behaves differently based on the Kubernetes resource. Refer to the
-                                      Kubernetes API documentation for additional details.
+                                    description: MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details.
                                     x-kubernetes-int-or-string: true
                                   maxUnavailable:
                                     anyOf:
                                       - type: integer
                                       - type: string
-                                    description: |-
-                                      The maximum number of pods that can be unavailable during the update.
-                                      Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
-                                      Refer to the Kubernetes API documentation for additional details..
+                                    description: 'The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details..'
                                     x-kubernetes-int-or-string: true
                                 type: object
                               type:
-                                description: |-
-                                  Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate"
-                                  or "Recreate" for Deployments
+                                description: Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate" or "Recreate" for Deployments
                                 type: string
                             type: object
                         type: object
@@ -294,25 +241,16 @@ spec:
                   properties:
                     profileNodeAffinity:
                       items:
-                        description: |-
-                          A node selector requirement is a selector that contains values, a key, and an operator
-                          that relates the key and values.
+                        description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
                         properties:
                           key:
                             description: The label key that the selector applies to.
                             type: string
                           operator:
-                            description: |-
-                              Represents a key's relationship to a set of values.
-                              Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                            description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
                             type: string
                           values:
-                            description: |-
-                              An array of string values. If the operator is In or NotIn,
-                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
-                              the values array must be empty. If the operator is Gt or Lt, the values
-                              array must have a single element, which will be interpreted as an integer.
-                              This array is replaced during a strategic merge patch.
+                            description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
                             items:
                               type: string
                             type: array
@@ -336,32 +274,20 @@ spec:
                     description: Condition contains details for one aspect of the current state of this API Resource.
                     properties:
                       lastTransitionTime:
-                        description: |-
-                          lastTransitionTime is the last time the condition transitioned from one status to another.
-                          This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                        description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                         format: date-time
                         type: string
                       message:
-                        description: |-
-                          message is a human readable message indicating details about the transition.
-                          This may be an empty string.
+                        description: message is a human readable message indicating details about the transition. This may be an empty string.
                         maxLength: 32768
                         type: string
                       observedGeneration:
-                        description: |-
-                          observedGeneration represents the .metadata.generation that the condition was set based upon.
-                          For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                          with respect to the current state of the instance.
+                        description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
                         format: int64
                         minimum: 0
                         type: integer
                       reason:
-                        description: |-
-                          reason contains a programmatic identifier indicating the reason for the condition's last transition.
-                          Producers of specific condition types may define expected values and meanings for this field,
-                          and whether the values are considered a guaranteed API.
-                          The value should be a CamelCase string.
-                          This field may not be empty.
+                        description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
                         maxLength: 1024
                         minLength: 1
                         pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
@@ -428,3 +354,9 @@ spec:
       storage: true
       subresources:
         status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
