@@ -67,7 +67,6 @@ type defaultFeature struct {
 	logger                  logr.Logger
 	disableNonResourceRules bool
 	otelAgentEnabled        bool
-	PodDisruptionBudget     bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
