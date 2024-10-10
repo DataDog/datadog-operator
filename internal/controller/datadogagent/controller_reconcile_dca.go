@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -23,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -131,4 +133,38 @@ func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2a
 	newStatus.ClusterAgent = nil
 
 	return reconcile.Result{}, nil
+}
+
+// cleanupOldDCADeployments deletes DCA deployments when a DCA Deployment's name is changed using clusterAgent name override
+func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+	}
+	deploymentName := getDeploymentNameFromDCA(dda)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			if _, err := r.cleanupV2ClusterAgent(logger, dda, &deployment, resourcesManager, newStatus); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getDeploymentNameFromDCA returns the expected DCA deployment name based on
+// the DDA name and clusterAgent name override
+func getDeploymentNameFromDCA(dda *datadoghqv2alpha1.DatadogAgent) string {
+	deploymentName := componentdca.GetClusterAgentName(dda)
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
 }

@@ -2965,6 +2965,11 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      serviceAccountAnnotations:
+                        additionalProperties:
+                          type: string
+                        description: Sets the ServiceAccountAnnotations used by this component.
+                        type: object
                       serviceAccountName:
                         description: Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true.
                         type: string
