@@ -225,6 +225,11 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
 
+			// The CiliumNetworkPoliciesKind resource version must be set.
+			if kind == kubernetes.CiliumNetworkPoliciesKind {
+				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			}
+
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
 				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToUpdate = append(objsToUpdate, objStore)
