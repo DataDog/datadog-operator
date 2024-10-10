@@ -124,6 +124,35 @@ func TestDependencies(t *testing.T) {
 			},
 			expectsErrors: false,
 		},
+		{
+			name: "override clusterAgent createPDB without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
+							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "override clusterChecksRunner createPDB without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterChecksRunnerComponentName: {
+							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						},
+					},
+					Features: &v2alpha1.DatadogFeatures{
+						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+							UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

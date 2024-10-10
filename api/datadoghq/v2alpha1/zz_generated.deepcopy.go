@@ -628,6 +628,11 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 		*out = new(int32)
 		**out = **in
 	}
+	if in.CreatePodDisruptionBudget != nil {
+		in, out := &in.CreatePodDisruptionBudget, &out.CreatePodDisruptionBudget
+		*out = new(bool)
+		**out = **in
+	}
 	if in.CreateRbac != nil {
 		in, out := &in.CreateRbac, &out.CreateRbac
 		*out = new(bool)
