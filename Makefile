@@ -282,7 +282,7 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -314,6 +314,11 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
+# Update the golang version in different repository files from the version present in go.mod file
+.PHONY: update-golang
+update-golang:
+	hack/update-golang.sh
+
 .PHONY: tidy
 tidy: ## Run go tidy
 	go mod tidy -v
@@ -331,6 +336,9 @@ publish-community-bundles: ## Publish bundles to community repositories
 
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
+
+bin/$(PLATFORM)/jq: Makefile
+	hack/install-jq.sh 1.7.1
 
 bin/$(PLATFORM)/golangci-lint: Makefile
 	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.59.1
