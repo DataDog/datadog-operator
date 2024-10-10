@@ -145,6 +145,11 @@ func TestDependencies(t *testing.T) {
 							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
 						},
 					},
+					Features: &v2alpha1.DatadogFeatures{
+						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+							UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+						},
+					},
 				},
 			},
 		},
