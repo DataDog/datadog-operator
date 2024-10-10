@@ -1,0 +1,50 @@
+[
+    {
+        "id": 2639892738901474,
+        "definition": {
+            "title": "",
+            "title_size": "16",
+            "title_align": "left",
+            "show_legend": true,
+            "legend_layout": "auto",
+            "legend_columns": [
+                "avg",
+                "min",
+                "max",
+                "value",
+                "sum"
+            ],
+            "type": "timeseries",
+            "requests": [
+                {
+                    "formulas": [
+                        {
+                            "formula": "query1"
+                        }
+                    ],
+                    "queries": [
+                        {
+                            "name": "query1",
+                            "data_source": "metrics",
+                            "query": "avg:system.cpu.user{*} by {host}"
+                        }
+                    ],
+                    "response_format": "timeseries",
+                    "style": {
+                        "palette": "dog_classic",
+                        "order_by": "values",
+                        "line_type": "solid",
+                        "line_width": "normal"
+                    },
+                    "display_type": "line"
+                }
+            ]
+        },
+        "layout": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+        }
+    }
+]

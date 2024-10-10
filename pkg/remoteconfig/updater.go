@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -26,8 +27,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
@@ -241,7 +242,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Info("Merged", "update", mergedUpdate)
 	}
 
-	dda, err := r.getDatadogAgentInstance(ctx)
+	dda, err := r.getDatadogAgentWithRetry(ctx)
 	if err != nil {
 		r.logger.Error(err, "Failed to get updatable agents")
 		return
@@ -392,6 +393,34 @@ func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2al
 
 	// Return first DatadogAgent as only one is supported
 	return ddaList.Items[0], nil
+}
+
+func (r *RemoteConfigUpdater) getDatadogAgentWithRetry(ctx context.Context) (v2alpha1.DatadogAgent, error) {
+	var dda v2alpha1.DatadogAgent
+	var err error
+
+	operation := func() error {
+		dda, err = r.getDatadogAgentInstance(ctx)
+		if err != nil {
+			r.logger.Error(err, "Failed to get updatable agents, retrying...")
+			return err
+		}
+		return nil
+	}
+
+	// Create a backoff strategy
+	expBackoff := backoff.NewExponentialBackOff()
+	expBackoff.InitialInterval = 1 * time.Second
+	expBackoff.MaxInterval = 10 * time.Second
+	expBackoff.MaxElapsedTime = 3 * time.Minute
+
+	err = backoff.Retry(operation, expBackoff)
+	if err != nil {
+		r.logger.Error(err, "Failed to get updatable agents after retries")
+		return dda, err
+	}
+
+	return dda, nil
 }
 
 func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {

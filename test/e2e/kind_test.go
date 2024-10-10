@@ -138,9 +138,6 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		if extraKustomizeResources == nil {
-			extraKustomizeResources = []string{defaultMgrFileName}
-		}
 		updateKustomization(kustomizeDirPath, extraKustomizeResources)
 
 		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
@@ -269,7 +266,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
+		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
@@ -298,7 +295,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
+		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)

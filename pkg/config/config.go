@@ -21,11 +21,12 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
+// These constants are only used within pkg/config
 const (
 	// AgentWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgent controller.
 	agentWatchNamespaceEnvVar = "DD_AGENT_WATCH_NAMESPACE"
@@ -38,16 +39,6 @@ const (
 	// WatchNamespaceEnvVar is a comma-separated list of namespaces watched by all controllers, unless a controller-specific configuration is provided.
 	// An empty value means the operator is running with cluster scope.
 	watchNamespaceEnvVar = "WATCH_NAMESPACE"
-	// DDAPIKeyEnvVar is the constant for the env variable DD_API_KEY which is the fallback
-	// API key to use if a resource does not have it defined in its spec.
-	DDAPIKeyEnvVar = "DD_API_KEY"
-	// DDAppKeyEnvVar is the constant for the env variable DD_APP_KEY which is the fallback
-	// App key to use if a resource does not have it defined in its spec.
-	DDAppKeyEnvVar = "DD_APP_KEY"
-	// DDURLEnvVar is the constant for the env variable DD_URL which is the
-	// host of the Datadog intake server to send data to.
-	DDURLEnvVar = "DD_URL"
-	// TODO consider moving DDSite here as well
 )
 
 var (
@@ -114,7 +105,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 			Namespaces: agentNamespaces,
 
 			Label: labels.SelectorFromSet(map[string]string{
-				common.AgentDeploymentComponentLabelKey: common.DefaultAgentResourceSuffix,
+				common.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
 			}),
 
 			Transform: func(obj interface{}) (interface{}, error) {

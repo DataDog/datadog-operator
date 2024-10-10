@@ -18,8 +18,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -217,7 +216,7 @@ func (o *Options) Run() error {
 	return wait.Poll(o.checkPeriod, o.checkTimeout, checkFunc)
 }
 
-func (o *Options) isAgentDone(status *commonv1.DaemonSetStatus) bool {
+func (o *Options) isAgentDone(status *v2alpha1.DaemonSetStatus) bool {
 	if status == nil {
 		return true
 	}
@@ -231,7 +230,7 @@ func (o *Options) isAgentDone(status *commonv1.DaemonSetStatus) bool {
 	return false
 }
 
-func (o *Options) isDeploymentDone(status *commonv1.DeploymentStatus, minUpToDate int32, component string) bool {
+func (o *Options) isDeploymentDone(status *v2alpha1.DeploymentStatus, minUpToDate int32, component string) bool {
 	if status == nil {
 		return true
 	}

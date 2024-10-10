@@ -18,7 +18,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -39,6 +39,8 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualRoles(a, b)
 	case kubernetes.RoleBindingKind:
 		return IsEqualRoleBinding(a, b)
+	case kubernetes.ValidatingWebhookConfigurationsKind:
+		return IsEqualValidatingWebhookConfigurations(a, b)
 	case kubernetes.MutatingWebhookConfigurationsKind:
 		return IsEqualMutatingWebhookConfigurations(a, b)
 	case kubernetes.APIServiceKind:
@@ -114,6 +116,16 @@ func IsEqualRoleBinding(objA, objB client.Object) bool {
 	b, okB := objB.(*rbacv1.RoleBinding)
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects)
+	}
+	return false
+}
+
+// IsEqualValidatingWebhookConfigurations return true if the two ValidatingWebhookConfigurations are equal
+func IsEqualValidatingWebhookConfigurations(objA, objB client.Object) bool {
+	a, okA := objA.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+	b, okB := objB.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+	if okA && okB && a != nil && b != nil {
+		return apiequality.Semantic.DeepEqual(a.Webhooks, b.Webhooks)
 	}
 	return false
 }

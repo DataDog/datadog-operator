@@ -14,9 +14,8 @@ import (
 	"sync"
 	"time"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -98,9 +97,9 @@ type metricsForwarder struct {
 	apiKey       string
 	clusterName  string
 	labels       map[string]string
-	dsStatus     []*commonv1.DaemonSetStatus
-	dcaStatus    *commonv1.DeploymentStatus
-	ccrStatus    *commonv1.DeploymentStatus
+	dsStatus     []*v2alpha1.DaemonSetStatus
+	dcaStatus    *v2alpha1.DeploymentStatus
+	ccrStatus    *v2alpha1.DeploymentStatus
 
 	EnabledFeatures map[string][]string
 
@@ -438,7 +437,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 	return datadogClient, nil
 }
 
-func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*commonv1.DaemonSetStatus, dcaStatus, ccrStatus *commonv1.DeploymentStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus) error {
 	var metricValue float64
 
 	// Agent deployment metrics

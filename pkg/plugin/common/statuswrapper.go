@@ -6,16 +6,15 @@
 package common
 
 import (
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type StatusWrapper interface {
 	GetObjectMeta() metav1.Object
-	GetAgentStatus() *commonv1.DaemonSetStatus
-	GetClusterAgentStatus() *commonv1.DeploymentStatus
-	GetClusterChecksRunnerStatus() *commonv1.DeploymentStatus
+	GetAgentStatus() *v2alpha1.DaemonSetStatus
+	GetClusterAgentStatus() *v2alpha1.DeploymentStatus
+	GetClusterChecksRunnerStatus() *v2alpha1.DeploymentStatus
 	GetStatusCondition() []metav1.Condition
 }
 
@@ -32,19 +31,19 @@ func (sw v2StatusWrapper) GetStatusCondition() []metav1.Condition {
 	return sw.dda.Status.Conditions
 }
 
-func (sw v2StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
+func (sw v2StatusWrapper) GetAgentStatus() *v2alpha1.DaemonSetStatus {
 	if sw.dda != nil {
 		return sw.dda.Status.Agent
 	}
 	return nil
 }
-func (sw v2StatusWrapper) GetClusterAgentStatus() *commonv1.DeploymentStatus {
+func (sw v2StatusWrapper) GetClusterAgentStatus() *v2alpha1.DeploymentStatus {
 	if sw.dda != nil {
 		return sw.dda.Status.ClusterAgent
 	}
 	return nil
 }
-func (sw v2StatusWrapper) GetClusterChecksRunnerStatus() *commonv1.DeploymentStatus {
+func (sw v2StatusWrapper) GetClusterChecksRunnerStatus() *v2alpha1.DeploymentStatus {
 	if sw.dda != nil {
 		return sw.dda.Status.ClusterChecksRunner
 	}
