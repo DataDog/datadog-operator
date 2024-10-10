@@ -374,7 +374,7 @@ func TestRBACManager_AddServiceAccountAnnotations(t *testing.T) {
 		},
 		{
 			name: "duplicate annotation keys",
-			store: testStore.AddOrUpdateStore(kubernetes.ServiceAccountsKind, &corev1.ServiceAccount{
+			store: store.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServiceAccountsKind, &corev1.ServiceAccount{
 				ObjectMeta: v1.ObjectMeta{
 					Namespace: ns,
 					Name:      name + "sa",
