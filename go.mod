@@ -41,7 +41,7 @@ require (
 require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.55.0-rc.10
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.55.0-rc.10
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.60.0-devel.0.20241009181454-ac54aa74833a
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.1
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225

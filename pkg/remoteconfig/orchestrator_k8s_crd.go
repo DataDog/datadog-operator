@@ -10,10 +10,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-const (
-	crdRcProduct = "ORCHESTRATOR_K8S_CRDS"
-)
-
 // CustomResourceDefinitionURLs defines model for CustomResourceDefinitionURLs.
 type CustomResourceDefinitionURLs struct {
 	Crds *[]string `json:"crds,omitempty"`
@@ -53,7 +49,7 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 	// Unmarshal configs and config order
 	crds := []string{}
 	for _, c := range updates {
-		if c.Metadata.Product == crdRcProduct {
+		if c.Metadata.Product == state.ProductOrchestratorK8sCRDs {
 			rcCRDs := CustomResourceDefinitionURLs{}
 			err := json.Unmarshal(c.Config, &rcCRDs)
 			if err != nil {

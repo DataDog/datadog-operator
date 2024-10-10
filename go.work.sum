@@ -729,6 +729,8 @@ github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.43.1/go.mod h1:VVMDDi
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.52.0/go.mod h1:JhAilx32dkIgoDkFXquCTfaWDsAOfe+vfBaxbiZoPI0=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10 h1:nwJ2JWfjCmf6tpJD1RYHh4JV5HO2Njg6smxOGi8MyOE=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10/go.mod h1:3yFk56PJ57yS1GqI9HAsS4PSlAeGCC9RQA7jxKzYj6g=
+github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.1 h1:CIXKFvUsp5zgE+egvx+QrRTw8r54FMPZVu+z25UNqWs=
+github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.1/go.mod h1:c4th0IFaP0Q1ofRa0GcPB9hJWN+cmUoEfOI1Ub0O50A=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.3/go.mod h1:HcSwqoxWLfevi1vuDZuFeRHfSuHGakTN6/u42WbxQHE=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.56.0-rc.3 h1:QhQ0GpcLgag8ooY1WWzNbwhmN5RhOG0mcjoEqlkv2Gc=
 github.com/DataDog/datadog-agent/pkg/util/cache v0.55.0-rc.3/go.mod h1:CyE7vd6fco00C7v3R7Vt0kRg3Pz5Ssb29gV5YiEqsaU=
@@ -2818,6 +2820,7 @@ golang.org/x/oauth2 v0.0.0-20220722155238-128564f6959c/go.mod h1:h4gKUeWbJ4rQPri
 golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094/go.mod h1:h4gKUeWbJ4rQPri7E0u6Gs4e9Ri2zaLxzw5DI5XGrYg=
 golang.org/x/oauth2 v0.8.0/go.mod h1:yr7u4HXZRm1R1kBWqr/xKNqewf0plRYoB7sla+BCIXE=
 golang.org/x/oauth2 v0.10.0/go.mod h1:kTpgurOux7LqtuxjuyZa4Gj2gdezIt/jQtGnNFfypQI=
+golang.org/x/oauth2 v0.11.0/go.mod h1:LdF7O/8bLR/qWK9DrpXmbHLTouvRHK0SgJl0GmDBchk=
 golang.org/x/oauth2 v0.13.0/go.mod h1:/JMhi4ZRXAf4HG9LiNmxvk+45+96RUlVThiH8FzNBn0=
 golang.org/x/oauth2 v0.15.0/go.mod h1:q48ptWNTY5XWf+JNten23lcvHpLJ0ZSxF5ttTHKVCAM=
 golang.org/x/oauth2 v0.16.0/go.mod h1:hqZ+0LWXsiVoZpeld6jVt06P3adbS2Uu911W1SsJv2o=
@@ -2939,6 +2942,7 @@ golang.org/x/term v0.13.0/go.mod h1:LTmsnFJwVN6bCy1rVCoS+qHT1HhALEFxKncY3WNNh4U=
 golang.org/x/term v0.15.0/go.mod h1:BDl952bC7+uMoWR75FIrCDx79TPU9oHkTZ9yRbYOrX0=
 golang.org/x/term v0.16.0/go.mod h1:yn7UURbUtPyrVJPGPq404EukNFxcm/foM+bV/bfcDsY=
 golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+golang.org/x/term v0.19.0/go.mod h1:2CuTdWZ7KHSQwUzKva0cbMg6q2DMI3Mmxp+gKJbskEk=
 golang.org/x/term v0.23.0 h1:F6D4vR+EHoL9/sWAWgAR1H2DcHr4PareCbAaCo1RpuU=
 golang.org/x/term v0.23.0/go.mod h1:DgV24QBUrK6jhZXl+20l6UWznPlwAHm1Q1mGHtydmSk=
 golang.org/x/term v0.24.0 h1:Mh5cbb+Zk2hqqXNO7S1iTjEphVL+jb8ZWaqh/g+JWkM=
