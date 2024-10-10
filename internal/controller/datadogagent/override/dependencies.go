@@ -58,7 +58,9 @@ func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceMan
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
 			}
-		} else if component == v2alpha1.ClusterChecksRunnerComponentName {
+		} else if component == v2alpha1.ClusterChecksRunnerComponentName &&
+			(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners == nil ||
+				*dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda)
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
