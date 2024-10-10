@@ -26,9 +26,10 @@ const (
 	defaultLogPodLogsPath                string = "/var/log/pods"
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
 
-	defaultLiveProcessCollectionEnabled   bool = false
-	defaultLiveContainerCollectionEnabled bool = true
-	defaultProcessDiscoveryEnabled        bool = true
+	defaultLiveProcessCollectionEnabled    bool = false
+	defaultLiveContainerCollectionEnabled  bool = true
+	defaultProcessDiscoveryEnabled         bool = true
+	defaultProcessChecksInCoreAgentEnabled bool = false
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
@@ -180,6 +181,8 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.ProcessChecksInCoreAgentEnabled, defaultProcessChecksInCoreAgentEnabled)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
