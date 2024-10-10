@@ -237,11 +237,11 @@ func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg 
 
 	ddaList := &v2alpha1.DatadogAgentList{}
 	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
-		fmt.Errorf("unable to list DatadogAgents: %w", err)
+		return fmt.Errorf("unable to list DatadogAgents: %w", err)
 	}
 
 	if len(ddaList.Items) == 0 {
-		errors.New("cannot find any DatadogAgent")
+		return errors.New("cannot find any DatadogAgent")
 	}
 
 	// Return first DatadogAgent as only one is supported
