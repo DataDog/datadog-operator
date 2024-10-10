@@ -57,7 +57,7 @@ func TestLiveContainerFeature(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
-			Name: "live container collection enabled on core agent via option",
+			Name: "live container collection enabled on core agent via spec",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
@@ -67,12 +67,11 @@ func TestLiveContainerFeature(t *testing.T) {
 					},
 				).
 				Build(),
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			WantConfigure:  true,
-			Agent:          testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
-			Name: "live container collection enabled in core agent via option without min version",
+			Name: "live container collection enabled in core agent via spec without min version",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
@@ -81,10 +80,10 @@ func TestLiveContainerFeature(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "live container collection disabled on core agent via env var override",
@@ -97,10 +96,10 @@ func TestLiveContainerFeature(t *testing.T) {
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			WantConfigure:  true,
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 	}
 
