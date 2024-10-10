@@ -503,7 +503,7 @@ publish_nightly_workflow:
     ENVIRONMENTS: "experimental"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
-    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_nightly.operator_nightly.publish"
     BAZEL_TARGET: $BAZEL_TARGET
     DDR: $DDR
     TARGET_ENV: $TARGET_ENV
