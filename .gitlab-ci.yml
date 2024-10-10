@@ -108,6 +108,28 @@ check-golang-version:
     - make update-golang
     - git diff --exit-code
 
+test-skopeo:
+  stage: test
+  tags: [ "runner:docker", "size:large" ]
+  image: $JOB_DOCKER_IMAGE
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    # Install github-cli and skopeo deps
+    - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+    - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+    - apt-get update -y
+    - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
+    - rm -rf /var/lib/apt/lists/*
+    # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
+    - go version
+    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
+    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+
 generate_code:
   stage: test
   tags: ["arch:amd64"]
