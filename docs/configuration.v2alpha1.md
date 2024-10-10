@@ -387,6 +387,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | [key].securityContext.windowsOptions.hostProcess | HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true. |
 | [key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
+| [key].serviceAccountAnnotations `map[string]string` | Sets the ServiceAccountAnnotations used by this component. |
 | [key].serviceAccountName | Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true. |
 | [key].tolerations `[]object` | Configure the component tolerations. |
 | [key].updateStrategy.rollingUpdate.maxSurge | MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details. |
