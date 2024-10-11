@@ -67,7 +67,6 @@ const (
 	PersistentVolumeClaimsResource      = "persistentvolumeclaims"
 	PersistentVolumesResource           = "persistentvolumes"
 	PodDisruptionBudgetsResource        = "poddisruptionbudgets"
-	PodSecurityPolicyResource           = "podsecuritypolicies"
 	PodsExecResource                    = "pods/exec"
 	PodsResource                        = "pods"
 	ReplicasetsResource                 = "replicasets"

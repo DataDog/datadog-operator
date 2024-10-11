@@ -81,9 +81,7 @@ func Test_createPlatformInfoFromAPIObjects(t *testing.T) {
 			platformInfo := NewPlatformInfo(nil, tt.apiGroups, tt.apiResourceList)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
 			assert.Equal(t, tt.pdbPreferredVersion, platformInfo.apiPreferredVersions["PodDisruptionBudget"])
-			assert.Equal(t, tt.pspPreferredVersion, platformInfo.apiPreferredVersions["PodSecurityPolicy"])
 			assert.Equal(t, tt.pdbOtherVersion, platformInfo.apiOtherVersions["PodDisruptionBudget"])
-			assert.Equal(t, tt.pspOtherVersion, platformInfo.apiOtherVersions["PodSecurityPolicy"])
 		})
 	}
 }
@@ -100,7 +98,6 @@ func Test_getPDBFlag(t *testing.T) {
 			name: "Chooses preferred version of PodDisruptionBudget",
 			preferred: map[string]string{
 				"PodDisruptionBudget": "policy/v1",
-				"PodSecurityPolicy":   "anything",
 			},
 			other: map[string]string{
 				"PodDisruptionBudget": "policy/v1beta1",
@@ -115,7 +112,6 @@ func Test_getPDBFlag(t *testing.T) {
 			},
 			other: map[string]string{
 				"PodDisruptionBudget": "policy/v1",
-				"PodSecurityPolicy":   "anything",
 			},
 			useV1Beta1PDB: true,
 			supportsPSP:   true,
@@ -135,8 +131,6 @@ func Test_getPDBFlag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			platformInfo := NewPlatformInfoFromVersionMaps(nil, tt.preferred, tt.other)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
-			assert.Equal(t, tt.supportsPSP, platformInfo.supportsPSP())
-			assert.Equal(t, tt.supportsPSP, containsObjectKind(platformInfo.GetAgentResourcesKind(false), PodSecurityPoliciesKind))
 		})
 	}
 }
@@ -244,9 +238,6 @@ func createDefaultApiResourceList() []*v1.APIResourceList {
 				APIResources: []v1.APIResource{
 					{
 						Kind: "PodDisruptionBudget",
-					},
-					{
-						Kind: "PodSecurityPolicy",
 					},
 				},
 			},

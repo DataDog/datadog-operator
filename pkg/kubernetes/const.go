@@ -47,8 +47,6 @@ const (
 	NodeKind = "nodes"
 	// PodDisruptionBudgetsKind is the PodDisruptionBudgets resource kind
 	PodDisruptionBudgetsKind = "poddisruptionbudgets"
-	// PodSecurityPoliciesKind is the PodSecurityPolicies resource kind
-	PodSecurityPoliciesKind = "podsecuritypolicies"
 	// RoleBindingKind is the RoleBinding resource kind
 	RoleBindingKind = "rolebindings"
 	// RolesKind is the Roles resource kind
@@ -64,7 +62,7 @@ const (
 )
 
 // getResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
-func getResourcesKind(withCiliumResources, withPodSecurityPolicy bool) []ObjectKind {
+func getResourcesKind(withCiliumResources bool) []ObjectKind {
 	resources := []ObjectKind{
 		APIServiceKind,
 		ClusterRolesKind,
@@ -83,10 +81,6 @@ func getResourcesKind(withCiliumResources, withPodSecurityPolicy bool) []ObjectK
 
 	if withCiliumResources {
 		resources = append(resources, CiliumNetworkPoliciesKind)
-	}
-
-	if withPodSecurityPolicy {
-		resources = append(resources, PodSecurityPoliciesKind)
 	}
 
 	return resources
