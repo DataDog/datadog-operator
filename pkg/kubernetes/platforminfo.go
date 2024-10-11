@@ -89,16 +89,7 @@ func (platformInfo *PlatformInfo) CreatePDBObjectList() client.ObjectList {
 }
 
 func (platformInfo *PlatformInfo) GetAgentResourcesKind(withCiliumResources bool) []ObjectKind {
-	return getResourcesKind(withCiliumResources, platformInfo.supportsPSP())
-}
-
-func (platformInfo *PlatformInfo) supportsPSP() bool {
-	if platformInfo.apiOtherVersions == nil || platformInfo.apiPreferredVersions == nil {
-		return true
-	}
-	_, otherExists := platformInfo.apiOtherVersions["PodSecurityPolicy"]
-	_, preferredExists := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
-	return otherExists || preferredExists
+	return getResourcesKind(withCiliumResources)
 }
 
 // IsResourceSupported returns true if a Kubernetes resource is supported by the server
