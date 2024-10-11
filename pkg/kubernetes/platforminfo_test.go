@@ -15,12 +15,10 @@ func Test_createPlatformInfoFromAPIObjects(t *testing.T) {
 		apiResourceList     []*v1.APIResourceList
 		useV1Beta1PDB       bool
 		pdbPreferredVersion string
-		pspPreferredVersion string
 		pdbOtherVersion     string
-		pspOtherVersion     string
 	}{
 		{
-			name: "v1 preferred, PDB v1 prferred, PSP, PDB v1beta1 not proferred",
+			name: "v1 preferred, PDB v1 prferred, PDB v1beta1 not proferred",
 			apiGroups: []*v1.APIGroup{
 				newApiGroupPointer(
 					v1.APIGroup{
@@ -42,12 +40,10 @@ func Test_createPlatformInfoFromAPIObjects(t *testing.T) {
 			apiResourceList:     createDefaultApiResourceList(),
 			useV1Beta1PDB:       false,
 			pdbPreferredVersion: "policy/v1",
-			pspPreferredVersion: "",
 			pdbOtherVersion:     "policy/v1beta1",
-			pspOtherVersion:     "policy/v1beta1",
 		},
 		{
-			name: "v1beta1 preferred, PDB, PSP v1beta1 prferred, PDB v1 not proferred",
+			name: "v1beta1 preferred, PDB PDB v1 not proferred",
 			tag:  "tag 1",
 			apiGroups: []*v1.APIGroup{
 				newApiGroupPointer(
@@ -70,9 +66,7 @@ func Test_createPlatformInfoFromAPIObjects(t *testing.T) {
 			apiResourceList:     createDefaultApiResourceList(),
 			useV1Beta1PDB:       true,
 			pdbPreferredVersion: "policy/v1beta1",
-			pspPreferredVersion: "policy/v1beta1",
 			pdbOtherVersion:     "policy/v1",
-			pspOtherVersion:     "",
 		},
 	}
 
@@ -92,7 +86,6 @@ func Test_getPDBFlag(t *testing.T) {
 		preferred     map[string]string
 		other         map[string]string
 		useV1Beta1PDB bool
-		supportsPSP   bool
 	}{
 		{
 			name: "Chooses preferred version of PodDisruptionBudget",
@@ -103,7 +96,6 @@ func Test_getPDBFlag(t *testing.T) {
 				"PodDisruptionBudget": "policy/v1beta1",
 			},
 			useV1Beta1PDB: false,
-			supportsPSP:   true,
 		},
 		{
 			name: "Chooses preferred version of PodDisruptionBudget",
@@ -114,7 +106,6 @@ func Test_getPDBFlag(t *testing.T) {
 				"PodDisruptionBudget": "policy/v1",
 			},
 			useV1Beta1PDB: true,
-			supportsPSP:   true,
 		},
 		{
 			name: "Unrecognized preferred version, defaults to v1",
@@ -123,7 +114,6 @@ func Test_getPDBFlag(t *testing.T) {
 			},
 			other:         map[string]string{},
 			useV1Beta1PDB: false,
-			supportsPSP:   false,
 		},
 	}
 
