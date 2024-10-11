@@ -113,6 +113,8 @@ const (
 	DDNamespaceLabelsAsTags                              = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
 	DDNamespaceAnnotationsAsTags                         = "DD_KUBERNETES_NAMESPACE_ANNOTATIONS_AS_TAGS"
 	DDNodeLabelsAsTags                                   = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
+	DDKubernetesResourcesLabelsAsTags                    = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
+	DDKubernetesResourcesAnnotationsAsTags               = "DD_KUBERNETES_RESOURCES_ANNOTATIONS_AS_TAGS"
 	DDOrchestratorExplorerEnabled                        = "DD_ORCHESTRATOR_EXPLORER_ENABLED"
 	DDOrchestratorExplorerExtraTags                      = "DD_ORCHESTRATOR_EXPLORER_EXTRA_TAGS"
 	DDOrchestratorExplorerDDUrl                          = "DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL"
