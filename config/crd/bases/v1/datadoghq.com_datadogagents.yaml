@@ -440,12 +440,30 @@ spec:
                             MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
                             Default: false
                           type: boolean
+                        mutation:
+                          description: AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Admission Controller mutation webhook.
+                                Default: true
+                              type: boolean
+                          type: object
                         registry:
                           description: Registry defines an image registry for the admission controller.
                           type: string
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
+                        validation:
+                          description: AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the Admission Controller validation webhook.
+                                Default: true
+                              type: boolean
+                          type: object
                         webhookName:
                           description: |-
                             WebhookName is a custom name for the MutatingWebhookConfiguration.
@@ -7004,12 +7022,30 @@ spec:
                                 MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
                                 Default: false
                               type: boolean
+                            mutation:
+                              description: AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the Admission Controller mutation webhook.
+                                    Default: true
+                                  type: boolean
+                              type: object
                             registry:
                               description: Registry defines an image registry for the admission controller.
                               type: string
                             serviceName:
                               description: ServiceName corresponds to the webhook service name.
                               type: string
+                            validation:
+                              description: AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enabled enables the Admission Controller validation webhook.
+                                    Default: true
+                                  type: boolean
+                              type: object
                             webhookName:
                               description: |-
                                 WebhookName is a custom name for the MutatingWebhookConfiguration.

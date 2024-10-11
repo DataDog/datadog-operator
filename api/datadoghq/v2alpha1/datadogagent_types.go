@@ -690,6 +690,14 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+	// +optional
+	AdmissionControllerValidationConfig *AdmissionControllerValidationConfig `json:"validation,omitempty"`
+
+	// AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+	// +optional
+	AdmissionControllerMutationConfig *AdmissionControllerMutationConfig `json:"mutation,omitempty"`
+
 	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
 	// Default: false
 	// +optional
@@ -724,6 +732,20 @@ type AdmissionControllerFeatureConfig struct {
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+type AdmissionControllerValidationConfig struct {
+	// Enabled enables the Admission Controller validation webhook.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type AdmissionControllerMutationConfig struct {
+	// Enabled enables the Admission Controller mutation webhook.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type AgentSidecarInjectionConfig struct {
