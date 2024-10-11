@@ -152,6 +152,9 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
+		if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
+			port = f.grpcCustomHostPort
+		}
 		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			servicePort := []corev1.ServicePort{
 				{
@@ -160,9 +163,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Port:       port,
 					Name:       apicommon.OTLPGRPCPortName,
 				},
-			}
-			if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
-				servicePort[0].Port = f.grpcCustomHostPort
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), common.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
@@ -185,9 +185,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 						},
 					},
 				},
-			}
-			if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
-				ingressRules[0].Ports[0].Port.IntVal = f.grpcCustomHostPort
 			}
 			if err := managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
 				policyName,
@@ -223,9 +220,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					},
 				},
 			}
-			if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
-				policySpecs[0].Ingress[0].ToPorts[0].Ports[0].Port = strconv.Itoa(int(f.grpcCustomHostPort))
-			}
 			if err := managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs); err != nil {
 				return err
 			}
@@ -237,6 +231,9 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 			f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
+		if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
+			port = f.httpCustomHostPort
+		}
 		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			servicePort := []corev1.ServicePort{
 				{
@@ -245,9 +242,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Port:       port,
 					Name:       apicommon.OTLPHTTPPortName,
 				},
-			}
-			if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
-				servicePort[0].Port = f.httpCustomHostPort
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
@@ -270,9 +264,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 						},
 					},
 				},
-			}
-			if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
-				ingressRules[0].Ports[0].Port.IntVal = f.httpCustomHostPort
 			}
 			if err := managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
 				policyName,
@@ -307,9 +298,6 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 						},
 					},
 				},
-			}
-			if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
-				policySpecs[0].Ingress[0].ToPorts[0].Ports[0].Port = strconv.Itoa(int(f.httpCustomHostPort))
 			}
 			if err := managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs); err != nil {
 				return err
