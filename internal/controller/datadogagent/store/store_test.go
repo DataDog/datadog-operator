@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	policyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"
@@ -414,7 +413,6 @@ func TestStore_Cleanup(t *testing.T) {
 	s := scheme.Scheme
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
-	s.AddKnownTypes(policyv1beta1.GroupVersion, &policyv1beta1.PodSecurityPolicy{}, &policyv1beta1.PodSecurityPolicyList{})
 
 	type fields struct {
 		deps map[kubernetes.ObjectKind]map[string]client.Object

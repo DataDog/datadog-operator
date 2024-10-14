@@ -36,7 +36,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	psppolicyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 	"github.com/DataDog/datadog-operator/internal/controller"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 
@@ -66,7 +65,6 @@ func init() {
 	utilruntime.Must(datadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(datadoghqv2alpha1.AddToScheme(scheme))
-	utilruntime.Must(psppolicyv1beta1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

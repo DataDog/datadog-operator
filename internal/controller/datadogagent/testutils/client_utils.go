@@ -8,7 +8,6 @@ package testutils_test
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	psppolicyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,8 +36,6 @@ func TestScheme() *runtime.Scheme {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
 	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
-	s.AddKnownTypes(psppolicyv1beta1.GroupVersion, &psppolicyv1beta1.PodSecurityPolicy{})
-	s.AddKnownTypes(psppolicyv1beta1.GroupVersion, &psppolicyv1beta1.PodSecurityPolicyList{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})

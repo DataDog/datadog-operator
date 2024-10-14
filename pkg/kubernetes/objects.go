@@ -6,7 +6,6 @@
 package kubernetes
 
 import (
-	policyv1beta1 "github.com/DataDog/datadog-operator/api/k8s.io/policy/v1beta1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -46,8 +45,6 @@ func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 		return platformInfo.CreatePDBObject()
 	case NetworkPoliciesKind:
 		return &networkingv1.NetworkPolicy{}
-	case PodSecurityPoliciesKind:
-		return &policyv1beta1.PodSecurityPolicy{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredPolicy()
 	case NodeKind:

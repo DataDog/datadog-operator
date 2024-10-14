@@ -20,10 +20,6 @@ const (
 	securityAgentComplianceConfigDirVolumePath = "/etc/datadog-agent/compliance.d"
 )
 
-func getPSPName(owner metav1.Object) string {
-	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
-}
-
 // getRBACResourceName return the RBAC resources name
 func getRBACResourceName(owner metav1.Object) string {
 	return fmt.Sprintf("%s-%s-%s-%s", owner.GetNamespace(), owner.GetName(), cspmRBACPrefix, "cluster-agent")

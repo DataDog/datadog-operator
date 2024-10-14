@@ -214,6 +214,8 @@ spec:
 | global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
 | global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
+| global.kubernetesResourcesAnnotationsAsTags | Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
+| global.kubernetesResourcesLabelsAsTags | Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
 | global.localService.forceEnableLocalService | ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false |
 | global.localService.nameOverride | NameOverride defines the name of the internal traffic service to target the agent running on the local node. |
 | global.logLevel | LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
@@ -392,6 +394,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | [key].securityContext.windowsOptions.hostProcess | HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true. |
 | [key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
+| [key].serviceAccountAnnotations `map[string]string` | Sets the ServiceAccountAnnotations used by this component. |
 | [key].serviceAccountName | Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true. |
 | [key].tolerations `[]object` | Configure the component tolerations. |
 | [key].updateStrategy.rollingUpdate.maxSurge | MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details. |
