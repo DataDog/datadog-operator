@@ -94,18 +94,20 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod
 
-	forceSyncPeriodInt, err := strconv.Atoi(os.Getenv(DDMonitorForceSyncPeriodEnvVar))
-	if err != nil {
-		logger.Error(err, "Invalid value for monitor force sync period. Defaulting to 60 minutes.")
-	} else {
-		logger.V(1).Info("Setting monitor force sync period", "minutes", forceSyncPeriodInt)
-		forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+	if userForceSyncPeriod, ok := os.LookupEnv(DDMonitorForceSyncPeriodEnvVar); ok {
+		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for monitor force sync period. Defaulting to 60 minutes.")
+		} else {
+			logger.V(1).Info("Setting monitor force sync period", "minutes", forceSyncPeriodInt)
+			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
 	}
 
 	// Get instance
 	instance := &datadoghqv1alpha1.DatadogMonitor{}
 	var result ctrl.Result
-	err = r.client.Get(ctx, req.NamespacedName, instance)
+	err := r.client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
