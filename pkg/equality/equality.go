@@ -55,8 +55,6 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualPodDisruptionBudgets(a, b)
 	case kubernetes.NetworkPoliciesKind:
 		return IsEqualNetworkPolicies(a, b)
-	case kubernetes.PodSecurityPoliciesKind:
-		return IsEqualPodSecurityPolicies(a, b)
 	case kubernetes.CiliumNetworkPoliciesKind:
 		return IsEqualCiliumNetworkPolicies(a, b)
 	default:
@@ -214,16 +212,6 @@ func IsEqualNetworkPolicies(objA, objB client.Object) bool {
 	return false
 }
 
-// IsEqualPodSecurityPolicies return true if the two PodSecurityPolicies are equal
-func IsEqualPodSecurityPolicies(objA, objB client.Object) bool {
-	a, okA := objA.(*policyv1beta1.PodSecurityPolicy)
-	b, okB := objB.(*policyv1beta1.PodSecurityPolicy)
-	if okA && okB && a != nil && b != nil {
-		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
-	}
-	return false
-}
-
 // IsEqualCiliumNetworkPolicies return true if the two CiliumNetworkPolicies are equal
 func IsEqualCiliumNetworkPolicies(objA, objB client.Object) bool {
 	unstructuredA, errA := runtime.DefaultUnstructuredConverter.ToUnstructured(objA)
@@ -250,12 +238,10 @@ func IsEqualOperatorObjectMeta(a, b metav1.Object) bool {
 
 // IsEqualOperatorAnnotations use to check if Operator annotations are equal between 2 Objects
 func IsEqualOperatorAnnotations(a, b metav1.Object) bool {
-	// TODO compare Operator annotations only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetAnnotations(), b.GetAnnotations())
 }
 
 // IsEqualOperatorLabels use to check if Operator labels are equal between 2 Objects
 func IsEqualOperatorLabels(a, b metav1.Object) bool {
-	// TODO compare Operator labels only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetLabels(), b.GetLabels())
 }

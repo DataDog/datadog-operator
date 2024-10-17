@@ -163,7 +163,6 @@ type BuildFunc func(options *Options) Feature
 type ResourceManagers interface {
 	Store() store.StoreClient
 	RBACManager() merger.RBACManager
-	PodSecurityManager() merger.PodSecurityManager
 	SecretManager() merger.SecretManager
 	NetworkPolicyManager() merger.NetworkPolicyManager
 	ServiceManager() merger.ServiceManager
@@ -177,7 +176,6 @@ func NewResourceManagers(store store.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
 		store:         store,
 		rbac:          merger.NewRBACManager(store),
-		podSecurity:   merger.NewPodSecurityManager(store),
 		secret:        merger.NewSecretManager(store),
 		networkPolicy: merger.NewNetworkPolicyManager(store),
 		service:       merger.NewServiceManager(store),
@@ -190,7 +188,6 @@ func NewResourceManagers(store store.StoreClient) ResourceManagers {
 type resourceManagersImpl struct {
 	store         store.StoreClient
 	rbac          merger.RBACManager
-	podSecurity   merger.PodSecurityManager
 	secret        merger.SecretManager
 	networkPolicy merger.NetworkPolicyManager
 	service       merger.ServiceManager
@@ -205,10 +202,6 @@ func (impl *resourceManagersImpl) Store() store.StoreClient {
 
 func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 	return impl.rbac
-}
-
-func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
-	return impl.podSecurity
 }
 
 func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
