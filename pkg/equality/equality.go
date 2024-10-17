@@ -250,12 +250,10 @@ func IsEqualOperatorObjectMeta(a, b metav1.Object) bool {
 
 // IsEqualOperatorAnnotations use to check if Operator annotations are equal between 2 Objects
 func IsEqualOperatorAnnotations(a, b metav1.Object) bool {
-	// TODO compare Operator annotations only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetAnnotations(), b.GetAnnotations())
 }
 
 // IsEqualOperatorLabels use to check if Operator labels are equal between 2 Objects
 func IsEqualOperatorLabels(a, b metav1.Object) bool {
-	// TODO compare Operator labels only
-	return true
+	return apiequality.Semantic.DeepEqual(a.GetLabels(), b.GetLabels())
 }
