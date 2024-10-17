@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestIsEqualOperatorAnnotations(t *testing.T) {
@@ -157,6 +159,114 @@ func TestIsEqualOperatorLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, IsEqualOperatorLabels(tt.objA, tt.objB))
+		})
+	}
+}
+func TestIsEqualSecrets(t *testing.T) {
+	tests := []struct {
+		name string
+		objA client.Object
+		objB client.Object
+		want bool
+	}{
+		{
+			name: "objs equal",
+			objA: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Data: map[string][]byte{
+					"foo": {1, 2, 3},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			objB: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Data: map[string][]byte{
+					"foo": {1, 2, 3},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "objs not equal",
+			objA: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Data: map[string][]byte{
+					"foo": {1, 2, 3},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			objB: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Data: map[string][]byte{
+					"foo": {3, 2, 1},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "objs not equal, but data and stringdata equal",
+			objA: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Type: corev1.SecretTypeBasicAuth,
+				Data: map[string][]byte{
+					"foo": {1, 2, 3},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			objB: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+				Type: corev1.SecretTypeBootstrapToken,
+				Data: map[string][]byte{
+					"foo": {1, 2, 3},
+				},
+				StringData: map[string]string{
+					"bar": "foo",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "objs not secrets",
+			objA: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+			},
+			objB: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "secret-foo",
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsEqualSecrets(tt.objA, tt.objB))
 		})
 	}
 }
