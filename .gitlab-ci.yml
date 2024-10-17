@@ -123,9 +123,15 @@ test-skopeo:
     - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
     - rm -rf /var/lib/apt/lists/*
     # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
     - go version
-    - apt-get -y update
-    - apt-get -y install skopeo
+    - git clone --depth 1 --branch $SKOPEO_VERSION https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
+    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
+  variables:
+    SKOPEO_VERSION: release-1.16
 
 generate_code:
   stage: test
