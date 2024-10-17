@@ -5,7 +5,7 @@ variables:
   GOPATH: "$CI_PROJECT_DIR/.cache"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
-  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
+  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v46356103-16ecadd-v3.0.0"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -78,7 +78,7 @@ stages:
 
 build:
   stage: build
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -87,7 +87,7 @@ build:
 
 unit_tests:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
@@ -98,9 +98,41 @@ unit_tests:
   script:
     - make test
 
+check-golang-version:
+  stage: test
+  tags: ["arch:amd64"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    - make update-golang
+    - git diff --exit-code
+
+test-skopeo:
+  stage: test
+  tags: [ "runner:docker", "size:large" ]
+  image: $JOB_DOCKER_IMAGE
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    # Install github-cli and skopeo deps
+    - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+    - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+    - apt-get update -y
+    - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
+    - rm -rf /var/lib/apt/lists/*
+    # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
+    - git clone --single-branch release-1.16 https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
+
 generate_code:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
