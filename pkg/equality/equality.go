@@ -150,13 +150,13 @@ func IsEqualAPIService(objA, objB client.Object) bool {
 
 // IsEqualSecrets return true if the two Secrets are equal
 func IsEqualSecrets(a, b client.Object) bool {
-	sA, okA := a.(*corev1.ConfigMap)
-	sB, okB := b.(*corev1.ConfigMap)
+	sA, okA := a.(*corev1.Secret)
+	sB, okB := b.(*corev1.Secret)
 	if okA && okB && sA != nil && sB != nil {
 		if !apiutils.IsEqualStruct(sA.Data, sB.Data) {
 			return false
 		}
-		if !apiutils.IsEqualStruct(sA.BinaryData, sA.BinaryData) {
+		if !apiutils.IsEqualStruct(sA.StringData, sA.StringData) {
 			return false
 		}
 		return true
