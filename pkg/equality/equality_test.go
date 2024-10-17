@@ -128,7 +128,7 @@ func TestIsEqualOperatorLabels(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "objs not equal, but annotations equal",
+			name: "objs not equal, but labels equal",
 			objA: &metav1.ObjectMeta{
 				Name: "foo",
 				Annotations: map[string]string{
