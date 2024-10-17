@@ -274,7 +274,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -355,7 +361,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
+						Enabled:                             apiutils.NewBoolPointer(valueFalse),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						AdmissionControllerMutationConfig:   &AdmissionControllerMutationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -454,6 +462,12 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
@@ -587,7 +601,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -719,7 +739,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -846,7 +872,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -975,7 +1007,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1109,7 +1147,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1239,7 +1283,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1366,7 +1416,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(valueFalse),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1387,6 +1443,12 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					AdmissionController: &AdmissionControllerFeatureConfig{
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1497,7 +1559,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:                apiutils.NewBoolPointer(valueTrue),
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
 						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
@@ -1627,7 +1695,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1775,7 +1849,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -1915,7 +1995,13 @@ func Test_defaultFeatures(t *testing.T) {
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
