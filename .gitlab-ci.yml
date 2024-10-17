@@ -126,8 +126,9 @@ test-skopeo:
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
     # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
-    - go version
-    - skopeo --version
+    - git clone --single-branch release-1.16 https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
 
 generate_code:
   stage: test
