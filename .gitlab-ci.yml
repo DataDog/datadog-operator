@@ -129,6 +129,8 @@ test-skopeo:
     - git clone --single-branch -b release-1.16 https://github.com/containers/skopeo /tmp/skopeo
     - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
+    # test redhat bundle
+    - make bundle-redhat
 
 generate_code:
   stage: test
