@@ -2,7 +2,7 @@ name: validation
 on: [push, pull_request]
 env:
   PROJECTNAME: "datadog-operator"
-  GO_VERSION: 1.22.7
+  GO_VERSION: "1.22"
 jobs:
   build:
     runs-on: ubuntu-latest
