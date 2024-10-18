@@ -98,8 +98,12 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 	}
 
 	// Orchestrator Explorer
-	if cfg.ClusterAgent != nil && cfg.ClusterAgent.CRDs != nil && len(*cfg.ClusterAgent.CRDs.Crds) > 0 {
-		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = append(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources, *cfg.ClusterAgent.CRDs.Crds...)
+	if cfg.ClusterAgent != nil && cfg.ClusterAgent.CRDs != nil {
+		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = []string{}
+		// Overwrite custom resources by the new ones
+		if cfg.ClusterAgent.CRDs.Crds != nil {
+			newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = *cfg.ClusterAgent.CRDs.Crds
+		}
 		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = removeDuplicateStr(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources)
 	}
 
