@@ -131,6 +131,9 @@ test-skopeo:
     - DISABLE_DOCS=1 make install
     - skopeo --version
     # test redhat bundle
+    - mkdir ~/.redhat
+    - aws ssm get-parameter --region us-east-1 --name
+      ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
     - cd $CI_PROJECT_DIR
     - make bundle-redhat
 
