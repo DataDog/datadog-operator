@@ -92,41 +92,6 @@ func Test_getDatadogAgentVersions(t *testing.T) {
 	}
 }
 
-func createDefaultApiResourceList() []*v1.APIResourceList {
-	return []*v1.APIResourceList{
-		newApiResourceListPointer(
-			v1.APIResourceList{
-				GroupVersion: "policy/v1",
-				APIResources: []v1.APIResource{
-					{
-						Kind: "PodDisruptionBudget",
-					},
-				},
-			},
-		),
-		newApiResourceListPointer(
-			v1.APIResourceList{
-				GroupVersion: "policy/v1beta1",
-				APIResources: []v1.APIResource{
-					{
-						Kind: "PodDisruptionBudget",
-					},
-				},
-			},
-		),
-		newApiResourceListPointer(
-			v1.APIResourceList{
-				GroupVersion: "datadoghq/v1alpha1",
-				APIResources: []v1.APIResource{
-					{
-						Kind: "DatadogAgent",
-					},
-				},
-			},
-		),
-	}
-}
-
 func createDatadogAgentResourceList() []*v1.APIResourceList {
 	return []*v1.APIResourceList{
 		newApiResourceListPointer(
@@ -158,13 +123,4 @@ func newApiGroupPointer(apiGroup v1.APIGroup) *v1.APIGroup {
 
 func newApiResourceListPointer(apiResourceList v1.APIResourceList) *v1.APIResourceList {
 	return &apiResourceList
-}
-
-func containsObjectKind(list []ObjectKind, s ObjectKind) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
