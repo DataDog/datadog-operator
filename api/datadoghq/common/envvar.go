@@ -19,6 +19,8 @@ const (
 	DDAdmissionControllerAgentSidecarSelectors           = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_SELECTORS"
 	DDAdmissionControllerAgentSidecarProfiles            = "DD_ADMISSION_CONTROLLER_AGENT_SIDECAR_PROFILES"
 	DDAdmissionControllerEnabled                         = "DD_ADMISSION_CONTROLLER_ENABLED"
+	DDAdmissionControllerValidationEnabled               = "DD_ADMISSION_CONTROLLER_VALIDATION_ENABLED"
+	DDAdmissionControllerMutationEnabled                 = "DD_ADMISSION_CONTROLLER_MUTATION_ENABLED"
 	DDAdmissionControllerInjectConfig                    = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_ENABLED"
 	DDAdmissionControllerInjectConfigMode                = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE"
 	DDAdmissionControllerInjectTags                      = "DD_ADMISSION_CONTROLLER_INJECT_TAGS_ENABLED"
