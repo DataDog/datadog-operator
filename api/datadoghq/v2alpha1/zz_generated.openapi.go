@@ -623,6 +623,12 @@ func schema__api_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallback
 							Ref:         ref("./api/datadoghq/v2alpha1.SBOMFeatureConfig"),
 						},
 					},
+					"serviceDiscovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceDiscovery",
+							Ref:         ref("./api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig"),
+						},
+					},
 					"eventCollection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "EventCollection configuration.",
@@ -681,7 +687,7 @@ func schema__api_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"./api/datadoghq/v2alpha1.APMFeatureConfig", "./api/datadoghq/v2alpha1.ASMFeatureConfig", "./api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "./api/datadoghq/v2alpha1.CSPMFeatureConfig", "./api/datadoghq/v2alpha1.CWSFeatureConfig", "./api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./api/datadoghq/v2alpha1.NPMFeatureConfig", "./api/datadoghq/v2alpha1.OOMKillFeatureConfig", "./api/datadoghq/v2alpha1.OTLPFeatureConfig", "./api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./api/datadoghq/v2alpha1.SBOMFeatureConfig", "./api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./api/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./api/datadoghq/v2alpha1.APMFeatureConfig", "./api/datadoghq/v2alpha1.ASMFeatureConfig", "./api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "./api/datadoghq/v2alpha1.CSPMFeatureConfig", "./api/datadoghq/v2alpha1.CWSFeatureConfig", "./api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "./api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "./api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./api/datadoghq/v2alpha1.NPMFeatureConfig", "./api/datadoghq/v2alpha1.OOMKillFeatureConfig", "./api/datadoghq/v2alpha1.OTLPFeatureConfig", "./api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "./api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "./api/datadoghq/v2alpha1.SBOMFeatureConfig", "./api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "./api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./api/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
