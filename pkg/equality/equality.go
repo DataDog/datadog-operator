@@ -153,13 +153,7 @@ func IsEqualSecrets(a, b client.Object) bool {
 	sA, okA := a.(*corev1.Secret)
 	sB, okB := b.(*corev1.Secret)
 	if okA && okB && sA != nil && sB != nil {
-		if !apiutils.IsEqualStruct(sA.Data, sB.Data) {
-			return false
-		}
-		if !apiutils.IsEqualStruct(sA.StringData, sA.StringData) {
-			return false
-		}
-		return true
+		return apiutils.IsEqualStruct(sA.Data, sB.Data)
 	}
 	return false
 }

@@ -178,9 +178,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				Data: map[string][]byte{
 					"foo": {1, 2, 3},
 				},
-				StringData: map[string]string{
-					"bar": "foo",
-				},
 			},
 			objB: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -188,9 +185,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"foo": {1, 2, 3},
-				},
-				StringData: map[string]string{
-					"bar": "foo",
 				},
 			},
 			want: true,
@@ -204,9 +198,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				Data: map[string][]byte{
 					"foo": {1, 2, 3},
 				},
-				StringData: map[string]string{
-					"bar": "foo",
-				},
 			},
 			objB: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -214,9 +205,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				},
 				Data: map[string][]byte{
 					"foo": {3, 2, 1},
-				},
-				StringData: map[string]string{
-					"bar": "foo",
 				},
 			},
 			want: false,
@@ -231,9 +219,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				Data: map[string][]byte{
 					"foo": {1, 2, 3},
 				},
-				StringData: map[string]string{
-					"bar": "foo",
-				},
 			},
 			objB: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -242,9 +227,6 @@ func TestIsEqualSecrets(t *testing.T) {
 				Type: corev1.SecretTypeBootstrapToken,
 				Data: map[string][]byte{
 					"foo": {1, 2, 3},
-				},
-				StringData: map[string]string{
-					"bar": "foo",
 				},
 			},
 			want: true,
