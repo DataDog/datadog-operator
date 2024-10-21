@@ -22,6 +22,7 @@ type DatadogAgentBuilder struct {
 // NewDatadogAgentBuilder creates DatadogAgent and initializes Global, Features, Override properties
 func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global:   &v2alpha1.GlobalConfig{},
 			Features: &v2alpha1.DatadogFeatures{},
@@ -68,6 +69,11 @@ func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
 // Common
 func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 	builder.datadogAgent.Name = name
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAnnotations(annotations map[string]string) *DatadogAgentBuilder {
+	builder.datadogAgent.ObjectMeta.Annotations = annotations
 	return builder
 }
 
