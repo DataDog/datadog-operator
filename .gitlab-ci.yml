@@ -503,9 +503,10 @@ publish_community_operators:
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
     # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
-    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
-    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - git clone --single-branch -b $SKOPEO_VERSION https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
+    - skopeo --version
     # Set up redhat registry access to generate bundle-redhat
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
@@ -520,7 +521,8 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
-
+  variables:
+    SKOPEO_VERSION: release-1.16
 
 # On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
 publish_nightly_workflow:
