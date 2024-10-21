@@ -194,7 +194,7 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet gotest integration-tests integration-tests-v2 ## Run unit tests and integration tests
+test: build manifests generate fmt vet verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and integration tests
 
 .PHONY: gotest
 gotest:
