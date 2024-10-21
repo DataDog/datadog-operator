@@ -126,9 +126,18 @@ test-skopeo:
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
     # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
-    - go version
-    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
-    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - git clone --single-branch -b $SKOPEO_VERSION https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
+    - skopeo --version
+    # test redhat bundle
+    - mkdir ~/.redhat
+    - aws ssm get-parameter --region us-east-1 --name
+      ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
+    - cd $CI_PROJECT_DIR
+    - make bundle-redhat
+  variables:
+    SKOPEO_VERSION: release-1.16
 
 generate_code:
   stage: test
