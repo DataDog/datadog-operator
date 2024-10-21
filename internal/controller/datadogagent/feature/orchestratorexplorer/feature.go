@@ -134,7 +134,10 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 }
 
 func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil {
+	if ddaStatus.RemoteConfigConfiguration == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
 		return
 	}
 
@@ -146,9 +149,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources != nil {
-		ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
-	}
+	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

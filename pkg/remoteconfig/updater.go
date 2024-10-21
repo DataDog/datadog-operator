@@ -228,7 +228,7 @@ func getEndpoint(prefix, site string) string {
 	return prefix + defaultSite
 }
 
-// getAndUpdateDatadogAgent is used to prevent race conditions when update the DDA's status
+// getAndUpdateDatadogAgent is used to prevent race conditions when updating the DDA's status
 // we do not want to modify the status without using this function or we could have conflicts
 func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
 	// Only one instance of this can run at a time

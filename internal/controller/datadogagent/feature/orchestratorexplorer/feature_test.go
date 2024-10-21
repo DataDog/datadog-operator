@@ -142,12 +142,12 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			customConfig := v2alpha1.CustomConfig{
 				ConfigData: apiutils.NewStringPointer(customConfDataV2),
 			}
-			truePointer := true
+			trueValue := true
 			url := "https://foo.bar"
 			orchExp := v2alpha1.OrchestratorExplorerFeatureConfig{
-				Enabled:         &truePointer,
+				Enabled:         &trueValue,
 				Conf:            &customConfig,
-				ScrubContainers: &truePointer,
+				ScrubContainers: &trueValue,
 				CustomResources: []string{},
 				ExtraTags:       []string{"a:z", "b:y", "c:x"},
 				DDUrl:           &url,
