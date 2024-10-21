@@ -3,11 +3,13 @@ package remoteconfig
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // CustomResourceDefinitionURLs defines model for CustomResourceDefinitionURLs.
@@ -45,7 +47,7 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 
 }
 
-func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogAgentRemoteConfig, error) {
+func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogClusterAgentRemoteConfig, error) {
 	// Unmarshal configs and config order
 	crds := []string{}
 	for _, c := range updates {
@@ -53,7 +55,7 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 			rcCRDs := CustomResourceDefinitionURLs{}
 			err := json.Unmarshal(c.Config, &rcCRDs)
 			if err != nil {
-				return DatadogAgentRemoteConfig{}, err
+				return DatadogClusterAgentRemoteConfig{}, err
 			}
 			if rcCRDs.Crds != nil {
 				crds = append(crds, *rcCRDs.Crds...)
@@ -63,11 +65,11 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 
 	if len(crds) == 0 {
 		r.logger.Info("No CRDs received")
-		return DatadogAgentRemoteConfig{}, nil
+		return DatadogClusterAgentRemoteConfig{}, nil
 	}
 
 	// Merge configs
-	var finalConfig DatadogAgentRemoteConfig
+	var finalConfig DatadogClusterAgentRemoteConfig
 
 	// Cleanup CRD duplicates and add to final config
 	crds = removeDuplicateStr(crds)
@@ -82,7 +84,11 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 	return finalConfig, nil
 }
 
-func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
+func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent, config DatadogProductRemoteConfig) error {
+	cfg, ok := config.(DatadogClusterAgentRemoteConfig)
+	if !ok {
+		return fmt.Errorf("invalid config type: %T", config)
+	}
 
 	newddaStatus := dda.Status.DeepCopy()
 	if newddaStatus.RemoteConfigConfiguration == nil {

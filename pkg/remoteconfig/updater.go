@@ -60,14 +60,36 @@ type RcServiceConfiguration struct {
 	rcDatabaseDir     string
 }
 
+// DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
+type DatadogProductRemoteConfig interface {
+	// GetID returns the ID of the configuration
+	GetID() string
+}
+
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
 	ID            string                       `json:"id,omitempty"`
 	Name          string                       `json:"name,omitempty"`
 	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
-	ClusterAgent  *ClusterAgentFeaturesConfig  `json:"cluster_agent,omitempty"`
 	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
 	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+}
+
+// GetID returns the ID of the configuration
+func (d DatadogAgentRemoteConfig) GetID() string {
+	return d.ID
+}
+
+// DatadogClusterAgentRemoteConfig contains the struct used to update DatadogClusterAgent object from RemoteConfig
+type DatadogClusterAgentRemoteConfig struct {
+	ID           string                      `json:"id,omitempty"`
+	Name         string                      `json:"name,omitempty"`
+	ClusterAgent *ClusterAgentFeaturesConfig `json:"cluster_agent,omitempty"`
+}
+
+// GetID returns the ID of the configuration
+func (d DatadogClusterAgentRemoteConfig) GetID() string {
+	return d.ID
 }
 
 type CoreAgentFeaturesConfig struct {
@@ -230,7 +252,7 @@ func getEndpoint(prefix, site string) string {
 
 // getAndUpdateDatadogAgent is used to prevent race conditions when updating the DDA's status
 // we do not want to modify the status without using this function or we could have conflicts
-func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg DatadogProductRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogProductRemoteConfig) error) error {
 	// Only one instance of this can run at a time
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -250,7 +272,7 @@ func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg 
 	return f(dda, cfg)
 }
 
-func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Context, cfg DatadogAgentRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogAgentRemoteConfig) error) error {
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Context, cfg DatadogProductRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogProductRemoteConfig) error) error {
 	var err error
 
 	operation := func() error {
@@ -434,7 +456,11 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 
 }
 
-func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
+func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, config DatadogProductRemoteConfig) error {
+	cfg, ok := config.(DatadogAgentRemoteConfig)
+	if !ok {
+		return fmt.Errorf("invalid config type: %T", config)
+	}
 
 	newddaStatus := dda.Status.DeepCopy()
 	if newddaStatus.RemoteConfigConfiguration == nil {
