@@ -80,24 +80,20 @@ func (d DatadogAgentRemoteConfig) GetID() string {
 	return d.ID
 }
 
-// DatadogClusterAgentRemoteConfig contains the struct used to update DatadogClusterAgent object from RemoteConfig
-type DatadogClusterAgentRemoteConfig struct {
-	ID           string                      `json:"id,omitempty"`
-	Name         string                      `json:"name,omitempty"`
-	ClusterAgent *ClusterAgentFeaturesConfig `json:"cluster_agent,omitempty"`
+// OrchestratorK8sCRDRemoteConfig contains the struct used to update OrchestratorK8sCRD object from RemoteConfig
+type OrchestratorK8sCRDRemoteConfig struct {
+	ID   string                        `json:"id,omitempty"`
+	Name string                        `json:"name,omitempty"`
+	CRDs *CustomResourceDefinitionURLs `json:"crds,omitempty"`
 }
 
 // GetID returns the ID of the configuration
-func (d DatadogClusterAgentRemoteConfig) GetID() string {
+func (d OrchestratorK8sCRDRemoteConfig) GetID() string {
 	return d.ID
 }
 
 type CoreAgentFeaturesConfig struct {
 	SBOM *SbomConfig `json:"sbom"`
-}
-
-type ClusterAgentFeaturesConfig struct {
-	CRDs *CustomResourceDefinitionURLs `json:"crds,omitempty"`
 }
 
 type SystemProbeFeaturesConfig struct {

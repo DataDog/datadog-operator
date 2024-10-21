@@ -47,7 +47,7 @@ func (r *RemoteConfigUpdater) crdConfigUpdateCallback(updates map[string]state.R
 
 }
 
-func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (DatadogClusterAgentRemoteConfig, error) {
+func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) (OrchestratorK8sCRDRemoteConfig, error) {
 	// Unmarshal configs and config order
 	crds := []string{}
 	for _, c := range updates {
@@ -55,7 +55,7 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 			rcCRDs := CustomResourceDefinitionURLs{}
 			err := json.Unmarshal(c.Config, &rcCRDs)
 			if err != nil {
-				return DatadogClusterAgentRemoteConfig{}, err
+				return OrchestratorK8sCRDRemoteConfig{}, err
 			}
 			if rcCRDs.Crds != nil {
 				crds = append(crds, *rcCRDs.Crds...)
@@ -65,27 +65,25 @@ func (r *RemoteConfigUpdater) parseCRDReceivedUpdates(updates map[string]state.R
 
 	if len(crds) == 0 {
 		r.logger.Info("No CRDs received")
-		return DatadogClusterAgentRemoteConfig{}, nil
+		return OrchestratorK8sCRDRemoteConfig{}, nil
 	}
 
 	// Merge configs
-	var finalConfig DatadogClusterAgentRemoteConfig
+	var finalConfig OrchestratorK8sCRDRemoteConfig
 
 	// Cleanup CRD duplicates and add to final config
 	crds = removeDuplicateStr(crds)
-	if finalConfig.ClusterAgent == nil {
-		finalConfig.ClusterAgent = &ClusterAgentFeaturesConfig{}
+
+	if finalConfig.CRDs == nil {
+		finalConfig.CRDs = &CustomResourceDefinitionURLs{}
 	}
-	if finalConfig.ClusterAgent.CRDs == nil {
-		finalConfig.ClusterAgent.CRDs = &CustomResourceDefinitionURLs{}
-	}
-	finalConfig.ClusterAgent.CRDs.Crds = &crds
+	finalConfig.CRDs.Crds = &crds
 
 	return finalConfig, nil
 }
 
 func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent, config DatadogProductRemoteConfig) error {
-	cfg, ok := config.(DatadogClusterAgentRemoteConfig)
+	cfg, ok := config.(OrchestratorK8sCRDRemoteConfig)
 	if !ok {
 		return fmt.Errorf("invalid config type: %T", config)
 	}
@@ -104,11 +102,11 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 	}
 
 	// Orchestrator Explorer
-	if cfg.ClusterAgent != nil && cfg.ClusterAgent.CRDs != nil {
+	if cfg.CRDs != nil {
 		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = []string{}
 		// Overwrite custom resources by the new ones
-		if cfg.ClusterAgent.CRDs.Crds != nil {
-			newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = *cfg.ClusterAgent.CRDs.Crds
+		if cfg.CRDs.Crds != nil {
+			newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = *cfg.CRDs.Crds
 		}
 		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = removeDuplicateStr(newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources)
 	}
