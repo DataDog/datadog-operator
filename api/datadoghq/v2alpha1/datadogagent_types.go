@@ -1222,6 +1222,20 @@ type GlobalConfig struct {
 	// +optional
 	NamespaceAnnotationsAsTags map[string]string `json:"namespaceAnnotationsAsTags,omitempty"`
 
+	// Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags.
+	// <KUBERNETES_RESOURCE_GROUP>:
+	//		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+	// +optional
+	KubernetesResourcesLabelsAsTags map[string]map[string]string `json:"kubernetesResourcesLabelsAsTags,omitempty"`
+
+	// Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags.
+	// <KUBERNETES_RESOURCE_GROUP>:
+	//		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY>
+	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+	// +optional
+	KubernetesResourcesAnnotationsAsTags map[string]map[string]string `json:"kubernetesResourcesAnnotationsAsTags,omitempty"`
+
 	// NetworkPolicy contains the network configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`

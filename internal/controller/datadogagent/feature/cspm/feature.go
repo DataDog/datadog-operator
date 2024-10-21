@@ -44,7 +44,6 @@ type cspmFeature struct {
 	enable                bool
 	serviceAccountName    string
 	checkInterval         string
-	createPSP             bool
 	hostBenchmarksEnabled bool
 
 	owner  metav1.Object
@@ -90,8 +89,6 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
-
-		// TODO add settings to configure f.createPSP
 
 		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
@@ -150,17 +147,6 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
-	}
-
-	if f.createPSP {
-		// Manage PodSecurityPolicy
-		pspName := getPSPName(f.owner)
-		psp, err := managers.PodSecurityManager().GetPodSecurityPolicy(f.owner.GetNamespace(), pspName)
-		if err != nil {
-			return err
-		}
-		psp.Spec.HostPID = true
-		managers.PodSecurityManager().UpdatePodSecurityPolicy(psp)
 	}
 
 	// Manage RBAC
