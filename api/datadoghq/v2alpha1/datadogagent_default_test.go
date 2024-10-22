@@ -195,6 +195,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &HostPortConfig{
@@ -315,6 +318,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -396,6 +402,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -507,6 +516,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -640,6 +652,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &HostPortConfig{
@@ -767,6 +782,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 						HostPortConfig: &HostPortConfig{
@@ -893,6 +911,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1030,6 +1051,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &HostPortConfig{
@@ -1156,6 +1180,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1286,6 +1313,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1444,6 +1474,9 @@ func Test_defaultFeatures(t *testing.T) {
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
 					CSPM: &CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
@@ -1546,6 +1579,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1655,6 +1691,7 @@ func Test_defaultFeatures(t *testing.T) {
 					OOMKill:                 &OOMKillFeatureConfig{},
 					TCPQueueLength:          &TCPQueueLengthFeatureConfig{},
 					EBPFCheck:               &EBPFCheckFeatureConfig{},
+					ServiceDiscovery:        &ServiceDiscoveryFeatureConfig{},
 					APM:                     &APMFeatureConfig{},
 					ASM:                     &ASMFeatureConfig{},
 					CSPM:                    &CSPMFeatureConfig{},
@@ -1695,6 +1732,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
@@ -1825,6 +1865,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					EBPFCheck: &EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
