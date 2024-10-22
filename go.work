@@ -1,5 +1,7 @@
 go 1.22.7
 
+toolchain go1.22.7
+
 use (
 	.
 	./test/e2e
