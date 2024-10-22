@@ -142,7 +142,17 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			customConfig := v2alpha1.CustomConfig{
 				ConfigData: apiutils.NewStringPointer(customConfDataV2),
 			}
-			hash, err := comparison.GenerateMD5ForSpec(&customConfig)
+			trueValue := true
+			url := "https://foo.bar"
+			orchExp := v2alpha1.OrchestratorExplorerFeatureConfig{
+				Enabled:         &trueValue,
+				Conf:            &customConfig,
+				ScrubContainers: &trueValue,
+				CustomResources: []string{},
+				ExtraTags:       []string{"a:z", "b:y", "c:x"},
+				DDUrl:           &url,
+			}
+			hash, err := comparison.GenerateMD5ForSpec(&orchExp)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
 				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,

@@ -27,6 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
+const (
+	enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
+)
+
 func init() {
 	err := feature.Register(feature.DefaultIDType, buildDefaultFeature)
 	if err != nil {
@@ -125,6 +129,10 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.clusterAgent.serviceAccountAnnotations = v2alpha1.GetClusterAgentServiceAccountAnnotations(dda)
 	f.agent.serviceAccountAnnotations = v2alpha1.GetAgentServiceAccountAnnotations(dda)
 	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.otelAgentEnabled = f.otelAgentEnabled || dda.ObjectMeta.Annotations[enableOtelAnnotation] == "true"
+	}
 
 	if dda.Spec.Global != nil {
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
