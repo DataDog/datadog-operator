@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.22
+go 1.22.0
 
 toolchain go1.22.7
 
@@ -41,7 +41,7 @@ require (
 require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.55.0-rc.10
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.55.0-rc.10
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.55.0-rc.10
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.1
 	github.com/prometheus/client_golang v1.16.0
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225
 )
