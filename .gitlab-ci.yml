@@ -5,7 +5,7 @@ variables:
   GOPATH: "$CI_PROJECT_DIR/.cache"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
-  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
+  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v46356103-16ecadd-v3.0.0"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -78,7 +78,7 @@ stages:
 
 build:
   stage: build
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -87,7 +87,7 @@ build:
 
 unit_tests:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
@@ -98,9 +98,19 @@ unit_tests:
   script:
     - make test
 
+check-golang-version:
+  stage: test
+  tags: ["arch:amd64"]
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    - make update-golang
+    - git diff --exit-code
+
 generate_code:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
@@ -462,9 +472,10 @@ publish_community_operators:
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
     # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
-    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
-    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - git clone --single-branch -b $SKOPEO_VERSION https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
+    - skopeo --version
     # Set up redhat registry access to generate bundle-redhat
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
@@ -479,7 +490,8 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
-
+  variables:
+    SKOPEO_VERSION: release-1.16
 
 # On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
 publish_nightly_workflow:
