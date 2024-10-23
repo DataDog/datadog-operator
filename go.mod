@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mholt/archiver/v3 v3.5.0
-	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.33.1
 	github.com/pkg/errors v0.9.1
@@ -39,9 +39,9 @@ require (
 )
 
 require (
-	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.1
-	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.1
-	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.1
+	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
+	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
+	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
@@ -51,15 +51,15 @@ require (
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/DataDog/appsec-internal-go v1.7.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/obfuscate v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/backoff v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/cache v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/grpc v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/http v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/log v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.59.0-rc.1 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/uuid v0.59.0-rc.1 // indirect
+	github.com/DataDog/datadog-agent/pkg/obfuscate v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/backoff v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/cache v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/grpc v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/http v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/log v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.59.0-rc.5 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/uuid v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-go/v5 v5.5.0 // indirect
 	github.com/DataDog/go-libddwaf/v3 v3.3.0 // indirect
 	github.com/DataDog/go-sqllexer v0.0.15 // indirect
@@ -71,7 +71,7 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
-	github.com/benbjohnson/clock v1.3.0 // indirect
+	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -106,7 +106,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-5 // indirect
-	github.com/imdario/mergo v0.3.12 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -127,7 +127,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nwaples/rardecode v1.1.0 // indirect
-	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/outcaste-io/ristretto v0.2.3 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
@@ -140,8 +140,9 @@ require (
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/richardartoul/molecule v1.0.1-0.20240531184615-7ca0df43c0b3 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
+	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shirou/gopsutil/v3 v3.24.1 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -152,7 +153,7 @@ require (
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/ulikunitz/xz v0.5.8 // indirect
+	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
@@ -172,7 +173,7 @@ require (
 	golang.org/x/tools v0.25.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17 // indirect
+	google.golang.org/genproto v0.0.0-20240227224415-6ceb2ff114de // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
 	google.golang.org/grpc v1.65.0 // indirect
