@@ -1,7 +1,6 @@
 [run]
-  deadline = "10m"
+  deadline = "5m"
   tests = false
-  concurrency = 8
 
 [linters-settings]
 
@@ -94,8 +93,7 @@
     "dupword",
     "intrange",
     "mnd",
-    "musttag",
-    "exportloopref"
+    "musttag"
   ]
 
 [issues]
