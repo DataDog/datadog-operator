@@ -1,6 +1,7 @@
 [run]
-  deadline = "5m"
+  deadline = "10m"
   tests = false
+  concurrency = 8
 
 [linters-settings]
 
