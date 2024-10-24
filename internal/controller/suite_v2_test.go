@@ -38,6 +38,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -112,7 +113,9 @@ var _ = BeforeSuite(func() {
 		V2APIEnabled:               true,
 	}
 
-	err = SetupControllers(logger, mgr, options)
+	mdf := metadata.NewMetadataForwarder(logger)
+
+	err = SetupControllers(logger, mgr, options, mdf)
 	Expect(err).ToNot(HaveOccurred())
 
 	var mgrCtx context.Context
