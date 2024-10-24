@@ -43,6 +43,7 @@ const (
 	CronjobsResource                    = "cronjobs"
 	CustomResourceDefinitionsResource   = "customresourcedefinitions"
 	DaemonsetsResource                  = "daemonsets"
+	DatadogAgentsResource               = "datadogagents"
 	DatadogMetricsResource              = "datadogmetrics"
 	DatadogMetricsStatusResource        = "datadogmetrics/status"
 	DatadogPodAutoscalersResource       = "datadogpodautoscalers"

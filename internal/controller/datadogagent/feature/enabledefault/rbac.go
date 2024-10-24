@@ -89,6 +89,14 @@ func getDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRul
 		},
 		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
 	})
+	rules = append(rules, rbacv1.PolicyRule{
+		APIGroups: []string{rbac.DatadogAPIGroup},
+		Resources: []string{rbac.DatadogAgentsResource},
+		ResourceNames: []string{
+			dda.GetName(),
+		},
+		Verbs: []string{rbac.GetVerb},
+	})
 	return rules
 }
 

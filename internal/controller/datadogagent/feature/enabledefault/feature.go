@@ -386,6 +386,18 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		Name:  apicommon.DDClusterAgentServiceAccountName,
 		Value: f.clusterAgent.serviceAccountName,
 	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDAgentDaemonSet,
+		Value: getDaemonSetNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDClusterAgentDeployment,
+		Value: getDeploymentNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDDatadogAgentCustomResource,
+		Value: f.owner.GetName(),
+	})
 	return nil
 }
 
