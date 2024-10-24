@@ -79,13 +79,6 @@ stages:
 build:
   stage: build
   tags: ["arch:amd64"]
-  variables:
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_CPU_LIMIT: 4
-    GOMEMLIMIT: 15GiB
-    GOMAXPROCS: 4
   before_script:
     - mkdir -p .cache
     - make install-tools
@@ -99,13 +92,6 @@ unit_tests:
     - if: '$DDR == "true"'
       when: never
     - when: on_success
-  variables:
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_CPU_LIMIT: 4
-    GOMEMLIMIT: 15GiB
-    GOMAXPROCS: 4
   before_script:
     - mkdir -p .cache
     - make install-tools
