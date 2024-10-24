@@ -6,7 +6,7 @@ toolchain go1.22.7
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
-	github.com/DataDog/extendeddaemonset v0.9.0-rc.3.0.20241014094042-2aea543b5b6d
+	github.com/DataDog/extendeddaemonset v0.10.0-rc.4
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.4.2
 	github.com/gobwas/glob v0.2.3
@@ -81,7 +81,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
-	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
@@ -183,6 +182,7 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
+	modernc.org/sqlite v1.29.5 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.17.2 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.17.1 // indirect
