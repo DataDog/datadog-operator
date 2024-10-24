@@ -88,7 +88,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	// Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
 	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
-
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
@@ -96,7 +95,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
-
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, features)
