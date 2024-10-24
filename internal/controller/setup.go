@@ -17,6 +17,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -77,7 +78,7 @@ var controllerStarters = map[string]starterFunc{
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
-func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOptions) error {
+func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOptions, mf *metadata.MetadataForwarder) error {
 	// Get some information about Kubernetes version
 	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
 	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
@@ -92,6 +93,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 
 	if versionInfo != nil {
+		mf.OperatorMetadata.KubernetesVersion = versionInfo.String()
 		gitVersion := versionInfo.GitVersion
 		if !utils.IsAboveMinVersion(gitVersion, "1.16-0") {
 			logger.Error(nil, "Detected Kubernetes version <1.16 which requires CRD version apiextensions.k8s.io/v1beta1. "+

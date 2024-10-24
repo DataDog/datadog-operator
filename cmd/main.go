@@ -34,13 +34,14 @@ import (
 	"github.com/go-logr/logr"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/metadata"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -52,8 +53,9 @@ const (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme      = runtime.NewScheme()
+	setupLog    = ctrl.Log.WithName("setup")
+	metadataLog = ctrl.Log.WithName("metadata")
 )
 
 func init() {
@@ -261,6 +263,7 @@ func run(opts *options) error {
 
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
+	mdf := setupMetadataForwarder(metadataLog, opts)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil && opts.datadogMonitorEnabled {
@@ -308,9 +311,12 @@ func run(opts *options) error {
 		DatadogDashboardEnabled:         opts.datadogDashboardEnabled,
 	}
 
-	if err = controller.SetupControllers(setupLog, mgr, options); err != nil {
+	if err = controller.SetupControllers(setupLog, mgr, options, mdf); err != nil {
 		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
+
+	// send metadata in a new goroutine
+	mdf.Start()
 
 	// +kubebuilder:scaffold:builder
 
@@ -318,6 +324,8 @@ func run(opts *options) error {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		return setupErrorf(setupLog, err, "Problem running manager")
 	}
+
+	mdf.Stop()
 
 	return nil
 }
@@ -362,4 +370,23 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any) error {
 	setupLog.Error(err, msg, keysAndValues...)
 	return fmt.Errorf("%s, err:%w", msg, err)
+}
+
+func setupMetadataForwarder(logger logr.Logger, options *options) *metadata.MetadataForwarder {
+	mf := metadata.NewMetadataForwarder(logger)
+	mf.OperatorMetadata = metadata.OperatorMetadata{
+		DatadogAgentEnabled:        options.datadogAgentEnabled,
+		DatadogMonitorEnabled:      options.datadogMonitorEnabled,
+		DatadogDashboardEnabled:    options.datadogDashboardEnabled,
+		DatadogSLOEnabled:          options.datadogSLOEnabled,
+		DatadogAgentProfileEnabled: options.datadogAgentProfileEnabled,
+		ExtendedDaemonSetEnabled:   options.supportExtendedDaemonset,
+		RemoteConfigEnabled:        options.remoteConfigEnabled,
+		IntrospectionEnabled:       options.introspectionEnabled,
+		OperatorVersion:            version.GetVersion(),
+		ConfigDDURL:                os.Getenv(common.DDURL),
+		ConfigDDSite:               os.Getenv(common.DDSite),
+	}
+
+	return mf
 }
