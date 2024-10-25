@@ -254,7 +254,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}))
 	}
 
-	if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
+	if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(r); err != nil {
 		return err
 	}
 
