@@ -112,6 +112,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
+		f.logger.Info("Final CRDs", f.customResources)
 		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
@@ -138,6 +139,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 		ddaStatus.RemoteConfigConfiguration.Features == nil ||
 		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
 		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
+		f.logger.Info("No OrchestratorExplorer CRDs received from rc status")
 		return
 	}
 
@@ -149,6 +151,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 
+	f.logger.Info("Merging CRD lists", "spec", ddaSpec.Features.OrchestratorExplorer.CustomResources, "status", ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources)
 	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
 }
 
