@@ -328,7 +328,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyAgentPodLogs(c, output)
 			}
-		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate log check on agent pod"))
+		}, 900*time.Second, 30*time.Second, "could not validate log check on agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyAPILogs(s, c)
