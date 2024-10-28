@@ -306,7 +306,6 @@ func (s *kindSuite) TestKindRun() {
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
 		// Update DDA
-		fmt.Println(filepath.Join(manifestsPath, "datadog-agent-logs.yaml"))
 		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "datadog-agent-logs.yaml"))
 		assert.NoError(t, err)
 
@@ -327,17 +326,14 @@ func (s *kindSuite) TestKindRun() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "logs agent", "-j")
 				assert.NoError(c, err)
 
-				// fmt.Println(output)
-				verifyLogs(c, output)
+				verifyAgentPodLogs(c, output)
 			}
 		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate log check on agent pod"))
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			// verifyKSMCheck(s, c)
-			logQuery := fmt.Sprintf("kube_cluster_name:%s", s.Env().Kind.ClusterName)
-			// logQuery := fmt.Sprintf("exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:%s, kube_container_name:*})", s.Env().Kind.ClusterName)
-			// resp, _, err := s.datadogClient.logsApi.ListLogs()
+			verifyAPILogs(s, c)
 		}, 600*time.Second, 30*time.Second, "could not valid logs collection with api client")
+
 	})
 
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
@@ -345,7 +341,7 @@ func (s *kindSuite) TestKindRun() {
 	})
 }
 
-func verifyLogs(c *assert.CollectT, collectorOutput string) {
+func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	var agentLogs []interface{}
 	logsJson := parseCollectorJson(collectorOutput)
 
@@ -389,6 +385,24 @@ func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 			assert.True(c, found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
 		}
 	}
+}
+
+func verifyAPILogs(s *kindSuite, c *assert.CollectT) {
+	logQuery := fmt.Sprintf("kube_cluster_name:%s", s.Env().Kind.ClusterName)
+
+	requestBody := datadogV1.LogsListRequest{
+		Query: &logQuery,
+		Time: datadogV1.LogsListRequestTime{
+			From: time.Now().AddDate(0, 0, -1), // One day ago
+			To:   time.Now(),
+		},
+		Limit: datadog.PtrInt32(100),
+	}
+
+	resp, _, err := s.datadogClient.logsApi.ListLogs(s.datadogClient.ctx, requestBody)
+
+	assert.NoError(c, err, "failed to query logs: %v", err)
+	assert.True(c, len(resp.Logs) > 0, fmt.Sprintf("expected logs to not be empty: %s", err))
 }
 
 func verifyKSMCheck(s *kindSuite, c *assert.CollectT) {
