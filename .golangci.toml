@@ -1,6 +1,6 @@
 [run]
-  deadline = "5m"
   tests = false
+  timeout = "10m"
 
 [linters-settings]
 
