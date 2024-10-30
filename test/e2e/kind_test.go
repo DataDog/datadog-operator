@@ -227,6 +227,67 @@ func (s *kindSuite) TestKindRun() {
 		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-minimum")
 	})
 
+	s.T().Run("Autodiscovery works", func(t *testing.T) {
+		// Add nginx without annotations
+		var nginxConfigPath string
+		nginxConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "autodiscovery.yaml"))
+		assert.NoError(t, err)
+
+		k8s.KubectlApply(t, kubectlOptions, nginxConfigPath)
+		verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/e2e-test=datadog-agent-autodiscovery")
+
+		// Add nginx with annotations, deleting pod to be sure the updated one is running
+		nginxConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "autodiscovery-annotation.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, nginxConfigPath)
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			nginxPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: "agent.datadoghq.com/e2e-test=datadog-agent-autodiscovery",
+			})
+			assert.NoError(t, err)
+
+			for _, pod := range nginxPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+				_, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "delete", "pod", pod.Name)
+				assert.NoError(t, err)
+			}
+		}, 1200*time.Second, 30*time.Second, "could not delete nginx pod")
+
+		verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/e2e-test=datadog-agent-autodiscovery-annotated")
+
+		// restart agent pods
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+				_, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "delete", "pod", pod.Name)
+				assert.NoError(t, err)
+			}
+		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not restart agent pods"))
+
+		// check agent pods for http check
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "-j")
+				assert.NoError(c, err)
+
+				verifyCheck(c, output, "http_check")
+			}
+		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate http check on agent pod"))
+	})
+
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
