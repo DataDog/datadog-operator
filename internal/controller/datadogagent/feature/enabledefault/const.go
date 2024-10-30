@@ -8,5 +8,5 @@ package enabledefault
 const (
 	DDAgentDaemonSet             = "AGENT_DAEMONSET"
 	DDClusterAgentDeployment     = "CLUSTER_AGENT_DEPLOYMENT"
-	DDDatadogAgentCustomResource = "DATADOG_AGENT_CR_NAME"
+	DDDatadogAgentCustomResource = "DATADOGAGENT_CR_NAME"
 )
