@@ -286,6 +286,10 @@ func (s *kindSuite) TestKindRun() {
 				verifyCheck(c, output, "http_check")
 			}
 		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate http check on agent pod"))
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyHTTPCheck(s, c)
+		}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
@@ -400,5 +404,14 @@ func verifyKSMCheck(s *kindSuite, c *assert.CollectT) {
 
 	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
 
+	assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
+}
+
+func verifyHTTPCheck(s *kindSuite, c *assert.CollectT) {
+	metricQuery := fmt.Sprintf("exclude_null(avg:network.http.can_connect{kube_cluster_name:%s})", s.Env().Kind.ClusterName)
+
+	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+
+	assert.EqualValues(c, *resp.Status, "ok")
 	assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }
