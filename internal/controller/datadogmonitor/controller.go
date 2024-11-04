@@ -8,7 +8,9 @@ package datadogmonitor
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +20,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,10 +37,11 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	maxTriggeredStateGroups = 10
+	defaultRequeuePeriod           = 60 * time.Second
+	defaultErrRequeuePeriod        = 5 * time.Second
+	defaultForceSyncPeriod         = 60 * time.Minute
+	maxTriggeredStateGroups        = 10
+	DDMonitorForceSyncPeriodEnvVar = "DD_MONITOR_FORCE_SYNC_PERIOD"
 )
 
 var supportedMonitorTypes = map[string]bool{
@@ -63,19 +65,17 @@ type Reconciler struct {
 	client        client.Client
 	datadogClient *datadogV1.MonitorsApi
 	datadogAuth   context.Context
-	versionInfo   *version.Info
 	log           logr.Logger
 	scheme        *runtime.Scheme
 	recorder      record.EventRecorder
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
-		versionInfo:   versionInfo,
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
@@ -92,6 +92,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger := r.log.WithValues("datadogmonitor", req.NamespacedName)
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
+	forceSyncPeriod := defaultForceSyncPeriod
+
+	if userForceSyncPeriod, ok := os.LookupEnv(DDMonitorForceSyncPeriodEnvVar); ok {
+		forceSyncPeriodInt, err := strconv.Atoi(userForceSyncPeriod)
+		if err != nil {
+			logger.Error(err, "Invalid value for monitor force sync period. Defaulting to 60 minutes.")
+		} else {
+			logger.V(1).Info("Setting monitor force sync period", "minutes", forceSyncPeriodInt)
+			forceSyncPeriod = time.Duration(forceSyncPeriodInt) * time.Minute
+		}
+	}
 
 	// Get instance
 	instance := &datadoghqv1alpha1.DatadogMonitor{}
@@ -143,7 +154,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			// Custom resource manifest has changed, need to update the API
 			logger.V(1).Info("DatadogMonitor manifest has changed")
 			shouldUpdate = true
-		} else if instance.Status.MonitorLastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
+		} else if instance.Status.MonitorLastForceSyncTime == nil || (forceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			m, err = r.get(instance, newStatus)

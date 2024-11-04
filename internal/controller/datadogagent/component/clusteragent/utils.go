@@ -108,6 +108,11 @@ func GetExternalMetricsReaderClusterRoleName(dda metav1.Object, versionInfo *ver
 	return fmt.Sprintf("%s-metrics-reader", GetClusterAgentRbacResourcesName(dda))
 }
 
+// GetResourceMetadataAsTagsClusterRoleName returns the name for the cluster role name used for kubernetes resource labels and annotations as tags
+func GetResourceMetadataAsTagsClusterRoleName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-annotations-and-labels-as-tags", GetClusterAgentRbacResourcesName(dda))
+}
+
 // GetApiserverAuthReaderRoleBindingName returns the name for the role binding to access the extension-apiserver-authentication cm
 func GetApiserverAuthReaderRoleBindingName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-apiserver", GetClusterAgentRbacResourcesName(dda))

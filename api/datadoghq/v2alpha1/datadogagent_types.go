@@ -549,9 +549,14 @@ type OTLPProtocolsConfig struct {
 // OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
 // +k8s:openapi-gen=true
 type OTLPGRPCConfig struct {
-	// Enable the OTLP/gRPC endpoint.
+	// Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enable hostPort for OTLP/gRPC
+	// Default: true
+	// +optional
+	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`
 
 	// Endpoint for OTLP/gRPC.
 	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
@@ -564,9 +569,14 @@ type OTLPGRPCConfig struct {
 // OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
 // +k8s:openapi-gen=true
 type OTLPHTTPConfig struct {
-	// Enable the OTLP/HTTP endpoint.
+	// Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enable hostPorts for OTLP/HTTP
+	// Default: true
+	// +optional
+	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`
 
 	// Endpoint for OTLP/HTTP.
 	// Default: '0.0.0.0:4318'.
@@ -967,7 +977,6 @@ type KubeletConfig struct {
 // HostPortConfig contains host port configuration.
 type HostPortConfig struct {
 	// Enabled enables host port configuration
-	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -1213,6 +1222,20 @@ type GlobalConfig struct {
 	// +optional
 	NamespaceAnnotationsAsTags map[string]string `json:"namespaceAnnotationsAsTags,omitempty"`
 
+	// Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags.
+	// <KUBERNETES_RESOURCE_GROUP>:
+	//		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+	// +optional
+	KubernetesResourcesLabelsAsTags map[string]map[string]string `json:"kubernetesResourcesLabelsAsTags,omitempty"`
+
+	// Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags.
+	// <KUBERNETES_RESOURCE_GROUP>:
+	//		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY>
+	// KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods)
+	// +optional
+	KubernetesResourcesAnnotationsAsTags map[string]map[string]string `json:"kubernetesResourcesAnnotationsAsTags,omitempty"`
+
 	// NetworkPolicy contains the network configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`
@@ -1245,6 +1268,10 @@ type GlobalConfig struct {
 
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
 	FIPS *FIPSConfig `json:"fips,omitempty"`
+
+	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
+	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
+	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1271,13 +1298,47 @@ type DatadogCredentials struct {
 	AppSecret *SecretConfig `json:"appSecret,omitempty"`
 }
 
+// SecretBackendRolesConfig provides configuration of the secrets Datadog agents can read for the SecretBackend feature
+// +k8s:openapi-gen=true
+type SecretBackendRolesConfig struct {
+	// Namespace defines the namespace in which the secrets reside.
+	// +required
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Secrets defines the list of secrets for which a role should be created.
+	// +required
+	// +listType=set
+	Secrets []string `json:"secrets,omitempty"`
+}
+
 // SecretBackendConfig provides configuration for the secret backend.
+// +k8s:openapi-gen=true
 type SecretBackendConfig struct {
-	// Command defines the secret backend command to use
+	// The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`.
+	// Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers.
 	Command *string `json:"command,omitempty"`
 
-	// Args defines the list of arguments to pass to the command
-	Args []string `json:"args,omitempty"`
+	// List of arguments to pass to the command (space-separated strings).
+	// +optional
+	Args *string `json:"args,omitempty"`
+
+	// The command timeout in seconds.
+	// Default: `30`.
+	// +optional
+	Timeout *int32 `json:"timeout,omitempty"`
+
+	// Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
+	// Default: `false`.
+	// +optional
+	EnableGlobalPermissions *bool `json:"enableGlobalPermissions,omitempty"`
+
+	// Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
+	// They are defined as a list of namespace/secrets.
+	// Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.
+	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.
+	// +optional
+	// +listType=atomic
+	Roles []*SecretBackendRolesConfig `json:"roles,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.
@@ -1376,6 +1437,10 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
+	// Sets the ServiceAccountAnnotations used by this component.
+	// +optional
+	ServiceAccountAnnotations map[string]string `json:"serviceAccountAnnotations,omitempty"`
+
 	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional
 	Image *AgentImageConfig `json:"image,omitempty"`
@@ -1412,8 +1477,7 @@ type DatadogAgentComponentOverride struct {
 
 	// Configure the basic configurations for each Agent container. Valid Agent container names are:
 	// `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
-	// `security-agent`, `system-probe`, `trace-agent`, and `all`.
-	// Configuration under `all` applies to all configured containers.
+	// `security-agent`, `system-probe`, and `trace-agent`.
 	// +optional
 	Containers map[common.AgentContainerName]*DatadogAgentGenericContainer `json:"containers,omitempty"`
 

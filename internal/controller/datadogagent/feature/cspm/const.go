@@ -15,11 +15,10 @@ const (
 	cspmRBACPrefix       = "cspm"
 	cspmConfigVolumeName = "complianceconfigdir"
 	cspmConfFileName     = "compliance.yaml"
-)
 
-func getPSPName(owner metav1.Object) string {
-	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
-}
+	securityAgentComplianceConfigDirVolumeName = "compliancedir"
+	securityAgentComplianceConfigDirVolumePath = "/etc/datadog-agent/compliance.d"
+)
 
 // getRBACResourceName return the RBAC resources name
 func getRBACResourceName(owner metav1.Object) string {

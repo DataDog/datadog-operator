@@ -10,13 +10,18 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"strconv"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -215,6 +220,43 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Provide a mapping of Kubernetes Resource Labels to Datadog Tags.
+	if config.KubernetesResourcesLabelsAsTags != nil {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(config.KubernetesResourcesLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Resource Annotations to Datadog Tags.
+	if config.KubernetesResourcesLabelsAsTags != nil {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(config.KubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
+	}
+
+	if componentName == v2alpha1.ClusterAgentComponentName {
+		if err := resourcesManager.RBACManager().AddClusterPolicyRules(
+			dda.Namespace,
+			componentdca.GetResourceMetadataAsTagsClusterRoleName(dda),
+			v2alpha1.GetClusterAgentServiceAccount(dda),
+			getKubernetesResourceMetadataAsTagsPolicyRules(config.KubernetesResourcesLabelsAsTags, config.KubernetesResourcesAnnotationsAsTags),
+		); err != nil {
+			logger.Error(err, "error adding kubernetes resource metadata as tags clusterrole and clusterrolebinding to store")
+		}
+	}
+
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Kubelet contains the kubelet configuration parameters.
 		// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
@@ -309,6 +351,80 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)
+			}
+		}
+	}
+
+	// Apply SecretBackend config
+	if config.SecretBackend != nil {
+		// Set secret backend command
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendCommand,
+			Value: apiutils.StringValue(config.SecretBackend.Command),
+		})
+
+		// Set secret backend arguments
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSecretBackendArguments,
+			Value: apiutils.StringValue(config.SecretBackend.Args),
+		})
+
+		// Set secret backend timeout
+		if config.SecretBackend.Timeout != nil {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDSecretBackendTimeout,
+				Value: strconv.FormatInt(int64(*config.SecretBackend.Timeout), 10),
+			})
+		}
+
+		var componentSaName string
+		switch componentName {
+		case v2alpha1.ClusterAgentComponentName:
+			componentSaName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		case v2alpha1.NodeAgentComponentName:
+			componentSaName = v2alpha1.GetAgentServiceAccount(dda)
+		case v2alpha1.ClusterChecksRunnerComponentName:
+			componentSaName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+		}
+
+		agentName := dda.GetName()
+		agentNs := dda.GetNamespace()
+		rbacSuffix := "secret-backend"
+
+		// Set global RBAC config (only if specific roles are not defined)
+		if apiutils.BoolValue(config.SecretBackend.EnableGlobalPermissions) && config.SecretBackend.Roles == nil {
+
+			var secretBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{rbac.CoreAPIGroup},
+					Resources: []string{rbac.SecretsResource},
+					Verbs:     []string{rbac.GetVerb},
+				},
+			}
+
+			roleName := fmt.Sprintf("%s-%s-%s", agentNs, agentName, rbacSuffix)
+
+			if err := resourcesManager.RBACManager().AddClusterPolicyRules(agentNs, roleName, componentSaName, secretBackendGlobalRBACPolicyRules); err != nil {
+				logger.Error(err, "Error adding cluster-wide secrets RBAC policy")
+			}
+		}
+
+		// Set specific roles for the secret backend
+		if config.SecretBackend.Roles != nil {
+			for _, role := range config.SecretBackend.Roles {
+				secretNs := apiutils.StringValue(role.Namespace)
+				roleName := fmt.Sprintf("%s-%s-%s", secretNs, agentName, rbacSuffix)
+				policyRule := []rbacv1.PolicyRule{
+					{
+						APIGroups:     []string{rbac.CoreAPIGroup},
+						Resources:     []string{rbac.SecretsResource},
+						ResourceNames: role.Secrets,
+						Verbs:         []string{rbac.GetVerb},
+					},
+				}
+				if err := resourcesManager.RBACManager().AddPolicyRules(secretNs, roleName, componentSaName, policyRule, agentNs); err != nil {
+					logger.Error(err, "Error adding secrets RBAC policy")
+				}
 			}
 		}
 	}

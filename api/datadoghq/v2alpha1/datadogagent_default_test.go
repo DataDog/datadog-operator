@@ -8,6 +8,7 @@ package v2alpha1
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/google/go-cmp/cmp"
@@ -242,12 +243,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -430,12 +433,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					EventCollection: &EventCollectionFeatureConfig{
@@ -551,12 +556,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -613,7 +620,7 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
 						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
+						TempStoragePath:            apiutils.NewStringPointer(apicommon.DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
@@ -681,12 +688,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -806,12 +815,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -933,12 +944,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1065,12 +1078,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(valueTrue),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(valueTrue),
+							HostPortConfig: &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(valueTrue),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(valueTrue),
+							HostPortConfig: &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1190,12 +1205,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1318,12 +1335,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1447,12 +1466,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1574,12 +1595,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1721,12 +1744,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
@@ -1859,12 +1884,14 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
 						HTTP: &OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{

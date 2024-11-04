@@ -6,60 +6,6 @@ metadata:
       [
         {
           "apiVersion": "datadoghq.com/v1alpha1",
-          "kind": "DatadogAgent",
-          "metadata": {
-            "name": "datadog"
-          },
-          "spec": {
-            "agent": {
-              "apm": {
-                "enabled": false
-              },
-              "log": {
-                "enabled": false,
-                "logsConfigContainerCollectAll": false
-              },
-              "process": {
-                "enabled": true,
-                "processCollection": false
-              },
-              "security": {
-                "compliance": {
-                  "enabled": false
-                },
-                "runtime": {
-                  "enabled": false
-                }
-              },
-              "systemProbe": {
-                "bpfDebugEnabled": false
-              }
-            },
-            "clusterAgent": {
-              "config": {
-                "admissionController": {
-                  "enabled": false
-                },
-                "clusterChecksEnabled": false,
-                "externalMetrics": {
-                  "enabled": false
-                }
-              },
-              "replicas": 2
-            },
-            "clusterChecksRunner": {
-              "replicas": 2
-            },
-            "clusterName": "\u003cCLUSTER_NAME\u003e",
-            "credentials": {
-              "apiKey": "\u003cDATADOG_API_KEY\u003e",
-              "appKey": "\u003cDATADOG_APP_KEY\u003e",
-              "token": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e"
-            }
-          }
-        },
-        {
-          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogAgentProfile",
           "metadata": {
             "name": "datadogagentprofile-sample"
@@ -95,6 +41,21 @@ metadata:
         },
         {
           "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogDashboard",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "datadog-operator",
+              "app.kubernetes.io/instance": "datadogdashboard-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "datadogdashboard",
+              "app.kubernetes.io/part-of": "datadog-operator"
+            },
+            "name": "datadogdashboard-sample"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogMetric",
           "metadata": {
             "name": "datadogmetric-sample"
@@ -122,6 +83,14 @@ metadata:
         },
         {
           "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogPodAutoscaler",
+          "metadata": {
+            "name": "datadogpodautoscaler-sample"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogSLO",
           "metadata": {
             "name": "datadogslo-sample"
@@ -146,7 +115,7 @@ metadata:
           "apiVersion": "datadoghq.com/v2alpha1",
           "kind": "DatadogAgent",
           "metadata": {
-            "name": "datadog"
+            "name": "datadogagent-sample"
           },
           "spec": {
             "features": {
@@ -157,22 +126,14 @@ metadata:
                 "enabled": false
               },
               "clusterChecks": {
-                "enabled": false
-              },
-              "cspm": {
-                "enabled": false
-              },
-              "cws": {
-                "enabled": false
-              },
-              "externalMetricsServer": {
-                "enabled": false
+                "enabled": true,
+                "useClusterChecksRunners": true
               },
               "liveProcessCollection": {
                 "enabled": false
               },
               "logCollection": {
-                "containerCollectAll": false,
+                "containerCollectAll": true,
                 "enabled": true
               }
             },
@@ -182,14 +143,39 @@ metadata:
               "credentials": {
                 "apiKey": "\u003cDATADOG_API_KEY\u003e",
                 "appKey": "\u003cDATADOG_APP_KEY\u003e"
+              },
+              "criSocketPath": "/var/run/crio/crio.sock",
+              "kubelet": {
+                "tlsVerify": false
               }
             },
             "override": {
               "clusterAgent": {
-                "replicas": 2
+                "containers": {
+                  "cluster-agent": {
+                    "securityContext": {
+                      "readOnlyRootFilesystem": false
+                    }
+                  }
+                },
+                "replicas": 2,
+                "serviceAccountName": "datadog-agent-scc"
               },
               "clusterChecksRunner": {
                 "replicas": 2
+              },
+              "nodeAgent": {
+                "hostNetwork": true,
+                "securityContext": {
+                  "runAsUser": 0,
+                  "seLinuxOptions": {
+                    "level": "s0",
+                    "role": "system_r",
+                    "type": "spc_t",
+                    "user": "system_u"
+                  }
+                },
+                "serviceAccountName": "datadog-agent-scc"
               }
             }
           }
@@ -197,12 +183,12 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
+    createdAt: "2024-10-07 17:49:58"
     description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
-    operators.operatorframework.io/builder: operator-sdk-v1.23.0
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/builder: operator-sdk-v1.34.1
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.7.0
-    createdAt: "2024-06-17 12:15:42"
+    containerImage: gcr.io/datadoghq/operator:1.9.0
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -211,8 +197,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.7.0'
-  name: datadog-operator.v1.7.0
+    olm.skipRange: '>=1.7.0 <1.9.0'
+  labels:
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.arm64: supported
+    operatorframework.io/os.linux: supported
+  name: datadog-operator.v1.9.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -223,16 +213,16 @@ spec:
         kind: DatadogAgentProfile
         name: datadogagentprofiles.datadoghq.com
         version: v1alpha1
-      - description: DatadogAgent Deployment with Datadog Operator.
-        displayName: Datadog Agent
-        kind: DatadogAgent
-        name: datadogagents.datadoghq.com
-        version: v1alpha1
       - description: DatadogAgent Deployment with the Datadog Operator.
         displayName: Datadog Agent
         kind: DatadogAgent
         name: datadogagents.datadoghq.com
         version: v2alpha1
+      - description: DatadogDashboard is the Schema for the datadogdashboards API
+        displayName: Datadog Dashboard
+        kind: DatadogDashboard
+        name: datadogdashboards.datadoghq.com
+        version: v1alpha1
       - description: DatadogMetric allows autoscaling on arbitrary Datadog query
         displayName: Datadog Metric
         kind: DatadogMetric
@@ -242,6 +232,11 @@ spec:
         displayName: Datadog Monitor
         kind: DatadogMonitor
         name: datadogmonitors.datadoghq.com
+        version: v1alpha1
+      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
+        displayName: Datadog Pod Autoscaler
+        kind: DatadogPodAutoscaler
+        name: datadogpodautoscalers.datadoghq.com
         version: v1alpha1
       - description: DatadogSLO allows a user to define and manage datadog SLOs from Kubernetes cluster.
         displayName: Datadog SLO
@@ -259,6 +254,9 @@ spec:
         - rules:
             - nonResourceURLs:
                 - /metrics
+              verbs:
+                - get
+            - nonResourceURLs:
                 - /metrics/slis
               verbs:
                 - get
@@ -336,8 +334,8 @@ spec:
               verbs:
                 - get
                 - list
-                - watch
                 - patch
+                - watch
             - apiGroups:
                 - ""
               resources:
@@ -439,18 +437,34 @@ spec:
                 - update
                 - watch
             - apiGroups:
+                - '*'
+              resources:
+                - '*/scale'
+              verbs:
+                - get
+                - update
+            - apiGroups:
                 - admissionregistration.k8s.io
               resources:
-                - validatingwebhookconfigurations
                 - mutatingwebhookconfigurations
+                - validatingwebhookconfigurations
               verbs:
                 - '*'
+            - apiGroups:
+                - apiextensions.k8s.io
+              resources:
+                - customresourcedefinitions
+              verbs:
+                - list
+                - watch
             - apiGroups:
                 - apiregistration.k8s.io
               resources:
                 - apiservices
               verbs:
                 - '*'
+                - list
+                - watch
             - apiGroups:
                 - apps
               resources:
@@ -539,6 +553,12 @@ spec:
                 - patch
                 - update
                 - watch
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - pods/exec
+              verbs:
+                - create
             - apiGroups:
                 - authorization.k8s.io
               resources:
@@ -634,6 +654,38 @@ spec:
             - apiGroups:
                 - datadoghq.com
               resources:
+                - datadogagentprofiles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
                 - datadogagents
               verbs:
                 - create
@@ -659,6 +711,32 @@ spec:
                 - datadoghq.com
               resources:
                 - datadogagents/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards/finalizers
+              verbs:
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards/status
               verbs:
                 - get
                 - patch
@@ -713,6 +791,50 @@ spec:
             - apiGroups:
                 - datadoghq.com
               resources:
+                - datadogpodautoscalers
+              verbs:
+                - '*'
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogpodautoscalers/status
+              verbs:
+                - '*'
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
                 - extendeddaemonsetreplicasets
               verbs:
                 - get
@@ -734,6 +856,13 @@ spec:
                 - watermarkpodautoscalers
               verbs:
                 - get
+                - list
+                - watch
+            - apiGroups:
+                - extensions
+              resources:
+                - customresourcedefinitions
+              verbs:
                 - list
                 - watch
             - apiGroups:
@@ -902,78 +1031,6 @@ spec:
               verbs:
                 - list
                 - watch
-            - apiGroups:
-                - extensions
-                - apiextensions.k8s.io
-              resources:
-                - customresourcedefinitions
-              verbs:
-                - list
-                - watch
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogslos
-              verbs:
-                - create
-                - delete
-                - get
-                - list
-                - patch
-                - update
-                - watch
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogslos/finalizers
-              verbs:
-                - create
-                - delete
-                - get
-                - list
-                - patch
-                - update
-                - watch
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogslos/status
-              verbs:
-                - get
-                - patch
-                - update
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogagentprofiles
-              verbs:
-                - create
-                - delete
-                - get
-                - list
-                - patch
-                - update
-                - watch
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogagentprofiles/status
-              verbs:
-                - get
-                - patch
-                - update
-            - apiGroups:
-                - datadoghq.com
-              resources:
-                - datadogagentprofiles/finalizers
-              verbs:
-                - update
-            - apiGroups:
-                - ""
-              resources:
-                - pods/exec
-              verbs:
-                - create
           serviceAccountName: datadog-operator-controller-manager
         - rules:
             - apiGroups:
@@ -1028,7 +1085,7 @@ spec:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: DD_TOOL_VERSION
                         value: redhat
-                    image: gcr.io/datadoghq/operator:1.7.0
+                    image: gcr.io/datadoghq/operator:1.9.0
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -1126,5 +1183,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.7.0
-  replaces: datadog-operator.v1.6.0
+  version: 1.9.0
+  replaces: datadog-operator.v1.8.0

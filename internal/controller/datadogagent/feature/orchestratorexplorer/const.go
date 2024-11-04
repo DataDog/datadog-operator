@@ -15,6 +15,8 @@ const (
 	orchestratorExplorerRBACPrefix   = "orch-exp"
 	orchestratorExplorerConfFileName = "orchestrator.yaml"
 	orchestratorExplorerFolderName   = "orchestrator.d"
+
+	orchestratorExplorerVolumeName = "orchestrator-explorer-config"
 )
 
 // GetOrchestratorExplorerRBACResourceName returns the RBAC resources name

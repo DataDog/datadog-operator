@@ -12,15 +12,18 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
@@ -44,16 +47,23 @@ func buildOTLPFeature(options *feature.Options) feature.Feature {
 type otlpFeature struct {
 	logger logr.Logger
 
-	grpcEnabled  bool
-	grpcEndpoint string
+	grpcEnabled         bool
+	grpcHostPortEnabled bool
+	grpcCustomHostPort  int32
+	grpcEndpoint        string
 
-	httpEnabled  bool
-	httpEndpoint string
+	httpEnabled         bool
+	httpHostPortEnabled bool
+	httpCustomHostPort  int32
+	httpEndpoint        string
 
 	usingAPM bool
 
 	forceEnableLocalService bool
 	localServiceName        string
+
+	createKubernetesNetworkPolicy bool
+	createCiliumNetworkPolicy     bool
 
 	owner metav1.Object
 }
@@ -70,12 +80,24 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
 	}
+	if otlp.Receiver.Protocols.GRPC.HostPortConfig != nil {
+		f.grpcHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled)
+		if otlp.Receiver.Protocols.GRPC.HostPortConfig.Port != nil {
+			f.grpcCustomHostPort = *otlp.Receiver.Protocols.GRPC.HostPortConfig.Port
+		}
+	}
 	if otlp.Receiver.Protocols.GRPC.Endpoint != nil {
 		f.grpcEndpoint = *otlp.Receiver.Protocols.GRPC.Endpoint
 	}
 
 	if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.Enabled) {
 		f.httpEnabled = true
+	}
+	if otlp.Receiver.Protocols.HTTP.HostPortConfig != nil {
+		f.httpHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled)
+		if otlp.Receiver.Protocols.HTTP.HostPortConfig.Port != nil {
+			f.httpCustomHostPort = *otlp.Receiver.Protocols.HTTP.HostPortConfig.Port
+		}
 	}
 	if otlp.Receiver.Protocols.HTTP.Endpoint != nil {
 		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
@@ -105,6 +127,15 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
 		}
 	}
+	if f.grpcEnabled || f.httpEnabled {
+		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
+			}
+		}
+	}
 
 	return reqComp
 }
@@ -112,19 +143,25 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	platformInfo := managers.Store().GetPlatformInfo()
+	versionInfo := platformInfo.GetVersionInfo()
+
 	if f.grpcEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-			port, err := extractPortEndpoint(f.grpcEndpoint)
-			if err != nil {
-				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
-				return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
-			}
+		port, err := extractPortEndpoint(f.grpcEndpoint)
+		if err != nil {
+			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
+			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
+		}
+		if f.grpcHostPortEnabled && f.grpcCustomHostPort != 0 {
+			port = f.grpcCustomHostPort
+		}
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			servicePort := []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(port)),
 					Port:       port,
-					Name:       apicommon.OTLPGRPCPortName,
+					Name:       otlpGRPCPortName,
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
@@ -132,24 +169,137 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
+		//network policies for gRPC OTLP
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		if f.createKubernetesNetworkPolicy {
+			protocolTCP := corev1.ProtocolTCP
+			ingressRules := []netv1.NetworkPolicyIngressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: port,
+							},
+							Protocol: &protocolTCP,
+						},
+					},
+				},
+			}
+			if err := managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+				policyName,
+				f.owner.GetNamespace(),
+				podSelector,
+				nil,
+				ingressRules,
+				nil,
+			); err != nil {
+				return err
+			}
+		} else if f.createCiliumNetworkPolicy {
+			policySpecs := []cilium.NetworkPolicySpec{
+				{
+					Description:      "Ingress for gRPC OTLP",
+					EndpointSelector: podSelector,
+					Ingress: []cilium.IngressRule{
+						{
+							FromEndpoints: []metav1.LabelSelector{
+								{},
+							},
+							ToPorts: []cilium.PortRule{
+								{
+									Ports: []cilium.PortProtocol{
+										{
+											Port:     strconv.Itoa(int(port)),
+											Protocol: cilium.ProtocolTCP,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			if err := managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs); err != nil {
+				return err
+			}
+		}
 	}
 	if f.httpEnabled {
-		if common.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-			port, err := extractPortEndpoint(f.httpEndpoint)
-			if err != nil {
-				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
-				return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
-			}
+		port, err := extractPortEndpoint(f.httpEndpoint)
+		if err != nil {
+			f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
+			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
+		}
+		if f.httpHostPortEnabled && f.httpCustomHostPort != 0 {
+			port = f.httpCustomHostPort
+		}
+		if common.ShouldCreateAgentLocalService(versionInfo, f.forceEnableLocalService) {
 			servicePort := []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(port)),
 					Port:       port,
-					Name:       apicommon.OTLPHTTPPortName,
+					Name:       otlpHTTPPortName,
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
+				return err
+			}
+		}
+		//network policies for HTTP OTLP
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		if f.createKubernetesNetworkPolicy {
+			protocolTCP := corev1.ProtocolTCP
+			ingressRules := []netv1.NetworkPolicyIngressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: port,
+							},
+							Protocol: &protocolTCP,
+						},
+					},
+				},
+			}
+			if err := managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+				policyName,
+				f.owner.GetNamespace(),
+				podSelector,
+				nil,
+				ingressRules,
+				nil,
+			); err != nil {
+				return err
+			}
+		} else if f.createCiliumNetworkPolicy {
+			policySpecs := []cilium.NetworkPolicySpec{
+				{
+					Description:      "Ingress for HTTP OTLP",
+					EndpointSelector: podSelector,
+					Ingress: []cilium.IngressRule{
+						{
+							FromEndpoints: []metav1.LabelSelector{
+								{},
+							},
+							ToPorts: []cilium.PortRule{
+								{
+									Ports: []cilium.PortProtocol{
+										{
+											Port:     strconv.Itoa(int(port)),
+											Protocol: cilium.ProtocolTCP,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			if err := managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs); err != nil {
 				return err
 			}
 		}
@@ -203,17 +353,21 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
 			return fmt.Errorf("invalid OTLP/gRPC endpoint: %w", err)
 		}
-
 		port, err := extractPortEndpoint(f.grpcEndpoint)
 		if err != nil {
 			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
 		otlpgrpcPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPGRPCPortName,
+			Name:          otlpGRPCPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.grpcHostPortEnabled {
+			otlpgrpcPort.HostPort = f.grpcCustomHostPort
+			if f.grpcCustomHostPort == 0 {
+				otlpgrpcPort.HostPort = port
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPgRPCEndpoint,
@@ -230,10 +384,15 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
 		otlphttpPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPHTTPPortName,
+			Name:          otlpHTTPPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.httpHostPortEnabled {
+			otlphttpPort.HostPort = f.httpCustomHostPort
+			if f.httpCustomHostPort == 0 {
+				otlphttpPort.HostPort = port
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPHTTPEndpoint,
@@ -254,17 +413,21 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
 			return fmt.Errorf("invalid OTLP/gRPC endpoint: %w", err)
 		}
-
 		port, err := extractPortEndpoint(f.grpcEndpoint)
 		if err != nil {
 			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
 			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
 		}
 		otlpgrpcPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPGRPCPortName,
+			Name:          otlpGRPCPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.grpcHostPortEnabled {
+			otlpgrpcPort.HostPort = port
+			if f.grpcCustomHostPort != 0 {
+				otlpgrpcPort.HostPort = f.grpcCustomHostPort
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPgRPCEndpoint,
@@ -284,10 +447,15 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
 		}
 		otlphttpPort := &corev1.ContainerPort{
-			Name:          apicommon.OTLPHTTPPortName,
+			Name:          otlpHTTPPortName,
 			ContainerPort: port,
-			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
+		}
+		if f.httpHostPortEnabled {
+			otlphttpPort.HostPort = port
+			if f.httpCustomHostPort != 0 {
+				otlphttpPort.HostPort = f.httpCustomHostPort
+			}
 		}
 		envVar := &corev1.EnvVar{
 			Name:  apicommon.DDOTLPHTTPEndpoint,
