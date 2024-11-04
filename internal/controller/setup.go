@@ -15,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	datadoghq "github.com/DataDog/datadog-operator/internal/controller/datadogagentprofile"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
@@ -46,6 +47,7 @@ type SetupOptions struct {
 	V2APIEnabled                    bool
 	IntrospectionEnabled            bool
 	DatadogAgentProfileEnabled      bool
+	DapControllerFlip               bool
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
 	DatadogDashboardEnabled         bool
@@ -155,6 +157,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
 			IntrospectionEnabled:            options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled:      options.DatadogAgentProfileEnabled,
+			DapControllerFlip:               options.DapControllerFlip,
 			ProcessChecksInCoreAgentEnabled: options.ProcessChecksInCoreAgentEnabled,
 			OtelAgentEnabled:                options.OtelAgentEnabled,
 		},
@@ -235,5 +238,9 @@ func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Log:      ctrl.Log.WithName("controllers").WithName(profileControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(profileControllerName),
+		Options: datadoghq.DAPReconcilerOptions{
+			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			DapControllerFlip:          options.DapControllerFlip,
+		},
 	}).SetupWithManager(mgr)
 }

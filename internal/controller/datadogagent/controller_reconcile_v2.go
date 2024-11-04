@@ -158,6 +158,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
 	metrics.DAPEnabled.Set(metrics.FalseValue)
+	logger.Info("Reconciling DatadogAgent", "DapControllerFlip", r.options.DapControllerFlip)
 
 	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
 		// Get a node list for profiles and introspection
@@ -174,6 +175,12 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if r.options.DatadogAgentProfileEnabled {
 			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
+
+			// on every reconcile
+			// group nodes which match profile rules profile -> {nodes matching profile rules}
+			//      some additional filtering applied here
+			// then apply labels
+
 			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, instance)
 			if err != nil {
 				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
@@ -184,7 +191,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 			}
 		}
 	}
-
 	for _, profile := range profiles {
 		for provider := range providerList {
 			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)

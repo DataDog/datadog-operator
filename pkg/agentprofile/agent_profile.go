@@ -42,6 +42,10 @@ const (
 // When create strategy is enabled, the profile is mapped to:
 // - existing nodes with the correct label
 // - nodes that need a new or corrected label up to maxUnavailable # of nodes
+
+// TODO: break this up
+// 1. Validates profile name and profiles status; if invalid updates status, exits.
+// 2.
 func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
 	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
 	matchingNodes := map[string]bool{}
@@ -52,6 +56,10 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 	} else {
 		profileStatus.CurrentHash = hash
 	}
+
+	// if err := validateProfile(logger, profile, &profileStatus, now); err != nil {
+	// 	return profileAppliedByNode, err
+	// }
 
 	if err := validateProfileName(profile.Name); err != nil {
 		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -73,6 +81,7 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 	toLabelNodeCount := 0
 
 	for _, node := range nodes {
+		// maybe validate this part above as well to avoid this block
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
 		if err != nil {
 			logger.Error(err, "profile selector is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -86,7 +95,9 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 		profileStatus.Valid = metav1.ConditionTrue
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionTrue, now, ValidConditionReason, "Valid manifest"))
 
+		// node matches
 		if matchesNode {
+			// if there is existing profile on node - skip
 			if existingProfile, found := profileAppliedByNode[node.Name]; found {
 				// Conflict. This profile should not be applied.
 				logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
@@ -95,10 +106,12 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 				UpdateProfileStatus(logger, profile, profileStatus, now)
 				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
+				// otherwise if node has a ProfileLabelKey and is equal to profileName we save this node
 				profileLabelValue, labelExists := node.Labels[ProfileLabelKey]
 				if labelExists && profileLabelValue == profile.Name {
 					matchingNodes[node.Name] = true
 				} else {
+					// otherwise we mark as nonMatching node and increase toLabelNodeCount
 					matchingNodes[node.Name] = false
 					toLabelNodeCount++
 				}
@@ -145,6 +158,56 @@ func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nod
 	UpdateProfileStatus(logger, profile, profileStatus, now)
 	return profileAppliedByNode, nil
 }
+
+// func validateProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, profileStatus *v1alpha1.DatadogAgentProfileStatus, now metav1.Time) error {
+
+// 	if err := validateProfileName(profile.Name); err != nil {
+// 		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+// 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+// 		profileStatus.Valid = metav1.ConditionFalse
+// 		UpdateProfileStatus(logger, profile, *profileStatus, now)
+// 		return err
+// 	}
+
+// 	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+// 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
+// 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
+// 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
+// 		profileStatus.Valid = metav1.ConditionFalse
+// 		UpdateProfileStatus(logger, profile, *profileStatus, now)
+// 		return err
+// 	}
+
+// 	if err := validateAffinity(profile); err != nil {
+// 		// Conflict. This profile should not be applied.
+// 		logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
+// 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
+// 		profileStatus.Applied = metav1.ConditionFalse
+// 		UpdateProfileStatus(logger, profile, *profileStatus, now)
+// 		return fmt.Errorf("conflict with existing profile")
+// 	}
+
+// 	return nil
+// }
+
+// func validateAffinity(profile *v1alpha1.DatadogAgentProfile) error {
+// 	if profile.Spec.ProfileAffinity == nil {
+// 		return nil
+// 	}
+
+// 	for _, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
+// 		_, err := labels.NewRequirement(
+// 			requirement.Key,
+// 			nodeSelectorOperatorToSelectionOperator(requirement.Operator),
+// 			requirement.Values,
+// 		)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	return nil
+// }
 
 func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []v1alpha1.DatadogAgentProfile {
 	profilesToApply = append(profilesToApply, defaultProfile())

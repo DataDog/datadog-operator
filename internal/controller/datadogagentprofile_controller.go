@@ -16,6 +16,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	dap "github.com/DataDog/datadog-operator/internal/controller/datadogagentprofile"
+	datadoghq "github.com/DataDog/datadog-operator/internal/controller/datadogagentprofile"
 )
 
 // DatadogAgentProfileReconciler reconciles a DatadogAgentProfile object.
@@ -25,6 +26,7 @@ type DatadogAgentProfileReconciler struct {
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 	internal *dap.Reconciler
+	Options  datadoghq.DAPReconcilerOptions
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentprofiles,verbs=get;list;watch;create;update;patch;delete
@@ -38,7 +40,7 @@ func (r *DatadogAgentProfileReconciler) Reconcile(ctx context.Context, req ctrl.
 
 // SetupWithManager creates a new DatadogAgentProfile controller.
 func (r *DatadogAgentProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := dap.NewReconciler(r.Client, r.Scheme, r.Log)
+	internal, err := dap.NewReconciler(r.Options, r.Client, r.Scheme, r.Log)
 	if err != nil {
 		return err
 	}

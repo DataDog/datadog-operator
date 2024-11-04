@@ -122,6 +122,7 @@ type options struct {
 	maximumGoroutines                      int
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
+	dapControllerFlip                      bool
 	remoteConfigEnabled                    bool
 	processChecksInCoreAgentEnabled        bool
 	otelAgentEnabled                       bool
@@ -157,6 +158,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
+	flag.BoolVar(&opts.dapControllerFlip, "dapControllerFlip", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
@@ -303,6 +305,7 @@ func run(opts *options) error {
 		V2APIEnabled:                    true,
 		IntrospectionEnabled:            opts.introspectionEnabled,
 		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
+		DapControllerFlip:               opts.dapControllerFlip,
 		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
 		OtelAgentEnabled:                opts.otelAgentEnabled,
 		DatadogDashboardEnabled:         opts.datadogDashboardEnabled,

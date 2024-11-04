@@ -258,9 +258,12 @@ func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name str
 	}
 }
 
+// TODO: should slowStrategy be implemented here instead of labelSelection
 func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
-		return err
+	if !r.options.DapControllerFlip {
+		if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
+			return err
+		}
 	}
 
 	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
@@ -400,7 +403,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 
 	dsName := getDaemonSetNameFromDatadogAgent(dda)
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
-
+	logger.Info("cleanupExtraneousDaemonSets", "validDaemonSetNames", validDaemonSetNames, "validExtendedDaemonSetNames", validExtendedDaemonSetNames)
 	// Only the default profile uses an EDS when profiles are enabled
 	// Multiple EDSs can be created with introspection
 	if r.options.ExtendedDaemonsetOptions.Enabled {

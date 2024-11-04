@@ -62,6 +62,7 @@ type ReconcilerOptions struct {
 	OperatorMetricsEnabled          bool
 	IntrospectionEnabled            bool
 	DatadogAgentProfileEnabled      bool
+	DapControllerFlip               bool
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
 }

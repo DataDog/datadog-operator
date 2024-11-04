@@ -1,0 +1,35 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: datadogagentprofile-sample
+spec:
+  profileAffinity:
+    profileNodeAffinity:
+      - key: dapenabled
+        operator: In
+        values:
+          - dap
+  config:
+    override:
+      nodeAgent:
+        updateStrategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 1
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 256m
+            env:
+            - name: TEST
+              value: "test"
+            # - {name: TEST_VALUE_FROM, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+            - name: ANOTHER_VALUE_FROM
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          trace-agent:
+            env:
+            - name: TRACE_TEST
+              value: "trace_test"

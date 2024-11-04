@@ -36,8 +36,10 @@ spec:
       - command:
         - /manager
         args:
-        - --enable-leader-election
+        - --enable-leader-election=false
         - --pprof
+        - --datadogAgentProfileEnabled=true
+        - --dapControllerFlip=true
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
