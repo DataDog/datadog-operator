@@ -79,7 +79,8 @@ func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersio
 }
 
 func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
-	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties)
+	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties, nameToDescMap)
 
 	overridesMarkdown := mustReadFile(v2OverridesFile)
 	mustWrite(f, overridesMarkdown)
@@ -88,12 +89,10 @@ func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefini
 	mustWriteString(f, "| --------- | ----------- |\n")
 
 	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
-	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties)
+	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties, nameToDescMap)
 }
 
-func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps) {
-	// CELENE maybe this should be defined elsewhere? not sure yet
-	nameToDescMap := loadJSONToMap(updatedDescriptionsFile)
+func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
 
 	docs := getParameterDocs([]string{}, props)
 
@@ -181,7 +180,7 @@ func exampleFile(version string) string {
 	return fmt.Sprintf("hack/generate-docs/%s_example.markdown", version)
 }
 
-func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiextensions.JSONSchemaProps) {
+func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiextensions.JSONSchemaProps, nameToDescMap map[string]string) {
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
@@ -200,9 +199,14 @@ func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiexte
 			propName := prefix + "." + doc.name
 			mustWriteString(f, fmt.Sprintf("| %s `map[%s]%s` | %s |\n", propName, mapKeyType, mapValueType, doc.description))
 			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
-			writeOverridesRecursive(f, prefix+"."+doc.name+".[key]", valueTypeProps)
+			writeOverridesRecursive(f, prefix+"."+doc.name+".[key]", valueTypeProps, nameToDescMap)
 		} else {
-			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", prefix+"."+doc.name, doc.description))
+			name := prefix + "." + doc.name
+			desc := doc.description
+			if newDesc, ok := nameToDescMap[name]; ok {
+				desc = newDesc
+			}
+			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", name, desc))
 		}
 	}
 }
