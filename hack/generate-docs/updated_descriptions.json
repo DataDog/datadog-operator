@@ -1,0 +1,4 @@
+{
+
+	"global.fips.portRange": "The number of ports used by the containers to communicate to the FIPS sidecar. Default: 15"
+}
