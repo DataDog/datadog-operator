@@ -47,7 +47,7 @@ func Test_getPodDisruptionBudget(t *testing.T) {
 		},
 	}
 	testpdb := GetClusterAgentPodDisruptionBudget(&dda)
-	assert.Equal(t, "datadog-cluster-agent-pdb", testpdb.Name)
+	assert.Equal(t, "my-datadog-agent-cluster-agent-pdb", testpdb.Name)
 	assert.Equal(t, intstr.FromInt(pdbMinAvailableInstances), *testpdb.Spec.MinAvailable)
 	assert.Nil(t, testpdb.Spec.MaxUnavailable)
 }

@@ -66,7 +66,7 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisrupti
 		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
 	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "datadog-cluster-agent-pdb",
+			Name:      GetClusterAgentPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{

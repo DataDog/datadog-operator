@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	pdMaxUnavailableInstances = 1
+	pdbMaxUnavailableInstances = 1
 )
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
@@ -88,14 +88,18 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 	return template
 }
 
+func GetClusterChecksRunnerPodDisruptionBudgetName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
+}
+
 func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
-	maxUnavailableStr := intstr.FromInt(pdMaxUnavailableInstances)
+	maxUnavailableStr := intstr.FromInt(pdbMaxUnavailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterChecksRunnerResourceSuffix}
 	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "datadog-cluster-checks-runner-pdb",
+			Name:      GetClusterChecksRunnerPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{
