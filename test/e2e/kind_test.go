@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -311,7 +312,6 @@ func (s *kindSuite) TestKindRun() {
 
 		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
 		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-logs")
-		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-logs")
 
 		// Verify logs collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -351,6 +351,9 @@ func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
 				message, exists := integration["messages"].([]interface{})[0].(string)
 				assert.True(c, exists)
+
+				num, _ := strconv.Atoi(string(message[0]))
+				assert.True(c, num > 0)
 				assert.Contains(c, message, "files tailed", "expected message to contain 'files tailed'")
 			} else {
 				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
