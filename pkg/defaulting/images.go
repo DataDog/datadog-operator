@@ -16,9 +16,9 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.58.0"
+	AgentLatestVersion = "7.58.2"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.58.0"
+	ClusterAgentLatestVersion = "7.58.2"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.0.1"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry

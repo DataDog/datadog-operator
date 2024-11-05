@@ -1472,8 +1472,7 @@ type DatadogAgentComponentOverride struct {
 
 	// Configure the basic configurations for each Agent container. Valid Agent container names are:
 	// `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
-	// `security-agent`, `system-probe`, `trace-agent`, and `all`.
-	// Configuration under `all` applies to all configured containers.
+	// `security-agent`, `system-probe`, and `trace-agent`.
 	// +optional
 	Containers map[common.AgentContainerName]*DatadogAgentGenericContainer `json:"containers,omitempty"`
 
