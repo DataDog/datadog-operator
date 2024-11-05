@@ -37,21 +37,3 @@ spec:
             configMapKeyRef:
               name: datadog-cluster-name
               key: DD_CLUSTER_NAME
-    clusterAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-logs
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
-    clusterChecksRunner:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-logs
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
