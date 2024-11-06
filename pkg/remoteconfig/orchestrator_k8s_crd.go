@@ -102,8 +102,8 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 	}
 
 	// Orchestrator Explorer
+	newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = []string{}
 	if cfg.CRDs != nil {
-		newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = []string{}
 		// Overwrite custom resources by the new ones
 		if cfg.CRDs.Crds != nil {
 			newddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources = *cfg.CRDs.Crds
