@@ -191,6 +191,11 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	// +listType=atomic
 	// +optional
 	Rules []DatadogPodAutoscalerScalingRule `json:"rules,omitempty"`
+
+	// StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
+	// before deciding to apply a new one. Default to 0.
+	// +optional
+	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
 // DatadogPodAutoscalerScalingRuleType defines how scaling rule value should be interpreted.
