@@ -7,7 +7,6 @@ on:
 permissions:
   contents: read
   packages: read
-
 jobs:
   build-linux-binary:
     runs-on: ubuntu-latest
