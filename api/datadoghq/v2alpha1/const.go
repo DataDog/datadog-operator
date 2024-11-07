@@ -52,6 +52,23 @@ const (
 	DefaultStartupProbeFailureThreshold    int32 = 6
 	DefaultStartupProbeHTTPPath                  = "/startup"
 
+	// Agent Data plane default liveness/readiness probe configs
+	DefaultADPLivenessProbeInitialDelaySeconds int32 = 5
+	DefaultADPLivenessProbePeriodSeconds       int32 = 5
+	DefaultADPLivenessProbeTimeoutSeconds      int32 = 5
+	DefaultADPLivenessProbeSuccessThreshold    int32 = 1
+	DefaultADPLivenessProbeFailureThreshold    int32 = 12
+	DefaultADPLivenessProbeHTTPPath                  = "/health/live"
+
+	DefaultADPReadinessProbeInitialDelaySeconds int32 = 5
+	DefaultADPReadinessProbePeriodSeconds       int32 = 5
+	DefaultADPReadinessProbeTimeoutSeconds      int32 = 5
+	DefaultADPReadinessProbeSuccessThreshold    int32 = 1
+	DefaultADPReadinessProbeFailureThreshold    int32 = 12
+	DefaultADPReadinessProbeHTTPPath                  = "/health/ready"
+
+	DefaultADPHealthPort = 5100
+
 	// DefaultApmPort default apm port
 	DefaultApmPort = 8126
 	// DefaultApmPortName default apm port name

@@ -188,6 +188,42 @@ func GetDefaultTraceAgentProbe() *corev1.Probe {
 	return probe
 }
 
+// GetDefaultAgentDataPlaneLivenessProbe creates a defaulted liveness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultADPLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultADPLivenessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultADPLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultADPLivenessProbeSuccessThreshold,
+		FailureThreshold:    DefaultADPLivenessProbeFailureThreshold,
+	}
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultADPLivenessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultADPHealthPort,
+		},
+	}
+	return livenessProbe
+}
+
+// GetDefaultAgentDataPlaneReadinessProbe creates a defaulted readiness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
+	readinessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultADPReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultADPReadinessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultADPReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultADPReadinessProbeSuccessThreshold,
+		FailureThreshold:    DefaultADPReadinessProbeFailureThreshold,
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultADPReadinessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultADPHealthPort,
+		},
+	}
+	return readinessProbe
+}
+
 // GetImage builds the image string based on ImageConfig and the registry configuration.
 func GetImage(imageSpec *AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
