@@ -3,7 +3,7 @@ on: [push, pull_request]
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
   contents: read
-  packages: read
+  # packages: read
 env:
   PROJECTNAME: "datadog-operator"
   GO_VERSION: 1.22.7

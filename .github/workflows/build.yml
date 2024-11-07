@@ -6,7 +6,7 @@ on:
 # Permission forced by repo-level setting; only elevate on job-level
 permissions:
   contents: read
-  packages: read
+  # packages: read
 jobs:
   build-linux-binary:
     runs-on: ubuntu-latest
