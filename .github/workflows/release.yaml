@@ -6,12 +6,23 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
+
+# Permission forced by repo-level setting; only elevate on job-level
+permissions:
+  contents: read
+  packages: read
+
 env:
   GO_VERSION: 1.22.7
 jobs:
   build-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact@v3
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -51,6 +62,11 @@ jobs:
   build-darwin-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact@v3
+      actions: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -85,6 +101,11 @@ jobs:
   build-windows-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
+      # actions/upload-artifact@v3
+      actions: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -120,6 +141,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-linux-binary, build-darwin-binary, build-windows-binary]
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      # https://github.com/softprops/action-gh-release?tab=readme-ov-file#permissions 
+      contents: write
+      # actions/download-artifact@v3
+      actions: read
+      # rajatjindal/krew-release-bot@v0.0.43
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
