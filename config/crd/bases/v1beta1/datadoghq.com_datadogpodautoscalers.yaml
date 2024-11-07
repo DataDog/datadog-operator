@@ -208,7 +208,7 @@ spec:
                         - Disabled
                       type: string
                     stabilizationWindowSeconds:
-                      description: StabilizationWindowSeconds is used to specify the number of seconds to wait before 
+                      description: StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
                       format: int32
                       minimum: 0
                       type: integer
@@ -269,7 +269,7 @@ spec:
                         - Disabled
                       type: string
                     stabilizationWindowSeconds:
-                      description: StabilizationWindowSeconds is used to specify the number of seconds to wait before 
+                      description: StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
                       format: int32
                       minimum: 0
                       type: integer
