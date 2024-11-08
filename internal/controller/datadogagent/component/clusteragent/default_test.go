@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -37,6 +38,18 @@ func Test_defaultClusterAgentDeployment(t *testing.T) {
 	expectedDeployment := clusterAgentExpectedPodTemplate(dda)
 
 	assert.Empty(t, testutils.CompareKubeResource(&deployment.Spec.Template, expectedDeployment))
+}
+func Test_getPodDisruptionBudget(t *testing.T) {
+	dda := v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-datadog-agent",
+			Namespace: "some-namespace",
+		},
+	}
+	testpdb := GetClusterAgentPodDisruptionBudget(&dda)
+	assert.Equal(t, "my-datadog-agent-cluster-agent-pdb", testpdb.Name)
+	assert.Equal(t, intstr.FromInt(pdbMinAvailableInstances), *testpdb.Spec.MinAvailable)
+	assert.Nil(t, testpdb.Spec.MaxUnavailable)
 }
 
 func clusterAgentExpectedPodTemplate(dda *datadoghqv2alpha1.DatadogAgent) *corev1.PodTemplateSpec {

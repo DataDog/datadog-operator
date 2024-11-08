@@ -138,7 +138,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
 			f.disableNonResourceRules = true
 		}
-
 		if dda.Spec.Global.Credentials != nil {
 			creds := dda.Spec.Global.Credentials
 
@@ -223,7 +222,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			},
 		}
 	}
-
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

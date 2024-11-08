@@ -1419,6 +1419,11 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+	// Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+	// +optional
+	CreatePodDisruptionBudget *bool `json:"createPodDisruptionBudget,omitempty"`
+
 	// Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
 	// +optional
 	CreateRbac *bool `json:"createRbac,omitempty"`
