@@ -225,6 +225,12 @@ spec:
                             type: object
                           type: array
                           x-kubernetes-list-type: atomic
+                        stabilizationWindowSeconds:
+                          description: |-
+                             StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
+                          format: int32
+                          minimum: 0
+                          type: integer
                         strategy:
                           description: |-
                             Strategy is used to specify which policy should be used.
@@ -234,12 +240,6 @@ spec:
                             - Min
                             - Disabled
                           type: string
-                        stabilizationWindowSeconds:
-                          description: |-
-                             StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
-                          format: int32
-                          minimum: 0
-                          type: integer
                       type: object
                     update:
                       description: Update defines the policy to update target resource.
@@ -297,6 +297,12 @@ spec:
                             type: object
                           type: array
                           x-kubernetes-list-type: atomic
+                        stabilizationWindowSeconds:
+                          description: |-
+                             StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
+                          format: int32
+                          minimum: 0
+                          type: integer
                         strategy:
                           description: |-
                             Strategy is used to specify which policy should be used.
@@ -306,12 +312,6 @@ spec:
                             - Min
                             - Disabled
                           type: string
-                        stabilizationWindowSeconds:
-                          description: |-
-                             StabilizationWindowSeconds is used to specify the number of seconds to lookback to stabilize new recommendations. Defaults to 0.
-                          format: int32
-                          minimum: 0
-                          type: integer
                       type: object
                   type: object
                 remoteVersion:
