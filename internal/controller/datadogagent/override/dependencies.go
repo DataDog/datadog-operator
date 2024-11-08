@@ -66,8 +66,6 @@ func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceMan
 				errs = append(errs, err)
 			}
 		}
-	} else if createPdb != nil {
-		logger.Error(nil, "Pod disruption budget is not created by default")
 	}
 	return errs
 }
