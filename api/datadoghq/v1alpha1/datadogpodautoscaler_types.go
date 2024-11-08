@@ -193,8 +193,11 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	Rules []DatadogPodAutoscalerScalingRule `json:"rules,omitempty"`
 
 	// StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
-	// before deciding to apply a new one. Default to 0.
+	// before deciding to apply a new one. Defaults to 0.
 	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=1800
+	// +kubebuilder:default:0
 	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
