@@ -133,9 +133,9 @@ func (f *helmCheckFeature) ManageClusterAgent(managers feature.PodTemplateManage
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
 	// Mount default volumes for configMap
-	vol = volume.GetBasicVolume(f.configMapName, apicommon.HelmCheckConfigVolumeName)
+	vol = volume.GetBasicVolume(f.configMapName, helmCheckConfigVolumeName)
 	volMount = corev1.VolumeMount{
-		Name:      apicommon.HelmCheckConfigVolumeName,
+		Name:      helmCheckConfigVolumeName,
 		MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, helmCheckFolderName),
 		ReadOnly:  true,
 	}

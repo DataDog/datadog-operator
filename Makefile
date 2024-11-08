@@ -82,7 +82,7 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
@@ -282,12 +282,12 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v1alpha1 -O zz_generated.openapi -p ./api/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v2alpha1 -O zz_generated.openapi -p ./api/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
@@ -314,6 +314,11 @@ licenses: bin/$(PLATFORM)/go-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
 
+# Update the golang version in different repository files from the version present in go.mod file
+.PHONY: update-golang
+update-golang:
+	hack/update-golang.sh
+
 .PHONY: tidy
 tidy: ## Run go tidy
 	go mod tidy -v
@@ -332,8 +337,11 @@ publish-community-bundles: ## Publish bundles to community repositories
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
+bin/$(PLATFORM)/jq: Makefile
+	hack/install-jq.sh 1.7.1
+
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.59.1
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.61.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1
@@ -346,11 +354,11 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.9
+	hack/install-openshift-preflight.sh 1.10.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240228011516-70dd3763d340
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)

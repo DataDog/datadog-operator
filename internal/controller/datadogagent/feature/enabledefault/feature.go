@@ -27,6 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
+const (
+	enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
+)
+
 func init() {
 	err := feature.Register(feature.DefaultIDType, buildDefaultFeature)
 	if err != nil {
@@ -95,15 +99,18 @@ type secretInfo struct {
 }
 
 type clusterAgentConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 type agentConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 type clusterChecksRunnerConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 // ID returns the ID of the Feature
@@ -119,11 +126,18 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
 	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
+	f.clusterAgent.serviceAccountAnnotations = v2alpha1.GetClusterAgentServiceAccountAnnotations(dda)
+	f.agent.serviceAccountAnnotations = v2alpha1.GetAgentServiceAccountAnnotations(dda)
+	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.otelAgentEnabled = f.otelAgentEnabled || dda.ObjectMeta.Annotations[enableOtelAnnotation] == "true"
+	}
+
 	if dda.Spec.Global != nil {
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
 			f.disableNonResourceRules = true
 		}
-
 		if dda.Spec.Global.Credentials != nil {
 			creds := dda.Spec.Global.Credentials
 
@@ -208,7 +222,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			},
 		}
 	}
-
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -273,6 +286,13 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.agent.serviceAccountName, f.agent.serviceAccountAnnotations, string(v2alpha1.NodeAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	// ClusterRole creation
 	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), componentagent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
 		errs = append(errs, err)
@@ -313,6 +333,13 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.clusterAgent.serviceAccountName, f.clusterAgent.serviceAccountAnnotations, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	dcaService := componentdca.GetClusterAgentService(f.owner)
 	if err := managers.Store().AddOrUpdate(kubernetes.ServicesKind, dcaService); err != nil {
 		return err
@@ -336,6 +363,13 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.clusterChecksRunner.serviceAccountName, f.clusterChecksRunner.serviceAccountAnnotations, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -349,6 +383,18 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentServiceAccountName,
 		Value: f.clusterAgent.serviceAccountName,
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDAgentDaemonSet,
+		Value: getDaemonSetNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDClusterAgentDeployment,
+		Value: getDeploymentNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDDatadogAgentCustomResource,
+		Value: f.owner.GetName(),
 	})
 	return nil
 }

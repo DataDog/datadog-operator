@@ -108,7 +108,7 @@ func Test_GetImage(t *testing.T) {
 	}
 }
 
-func TestServiceAccountOverride(t *testing.T) {
+func TestServiceAccountNameOverride(t *testing.T) {
 	customServiceAccount := "fake"
 	ddaName := "test-dda"
 	tests := []struct {
@@ -153,4 +153,123 @@ func TestServiceAccountOverride(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServiceAccountAnnotationOverride(t *testing.T) {
+	customServiceAccount := "fake"
+	customServiceAccountAnnotations := map[string]string{
+		"eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/datadog-role",
+		"really.important":           "annotation",
+	}
+	ddaName := "test-dda"
+	tests := []struct {
+		name string
+		dda  *DatadogAgent
+		want map[ComponentName]map[string]interface{}
+	}{
+		{
+			name: "custom serviceaccount annotations for dda, dca and clc",
+			dda: &DatadogAgent{
+				ObjectMeta: v1.ObjectMeta{
+					Name: ddaName,
+				},
+				Spec: DatadogAgentSpec{
+					Override: map[ComponentName]*DatadogAgentComponentOverride{
+						ClusterAgentComponentName: {
+							ServiceAccountName:        &customServiceAccount,
+							ServiceAccountAnnotations: customServiceAccountAnnotations,
+						},
+						ClusterChecksRunnerComponentName: {
+							ServiceAccountAnnotations: customServiceAccountAnnotations,
+						},
+						NodeAgentComponentName: {
+							ServiceAccountAnnotations: customServiceAccountAnnotations,
+						},
+					},
+				},
+			},
+			want: map[ComponentName]map[string]interface{}{
+				ClusterAgentComponentName: {
+					"name":        customServiceAccount,
+					"annotations": customServiceAccountAnnotations,
+				},
+				NodeAgentComponentName: {
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
+					"annotations": customServiceAccountAnnotations,
+				},
+				ClusterChecksRunnerComponentName: {
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
+					"annotations": customServiceAccountAnnotations,
+				},
+			},
+		},
+		{
+			name: "custom serviceaccount annotations for dca",
+			dda: &DatadogAgent{
+				ObjectMeta: v1.ObjectMeta{
+					Name: ddaName,
+				},
+				Spec: DatadogAgentSpec{
+					Override: map[ComponentName]*DatadogAgentComponentOverride{
+						ClusterAgentComponentName: {
+							ServiceAccountName:        &customServiceAccount,
+							ServiceAccountAnnotations: customServiceAccountAnnotations,
+						},
+					},
+				},
+			},
+			want: map[ComponentName]map[string]interface{}{
+				NodeAgentComponentName: {
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
+					"annotations": map[string]string{},
+				},
+				ClusterAgentComponentName: {
+					"name":        customServiceAccount,
+					"annotations": customServiceAccountAnnotations,
+				},
+				ClusterChecksRunnerComponentName: {
+					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
+					"annotations": map[string]string{},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := map[ComponentName]map[string]interface{}{
+				NodeAgentComponentName: {
+					"name":        GetAgentServiceAccount(tt.dda),
+					"annotations": GetAgentServiceAccountAnnotations(tt.dda),
+				},
+				ClusterChecksRunnerComponentName: {
+					"name":        GetClusterChecksRunnerServiceAccount(tt.dda),
+					"annotations": GetClusterChecksRunnerServiceAccountAnnotations(tt.dda),
+				},
+				ClusterAgentComponentName: {
+					"name":        GetClusterAgentServiceAccount(tt.dda),
+					"annotations": GetClusterAgentServiceAccountAnnotations(tt.dda),
+				},
+			}
+			for componentName, sa := range tt.want {
+				if res[componentName]["name"] != sa["name"] {
+					t.Errorf("Service Account Override Name error = %v, want %v", res[componentName], tt.want[componentName])
+				}
+				if !mapsEqual(res[componentName]["annotations"].(map[string]string), sa["annotations"].(map[string]string)) {
+					t.Errorf("Service Account Override Annotation error = %v, want %v", res[componentName], tt.want[componentName])
+				}
+			}
+		})
+	}
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if bValue, ok := b[key]; !ok || value != bValue {
+			return false
+		}
+	}
+	return true
 }

@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -33,7 +35,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		}
 
 		// Handle custom agent configurations (datadog.yaml, cluster-agent.yaml, etc.)
-		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, dda.Name, namespace)...)
+		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, component, dda.Name, namespace)...)
 
 		// Handle custom check configurations
 		confdCMName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(component))))
@@ -42,8 +44,29 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		// Handle custom check files
 		checksdCMName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(component))))
 		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
+
+		errs = append(errs, overridePodDisruptionBudget(logger, manager, dda, override.CreatePodDisruptionBudget, component)...)
 	}
 
+	return errs
+}
+
+func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceManagers, dda *v2alpha1.DatadogAgent, createPdb *bool, component v2alpha1.ComponentName) (errs []error) {
+	if createPdb != nil && *createPdb {
+		if component == v2alpha1.ClusterAgentComponentName {
+			pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda)
+			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
+				errs = append(errs, err)
+			}
+		} else if component == v2alpha1.ClusterChecksRunnerComponentName &&
+			(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners == nil ||
+				*dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda)
+			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
 	return errs
 }
 
@@ -64,13 +87,13 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	return errors.NewAggregate(errs)
 }
 
-func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, ddaName, namespace string) (errs []error) {
+func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName, namespace string) (errs []error) {
 	for fileName, customConfig := range customConfigMap {
 		// Favor ConfigMap setting; if it is specified, then move on
 		if customConfig.ConfigMap != nil {
 			continue
 		} else if customConfig.ConfigData != nil {
-			configMapName := getDefaultConfigMapName(ddaName, string(fileName))
+			configMapName := fmt.Sprintf("%s-%s", getDefaultConfigMapName(ddaName, string(fileName)), strings.ToLower(string(componentName)))
 			cm, err := configmap.BuildConfigMapConfigData(namespace, customConfig.ConfigData, configMapName, string(fileName))
 			if err != nil {
 				errs = append(errs, err)

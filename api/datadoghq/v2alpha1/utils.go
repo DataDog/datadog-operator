@@ -53,6 +53,33 @@ func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
 	return saDefault
 }
 
+// GetClusterAgentServiceAccountAnnotations returns the annotations for the cluster-agent service account.
+func GetClusterAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
+// GetAgentServiceAccountAnnotations returns the annotations for the agent service account.
+func GetAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
+// GetClusterChecksRunnerServiceAccountAnnotations returns the annotations for the cluster-checks-runner service account.
+func GetClusterChecksRunnerServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
 func IsHostNetworkEnabled(dda *DatadogAgent, component ComponentName) bool {
 	if dda.Spec.Override != nil {

@@ -628,6 +628,11 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 		*out = new(int32)
 		**out = **in
 	}
+	if in.CreatePodDisruptionBudget != nil {
+		in, out := &in.CreatePodDisruptionBudget, &out.CreatePodDisruptionBudget
+		*out = new(bool)
+		**out = **in
+	}
 	if in.CreateRbac != nil {
 		in, out := &in.CreateRbac, &out.CreateRbac
 		*out = new(bool)
@@ -637,6 +642,13 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 		in, out := &in.ServiceAccountName, &out.ServiceAccountName
 		*out = new(string)
 		**out = **in
+	}
+	if in.ServiceAccountAnnotations != nil {
+		in, out := &in.ServiceAccountAnnotations, &out.ServiceAccountAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
@@ -1526,6 +1538,42 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
+		}
+	}
+	if in.KubernetesResourcesLabelsAsTags != nil {
+		in, out := &in.KubernetesResourcesLabelsAsTags, &out.KubernetesResourcesLabelsAsTags
+		*out = make(map[string]map[string]string, len(*in))
+		for key, val := range *in {
+			var outVal map[string]string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				inVal := (*in)[key]
+				in, out := &inVal, &outVal
+				*out = make(map[string]string, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
+	if in.KubernetesResourcesAnnotationsAsTags != nil {
+		in, out := &in.KubernetesResourcesAnnotationsAsTags, &out.KubernetesResourcesAnnotationsAsTags
+		*out = make(map[string]map[string]string, len(*in))
+		for key, val := range *in {
+			var outVal map[string]string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				inVal := (*in)[key]
+				in, out := &inVal, &outVal
+				*out = make(map[string]string, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
+			(*out)[key] = outVal
 		}
 	}
 	if in.NetworkPolicy != nil {

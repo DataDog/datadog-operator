@@ -73,6 +73,10 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+
+	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
+	f.mergeConfigs(&dda.Spec, &dda.Status)
+
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
@@ -92,9 +96,12 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			Containers: reqContainers,
 		}
 
-		if orchestratorExplorer.Conf != nil {
+		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+
+			// Used to force restart of DCA
+			// use entire orchestratorExplorer to handle custom config and CRDs
+			hash, err := comparison.GenerateMD5ForSpec(orchestratorExplorer)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
 			} else {
@@ -103,6 +110,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
+
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
 		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
@@ -123,6 +131,25 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	}
 
 	return reqComp
+}
+
+func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
+	if ddaStatus.RemoteConfigConfiguration == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
+		return
+	}
+
+	if ddaSpec.Features == nil {
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
+	}
+
+	if ddaSpec.Features.OrchestratorExplorer == nil {
+		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
+	}
+
+	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -161,16 +188,16 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 		// Custom config is referenced via ConfigMap
 		vol, volMount = volume.GetVolumesFromConfigMap(
 			f.customConfig.ConfigMap,
-			apicommon.OrchestratorExplorerVolumeName,
+			orchestratorExplorerVolumeName,
 			f.configConfigMapName,
 			orchestratorExplorerFolderName,
 		)
 	} else {
 		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(f.configConfigMapName, apicommon.OrchestratorExplorerVolumeName)
+		vol = volume.GetBasicVolume(f.configConfigMapName, orchestratorExplorerVolumeName)
 
 		volMount = corev1.VolumeMount{
-			Name:      apicommon.OrchestratorExplorerVolumeName,
+			Name:      orchestratorExplorerVolumeName,
 			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, orchestratorExplorerFolderName),
 			ReadOnly:  true,
 		}

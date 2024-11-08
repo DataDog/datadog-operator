@@ -280,10 +280,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 			providerList:         map[string]struct{}{},
 			profiles:             []v1alpha1.DatadogAgentProfile{},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -297,12 +293,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "no unused eds, introspection disabled, profiles disabled",
@@ -323,17 +314,8 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 			edsEnabled:           true,
 			providerList:         map[string]struct{}{},
 			profiles:             []v1alpha1.DatadogAgentProfile{},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-			},
+			wantDS:               &appsv1.DaemonSetList{},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -379,10 +361,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -398,12 +376,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "no unused eds, introspection enabled, profiles enabled",
@@ -435,17 +408,8 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-			},
+			wantDS: &appsv1.DaemonSetList{},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -512,10 +476,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -531,12 +491,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "multiple unused eds, introspection enabled, profiles enabled",
@@ -611,10 +566,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -631,10 +582,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -711,10 +658,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -730,12 +673,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "multiple unused eds, introspection enabled, profiles disabled",
@@ -810,17 +748,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -893,10 +823,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -922,12 +848,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "multiple unused eds, introspection disabled, profiles enabled",
@@ -1018,10 +939,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1037,10 +954,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1107,10 +1020,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1142,12 +1051,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:        "EDSs are not created by the operator (do not have the expected labels) and should not be removed",
@@ -1229,10 +1133,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
 				Items: []appsv1.DaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1258,10 +1158,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
 						ObjectMeta: metav1.ObjectMeta{
@@ -1323,18 +1219,8 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantDS:  &appsv1.DaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 		{
 			name:                 "no existing eds, introspection enabled, profiles enabled",
@@ -1354,18 +1240,8 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS: &appsv1.DaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "DaemonSetList",
-					APIVersion: "apps/v1",
-				},
-			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ExtendedDaemonSetList",
-					APIVersion: "datadoghq.com/v1alpha1",
-				},
-			},
+			wantDS:  &appsv1.DaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
 		},
 	}
 

@@ -149,7 +149,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		{
 			Protocol: corev1.ProtocolTCP,
 			Port:     f.port,
-			Name:     apicommon.ExternalMetricsPortName,
+			Name:     externalMetricsPortName,
 		},
 	}
 	selector := map[string]string{
@@ -324,7 +324,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 	}
 
 	managers.Port().AddPortToContainer(apicommon.ClusterAgentContainerName, &corev1.ContainerPort{
-		Name:          apicommon.ExternalMetricsPortName,
+		Name:          externalMetricsPortName,
 		ContainerPort: f.port,
 		Protocol:      corev1.ProtocolTCP,
 	})
