@@ -15,9 +15,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
+)
+
+const (
+	pdbMinAvailableInstances = 1
 )
 
 // GetClusterAgentService returns the Cluster-Agent service
@@ -51,6 +56,27 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service
+}
+
+func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
+	// labels and annotations
+	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
+	matchLabels := map[string]string{
+		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetClusterAgentPodDisruptionBudgetName(dda),
+			Namespace: dda.GetNamespace(),
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &minAvailableStr,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			},
+		},
+	}
+	return pdb
 }
 
 // GetMetricsServerServiceName returns the external metrics provider service name

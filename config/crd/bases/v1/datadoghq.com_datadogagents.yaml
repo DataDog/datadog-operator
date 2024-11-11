@@ -3915,6 +3915,11 @@ spec:
                           `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
                           `security-agent`, `system-probe`, and `trace-agent`.
                         type: object
+                      createPodDisruptionBudget:
+                        description: |-
+                          Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+                          Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+                        type: boolean
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
                         type: boolean
