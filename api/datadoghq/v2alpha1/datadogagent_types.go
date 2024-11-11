@@ -78,6 +78,8 @@ type DatadogFeatures struct {
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
+	// ServiceDiscovery
+	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 
 	// Cluster-level features
 
@@ -481,6 +483,14 @@ type NPMFeatureConfig struct {
 // Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ServiceDiscoveryFeatureConfig configures the service discovery check feature.
+type ServiceDiscoveryFeatureConfig struct {
+	// Enables the service discovery check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
