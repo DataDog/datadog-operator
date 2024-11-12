@@ -56,6 +56,7 @@ extensions:
           ci_pipeline: "//fake_placeholder:fake_placeholder"
           # Test branch
           branch: "levan-m/conductor_testing_branch"
+          schedule: "*/60 * 12 * * "
           slack: "levan-test"
           options:
             disable_failure_notifications: true
