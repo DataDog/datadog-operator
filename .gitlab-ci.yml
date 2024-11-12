@@ -370,8 +370,8 @@ trigger_internal_operator_check_nightly_image:
 trigger_custom_operator_image_staging:
   stage: release
   rules:
-    - if: $PUSH_IMAGES_TO_STAGING == 'true'
-      when: manual
+    - if: $CONDUCTOR_TARGET == "conductor-test"'
+      when: on_success
     - when: never
   trigger:
     project: DataDog/images
