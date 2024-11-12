@@ -265,7 +265,6 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"agent-data-plane",
-			"start",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
 		Env:            commonEnvVars(dda),

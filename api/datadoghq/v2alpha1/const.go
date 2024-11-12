@@ -58,14 +58,12 @@ const (
 	DefaultADPLivenessProbeTimeoutSeconds      int32 = 5
 	DefaultADPLivenessProbeSuccessThreshold    int32 = 1
 	DefaultADPLivenessProbeFailureThreshold    int32 = 12
-	DefaultADPLivenessProbeHTTPPath                  = "/health/live"
 
 	DefaultADPReadinessProbeInitialDelaySeconds int32 = 5
 	DefaultADPReadinessProbePeriodSeconds       int32 = 5
 	DefaultADPReadinessProbeTimeoutSeconds      int32 = 5
 	DefaultADPReadinessProbeSuccessThreshold    int32 = 1
 	DefaultADPReadinessProbeFailureThreshold    int32 = 12
-	DefaultADPReadinessProbeHTTPPath                  = "/health/ready"
 
 	DefaultADPHealthPort = 5100
 

@@ -198,7 +198,7 @@ func GetDefaultAgentDataPlaneLivenessProbe() *corev1.Probe {
 		FailureThreshold:    DefaultADPLivenessProbeFailureThreshold,
 	}
 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultADPLivenessProbeHTTPPath,
+		Path: DefaultLivenessProbeHTTPPath,
 		Port: intstr.IntOrString{
 			IntVal: DefaultADPHealthPort,
 		},
@@ -216,7 +216,7 @@ func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
 		FailureThreshold:    DefaultADPReadinessProbeFailureThreshold,
 	}
 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: DefaultADPReadinessProbeHTTPPath,
+		Path: DefaultReadinessProbeHTTPPath,
 		Port: intstr.IntOrString{
 			IntVal: DefaultADPHealthPort,
 		},
