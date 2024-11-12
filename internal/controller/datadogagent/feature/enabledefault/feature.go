@@ -6,6 +6,7 @@
 package enabledefault
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -101,6 +102,10 @@ type secretInfo struct {
 type clusterAgentConfig struct {
 	serviceAccountName        string
 	serviceAccountAnnotations map[string]string
+
+	resourceMetadataAsTagsClusterRoleName string
+	kubernetesResourcesLabelsAsTags       map[string]map[string]string
+	kubernetesResourcesAnnotationsAsTags  map[string]map[string]string
 }
 
 type agentConfig struct {
@@ -187,6 +192,11 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
+
+		f.clusterAgent.kubernetesResourcesLabelsAsTags = dda.Spec.Global.KubernetesResourcesLabelsAsTags
+		f.clusterAgent.kubernetesResourcesAnnotationsAsTags = dda.Spec.Global.KubernetesResourcesAnnotationsAsTags
+		f.clusterAgent.resourceMetadataAsTagsClusterRoleName = componentdca.GetResourceMetadataAsTagsClusterRoleName(dda)
+
 		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
 		if err != nil {
 			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
@@ -345,6 +355,18 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		return err
 	}
 
+	if len(f.clusterAgent.kubernetesResourcesLabelsAsTags) > 0 || len(f.clusterAgent.kubernetesResourcesAnnotationsAsTags) > 0 {
+		err := managers.RBACManager().AddClusterPolicyRules(
+			f.owner.GetNamespace(),
+			f.clusterAgent.resourceMetadataAsTagsClusterRoleName,
+			f.clusterAgent.serviceAccountName,
+			getKubernetesResourceMetadataAsTagsPolicyRules(f.clusterAgent.kubernetesResourcesLabelsAsTags, f.clusterAgent.kubernetesResourcesAnnotationsAsTags),
+		)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -396,6 +418,30 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		Name:  DDDatadogAgentCustomResource,
 		Value: f.owner.GetName(),
 	})
+
+	if len(f.clusterAgent.kubernetesResourcesLabelsAsTags) > 0 {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(f.clusterAgent.kubernetesResourcesLabelsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	if len(f.clusterAgent.kubernetesResourcesAnnotationsAsTags) > 0 {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(f.clusterAgent.kubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
+	}
 	return nil
 }
 
