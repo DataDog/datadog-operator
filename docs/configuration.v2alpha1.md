@@ -160,6 +160,7 @@ spec:
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
+| features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
