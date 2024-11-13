@@ -17,6 +17,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -26,10 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
-)
-
-const (
-	enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
 )
 
 func init() {
@@ -72,6 +69,7 @@ type defaultFeature struct {
 	logger                  logr.Logger
 	disableNonResourceRules bool
 	otelAgentEnabled        bool
+	adpEnabled              bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -137,7 +135,11 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
 
 	if dda.ObjectMeta.Annotations != nil {
-		f.otelAgentEnabled = f.otelAgentEnabled || dda.ObjectMeta.Annotations[enableOtelAnnotation] == "true"
+		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
+	}
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 	}
 
 	if dda.Spec.Global != nil {
@@ -208,30 +210,29 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
+	agentContainers := make([]apicommon.AgentContainerName, 0)
+
+	// If the OpenTelemetry Agent is enabled, add the OTel Agent to the list of required containers for the Agent
+	// feature.
 	//
-	// In Operator 1.9 OTel Agent will be configured through a feature.
-	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
+	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
 	if f.otelAgentEnabled {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-				Containers: []apicommon.AgentContainerName{
-					apicommon.OtelAgent,
-				},
-			},
-		}
-	} else {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-		}
+		agentContainers = append(agentContainers, apicommon.OtelAgent)
+	}
+
+	// If Agent Data Plane is enabled, add the ADP container to the list of required containers for the Agent feature.
+	if f.adpEnabled {
+		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
+	}
+
+	return feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+		},
+		Agent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+			Containers: agentContainers,
+		},
 	}
 }
 
