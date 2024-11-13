@@ -3,25 +3,24 @@ on:
   pull_request_target:
    types: [opened, labeled, unlabeled, synchronize]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # permissions:
-    #   contents: write
-    #   pull-requests: write
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
     - name: Verify Pull Request Labels
-      uses: jesusvasquez333/verify-pr-label-action@v1.3.1
+      uses: jesusvasquez333/verify-pr-label-action@v1.4.0
       with:
         github-token: '${{ secrets.GITHUB_TOKEN }}'
         valid-labels: 'bug, enhancement, refactoring, documentation, tooling, dependencies'
         pull-request-number: '${{ github.event.pull_request.number }}'
+        disable-reviews: true
   check-milestone:
     name: Check Milestone
     runs-on: ubuntu-latest
