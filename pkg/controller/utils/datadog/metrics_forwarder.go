@@ -567,8 +567,10 @@ func (mf *metricsForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, error) {
 
 	// Check Operator configured credentials first
-	if creds, err := mf.credsManager.GetCredentials(); err == nil {
-		return creds.APIKey, nil
+	if mf.credsManager != nil {
+		if creds, err := mf.credsManager.GetCredentials(); err == nil {
+			return creds.APIKey, nil
+		}
 	}
 
 	// Check DatadogAgent credentials
