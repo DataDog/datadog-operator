@@ -154,6 +154,7 @@ const (
 	DDSecretBackendCommand                               = "DD_SECRET_BACKEND_COMMAND"
 	DDSecretBackendArguments                             = "DD_SECRET_BACKEND_ARGUMENTS"
 	DDSecretBackendTimeout                               = "DD_SECRET_BACKEND_TIMEOUT"
+	DDServiceDiscoveryEnabled                            = "DD_DISCOVERY_ENABLED"
 	DDSite                                               = "DD_SITE"
 	DDSystemProbeAgentEnabled                            = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeBPFDebugEnabled                         = DDSystemProbeEnvPrefix + "BPF_DEBUG"

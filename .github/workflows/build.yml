@@ -3,9 +3,16 @@ env:
   GO_VERSION: 1.22.7
 on:
   push:
+# Permission forced by repo-level setting; only elevate on job-level
+permissions:
+  contents: read
+  # packages: read
 jobs:
   build-linux-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -27,6 +34,9 @@ jobs:
           args: build --skip=validate --config .goreleaser-for-linux.yaml
   build-darwin-binary:
     runs-on: macos-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -44,6 +54,9 @@ jobs:
           args: build --skip=validate --config .goreleaser-for-darwin.yaml
   build-windows-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
