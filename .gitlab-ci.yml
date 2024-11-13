@@ -370,7 +370,7 @@ trigger_internal_operator_check_nightly_image:
 trigger_custom_operator_image_staging:
   stage: release
   rules:
-    - if: $CONDUCTOR_TARGET == "conductor-test"'
+    - if: '$CONDUCTOR_TARGET == "conductor-test"'
       when: on_success
     - when: never
   trigger:
