@@ -45,3 +45,14 @@ $YQ -i '.metadata.annotations."marketplace.openshift.io/support-workflow" = "htt
 
 # set `DD_TOOL_VERSION` to `redhat`
 $YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"redhat\"" $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
+
+# The Operators in k8s-operatorhub/community-operators have slightly different requirements
+COMM_OPS_PATH="bundle-community-operators/"
+rm -rf "$COMM_OPS_PATH"
+cp -R "bundle/" "$COMM_OPS_PATH"
+
+# Delete spec.replaces
+$YQ -i "del(.spec.\"replaces\")" "$COMM_OPS_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
+
+# set `DD_TOOL_VERSION` to `operatorhub`
+$YQ -i "(.spec.install.spec.deployments[] | select(.name == \"datadog-operator-manager\") | .spec.template.spec.containers[] | select(.name == \"manager\") | .env[] | select(.name == \"DD_TOOL_VERSION\") | .value) = \"operatorhub\"" $COMM_OPS_PATH/manifests/datadog-operator.clusterserviceversion.yaml
