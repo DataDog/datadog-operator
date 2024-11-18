@@ -1,6 +1,6 @@
 name: pull request linter
 on:
-  pull_request_target:
+  pull_request:
    types: [opened, labeled, unlabeled, synchronize]
 
 permissions: {}
@@ -9,15 +9,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read
     steps:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
-    - name: Remove existing action
-      run: rm -rf ${{ runner.tool_cache }}/jesusvasquez333/verify-pr-label-action      
     - name: Verify Pull Request Labels
-      uses: jesusvasquez333/verify-pr-label-action@657d111bbbe1?cache-bust=20241118 # v1.4.0
+      uses: jesusvasquez333/verify-pr-label-action@v1.4.0
       with:
         github-token: '${{ secrets.GITHUB_TOKEN }}'
         valid-labels: 'bug, enhancement, refactoring, documentation, tooling, dependencies'
