@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -228,6 +229,43 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Name:  apicommon.DDNamespaceAnnotationsAsTags,
 				Value: string(namespaceAnnotationsAsTags),
 			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Resource Labels to Datadog Tags.
+	if config.KubernetesResourcesLabelsAsTags != nil {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(config.KubernetesResourcesLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Resource Annotations to Datadog Tags.
+	if config.KubernetesResourcesLabelsAsTags != nil {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(config.KubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
+	}
+
+	if componentName == v2alpha1.ClusterAgentComponentName {
+		if err := resourcesManager.RBACManager().AddClusterPolicyRules(
+			dda.Namespace,
+			componentdca.GetResourceMetadataAsTagsClusterRoleName(dda),
+			v2alpha1.GetClusterAgentServiceAccount(dda),
+			getKubernetesResourceMetadataAsTagsPolicyRules(config.KubernetesResourcesLabelsAsTags, config.KubernetesResourcesAnnotationsAsTags),
+		); err != nil {
+			logger.Error(err, "error adding kubernetes resource metadata as tags clusterrole and clusterrolebinding to store")
 		}
 	}
 

@@ -6,6 +6,8 @@
 package override
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -448,7 +450,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == getDefaultConfigMapName("datadog-agent", string(v2alpha1.AgentGeneralConfigFile)) {
+					if vol.Name == fmt.Sprintf("%s-%s", getDefaultConfigMapName("datadog-agent", string(v2alpha1.AgentGeneralConfigFile)), strings.ToLower(string(v2alpha1.NodeAgentComponentName))) {
 						found = true
 						break
 					}

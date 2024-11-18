@@ -155,6 +155,19 @@ func NewDatadogAgentWithEBPFCheck(namespace string, name string) v2alpha1.Datado
 	)
 }
 
+// NewDatadogAgentWithServiceDiscovery returns an agent with Service Discovery enabled
+func NewDatadogAgentWithServiceDiscovery(namespace, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithEventCollection returns an agent with event collection enabled
 func NewDatadogAgentWithEventCollection(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
@@ -378,6 +391,12 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		NodeLabelsAsTags:           map[string]string{"some-label": "some-tag"},
 		NamespaceLabelsAsTags:      map[string]string{"some-label": "some-tag"},
 		NamespaceAnnotationsAsTags: map[string]string{"some-annotation": "some-tag"},
+		KubernetesResourcesLabelsAsTags: map[string]map[string]string{
+			"some-group.some-resource": {"some-label": "some-tag"},
+		},
+		KubernetesResourcesAnnotationsAsTags: map[string]map[string]string{
+			"some-group.some-resource": {"some-annotation": "some-tag"},
+		},
 		NetworkPolicy: &v2alpha1.NetworkPolicyConfig{
 			Create: apiutils.NewBoolPointer(true),
 			Flavor: v2alpha1.NetworkPolicyFlavorKubernetes,

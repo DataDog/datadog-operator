@@ -161,38 +161,38 @@ func Test_sbomFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.ApkDirVolumeName,
-				MountPath: apicommon.ApkDirMountPath,
+				Name:      apkDirVolumeName,
+				MountPath: apkDirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.DpkgDirVolumeName,
-				MountPath: apicommon.DpkgDirMountPath,
+				Name:      dpkgDirVolumeName,
+				MountPath: dpkgDirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.RpmDirVolumeName,
-				MountPath: apicommon.RpmDirMountPath,
+				Name:      rpmDirVolumeName,
+				MountPath: rpmDirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.RedhatReleaseVolumeName,
-				MountPath: apicommon.RedhatReleaseMountPath,
+				Name:      redhatReleaseVolumeName,
+				MountPath: redhatReleaseMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.FedoraReleaseVolumeName,
-				MountPath: apicommon.FedoraReleaseMountPath,
+				Name:      fedoraReleaseVolumeName,
+				MountPath: fedoraReleaseMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.LsbReleaseVolumeName,
-				MountPath: apicommon.LsbReleaseMountPath,
+				Name:      lsbReleaseVolumeName,
+				MountPath: lsbReleaseMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.SystemReleaseVolumeName,
-				MountPath: apicommon.SystemReleaseMountPath,
+				Name:      systemReleaseVolumeName,
+				MountPath: systemReleaseMountPath,
 				ReadOnly:  true,
 			},
 		}
@@ -210,58 +210,58 @@ func Test_sbomFeature_Configure(t *testing.T) {
 				},
 			},
 			{
-				Name: apicommon.ApkDirVolumeName,
+				Name: apkDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.ApkDirVolumePath,
+						Path: apkDirVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.DpkgDirVolumeName,
+				Name: dpkgDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.DpkgDirVolumePath,
+						Path: dpkgDirVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.RpmDirVolumeName,
+				Name: rpmDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.RpmDirVolumePath,
+						Path: rpmDirVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.RedhatReleaseVolumeName,
+				Name: redhatReleaseVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.RedhatReleaseVolumePath,
+						Path: redhatReleaseVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.FedoraReleaseVolumeName,
+				Name: fedoraReleaseVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.FedoraReleaseVolumePath,
+						Path: fedoraReleaseVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.LsbReleaseVolumeName,
+				Name: lsbReleaseVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.LsbReleaseVolumePath,
+						Path: lsbReleaseVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.SystemReleaseVolumeName,
+				Name: systemReleaseVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.SystemReleaseVolumePath,
+						Path: systemReleaseVolumePath,
 					},
 				},
 			},

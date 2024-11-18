@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -118,4 +120,38 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(logger logr.Logger, dda *datad
 func deleteStatusWithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.ClusterChecksRunner = nil
 	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
+}
+
+// cleanupOldCCRDeployments deletes CCR deployments when a CCR Deployment's name is changed using clusterChecksRunner name override
+func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+	matchLabels := client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+	}
+	deploymentName := getDeploymentNameFromCCR(dda)
+	deploymentList := appsv1.DeploymentList{}
+	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
+		return err
+	}
+	for _, deployment := range deploymentList.Items {
+		if deploymentName != deployment.Name {
+			if _, err := r.cleanupV2ClusterChecksRunner(logger, dda, &deployment, newStatus); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getDeploymentNameFromCCR returns the expected CCR deployment name based on
+// the DDA name and clusterChecksRunner name override
+func getDeploymentNameFromCCR(dda *datadoghqv2alpha1.DatadogAgent) string {
+	deploymentName := componentccr.GetClusterChecksRunnerName(dda)
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		if componentOverride.Name != nil && *componentOverride.Name != "" {
+			deploymentName = *componentOverride.Name
+		}
+	}
+	return deploymentName
 }

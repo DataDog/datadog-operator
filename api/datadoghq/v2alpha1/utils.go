@@ -53,6 +53,33 @@ func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
 	return saDefault
 }
 
+// GetClusterAgentServiceAccountAnnotations returns the annotations for the cluster-agent service account.
+func GetClusterAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
+// GetAgentServiceAccountAnnotations returns the annotations for the agent service account.
+func GetAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
+// GetClusterChecksRunnerServiceAccountAnnotations returns the annotations for the cluster-checks-runner service account.
+func GetClusterChecksRunnerServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+	defaultAnnotations := map[string]string{}
+	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations
+	}
+	return defaultAnnotations
+}
+
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
 func IsHostNetworkEnabled(dda *DatadogAgent, component ComponentName) bool {
 	if dda.Spec.Override != nil {
@@ -159,6 +186,42 @@ func GetDefaultTraceAgentProbe() *corev1.Probe {
 		},
 	}
 	return probe
+}
+
+// GetDefaultAgentDataPlaneLivenessProbe creates a defaulted liveness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultADPLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultADPLivenessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultADPLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultADPLivenessProbeSuccessThreshold,
+		FailureThreshold:    DefaultADPLivenessProbeFailureThreshold,
+	}
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultLivenessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultADPHealthPort,
+		},
+	}
+	return livenessProbe
+}
+
+// GetDefaultAgentDataPlaneReadinessProbe creates a defaulted readiness probe for Agent Data Plane
+func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
+	readinessProbe := &corev1.Probe{
+		InitialDelaySeconds: DefaultADPReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultADPReadinessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultADPReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    DefaultADPReadinessProbeSuccessThreshold,
+		FailureThreshold:    DefaultADPReadinessProbeFailureThreshold,
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: DefaultReadinessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: DefaultADPHealthPort,
+		},
+	}
+	return readinessProbe
 }
 
 // GetImage builds the image string based on ImageConfig and the registry configuration.

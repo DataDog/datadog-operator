@@ -18,6 +18,8 @@ const (
 	helmCheckConfFileName = "helm.yaml"
 	helmCheckFolderName   = "helm.d"
 	helmCheckRBACPrefix   = "helm-check"
+
+	helmCheckConfigVolumeName = "helm-check-config"
 )
 
 var helmCheckRBACPolicyRules = []rbacv1.PolicyRule{

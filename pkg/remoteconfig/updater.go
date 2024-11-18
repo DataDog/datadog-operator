@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -42,9 +43,10 @@ const (
 type RemoteConfigUpdater struct {
 	kubeClient  kubeclient.Client
 	rcClient    *client.Client
-	rcService   *service.Service
+	rcService   *service.CoreAgentService
 	serviceConf RcServiceConfiguration
 	logger      logr.Logger
+	mu          sync.RWMutex
 }
 
 type RcServiceConfiguration struct {
@@ -58,6 +60,12 @@ type RcServiceConfiguration struct {
 	rcDatabaseDir     string
 }
 
+// DatadogProductRemoteConfig  is an interface for Datadog product remote configuration
+type DatadogProductRemoteConfig interface {
+	// GetID returns the ID of the configuration
+	GetID() string
+}
+
 // DatadogAgentRemoteConfig contains the struct used to update DatadogAgent object from RemoteConfig
 type DatadogAgentRemoteConfig struct {
 	ID            string                       `json:"id,omitempty"`
@@ -65,6 +73,23 @@ type DatadogAgentRemoteConfig struct {
 	CoreAgent     *CoreAgentFeaturesConfig     `json:"config,omitempty"`
 	SystemProbe   *SystemProbeFeaturesConfig   `json:"system_probe,omitempty"`
 	SecurityAgent *SecurityAgentFeaturesConfig `json:"security_agent,omitempty"`
+}
+
+// GetID returns the ID of the configuration
+func (d DatadogAgentRemoteConfig) GetID() string {
+	return d.ID
+}
+
+// OrchestratorK8sCRDRemoteConfig contains the struct used to update OrchestratorK8sCRD object from RemoteConfig
+type OrchestratorK8sCRDRemoteConfig struct {
+	ID   string                        `json:"id,omitempty"`
+	Name string                        `json:"name,omitempty"`
+	CRDs *CustomResourceDefinitionURLs `json:"crds,omitempty"`
+}
+
+// GetID returns the ID of the configuration
+func (d OrchestratorK8sCRDRemoteConfig) GetID() string {
+	return d.ID
 }
 
 type CoreAgentFeaturesConfig struct {
@@ -138,7 +163,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 		"",
 		r.serviceConf.baseRawURL,
 		r.serviceConf.hostname,
-		[]string{fmt.Sprintf("cluster_name:%s", r.serviceConf.clusterName)},
+		func() []string { return []string{"cluster_name:" + r.serviceConf.clusterName} },
 		r.serviceConf.telemetryReporter,
 		r.serviceConf.agentVersion,
 		service.WithAPIKey(apiKey),
@@ -155,7 +180,7 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	rcClient, err := client.NewClient(
 		rcService,
 		client.WithAgent("datadog-operator", version.Version),
-		client.WithProducts(state.ProductAgentConfig),
+		client.WithProducts(state.ProductAgentConfig, state.ProductOrchestratorK8sCRDs),
 		client.WithDirectorRootOverride(r.serviceConf.cfg.GetString("site"), r.serviceConf.cfg.GetString("remote_configuration.director_root")),
 		client.WithPollInterval(pollInterval),
 	)
@@ -172,6 +197,8 @@ func (r *RemoteConfigUpdater) Start(apiKey string, site string, clusterName stri
 	r.logger.Info("Remote Configuration client started")
 
 	rcClient.Subscribe(string(state.ProductAgentConfig), r.agentConfigUpdateCallback)
+
+	rcClient.Subscribe(string(state.ProductOrchestratorK8sCRDs), r.crdConfigUpdateCallback)
 
 	return nil
 }
@@ -219,6 +246,55 @@ func getEndpoint(prefix, site string) string {
 	return prefix + defaultSite
 }
 
+// getAndUpdateDatadogAgent is used to prevent race conditions when updating the DDA's status
+// we do not want to modify the status without using this function or we could have conflicts
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgent(ctx context.Context, cfg DatadogProductRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogProductRemoteConfig) error) error {
+	// Only one instance of this can run at a time
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ddaList := &v2alpha1.DatadogAgentList{}
+	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
+		return fmt.Errorf("unable to list DatadogAgents: %w", err)
+	}
+
+	if len(ddaList.Items) == 0 {
+		return errors.New("cannot find any DatadogAgent")
+	}
+
+	// Return first DatadogAgent as only one is supported
+	dda := ddaList.Items[0]
+
+	return f(dda, cfg)
+}
+
+func (r *RemoteConfigUpdater) getAndUpdateDatadogAgentWithRetry(ctx context.Context, cfg DatadogProductRemoteConfig, f func(v2alpha1.DatadogAgent, DatadogProductRemoteConfig) error) error {
+	var err error
+
+	operation := func() error {
+		err = r.getAndUpdateDatadogAgent(ctx, cfg, f)
+		if err != nil {
+			r.logger.Error(err, "Failed to get and patch agents, retrying...")
+			return err
+		}
+		return nil
+	}
+
+	// Create a backoff strategy
+	expBackoff := backoff.NewExponentialBackOff()
+	expBackoff.InitialInterval = 1 * time.Second
+	expBackoff.MaxInterval = 10 * time.Second
+	expBackoff.MaxElapsedTime = 3 * time.Minute
+
+	err = backoff.Retry(operation, expBackoff)
+	if err != nil {
+		r.logger.Error(err, "Failed to get and patch agents after retries")
+		return err
+	}
+	return nil
+
+}
+
 func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state.RawConfig, applyStatus func(string, state.ApplyStatus)) {
 
 	ctx := context.Background()
@@ -242,13 +318,7 @@ func (r *RemoteConfigUpdater) agentConfigUpdateCallback(updates map[string]state
 		r.logger.Info("Merged", "update", mergedUpdate)
 	}
 
-	dda, err := r.getDatadogAgentWithRetry(ctx)
-	if err != nil {
-		r.logger.Error(err, "Failed to get updatable agents")
-		return
-	}
-
-	if err := r.updateInstanceStatus(dda, mergedUpdate); err != nil {
+	if err := r.getAndUpdateDatadogAgentWithRetry(ctx, mergedUpdate, r.updateInstanceStatus); err != nil {
 		r.logger.Error(err, "Failed to update status")
 		applyStatus(configIDs[len(configIDs)-1], state.ApplyStatus{State: state.ApplyStateError, Error: err.Error()})
 		return
@@ -295,6 +365,7 @@ func (r *RemoteConfigUpdater) parseReceivedUpdates(updates map[string]state.RawC
 			mergeConfigs(&finalConfig, &config)
 		}
 	}
+
 	return finalConfig, nil
 }
 
@@ -381,49 +452,11 @@ func mergeConfigs(dst, src *DatadogAgentRemoteConfig) {
 
 }
 
-func (r *RemoteConfigUpdater) getDatadogAgentInstance(ctx context.Context) (v2alpha1.DatadogAgent, error) {
-	ddaList := &v2alpha1.DatadogAgentList{}
-	if err := r.kubeClient.List(context.TODO(), ddaList); err != nil {
-		return v2alpha1.DatadogAgent{}, fmt.Errorf("unable to list DatadogAgents: %w", err)
+func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, config DatadogProductRemoteConfig) error {
+	cfg, ok := config.(DatadogAgentRemoteConfig)
+	if !ok {
+		return fmt.Errorf("invalid config type: %T", config)
 	}
-
-	if len(ddaList.Items) == 0 {
-		return v2alpha1.DatadogAgent{}, errors.New("cannot find any DatadogAgent")
-	}
-
-	// Return first DatadogAgent as only one is supported
-	return ddaList.Items[0], nil
-}
-
-func (r *RemoteConfigUpdater) getDatadogAgentWithRetry(ctx context.Context) (v2alpha1.DatadogAgent, error) {
-	var dda v2alpha1.DatadogAgent
-	var err error
-
-	operation := func() error {
-		dda, err = r.getDatadogAgentInstance(ctx)
-		if err != nil {
-			r.logger.Error(err, "Failed to get updatable agents, retrying...")
-			return err
-		}
-		return nil
-	}
-
-	// Create a backoff strategy
-	expBackoff := backoff.NewExponentialBackOff()
-	expBackoff.InitialInterval = 1 * time.Second
-	expBackoff.MaxInterval = 10 * time.Second
-	expBackoff.MaxElapsedTime = 3 * time.Minute
-
-	err = backoff.Retry(operation, expBackoff)
-	if err != nil {
-		r.logger.Error(err, "Failed to get updatable agents after retries")
-		return dda, err
-	}
-
-	return dda, nil
-}
-
-func (r *RemoteConfigUpdater) updateInstanceStatus(dda v2alpha1.DatadogAgent, cfg DatadogAgentRemoteConfig) error {
 
 	newddaStatus := dda.Status.DeepCopy()
 	if newddaStatus.RemoteConfigConfiguration == nil {

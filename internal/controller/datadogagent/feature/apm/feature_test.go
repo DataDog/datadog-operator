@@ -27,7 +27,7 @@ import (
 
 const (
 	apmSocketHostPath  = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	apmSocketLocalPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
+	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + apicommon.APMSocketName
 )
 
 func TestShouldEnableAPM(t *testing.T) {
@@ -471,8 +471,8 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.APMSocketVolumeName,
-					MountPath: apicommon.APMSocketVolumeLocalPath,
+					Name:      apmSocketVolumeName,
+					MountPath: apmSocketVolumeLocalPath,
 					ReadOnly:  false,
 				},
 			}
@@ -486,7 +486,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 			volType := corev1.HostPathDirectoryOrCreate
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.APMSocketVolumeName,
+					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.DogstatsdAPMSocketHostPath,
@@ -717,8 +717,8 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.APMSocketVolumeName,
-					MountPath: apicommon.APMSocketVolumeLocalPath,
+					Name:      apmSocketVolumeName,
+					MountPath: apmSocketVolumeLocalPath,
 					ReadOnly:  false,
 				},
 			}
@@ -732,7 +732,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 			volType := corev1.HostPathDirectoryOrCreate
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.APMSocketVolumeName,
+					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.DogstatsdAPMSocketHostPath,

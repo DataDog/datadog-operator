@@ -25,7 +25,6 @@ const (
 	defaultLogContainerLogsPath          string = "/var/lib/docker/containers"
 	defaultLogPodLogsPath                string = "/var/log/pods"
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
-	defaultLogTempStoragePath            string = "/var/lib/datadog-agent/logs"
 
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
@@ -35,6 +34,8 @@ const (
 	defaultTCPQueueLengthEnabled bool = false
 
 	defaultEBPFCheckEnabled bool = false
+
+	defaultServiceDiscoveryEnabled bool = false
 
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
@@ -205,7 +206,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, defaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, apicommon.DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature
@@ -243,6 +244,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.EBPFCheck = &EBPFCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
+
+	if ddaSpec.Features.ServiceDiscovery == nil {
+		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// APM Feature
 	// APM is enabled by default

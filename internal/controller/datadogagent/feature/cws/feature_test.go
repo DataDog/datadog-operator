@@ -128,7 +128,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				},
 				{
 					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
-					Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			}
 			sysProbeWant := []*corev1.EnvVar{
@@ -166,7 +166,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				sysProbeWant,
 				&corev1.EnvVar{
 					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
-					Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			)
 
@@ -188,8 +188,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
-					MountPath: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+					Name:      securityAgentRuntimePoliciesDirVolumeName,
+					MountPath: securityAgentRuntimePoliciesDirVolumePath,
 					ReadOnly:  true,
 				},
 			}
@@ -200,13 +200,13 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					ReadOnly:  false,
 				},
 				{
-					Name:      apicommon.TracefsVolumeName,
-					MountPath: apicommon.TracefsPath,
+					Name:      tracefsVolumeName,
+					MountPath: tracefsPath,
 					ReadOnly:  false,
 				},
 				{
-					Name:      apicommon.SecurityfsVolumeName,
-					MountPath: apicommon.SecurityfsMountPath,
+					Name:      securityfsVolumeName,
+					MountPath: securityfsMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -235,8 +235,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
-					MountPath: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+					Name:      securityAgentRuntimePoliciesDirVolumeName,
+					MountPath: securityAgentRuntimePoliciesDirVolumePath,
 					ReadOnly:  true,
 				},
 			}
@@ -257,18 +257,18 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				},
 				{
-					Name: apicommon.TracefsVolumeName,
+					Name: tracefsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.TracefsPath,
+							Path: tracefsPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.SecurityfsVolumeName,
+					Name: securityfsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.SecurityfsVolumePath,
+							Path: securityfsVolumePath,
 						},
 					},
 				},
@@ -330,7 +330,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				},
 				{
-					Name: apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
+					Name: securityAgentRuntimePoliciesDirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},

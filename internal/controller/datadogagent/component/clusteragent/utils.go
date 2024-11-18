@@ -15,9 +15,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
+)
+
+const (
+	pdbMinAvailableInstances = 1
 )
 
 // GetClusterAgentService returns the Cluster-Agent service
@@ -53,6 +58,27 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	return service
 }
 
+func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
+	// labels and annotations
+	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
+	matchLabels := map[string]string{
+		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetClusterAgentPodDisruptionBudgetName(dda),
+			Namespace: dda.GetNamespace(),
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: &minAvailableStr,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: matchLabels,
+			},
+		},
+	}
+	return pdb
+}
+
 // GetMetricsServerServiceName returns the external metrics provider service name
 func GetMetricsServerServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultMetricsServerResourceSuffix)
@@ -80,6 +106,11 @@ func GetExternalMetricsReaderClusterRoleName(dda metav1.Object, versionInfo *ver
 		return "external-metrics-reader"
 	}
 	return fmt.Sprintf("%s-metrics-reader", GetClusterAgentRbacResourcesName(dda))
+}
+
+// GetResourceMetadataAsTagsClusterRoleName returns the name for the cluster role name used for kubernetes resource labels and annotations as tags
+func GetResourceMetadataAsTagsClusterRoleName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-annotations-and-labels-as-tags", GetClusterAgentRbacResourcesName(dda))
 }
 
 // GetApiserverAuthReaderRoleBindingName returns the name for the role binding to access the extension-apiserver-authentication cm

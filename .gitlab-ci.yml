@@ -2,10 +2,9 @@ image: registry.ddbuild.io/images/mirror/golang:1.22.7
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
-  GOPATH: "$CI_PROJECT_DIR/.cache"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   E2E_DOCKER_REGISTRY: "669783387624.dkr.ecr.us-east-1.amazonaws.com/operator"
-  JOB_DOCKER_IMAGE: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci-containers-project:v2.0.0"
+  JOB_DOCKER_IMAGE: "registry.ddbuild.io/ci-containers-project:v46367840-16ecadd-v3.0.0"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
@@ -21,8 +20,7 @@ variables:
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - .cache
-  policy: pull-push
+    - /go/pkg/mod
 
 stages:
   - build
@@ -78,35 +76,55 @@ stages:
 
 build:
   stage: build
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
+  variables:
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_CPU_LIMIT: 4
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
   before_script:
-    - mkdir -p .cache
     - make install-tools
   script:
     - make build
 
 unit_tests:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
     - when: on_success
+  variables:
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_CPU_LIMIT: 4
+    GOMEMLIMIT: 15GiB
+    GOMAXPROCS: 4
   before_script:
-    - mkdir -p .cache
     - make install-tools
   script:
     - make test
 
+check-golang-version:
+  stage: test
+  tags: ["arch:amd64"]
+  before_script:
+    - make install-tools
+  script:
+    - make update-golang
+    - git diff --exit-code
+
 generate_code:
   stage: test
-  tags: ["runner:main", "size:large"]
+  tags: ["arch:amd64"]
   rules:
     - if: '$DDR == "true"'
       when: never
     - when: on_success
   before_script:
-    - mkdir -p .cache
     - make install-tools
   script:
     - make generate manifests
@@ -447,7 +465,6 @@ publish_community_operators:
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:
-    - mkdir -p .cache
     - make install-tools
   script:
     # Set version
@@ -462,9 +479,10 @@ publish_community_operators:
     # Note: skopeo apt package is only available in for ubuntu 20.10+
     # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
     # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
-    - git clone https://github.com/containers/skopeo $GOPATH/src/github.com/containers/skopeo
-    - cd $GOPATH/src/github.com/containers/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - git clone --single-branch -b $SKOPEO_VERSION https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
     - DISABLE_DOCS=1 make install
+    - skopeo --version
     # Set up redhat registry access to generate bundle-redhat
     - mkdir ~/.redhat
     - aws ssm get-parameter --region us-east-1 --name
@@ -479,7 +497,8 @@ publish_community_operators:
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
-
+  variables:
+    SKOPEO_VERSION: release-1.16
 
 # On success, this will cause Conductor to trigger a Deployment to nightly clusters in SDP
 publish_nightly_workflow:
@@ -503,9 +522,33 @@ publish_nightly_workflow:
     ENVIRONMENTS: "experimental"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
-    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator.operator_nightly.publish"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_nightly.operator_nightly.publish"
     BAZEL_TARGET: $BAZEL_TARGET
     DDR: $DDR
     TARGET_ENV: $TARGET_ENV
     CONDUCTOR_TARGET: $CONDUCTOR_TARGET
     DDR_WORKFLOW_ID: $DDR_WORKFLOW_ID
+
+# On success, this will cause CNAB to trigger a Deployment to Release Candidate clusters and open a corresponding pull request
+publish_release_candidate_workflow:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_TAG
+    - when: never
+  needs:
+    - trigger_internal_operator_image
+    - trigger_internal_operator_check_image
+  trigger:
+    project: DataDog/k8s-datadog-agent-ops
+    branch: main
+    strategy: depend
+    forward:
+      pipeline_variables: true
+  variables:
+    OPERATOR_RC: "true"
+    SKIP_PLAN_CHECK: "true"
+    ENVIRONMENTS: "experimental"
+    CHART: "datadog-operator"
+    OPTION_AUTOMATIC_ROLLOUT: "true"
+    EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
+    OPERATOR_IMAGE_TAG: $CI_COMMIT_REF_SLUG

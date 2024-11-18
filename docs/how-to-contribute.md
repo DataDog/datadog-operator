@@ -1,6 +1,6 @@
 # How to contribute
 
-# Testing the Operator for development
+## Testing the Operator for development
 
 The recommended way to test the Operator is by creating a [kind](https://kind.sigs.k8s.io/) cluster.
 
@@ -76,6 +76,14 @@ kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/datadog-agent-minimum
 
 The Operator should start deploying the `agent` and `cluster-agent`.
 
+## Golang version update
+
+The Go version is defined in several files. To ensure all relevant files are updated, it is recommended to use the script `make update-golang`:
+
+1. Update the Go version in the `go.work` file.
+2. Run the command `make update-golang`, which patches all files that contain the Go version.
+
+If the golang version is used in a new file (for example in a new `Dockefile`) the script `hack/update-golang.sh` needs to be updated to handle this new file in the golang version update process.
 
 ## Tests
 
@@ -124,7 +132,7 @@ $ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks
 $ K8S_VERSION=1.25 IMG=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 
 # Run E2E tests with K8S_VERSION, IMG, and IMAGE_PULL_PASSWORD environment variables (for pulling operator image from a private registry).
-$ K8S_VERSION=1.25 IMG=669783387624.dkr.ecr.us-east-1.amazonaws.com/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+$ K8S_VERSION=1.25 IMG=your-private-registry/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 ```
 > **NOTE:**  The remote configuration updater test requires the owner of the API Key to have the permission `Fleet Policies Write`. 
 > To get the permission:

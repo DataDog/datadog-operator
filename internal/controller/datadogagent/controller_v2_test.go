@@ -24,9 +24,11 @@ import (
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -367,6 +369,34 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
+		{
+			name: "DatadogAgent with PDB enabled",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &policyv1.PodDisruptionBudget{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						}).
+						WithClusterChecksUseCLCEnabled(true).
+						WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+						}).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				return verifyPDB(t, c)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -562,5 +592,24 @@ func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsN
 	sort.Strings(actualDSNames)
 	sort.Strings(expectedDSNames)
 	assert.Equal(t, expectedDSNames, actualDSNames)
+	return nil
+}
+
+func verifyPDB(t *testing.T, c client.Client) error {
+	pdbList := policyv1.PodDisruptionBudgetList{}
+	if err := c.List(context.TODO(), &pdbList); err != nil {
+		return err
+	}
+	assert.True(t, len(pdbList.Items) == 2)
+
+	dcaPDB := pdbList.Items[0]
+	assert.Equal(t, "foo-cluster-agent-pdb", dcaPDB.Name)
+	assert.Equal(t, intstr.FromInt(1), *dcaPDB.Spec.MinAvailable)
+	assert.Nil(t, dcaPDB.Spec.MaxUnavailable)
+
+	ccrPDB := pdbList.Items[1]
+	assert.Equal(t, "foo-cluster-checks-runner-pdb", ccrPDB.Name)
+	assert.Equal(t, intstr.FromInt(1), *ccrPDB.Spec.MaxUnavailable)
+	assert.Nil(t, ccrPDB.Spec.MinAvailable)
 	return nil
 }

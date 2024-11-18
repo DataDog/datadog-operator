@@ -16,6 +16,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -67,6 +68,7 @@ type defaultFeature struct {
 	logger                  logr.Logger
 	disableNonResourceRules bool
 	otelAgentEnabled        bool
+	adpEnabled              bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -95,15 +97,18 @@ type secretInfo struct {
 }
 
 type clusterAgentConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 type agentConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 type clusterChecksRunnerConfig struct {
-	serviceAccountName string
+	serviceAccountName        string
+	serviceAccountAnnotations map[string]string
 }
 
 // ID returns the ID of the Feature
@@ -119,11 +124,22 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
 	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
+	f.clusterAgent.serviceAccountAnnotations = v2alpha1.GetClusterAgentServiceAccountAnnotations(dda)
+	f.agent.serviceAccountAnnotations = v2alpha1.GetAgentServiceAccountAnnotations(dda)
+	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
+	}
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
+	}
+
 	if dda.Spec.Global != nil {
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
 			f.disableNonResourceRules = true
 		}
-
 		if dda.Spec.Global.Credentials != nil {
 			creds := dda.Spec.Global.Credentials
 
@@ -183,32 +199,30 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
+	agentContainers := make([]apicommon.AgentContainerName, 0)
+
+	// If the OpenTelemetry Agent is enabled, add the OTel Agent to the list of required containers for the Agent
+	// feature.
 	//
-	// In Operator 1.9 OTel Agent will be configured through a feature.
-	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
+	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
 	if f.otelAgentEnabled {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-				Containers: []apicommon.AgentContainerName{
-					apicommon.OtelAgent,
-				},
-			},
-		}
-	} else {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-		}
+		agentContainers = append(agentContainers, apicommon.OtelAgent)
 	}
 
+	// If Agent Data Plane is enabled, add the ADP container to the list of required containers for the Agent feature.
+	if f.adpEnabled {
+		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
+	}
+
+	return feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+		},
+		Agent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+			Containers: agentContainers,
+		},
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -273,6 +287,13 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.agent.serviceAccountName, f.agent.serviceAccountAnnotations, string(v2alpha1.NodeAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	// ClusterRole creation
 	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), componentagent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules(f.disableNonResourceRules)); err != nil {
 		errs = append(errs, err)
@@ -313,6 +334,13 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.clusterAgent.serviceAccountName, f.clusterAgent.serviceAccountAnnotations, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	dcaService := componentdca.GetClusterAgentService(f.owner)
 	if err := managers.Store().AddOrUpdate(kubernetes.ServicesKind, dcaService); err != nil {
 		return err
@@ -336,6 +364,13 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 		}
 	}
 
+	// serviceAccountAnnotations
+	if f.agent.serviceAccountAnnotations != nil {
+		if err := managers.RBACManager().AddServiceAccountAnnotationsByComponent(f.owner.GetNamespace(), f.clusterChecksRunner.serviceAccountName, f.clusterChecksRunner.serviceAccountAnnotations, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -349,6 +384,18 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentServiceAccountName,
 		Value: f.clusterAgent.serviceAccountName,
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDAgentDaemonSet,
+		Value: getDaemonSetNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDClusterAgentDeployment,
+		Value: getDeploymentNameFromDatadogAgent(f.owner.(*v2alpha1.DatadogAgent)),
+	})
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  DDDatadogAgentCustomResource,
+		Value: f.owner.GetName(),
 	})
 	return nil
 }

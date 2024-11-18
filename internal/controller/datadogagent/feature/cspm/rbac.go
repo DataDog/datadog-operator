@@ -23,13 +23,6 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			Verbs: []string{rbac.ListVerb},
 		},
 		{
-			APIGroups: []string{rbac.PolicyAPIGroup},
-			Resources: []string{
-				rbac.PodSecurityPolicyResource,
-			},
-			Verbs: []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
-		},
-		{
 			APIGroups: []string{rbac.RbacAPIGroup},
 			Resources: []string{
 				rbac.ClusterRoleBindingResource,
