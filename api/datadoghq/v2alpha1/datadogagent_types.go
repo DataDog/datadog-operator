@@ -78,6 +78,8 @@ type DatadogFeatures struct {
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
+	// ServiceDiscovery
+	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 
 	// Cluster-level features
 
@@ -481,6 +483,14 @@ type NPMFeatureConfig struct {
 // Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ServiceDiscoveryFeatureConfig configures the service discovery check feature.
+type ServiceDiscoveryFeatureConfig struct {
+	// Enables the service discovery check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1019,16 +1029,12 @@ type OriginDetectionUnified struct {
 // AgentImageConfig defines the agent container image config.
 // +kubebuilder:object:generate=true
 type AgentImageConfig struct {
-	// Define the image to use:
-	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
-	// Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
-	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
-	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
-	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-	// If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
-	// and `global.registry` values are ignored.
-	// Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
-	// image string is created using default registry unless `global.registry` is configured.
+	// Defines the Agent image name for the pod. You can provide this as:
+	// * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+	//   The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+	// * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+	// * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+	//   like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
 	Name string `json:"name,omitempty"`
 
 	// Define the image tag to use.
@@ -1423,6 +1429,11 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+	// Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+	// +optional
+	CreatePodDisruptionBudget *bool `json:"createPodDisruptionBudget,omitempty"`
+
 	// Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
 	// +optional
 	CreateRbac *bool `json:"createRbac,omitempty"`
@@ -1511,9 +1522,8 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
 
-	// NodeSelector is a selector which must be true for the pod to fit on a node.
-	// Selector which must match a node's labels for the pod to be scheduled on that node.
-	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+	// A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels.
+	// See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
