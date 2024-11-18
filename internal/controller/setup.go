@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	agentControllerName     = "DatadogAgent"
-	monitorControllerName   = "DatadogMonitor"
-	sloControllerName       = "DatadogSLO"
-	profileControllerName   = "DatadogAgentProfile"
-	dashboardControllerName = "DatadogDashboard"
+	agentControllerName      = "DatadogAgent"
+	monitorControllerName    = "DatadogMonitor"
+	sloControllerName        = "DatadogSLO"
+	profileControllerName    = "DatadogAgentProfile"
+	dashboardControllerName  = "DatadogDashboard"
+	genericCRDControllerName = "DatadogGenericCRD"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -49,6 +50,7 @@ type SetupOptions struct {
 	ProcessChecksInCoreAgentEnabled bool
 	OtelAgentEnabled                bool
 	DatadogDashboardEnabled         bool
+	DatadogGenericCRDEnabled        bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -69,11 +71,12 @@ type ExtendedDaemonsetOptions struct {
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
-	agentControllerName:     startDatadogAgent,
-	monitorControllerName:   startDatadogMonitor,
-	sloControllerName:       startDatadogSLO,
-	profileControllerName:   startDatadogAgentProfiles,
-	dashboardControllerName: startDatadogDashboard,
+	agentControllerName:      startDatadogAgent,
+	monitorControllerName:    startDatadogMonitor,
+	sloControllerName:        startDatadogSLO,
+	profileControllerName:    startDatadogAgentProfiles,
+	dashboardControllerName:  startDatadogDashboard,
+	genericCRDControllerName: startDatadogGenericCRD,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -199,6 +202,26 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogGenericCRD(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogGenericCRDEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", genericCRDControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogGenericClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	return (&DatadogGenericCRDReconciler{
+		Client:   mgr.GetClient(),
+		DDClient: ddClient,
+		Log:      ctrl.Log.WithName("controllers").WithName(genericCRDControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(genericCRDControllerName),
 	}).SetupWithManager(mgr)
 }
 

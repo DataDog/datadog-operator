@@ -95,6 +95,32 @@ func InitDatadogDashboardClient(logger logr.Logger, creds config.Creds) (Datadog
 	return DatadogDashboardClient{Client: client, Auth: authV1}, nil
 }
 
+type DatadogGenericClient struct {
+	SyntheticsClient *datadogV1.SyntheticsApi
+	NotebooksClient  *datadogV1.NotebooksApi
+	// TODO: other clients depending on the resource
+	Auth context.Context
+}
+
+// InitDatadogGenericClient initializes the Datadog Generic API Client and establishes credentials.
+func InitDatadogGenericClient(logger logr.Logger, creds config.Creds) (DatadogGenericClient, error) {
+	if creds.APIKey == "" || creds.AppKey == "" {
+		return DatadogGenericClient{}, errors.New("error obtaining API key and/or app key")
+	}
+
+	configV1 := datadogapi.NewConfiguration()
+	apiClient := datadogapi.NewAPIClient(configV1)
+	syntheticsClient := datadogV1.NewSyntheticsApi(apiClient)
+	notebooksClient := datadogV1.NewNotebooksApi(apiClient)
+
+	authV1, err := setupAuth(logger, creds)
+	if err != nil {
+		return DatadogGenericClient{}, err
+	}
+
+	return DatadogGenericClient{SyntheticsClient: syntheticsClient, NotebooksClient: notebooksClient, Auth: authV1}, nil
+}
+
 func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) {
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(

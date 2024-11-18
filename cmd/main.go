@@ -126,6 +126,7 @@ type options struct {
 	processChecksInCoreAgentEnabled        bool
 	otelAgentEnabled                       bool
 	datadogDashboardEnabled                bool
+	datadogGenericCRDEnabled               bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -161,6 +162,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
+	flag.BoolVar(&opts.datadogGenericCRDEnabled, "datadogGenericCRDEnabled", false, "Enable the DatadogGenericCRD controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -306,6 +308,7 @@ func run(opts *options) error {
 		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
 		OtelAgentEnabled:                opts.otelAgentEnabled,
 		DatadogDashboardEnabled:         opts.datadogDashboardEnabled,
+		DatadogGenericCRDEnabled:        opts.datadogGenericCRDEnabled,
 	}
 
 	if err = controller.SetupControllers(setupLog, mgr, options); err != nil {
