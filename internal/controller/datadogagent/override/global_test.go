@@ -115,6 +115,20 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:             assertAllAgentSingleContainer,
 		},
 		{
+			name:                           "Checks tag cardinality set to orchestrator",
+			singleContainerStrategyEnabled: false,
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithChecksTagCardinality("orchestrator").
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
+				Name:  apicommon.DDChecksTagCardinality,
+				Value: "orchestrator",
+			}),
+			wantVolumeMounts: emptyVolumeMounts,
+			wantVolumes:      emptyVolumes,
+			want:             assertAll,
+		},
+		{
 			name:                           "Unified origin detection activated",
 			singleContainerStrategyEnabled: false,
 			dda: v2alpha1test.NewDatadogAgentBuilder().

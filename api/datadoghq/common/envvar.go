@@ -47,6 +47,7 @@ const (
 	DDAPMInstrumentationLibVersions                      = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
 	DDAppKey                                             = "DD_APP_KEY"
 	DDAuthTokenFilePath                                  = "DD_AUTH_TOKEN_FILE_PATH"
+	DDChecksTagCardinality                               = "DD_CHECKS_TAG_CARDINALITY"
 	DDClcRunnerEnabled                                   = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost                                      = "DD_CLC_RUNNER_HOST"
 	DDClcRunnerID                                        = "DD_CLC_RUNNER_ID"
