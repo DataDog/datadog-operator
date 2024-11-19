@@ -52,17 +52,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1al
 }
 
 func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCRD) {
-	var err error
-	// TODO: use interface possibly for CRUD
-	switch instance.Spec.Type {
-	case "synthetics_browser_test":
-		err = deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.ID)
-	case "notebook":
-		err = deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.ID)
-	default:
-		logger.Error(err, "failed to finalize: unsupported type", "custom resource ID", fmt.Sprint(instance.Status.ID))
-		return
-	}
+	err := apiDelete(r, instance)
 	if err != nil {
 		logger.Error(err, "failed to finalize ", "custom resource ID", fmt.Sprint(instance.Status.ID))
 

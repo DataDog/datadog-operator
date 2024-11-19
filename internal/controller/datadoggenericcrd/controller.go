@@ -2,7 +2,6 @@ package datadoggenericcrd
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -45,42 +44,6 @@ type Reconciler struct {
 	log         logr.Logger
 	recorder    record.EventRecorder
 }
-
-// type Operation string
-
-// const (
-// 	Create Operation = "create"
-// 	Get    Operation = "get"
-// 	Update Operation = "update"
-// 	Delete Operation = "delete"
-// )
-
-// type HandlerFunc func(instance *v1alpha1.DatadogGenericCRD) error
-
-// var handlers = map[Operation]HandlerFunc{
-// 	"synthetics_browser_test": {
-// 		Create: createSyntheticsBrowserTest,
-// 		Get:    getSyntheticsBrowserTest,
-// 		Update: updateSyntheticsBrowserTest,
-// 		Delete: deleteSyntheticsBrowserTest,
-// 	},
-// 	"synthetics_api_test": {
-// 		Create: createSyntheticsAPITest,
-// 		Get:    getSyntheticsAPITest,
-// 		Update: updateSyntheticsAPITest,
-// 		Delete: deleteSyntheticsAPITest,
-// 	},
-// }
-
-// func (instance *v1alpha1.DatadogGenericCRD) PerformOperation(op Operation) error {
-// 	if typeHandlers, exists := handlers[instance.Spec.Type]; exists {
-//         if handler, opExists := typeHandlers[op]; opExists {
-//             return handler(q)
-//         }
-//         return fmt.Errorf("operation %s not supported for type %s", op, q.Spec.Type)
-//     }
-//     return fmt.Errorf("unsupported type: %s", q.Spec.Type)
-// }
 
 func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
@@ -180,35 +143,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 }
 
 func (r *Reconciler) get(instance *v1alpha1.DatadogGenericCRD) error {
-	var err error
-	switch instance.Spec.Type {
-	case "synthetics_browser_test":
-		_, err = getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.ID)
-	case "notebook":
-		_, err = getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.ID)
-	default:
-		err = fmt.Errorf("unsupported type: %s", instance.Spec.Type)
-	}
-	return err
+	return apiGet(r, instance)
 }
 
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
-	var err error
-	switch instance.Spec.Type {
-	case "synthetics_browser_test":
-		if _, err = updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance); err != nil {
-			logger.Error(err, "error updating generic CRD", "generic CRD ID", instance.Status.ID)
-			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCRD", err)
-			return err
-		}
-	case "notebook":
-		if _, err = updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance); err != nil {
-			logger.Error(err, "error updating generic CRD", "generic CRD ID", instance.Status.ID)
-			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCRD", err)
-			return err
-		}
-	default:
-		err = fmt.Errorf("unsupported type: %s", instance.Spec.Type)
+	err := apiUpdate(r, instance)
+	if err != nil {
+		logger.Error(err, "error updating generic CRD", "generic CRD ID", instance.Status.ID)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCRD", err)
 		return err
 	}
 
@@ -228,47 +170,8 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
 	logger.V(1).Info("Custom resource ID is not set; creating custom resource in Datadog")
 
-	switch instance.Spec.Type {
-	case "synthetics_browser_test":
-		createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
-		logger.Info("pretty printing test", "browser test ID", createdTest.GetPublicId(), "test", createdTest)
-		if err != nil {
-			logger.Error(err, "error creating browser test")
-			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-			return err
-		}
-		logger.Info("created a new browser test", "browser test ID", createdTest.GetPublicId())
-		status.ID = createdTest.GetPublicId()
-		createdTimeString := createdTest.AdditionalProperties["created_at"].(string)
-		createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
-		if err != nil {
-			logger.Error(err, "error parsing created time")
-			createdTimeParsed = time.Now()
-		}
-		createdTime := metav1.NewTime(createdTimeParsed)
-		status.Created = &createdTime
-		status.LastForceSyncTime = &createdTime
-		status.Creator = createdTest.AdditionalProperties["created_by"].(map[string]interface{})["handle"].(string)
-		status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-		status.CurrentHash = hash
-	case "notebook":
-		createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
-		logger.Info("pretty printing notebook", "notebook ID", createdNotebook.Data.GetId(), "notebook", createdNotebook)
-		if err != nil {
-			logger.Error(err, "error creating notebook")
-			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-			return err
-		}
-		logger.Info("created a new notebook", "notebook ID", createdNotebook.Data.GetId())
-		status.ID = notebookInt64ToString(createdNotebook.Data.GetId())
-		createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
-		status.Created = &createdTime
-		status.LastForceSyncTime = &createdTime
-		status.Creator = *createdNotebook.Data.GetAttributes().Author.Handle
-		status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-		status.CurrentHash = hash
-	default:
-		err := fmt.Errorf("unsupported type: %s", instance.Spec.Type)
+	err := apiCreateAndUpdateStatus(r, logger, instance, status, now, hash)
+	if err != nil {
 		return err
 	}
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent)
