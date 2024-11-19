@@ -88,16 +88,12 @@ spec:
                                   type: boolean
                                 name:
                                   description: |-
-                                    Define the image to use:
-                                    Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
-                                    Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
-                                    Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
-                                    Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
-                                    Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-                                    If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
-                                    and `global.registry` values are ignored.
-                                    Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
-                                    image string is created using default registry unless `global.registry` is configured.
+                                    Defines the Agent image name for the pod. You can provide this as:
+                                    * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                      The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                                    * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                                    * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                      like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                                   type: string
                                 pullPolicy:
                                   description: |-
@@ -1427,6 +1423,15 @@ spec:
                               type: boolean
                           type: object
                       type: object
+                    serviceDiscovery:
+                      description: ServiceDiscovery
+                      properties:
+                        enabled:
+                          description: |-
+                            Enables the service discovery check.
+                            Default: false
+                          type: boolean
+                      type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
                       properties:
@@ -1449,6 +1454,13 @@ spec:
                 global:
                   description: Global settings to configure the agents
                   properties:
+                    checksTagCardinality:
+                      description: |-
+                        ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
+                        See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.
+                        Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low.
+                        Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625.
+                      type: string
                     clusterAgentToken:
                       description: ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent.
                       type: string
@@ -1758,16 +1770,12 @@ spec:
                               type: boolean
                             name:
                               description: |-
-                                Define the image to use:
-                                Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
-                                Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
-                                Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
-                                Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
-                                Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-                                If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
-                                and `global.registry` values are ignored.
-                                Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
-                                image string is created using default registry unless `global.registry` is configured.
+                                Defines the Agent image name for the pod. You can provide this as:
+                                * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                                * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                                * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                               type: string
                             pullPolicy:
                               description: |-
@@ -3923,6 +3931,11 @@ spec:
                           `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
                           `security-agent`, `system-probe`, and `trace-agent`.
                         type: object
+                      createPodDisruptionBudget:
+                        description: |-
+                          Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+                          Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+                        type: boolean
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
                         type: boolean
@@ -4320,16 +4333,12 @@ spec:
                             type: boolean
                           name:
                             description: |-
-                              Define the image to use:
-                              Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
-                              Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
-                              Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
-                              Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
-                              Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-                              If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
-                              and `global.registry` values are ignored.
-                              Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
-                              image string is created using default registry unless `global.registry` is configured.
+                              Defines the Agent image name for the pod. You can provide this as:
+                              * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                              * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                              * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                             type: string
                           pullPolicy:
                             description: |-
@@ -4375,9 +4384,8 @@ spec:
                         additionalProperties:
                           type: string
                         description: |-
-                          NodeSelector is a selector which must be true for the pod to fit on a node.
-                          Selector which must match a node's labels for the pod to be scheduled on that node.
-                          More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+                          A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels.
+                          See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
                         type: object
                       priorityClassName:
                         description: |-
@@ -6637,16 +6645,12 @@ spec:
                                       type: boolean
                                     name:
                                       description: |-
-                                        Define the image to use:
-                                        Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7.
-                                        Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7.
-                                        Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
-                                        Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
-                                        Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-                                        If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
-                                        and `global.registry` values are ignored.
-                                        Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
-                                        image string is created using default registry unless `global.registry` is configured.
+                                        Defines the Agent image name for the pod. You can provide this as:
+                                        * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                          The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                                        * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                                        * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                          like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                                       type: string
                                     pullPolicy:
                                       description: |-
@@ -7975,6 +7979,15 @@ spec:
                                     Default: false
                                   type: boolean
                               type: object
+                          type: object
+                        serviceDiscovery:
+                          description: ServiceDiscovery
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the service discovery check.
+                                Default: false
+                              type: boolean
                           type: object
                         tcpQueueLength:
                           description: TCPQueueLength configuration.

@@ -90,6 +90,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with service discovery enabled",
+		testFunction(testutils.NewDatadogAgentWithServiceDiscovery(namespace, "with-service-discovery")),
+	)
+
+	Context(
 		"with Event Collection",
 		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "with-event-collection")),
 	)
