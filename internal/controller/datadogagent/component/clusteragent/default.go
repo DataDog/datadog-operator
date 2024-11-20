@@ -28,6 +28,11 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
 }
 
+// GetClusterAgentPodDisruptionBudgetName return the Cluster-Agent PodDisruptionBudget name based on the DatadogAgent name
+func GetClusterAgentPodDisruptionBudgetName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+}
+
 // GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
 func GetClusterAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)

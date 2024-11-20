@@ -78,6 +78,8 @@ type DatadogFeatures struct {
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 	// SBOM collection configuration.
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
+	// ServiceDiscovery
+	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 
 	// Cluster-level features
 
@@ -481,6 +483,14 @@ type NPMFeatureConfig struct {
 // Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ServiceDiscoveryFeatureConfig configures the service discovery check feature.
+type ServiceDiscoveryFeatureConfig struct {
+	// Enables the service discovery check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1189,6 +1199,13 @@ type GlobalConfig struct {
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
+	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.
+	// Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low.
+	// Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625.
+	// +optional
+	ChecksTagCardinality *string `json:"checksTagCardinality,omitempty"`
+
 	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
 	// +optional
 	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
@@ -1425,6 +1442,11 @@ type DatadogAgentComponentOverride struct {
 	// Not applicable for a DaemonSet/ExtendedDaemonSet deployment
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component.
+	// Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod.
+	// +optional
+	CreatePodDisruptionBudget *bool `json:"createPodDisruptionBudget,omitempty"`
 
 	// Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
 	// +optional

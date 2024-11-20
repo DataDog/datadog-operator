@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
@@ -49,6 +50,8 @@ type dogstatsdFeature struct {
 
 	forceEnableLocalService bool
 	localServiceName        string
+
+	adpEnabled bool
 
 	owner metav1.Object
 }
@@ -86,6 +89,8 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
 	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
+
+	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
@@ -137,13 +142,45 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+
+	// When ADP is enabled, we set `DD_USE_DOGSTATSD` to `false`, and `DD_ADP_ENABLED` to `true`.
+	//
+	// This disables DSD in the Core Agent, and additionally informs it that DSD is disabled because ADP is enabled and
+	// taking over responsibilities, rather than DSD simply being disabled intentionally, such as in the case of the
+	// Cluster Checks Runner.
+	if f.adpEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDDogstatsdEnabled,
+			Value: "false",
+		})
+	}
+
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+	// When ADP is enabled, we apply the DSD configuration to the ADP container instead, and set `DD_USE_DOGSTATSD` to
+	// `false`, and `DD_ADP_ENABLED` to `true`, on the Core Agent container.
+	//
+	// This disables DSD in the Core Agent, and additionally informs it that DSD is disabled because ADP is enabled and
+	// taking over responsibilities, rather than DSD simply being disabled intentionally, such as in the case of the
+	// Cluster Checks Runner.
+	//
+	// While we _could_ leave the DSD-specific configuration set on the Core Agent -- it doesn't so matter as long as
+	// DSD is disabled -- it's cleaner to remote it entirely to avoid confusion.
+	if f.adpEnabled {
+		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDDogstatsdEnabled,
+			Value: "false",
+		})
+	} else {
+		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+	}
+
 	return nil
 }
 
@@ -209,7 +246,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		// Tag cardinality is only configured if origin detection is enabled.
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,
 			})
@@ -220,7 +257,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	if f.mapperProfiles != nil {
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdMapperProfiles,
 				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
 			})
@@ -232,7 +269,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			cmSelector := corev1.ConfigMapKeySelector{}
 			cmSelector.Name = f.mapperProfiles.ConfigMap.Name
 			cmSelector.Key = f.mapperProfiles.ConfigMap.Items[0].Key
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 				Name:      apicommon.DDDogstatsdMapperProfiles,
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})

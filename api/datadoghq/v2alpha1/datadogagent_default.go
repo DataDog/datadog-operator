@@ -36,6 +36,8 @@ const (
 
 	defaultEBPFCheckEnabled bool = false
 
+	defaultServiceDiscoveryEnabled bool = false
+
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
@@ -245,6 +247,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.EBPFCheck = &EBPFCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
+
+	if ddaSpec.Features.ServiceDiscovery == nil {
+		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// APM Feature
 	// APM is enabled by default

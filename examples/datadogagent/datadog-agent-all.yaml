@@ -45,6 +45,8 @@ spec:
       enabled: true
     sbom:
       enabled: true
+    serviceDiscovery:
+      enabled: true
     eventCollection:
       collectKubernetesEvents: true
     orchestratorExplorer:

@@ -155,6 +155,19 @@ func NewDatadogAgentWithEBPFCheck(namespace string, name string) v2alpha1.Datado
 	)
 }
 
+// NewDatadogAgentWithServiceDiscovery returns an agent with Service Discovery enabled
+func NewDatadogAgentWithServiceDiscovery(namespace, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithEventCollection returns an agent with event collection enabled
 func NewDatadogAgentWithEventCollection(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
