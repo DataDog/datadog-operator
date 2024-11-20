@@ -2124,12 +2124,6 @@ spec:
                         Provide a mapping of Kubernetes Labels to Datadog Tags.
                         <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
                       type: object
-                    processChecksInCoreAgentEnabled:
-                      description: |-
-                        Configure whether the process Agent or core Agent collects process and/or container information (Linux only).
-                        (Requires Agent 7.57.0+)
-                        Default: 'false'
-                      type: boolean
                     registry:
                       description: |-
                         Registry is the image registry to use for all Agent images.
@@ -2141,6 +2135,13 @@ spec:
                         Use 'docker.io/datadog' for DockerHub.
                         Default: 'gcr.io/datadoghq'
                       type: string
+                    runProcessChecksInCoreAgent:
+                      description: |-
+                        Configure whether the process Agent or core Agent collects process and/or container information (Linux only).
+                        The process Agent container won't spin up if there are no other running checks as a result.
+                        (Requires Agent 7.57.0+)
+                        Default: 'false'
+                      type: boolean
                     secretBackend:
                       description: |-
                         Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
