@@ -688,7 +688,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRSpec(ref com
 							Format:      "",
 						},
 					},
-					"spec": {
+					"jsonSpec": {
 						SchemaProps: spec.SchemaProps{
 							Description: "JsonSpec is the specification of the API object",
 							Default:     "",
@@ -697,7 +697,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRSpec(ref com
 						},
 					},
 				},
-				Required: []string{"type", "spec"},
+				Required: []string{"type", "jsonSpec"},
 			},
 		},
 	}

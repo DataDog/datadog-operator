@@ -51,14 +51,14 @@ spec:
             spec:
               description: DatadogGenericCRSpec defines the desired state of DatadogGenericCR
               properties:
-                spec:
+                jsonSpec:
                   description: JsonSpec is the specification of the API object
                   type: string
                 type:
                   description: Type is the type of the API object
                   type: string
               required:
-                - spec
+                - jsonSpec
                 - type
               type: object
             status:

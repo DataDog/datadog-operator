@@ -16,7 +16,7 @@ type DatadogGenericCRSpec struct {
 	// TODO: Add validation for the type (enum)
 	Type string `json:"type"`
 	// JsonSpec is the specification of the API object
-	JsonSpec string `json:"spec"`
+	JsonSpec string `json:"jsonSpec"`
 }
 
 // DatadogGenericCRStatus defines the observed state of DatadogGenericCR
