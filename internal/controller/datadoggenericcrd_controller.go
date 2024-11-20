@@ -20,7 +20,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// DatadogGenericCRDReconciler reconciles a DatadogGenericCRD object
+// DatadogGenericCRDReconciler reconciles a DatadogGenericCR object
 type DatadogGenericCRDReconciler struct {
 	Client   client.Client
 	DDClient datadogclient.DatadogGenericClient
@@ -30,9 +30,9 @@ type DatadogGenericCRDReconciler struct {
 	internal *datadoggenericcrd.Reconciler
 }
 
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrds,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrds/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrds/finalizers,verbs=update
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs/finalizers,verbs=update
 
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
 func (r *DatadogGenericCRDReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -44,7 +44,7 @@ func (r *DatadogGenericCRDReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = datadoggenericcrd.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.DatadogGenericCRD{}).
+		For(&v1alpha1.DatadogGenericCR{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 
 	err := builder.Complete(r)

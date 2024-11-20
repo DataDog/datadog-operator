@@ -21,8 +21,8 @@ const (
 	datadogGenericCRDFinalizer = "finalizer.datadoghq.com/genericcrd"
 )
 
-func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCRD) (ctrl.Result, error) {
-	// Check if the DatadogGenericCRD instance is marked to be deleted, which is indicated by the deletion timestamp being set.
+func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCR) (ctrl.Result, error) {
+	// Check if the DatadogGenericCR instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if instance.GetDeletionTimestamp() != nil {
 		if utils.ContainsString(instance.GetFinalizers(), datadogGenericCRDFinalizer) {
 			r.finalizeDatadogCustomResource(logger, instance)
@@ -51,26 +51,26 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, instance *datadoghqv1al
 	return ctrl.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCRD) {
+func (r *Reconciler) finalizeDatadogCustomResource(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCR) {
 	err := apiDelete(r, instance)
 	if err != nil {
-		logger.Error(err, "failed to finalize ", "custom resource ID", fmt.Sprint(instance.Status.ID))
+		logger.Error(err, "failed to finalize ", "custom resource Id", fmt.Sprint(instance.Status.Id))
 
 		return
 	}
-	logger.Info("Successfully finalized DatadogGenericCRD", "custom resource ID", fmt.Sprint(instance.Status.ID))
+	logger.Info("Successfully finalized DatadogGenericCR", "custom resource Id", fmt.Sprint(instance.Status.Id))
 	event := buildEventInfo(instance.Name, instance.Namespace, datadog.DeletionEvent)
 	r.recordEvent(instance, event)
 }
 
-func (r *Reconciler) addFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCRD) error {
-	logger.Info("Adding Finalizer for the DatadogGenericCRD")
+func (r *Reconciler) addFinalizer(logger logr.Logger, instance *datadoghqv1alpha1.DatadogGenericCR) error {
+	logger.Info("Adding Finalizer for the DatadogGenericCR")
 
 	instance.SetFinalizers(append(instance.GetFinalizers(), datadogGenericCRDFinalizer))
 
 	err := r.client.Update(context.TODO(), instance)
 	if err != nil {
-		logger.Error(err, "failed to update DatadogGenericCRD with finalizer", "custom resource ID", fmt.Sprint(instance.Status.ID))
+		logger.Error(err, "failed to update DatadogGenericCR with finalizer", "custom resource Id", fmt.Sprint(instance.Status.Id))
 		return err
 	}
 

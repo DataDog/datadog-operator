@@ -27,35 +27,35 @@ type apiHandlerKey struct {
 }
 
 // Delete, Get and Update operations share the same signature
-type apiHandlerFunc func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error
+type apiHandlerFunc func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error
 
 var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
-	{"synthetics_browser_test", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
-		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.ID)
+	{"synthetics_browser_test", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 	},
-	{"notebook", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
-		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.ID)
+	{"notebook", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 	},
-	{"synthetics_browser_test", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
-		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.ID)
+	{"synthetics_browser_test", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 		return err
 	},
-	{"notebook", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
-		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.ID)
+	{"notebook", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 		return err
 	},
-	{"synthetics_browser_test", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+	{"synthetics_browser_test", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		return err
 	},
-	{"notebook", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+	{"notebook", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		return err
 	},
 }
 
 // Common handler executor (delete, get and update)
-func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 	key := apiHandlerKey{Type: instance.Spec.Type, op: operation}
 	if handler, exists := apiHandlers[key]; exists {
 		return handler(r, instance)
@@ -64,17 +64,17 @@ func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.Datad
 }
 
 // Create is handled separately due to the dynamic signature and need to extract/update status based on the returned struct
-type createHandlerFunc func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error
+type createHandlerFunc func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error
 
 var createHandlers = map[string]createHandlerFunc{
-	"synthetics_browser_test": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
+	"synthetics_browser_test": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating browser test")
 			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 			return err
 		}
-		status.ID = createdTest.GetPublicId()
+		status.Id = createdTest.GetPublicId()
 		createdTimeString := createdTest.AdditionalProperties["created_at"].(string)
 		createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
 		if err != nil {
@@ -89,15 +89,15 @@ var createHandlers = map[string]createHandlerFunc{
 		status.CurrentHash = hash
 		return nil
 	},
-	"notebook": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
+	"notebook": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating notebook")
 			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 			return err
 		}
-		logger.Info("created a new notebook", "notebook ID", createdNotebook.Data.GetId())
-		status.ID = notebookInt64ToString(createdNotebook.Data.GetId())
+		logger.Info("created a new notebook", "notebook Id", createdNotebook.Data.GetId())
+		status.Id = notebookInt64ToString(createdNotebook.Data.GetId())
 		createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
 		status.Created = &createdTime
 		status.LastForceSyncTime = &createdTime
@@ -108,7 +108,7 @@ var createHandlers = map[string]createHandlerFunc{
 	},
 }
 
-func executeCreateHandler(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
+func executeCreateHandler(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 	if handler, exists := createHandlers[instance.Spec.Type]; exists {
 		return handler(r, logger, instance, status, now, hash)
 	}
@@ -133,23 +133,23 @@ func translateClientError(err error, msg string) error {
 	return fmt.Errorf(msg+": %w", err)
 }
 
-// TODO: add validation on the DatadogGenericCRD type so we can't encounter unsupported types
-func unsupportedInstanceType(instance *v1alpha1.DatadogGenericCRD) error {
+// TODO: add validation on the DatadogGenericCR type so we can't encounter unsupported types
+func unsupportedInstanceType(instance *v1alpha1.DatadogGenericCR) error {
 	return fmt.Errorf("unsupported type: %s", instance.Spec.Type)
 }
 
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 	return executeHandler(operationDelete, r, instance)
 }
 
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 	return executeHandler(operationGet, r, instance)
 }
 
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericCRD) error {
+func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 	return executeHandler(operationUpdate, r, instance)
 }
 
-func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
+func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 	return executeCreateHandler(r, logger, instance, status, now, hash)
 }

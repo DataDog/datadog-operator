@@ -4,16 +4,16 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  name: datadoggenericcrds.datadoghq.com
+  name: datadoggenericcrs.datadoghq.com
 spec:
   group: datadoghq.com
   names:
-    kind: DatadogGenericCRD
-    listKind: DatadogGenericCRDList
-    plural: datadoggenericcrds
+    kind: DatadogGenericCR
+    listKind: DatadogGenericCRList
+    plural: datadoggenericcrs
     shortNames:
-      - ddgcrd
-    singular: datadoggenericcrd
+      - ddgcr
+    singular: datadoggenericcr
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -29,7 +29,7 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: DatadogGenericCRD is the Schema for the datadoggenericcrds API
+          description: DatadogGenericCR is the Schema for the datadoggenericcrs API
           properties:
             apiVersion:
               description: |-
@@ -49,10 +49,10 @@ spec:
             metadata:
               type: object
             spec:
-              description: DatadogGenericCRDSpec defines the desired state of DatadogGenericCRD
+              description: DatadogGenericCRSpec defines the desired state of DatadogGenericCR
               properties:
                 spec:
-                  description: Spec is the specification of the API object
+                  description: JsonSpec is the specification of the API object
                   type: string
                 type:
                   description: Type is the type of the API object
@@ -62,10 +62,10 @@ spec:
                 - type
               type: object
             status:
-              description: DatadogGenericCRDStatus defines the observed state of DatadogGenericCRD
+              description: DatadogGenericCRStatus defines the observed state of DatadogGenericCR
               properties:
                 conditions:
-                  description: Conditions represents the latest available observations of the state of a DatadogGenericCRD.
+                  description: Conditions represents the latest available observations of the state of a DatadogGenericCR.
                   items:
                     description: Condition contains details for one aspect of the current state of this API Resource.
                     properties:
@@ -132,11 +132,11 @@ spec:
                   type: string
                 currentHash:
                   description: |-
-                    CurrentHash tracks the hash of the current DatadogGenericCRDSpec to know
-                    if the Spec has changed and needs an update.
+                    CurrentHash tracks the hash of the current DatadogGenericCRSpec to know
+                    if the JsonSpec has changed and needs an update.
                   type: string
                 id:
-                  description: ID is the object ID generated in Datadog.
+                  description: Id is the object unique identifier generated in Datadog.
                   type: string
                 lastForceSyncTime:
                   description: LastForceSyncTime is the last time the API object was last force synced with the custom resource

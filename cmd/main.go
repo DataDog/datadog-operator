@@ -162,7 +162,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
-	flag.BoolVar(&opts.datadogGenericCRDEnabled, "datadogGenericCRDEnabled", false, "Enable the DatadogGenericCRD controller")
+	flag.BoolVar(&opts.datadogGenericCRDEnabled, "datadogGenericCRDEnabled", false, "Enable the DatadogGenericCR controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")

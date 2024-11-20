@@ -34,9 +34,9 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 	return nil
 }
 
-func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCRD) (datadogV1.NotebookResponse, error) {
+func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.NotebookResponse, error) {
 	notebookCreateData := &datadogV1.NotebookCreateRequest{}
-	json.Unmarshal([]byte(instance.Spec.Spec), notebookCreateData)
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData)
 	notebook, _, err := client.CreateNotebook(auth, *notebookCreateData)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, translateClientError(err, "error creating notebook")
@@ -44,10 +44,10 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 	return notebook, nil
 }
 
-func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCRD) (datadogV1.NotebookResponse, error) {
+func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
-	json.Unmarshal([]byte(instance.Spec.Spec), notebookUpdateData)
-	notebookID, err := notebookStringToInt64(instance.Status.ID)
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData)
+	notebookID, err := notebookStringToInt64(instance.Status.Id)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, err
 	}
@@ -61,7 +61,7 @@ func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 func notebookStringToInt64(notebookStringID string) (int64, error) {
 	notebookID, err := strconv.ParseInt(notebookStringID, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("error parsing notebook ID: %w", err)
+		return 0, fmt.Errorf("error parsing notebook Id: %w", err)
 	}
 	return notebookID, nil
 }

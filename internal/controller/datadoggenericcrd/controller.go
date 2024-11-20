@@ -68,7 +68,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger.Info("Reconciling Datadog Generic Custom Resource")
 	now := metav1.NewTime(time.Now())
 
-	instance := &v1alpha1.DatadogGenericCRD{}
+	instance := &v1alpha1.DatadogGenericCR{}
 	var result ctrl.Result
 	var err error
 
@@ -98,18 +98,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	shouldCreate := false
 	shouldUpdate := false
 
-	if instance.Status.ID == "" {
+	if instance.Status.Id == "" {
 		shouldCreate = true
 	} else {
 		if instanceSpecHash != statusSpecHash {
-			logger.Info("DatadogGenericCRD manifest has changed")
+			logger.Info("DatadogGenericCR manifest has changed")
 			shouldUpdate = true
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
 			// Get GenericCRD to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			err = r.get(instance)
 			if err != nil {
-				logger.Error(err, "error getting custom resource", "custom resource ID", instance.Status.ID, "resource type", instance.Spec.Type)
+				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
 				updateErrStatus(status, now, v1alpha1.DatadogSyncStatusGetError, "GettingCustomResource", err)
 				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
@@ -142,14 +142,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogGenericCRD) error {
+func (r *Reconciler) get(instance *v1alpha1.DatadogGenericCR) error {
 	return apiGet(r, instance)
 }
 
-func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 	err := apiUpdate(r, instance)
 	if err != nil {
-		logger.Error(err, "error updating generic CRD", "generic CRD ID", instance.Status.ID)
+		logger.Error(err, "error updating generic CRD", "generic CRD Id", instance.Status.Id)
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCRD", err)
 		return err
 	}
@@ -158,17 +158,17 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericCRD", "DatadogGenericCRD Update")
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericCRD", "DatadogGenericCR Update")
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
-	logger.Info("Updated Datadog Generic CRD", "Generic CRD ID", instance.Status.ID)
+	logger.Info("Updated Datadog Generic CRD", "Generic CRD Id", instance.Status.Id)
 	return nil
 }
 
-func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, hash string) error {
-	logger.V(1).Info("Custom resource ID is not set; creating custom resource in Datadog")
+func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	logger.V(1).Info("Custom resource Id is not set; creating custom resource in Datadog")
 
 	err := apiCreateAndUpdateStatus(r, logger, instance, status, now, hash)
 	if err != nil {
@@ -178,26 +178,26 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericCRD", "DatadogGenericCRD Created")
-	logger.Info("created a new DatadogGenericCRD", "generic CRD ID", status.ID)
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericCRD", "DatadogGenericCR Created")
+	logger.Info("created a new DatadogGenericCR", "generic CRD Id", status.Id)
 
 	return nil
 }
 
-func updateErrStatus(status *v1alpha1.DatadogGenericCRDStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
+func updateErrStatus(status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogGenericCRD, status *v1alpha1.DatadogGenericCRDStatus, result ctrl.Result) (ctrl.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
 		instance.Status = *status
 		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
 			if apierrors.IsConflict(err) {
-				logger.Error(err, "unable to update DatadogGenericCRD status due to update conflict")
+				logger.Error(err, "unable to update DatadogGenericCR status due to update conflict")
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
-			logger.Error(err, "unable to update DatadogGenericCRD status")
+			logger.Error(err, "unable to update DatadogGenericCR status")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
 		}
 	}

@@ -32,9 +32,9 @@ func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, 
 }
 
 // Browser test: create
-func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCRD) (datadogV1.SyntheticsBrowserTest, error) {
+func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.Spec), browserTestBody)
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
 	test, _, err := client.CreateSyntheticsBrowserTest(auth, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error creating browser test")
@@ -43,10 +43,10 @@ func createSyntheticBrowserTest(auth context.Context, client *datadogV1.Syntheti
 }
 
 // Browser test: update
-func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCRD) (datadogV1.SyntheticsBrowserTest, error) {
+func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.Spec), browserTestBody)
-	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.ID, *browserTestBody)
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
+	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.Id, *browserTestBody)
 	if err != nil {
 		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error updating browser test")
 	}

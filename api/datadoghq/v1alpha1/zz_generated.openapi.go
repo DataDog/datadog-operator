@@ -26,9 +26,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardSpec":                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardStatus":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRD":                     schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRD(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDSpec":                 schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDSpec(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDStatus":               schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCR":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCR(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRSpec":                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRStatus":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
@@ -626,11 +626,11 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref c
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRD(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCR(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericCRD is the Schema for the datadoggenericcrds API",
+				Description: "DatadogGenericCR is the Schema for the datadoggenericcrs API",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -656,28 +656,28 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRD(ref common
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDSpec"),
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDStatus"),
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRDStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericCRStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericCRDSpec defines the desired state of DatadogGenericCRD",
+				Description: "DatadogGenericCRSpec defines the desired state of DatadogGenericCR",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -690,7 +690,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDSpec(ref co
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Spec is the specification of the API object",
+							Description: "JsonSpec is the specification of the API object",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -703,11 +703,11 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDSpec(ref co
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericCRDStatus defines the observed state of DatadogGenericCRD",
+				Description: "DatadogGenericCRStatus defines the observed state of DatadogGenericCR",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"conditions": {
@@ -720,7 +720,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDStatus(ref 
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions represents the latest available observations of the state of a DatadogGenericCRD.",
+							Description: "Conditions represents the latest available observations of the state of a DatadogGenericCR.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -734,7 +734,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDStatus(ref 
 					},
 					"id": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ID is the object ID generated in Datadog.",
+							Description: "Id is the object unique identifier generated in Datadog.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -761,7 +761,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericCRDStatus(ref 
 					},
 					"currentHash": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentHash tracks the hash of the current DatadogGenericCRDSpec to know if the Spec has changed and needs an update.",
+							Description: "CurrentHash tracks the hash of the current DatadogGenericCRSpec to know if the JsonSpec has changed and needs an update.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

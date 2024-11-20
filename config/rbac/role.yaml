@@ -234,7 +234,7 @@ rules:
   - datadogagents
   - datadogagents/finalizers
   - datadogdashboards
-  - datadoggenericcrds
+  - datadoggenericcrs
   - datadogmonitors
   - datadogmonitors/finalizers
   - datadogslos
@@ -254,7 +254,7 @@ rules:
   - datadogagentprofiles/status
   - datadogagents/status
   - datadogdashboards/status
-  - datadoggenericcrds/status
+  - datadoggenericcrs/status
   - datadogmonitors/status
   - datadogslos/status
   verbs:
@@ -265,7 +265,7 @@ rules:
   - datadoghq.com
   resources:
   - datadogdashboards/finalizers
-  - datadoggenericcrds/finalizers
+  - datadoggenericcrs/finalizers
   - datadogmetrics/status
   verbs:
   - update
