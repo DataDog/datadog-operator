@@ -1286,8 +1286,8 @@ type GlobalConfig struct {
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
 
-	// Configure whether the process Agent or core Agent collects process and/or container information (Linux only).
-	// The process Agent container won't spin up if there are no other running checks as a result.
+	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
+	// The Process Agent container won't spin up if there are no other running checks as a result.
 	// (Requires Agent 7.57.0+)
 	// Default: 'false'
 	// +optional
