@@ -1611,8 +1611,8 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(SecretBackendConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ProcessChecksInCoreAgentEnabled != nil {
-		in, out := &in.ProcessChecksInCoreAgentEnabled, &out.ProcessChecksInCoreAgentEnabled
+	if in.RunProcessChecksInCoreAgent != nil {
+		in, out := &in.RunProcessChecksInCoreAgent, &out.RunProcessChecksInCoreAgent
 		*out = new(bool)
 		**out = **in
 	}

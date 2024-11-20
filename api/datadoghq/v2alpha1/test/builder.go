@@ -173,7 +173,7 @@ func (builder *DatadogAgentBuilder) WithProcessChecksInCoreAgent(enabled bool) *
 		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
 	}
 
-	builder.datadogAgent.Spec.Global.ProcessChecksInCoreAgentEnabled = apiutils.NewBoolPointer(enabled)
+	builder.datadogAgent.Spec.Global.RunProcessChecksInCoreAgent = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 

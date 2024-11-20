@@ -1270,10 +1270,11 @@ type GlobalConfig struct {
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
 
 	// Configure whether the process Agent or core Agent collects process and/or container information (Linux only).
+	// The process Agent container won't spin up if there are no other running checks as a result.
 	// (Requires Agent 7.57.0+)
 	// Default: 'false'
 	// +optional
-	ProcessChecksInCoreAgentEnabled *bool `json:"processChecksInCoreAgentEnabled,omitempty"`
+	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
