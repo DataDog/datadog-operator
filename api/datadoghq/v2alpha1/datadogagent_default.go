@@ -8,7 +8,6 @@ package v2alpha1
 import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -113,8 +112,6 @@ const (
 	defaultHelmCheckCollectEvents bool = false
 
 	defaultFIPSEnabled      bool   = false
-	defaultFIPSImageName    string = "fips-proxy"
-	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
 	defaultFIPSLocalAddress string = "127.0.0.1"
 	defaultFIPSPort         int32  = 9803
 	defaultFIPSPortRange    int32  = 15
@@ -168,15 +165,6 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
 
 	if *ddaSpec.Global.FIPS.Enabled {
-		if ddaSpec.Global.FIPS.Image == nil {
-			ddaSpec.Global.FIPS.Image = &AgentImageConfig{}
-		}
-		if ddaSpec.Global.FIPS.Image.Name == "" {
-			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName
-		}
-		if ddaSpec.Global.FIPS.Image.Tag == "" {
-			ddaSpec.Global.FIPS.Image.Tag = defaultFIPSImageTag
-		}
 		apiutils.DefaultStringIfUnset(&ddaSpec.Global.FIPS.LocalAddress, defaultFIPSLocalAddress)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.Port, defaultFIPSPort)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)

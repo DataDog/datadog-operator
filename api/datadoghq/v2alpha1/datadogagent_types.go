@@ -1575,6 +1575,10 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	LogLevel *string `json:"logLevel,omitempty"`
 
+	// Image overrides the container image. This parameter takes precedence over DatadogAgentComponentOverride.Image.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
 	// Specify additional environment variables in the container.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//

@@ -108,6 +108,10 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 		container.Name = *override.Name
 	}
 
+	if override.Image != nil {
+		container.Image = overrideImage(container.Image, override.Image)
+	}
+
 	if override.Resources != nil {
 		for resource, quantity := range override.Resources.Requests {
 			if container.Resources.Requests == nil {

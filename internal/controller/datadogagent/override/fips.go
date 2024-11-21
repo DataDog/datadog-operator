@@ -17,11 +17,18 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
+
+const defaultFIPSImageName string = "fips-proxy"
+
+func fipsImage(registry string) string {
+	return fmt.Sprintf("%s/%s:%s", registry, defaultFIPSImageName, defaulting.FIPSProxyLatestVersion)
+}
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
 func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
@@ -52,25 +59,47 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	}
 
 	// Configure FIPS container
-	fipsContainer := getFIPSProxyContainer(fipsConfig)
+	fipsContainer := getFIPSProxyContainer(dda)
 
-	image := v2alpha1.GetImage(fipsConfig.Image, globalConfig.Registry)
-	fipsContainer.Image = image
-	if fipsConfig.Image.PullPolicy != nil {
-		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
+	// If FIPS image is configured, add this image to fips-proxy container override for each component
+	if dda.Spec.Override == nil {
+		dda.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
 	}
 
-	// Add FIPS container to pod
-	found := false
-	for i, cont := range manager.PodTemplateSpec().Spec.Containers {
-		if cont.Name == fipsContainer.Name {
-			manager.PodTemplateSpec().Spec.Containers[i] = fipsContainer
-			found = true
+	for _, componentName := range []v2alpha1.ComponentName{v2alpha1.NodeAgentComponentName, v2alpha1.ClusterAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName} {
+
+		componentOverride, ok := dda.Spec.Override[componentName]
+		if !ok {
+			componentOverride = &v2alpha1.DatadogAgentComponentOverride{}
 		}
+
+		if componentOverride.Containers == nil {
+			componentOverride.Containers = make(map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer)
+		}
+
+		if _, ok = componentOverride.Containers[apicommon.FIPSProxyContainerName]; !ok {
+			componentOverride.Containers[apicommon.FIPSProxyContainerName] = &v2alpha1.DatadogAgentGenericContainer{}
+		}
+
+		if componentOverride.Containers[apicommon.FIPSProxyContainerName].Image == nil {
+			if fipsConfig.Image != nil {
+				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image = &v2alpha1.AgentImageConfig{
+					Name: overrideImage(fipsContainer.Image, fipsConfig.Image),
+				}
+				if fipsConfig.Image.PullPolicy != nil {
+					componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.PullPolicy = fipsConfig.Image.PullPolicy
+				}
+			} else {
+				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image = &v2alpha1.AgentImageConfig{
+					Name: fipsContainer.Image,
+				}
+			}
+		}
+
+		dda.Spec.Override[componentName] = componentOverride
 	}
-	if !found {
-		manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, fipsContainer)
-	}
+
+	manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, fipsContainer)
 
 	vol := getFIPSDefaultVolume(dda.Name)
 	if fipsConfig.CustomFIPSConfig != nil {
@@ -128,9 +157,13 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	}
 }
 
-func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
+func getFIPSProxyContainer(dda *v2alpha1.DatadogAgent) corev1.Container {
+	fipsConfig := dda.Spec.Global.FIPS
+	registry := *dda.Spec.Global.Registry
+
 	fipsContainer := corev1.Container{
 		Name:            string(apicommon.FIPSProxyContainerName),
+		Image:           fipsImage(registry),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Ports:           getFIPSPorts(fipsConfig),
 		Env: []corev1.EnvVar{

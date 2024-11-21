@@ -68,7 +68,7 @@ defaults
 		name            string
 		dda             *v2alpha1.DatadogAgent
 		existingManager func() *fake.PodTemplateManagers
-		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *store.Store)
+		want            func(t testing.TB, dda *v2alpha1.DatadogAgent, manager *fake.PodTemplateManagers, store *store.Store)
 	}{
 		{
 			name: "FIPS enabled",
@@ -84,7 +84,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+			want: func(t testing.TB, dda *v2alpha1.DatadogAgent, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -116,7 +116,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+			want: func(t testing.TB, dda *v2alpha1.DatadogAgent, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -130,7 +130,7 @@ defaults
 				// volume mounts
 				checkVolumeMounts(t, mgr, false)
 
-				assert.Equal(t, "registry/custom:tag", mgr.PodTemplateSpec().Spec.Containers[3].Image)
+				checkImageOverride(t, dda, "registry/custom:tag")
 			},
 		},
 		{
@@ -148,7 +148,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+			want: func(t testing.TB, dda *v2alpha1.DatadogAgent, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -189,7 +189,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+			want: func(t testing.TB, dda *v2alpha1.DatadogAgent, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -221,7 +221,7 @@ defaults
 					},
 				})
 			},
-			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+			want: func(t testing.TB, dda *v2alpha1.DatadogAgent, mgr *fake.PodTemplateManagers, store *store.Store) {
 				// fips env var
 				checkFIPSContainerEnvVars(t, mgr)
 				// fips port
@@ -254,7 +254,7 @@ defaults
 
 			applyFIPSConfig(logger, podTemplateManager, tt.dda, resourcesManager)
 
-			tt.want(t, podTemplateManager, store)
+			tt.want(t, tt.dda, podTemplateManager, store)
 		})
 	}
 }
@@ -448,4 +448,10 @@ func makeExpectedFIPSPortList(startingNumber int32) []corev1.ContainerPort {
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+}
+
+func checkImageOverride(t testing.TB, dda *v2alpha1.DatadogAgent, wantImage string) {
+	assert.Equal(t, wantImage, dda.Spec.Override[v2alpha1.NodeAgentComponentName].Containers[apicommon.FIPSProxyContainerName].Image.Name)
+	assert.Equal(t, wantImage, dda.Spec.Override[v2alpha1.ClusterAgentComponentName].Containers[apicommon.FIPSProxyContainerName].Image.Name)
+	assert.Equal(t, wantImage, dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].Containers[apicommon.FIPSProxyContainerName].Image.Name)
 }

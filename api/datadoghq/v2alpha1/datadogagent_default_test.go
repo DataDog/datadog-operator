@@ -127,11 +127,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					FIPS: &FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						Image: &AgentImageConfig{
-							Name: defaultFIPSImageName,
-							Tag:  defaultFIPSImageTag,
-						},
+						Enabled:      apiutils.NewBoolPointer(true),
 						LocalAddress: apiutils.NewStringPointer(defaultFIPSLocalAddress),
 						Port:         apiutils.NewInt32Pointer(defaultFIPSPort),
 						PortRange:    apiutils.NewInt32Pointer(defaultFIPSPortRange),
