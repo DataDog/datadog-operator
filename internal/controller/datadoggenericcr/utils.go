@@ -1,4 +1,4 @@
-package datadoggenericcrd
+package datadoggenericcr
 
 import (
 	"errors"
@@ -22,42 +22,42 @@ const (
 )
 
 type apiHandlerKey struct {
-	Type string
-	op   operation
+	resourceType v1alpha1.SupportedResourcesType
+	op           operation
 }
 
 // Delete, Get and Update operations share the same signature
 type apiHandlerFunc func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error
 
 var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
-	{"synthetics_browser_test", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
-	},
-	{"notebook", operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
-	},
-	{"synthetics_browser_test", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 		return err
 	},
-	{"notebook", operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
-		return err
-	},
-	{"synthetics_browser_test", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		return err
 	},
-	{"notebook", operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+	},
+	{v1alpha1.Notebook, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+		return err
+	},
+	{v1alpha1.Notebook, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		return err
+	},
+	{v1alpha1.Notebook, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 	},
 }
 
 // Common handler executor (delete, get and update)
 func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-	key := apiHandlerKey{Type: instance.Spec.Type, op: operation}
-	if handler, exists := apiHandlers[key]; exists {
+	key := apiHandlerKey{resourceType: instance.Spec.Type, op: operation}
+	if handler, found := apiHandlers[key]; found {
 		return handler(r, instance)
 	}
 	return unsupportedInstanceType(instance)
@@ -66,8 +66,8 @@ func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.Datad
 // Create is handled separately due to the dynamic signature and need to extract/update status based on the returned struct
 type createHandlerFunc func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error
 
-var createHandlers = map[string]createHandlerFunc{
-	"synthetics_browser_test": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
+	v1alpha1.SyntheticsBrowserTest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating browser test")
@@ -89,7 +89,7 @@ var createHandlers = map[string]createHandlerFunc{
 		status.CurrentHash = hash
 		return nil
 	},
-	"notebook": func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	v1alpha1.Notebook: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating notebook")
@@ -109,7 +109,7 @@ var createHandlers = map[string]createHandlerFunc{
 }
 
 func executeCreateHandler(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
-	if handler, exists := createHandlers[instance.Spec.Type]; exists {
+	if handler, found := createHandlers[instance.Spec.Type]; found {
 		return handler(r, logger, instance, status, now, hash)
 	}
 	return unsupportedInstanceType(instance)
@@ -133,7 +133,6 @@ func translateClientError(err error, msg string) error {
 	return fmt.Errorf(msg+": %w", err)
 }
 
-// TODO: add validation on the DatadogGenericCR type so we can't encounter unsupported types
 func unsupportedInstanceType(instance *v1alpha1.DatadogGenericCR) error {
 	return fmt.Errorf("unsupported type: %s", instance.Spec.Type)
 }

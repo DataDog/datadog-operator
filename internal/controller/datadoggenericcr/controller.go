@@ -1,4 +1,4 @@
-package datadoggenericcrd
+package datadoggenericcr
 
 import (
 	"context"
@@ -87,11 +87,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 
+	if err = v1alpha1.IsValidDatadogGenericCR(&instance.Spec); err != nil {
+		logger.Error(err, "invalid DatadogGenericCR")
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericCR", err)
+		return r.updateStatusIfNeeded(logger, instance, status, result)
+	}
+
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 
 	if err != nil {
 		logger.Error(err, "error generating hash")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "GeneratingGenericCRDSpecHash", err)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "GeneratingGenericCRSpecHash", err)
 		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
@@ -106,7 +112,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			shouldUpdate = true
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
-			// Get GenericCRD to make sure it exists before trying any updates. If it doesn't, set shouldCreate
+			// Get GenericCR to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			err = r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -149,8 +155,8 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogGenericCR) error {
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 	err := apiUpdate(r, instance)
 	if err != nil {
-		logger.Error(err, "error updating generic CRD", "generic CRD Id", instance.Status.Id)
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCRD", err)
+		logger.Error(err, "error updating generic CR", "generic CR Id", instance.Status.Id)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCR", err)
 		return err
 	}
 
@@ -158,12 +164,12 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericCRD", "DatadogGenericCR Update")
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericCR", "DatadogGenericCR Update")
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
-	logger.Info("Updated Datadog Generic CRD", "Generic CRD Id", instance.Status.Id)
+	logger.Info("Updated Datadog Generic CR", "Generic CR Id", instance.Status.Id)
 	return nil
 }
 
@@ -178,8 +184,8 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericCRD", "DatadogGenericCR Created")
-	logger.Info("created a new DatadogGenericCR", "generic CRD Id", status.Id)
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericCR", "DatadogGenericCR Created")
+	logger.Info("created a new DatadogGenericCR", "generic CR Id", status.Id)
 
 	return nil
 }
@@ -210,6 +216,6 @@ func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInf
 }
 
 // recordEvent wraps the manager event recorder
-func (r *Reconciler) recordEvent(genericcrd runtime.Object, info utils.EventInfo) {
-	r.recorder.Event(genericcrd, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
+func (r *Reconciler) recordEvent(genericcr runtime.Object, info utils.EventInfo) {
+	r.recorder.Event(genericcr, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 }

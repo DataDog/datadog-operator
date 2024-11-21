@@ -1,4 +1,4 @@
-package datadoggenericcrd
+package datadoggenericcr
 
 import (
 	"context"

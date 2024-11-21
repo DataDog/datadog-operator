@@ -9,12 +9,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type SupportedResourcesType string
+
+const (
+	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
+	Notebook              SupportedResourcesType = "notebook"
+)
+
 // DatadogGenericCRSpec defines the desired state of DatadogGenericCR
 // +k8s:openapi-gen=true
 type DatadogGenericCRSpec struct {
 	// Type is the type of the API object
 	// TODO: Add validation for the type (enum)
-	Type string `json:"type"`
+	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
 	JsonSpec string `json:"jsonSpec"`
 }
@@ -73,14 +80,14 @@ type DatadogGenericCR struct {
 	Status DatadogGenericCRStatus `json:"status,omitempty"`
 }
 
-// DatadogGenericCRDList contains a list of DatadogGenericCR
+// DatadogGenericCRList contains a list of DatadogGenericCR
 // +kubebuilder:object:root=true
-type DatadogGenericCRDList struct {
+type DatadogGenericCRList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DatadogGenericCR `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&DatadogGenericCR{}, &DatadogGenericCRDList{})
+	SchemeBuilder.Register(&DatadogGenericCR{}, &DatadogGenericCRList{})
 }
