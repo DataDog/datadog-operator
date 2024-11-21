@@ -382,7 +382,7 @@ func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 		for _, log := range agentLogs {
 			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
 				message, exists := integration["messages"].([]interface{})[0].(string)
-				if exists {
+				if exists && len(message) > 0 {
 					num, _ := strconv.Atoi(string(message[0]))
 					if num > 0 && strings.Contains(message, "files tailed") {
 						tailedIntegrations++
