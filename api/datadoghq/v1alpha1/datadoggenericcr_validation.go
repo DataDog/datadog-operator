@@ -18,7 +18,7 @@ var allowedCustomResourcesEnumMap = map[SupportedResourcesType]struct{}{
 
 func IsValidDatadogGenericCR(spec *DatadogGenericCRSpec) error {
 	var errs []error
-	if _, ok := allowedCustomResourcesEnumMap[SupportedResourcesType(spec.Type)]; !ok {
+	if _, ok := allowedCustomResourcesEnumMap[spec.Type]; !ok {
 		errs = append(errs, fmt.Errorf("spec.Type must be a supported resource type"))
 	}
 	return utilserrors.NewAggregate(errs)
