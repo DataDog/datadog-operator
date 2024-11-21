@@ -37,19 +37,18 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset        ExtendedDaemonsetOptions
-	SupportCilium                   bool
-	Creds                           config.Creds
-	DatadogAgentEnabled             bool
-	DatadogMonitorEnabled           bool
-	DatadogSLOEnabled               bool
-	OperatorMetricsEnabled          bool
-	V2APIEnabled                    bool
-	IntrospectionEnabled            bool
-	DatadogAgentProfileEnabled      bool
-	ProcessChecksInCoreAgentEnabled bool
-	OtelAgentEnabled                bool
-	DatadogDashboardEnabled         bool
+	SupportExtendedDaemonset   ExtendedDaemonsetOptions
+	SupportCilium              bool
+	Creds                      config.Creds
+	DatadogAgentEnabled        bool
+	DatadogMonitorEnabled      bool
+	DatadogSLOEnabled          bool
+	OperatorMetricsEnabled     bool
+	V2APIEnabled               bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
+	OtelAgentEnabled           bool
+	DatadogDashboardEnabled    bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -157,12 +156,11 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:                   options.SupportCilium,
-			OperatorMetricsEnabled:          options.OperatorMetricsEnabled,
-			IntrospectionEnabled:            options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled:      options.DatadogAgentProfileEnabled,
-			ProcessChecksInCoreAgentEnabled: options.ProcessChecksInCoreAgentEnabled,
-			OtelAgentEnabled:                options.OtelAgentEnabled,
+			SupportCilium:              options.SupportCilium,
+			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
+			IntrospectionEnabled:       options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			OtelAgentEnabled:           options.OtelAgentEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

@@ -19,13 +19,7 @@ func init() {
 }
 
 func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
-	pdFeat := &processDiscoveryFeature{}
-
-	if options != nil {
-		pdFeat.runInCoreAgent = options.ProcessChecksInCoreAgentEnabled
-	}
-
-	return pdFeat
+	return &processDiscoveryFeature{}
 }
 
 type processDiscoveryFeature struct {
@@ -43,7 +37,7 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, p.runInCoreAgent)
+		p.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
