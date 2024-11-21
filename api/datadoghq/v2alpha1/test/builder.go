@@ -168,6 +168,15 @@ func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stri
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithProcessChecksInCoreAgent(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global == nil {
+		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgent.Spec.Global.RunProcessChecksInCoreAgent = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Admission Controller
 func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
