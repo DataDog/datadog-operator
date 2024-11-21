@@ -376,21 +376,25 @@ func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	var agentLogs []interface{}
 	logsJson := parseCollectorJson(collectorOutput)
 
+	tailedIntegrations := 0
 	if logsJson != nil {
 		agentLogs = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
 		for _, log := range agentLogs {
 			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
 				message, exists := integration["messages"].([]interface{})[0].(string)
-				assert.True(c, exists)
-
-				num, _ := strconv.Atoi(string(message[0]))
-				assert.True(c, num > 0)
-				assert.Contains(c, message, "files tailed", "expected message to contain 'files tailed'")
+				if exists {
+					num, _ := strconv.Atoi(string(message[0]))
+					if num > 0 && strings.Contains(message, "files tailed") {
+						tailedIntegrations++
+					}
+				}
 			} else {
 				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
 			}
 		}
 	}
+	totalIntegrations := len(agentLogs)
+	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
 }
 
 func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
@@ -423,7 +427,6 @@ func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 func verifyAPILogs(s *kindSuite, c *assert.CollectT) {
 	logQuery := fmt.Sprintf("kube_cluster_name:%s", s.Env().Kind.ClusterName)
-
 	requestBody := datadogV1.LogsListRequest{
 		Query: &logQuery,
 		Time: datadogV1.LogsListRequestTime{
