@@ -132,7 +132,7 @@ $ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks
 $ K8S_VERSION=1.25 IMG=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 
 # Run E2E tests with K8S_VERSION, IMG, and IMAGE_PULL_PASSWORD environment variables (for pulling operator image from a private registry).
-$ K8S_VERSION=1.25 IMG=669783387624.dkr.ecr.us-east-1.amazonaws.com/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+$ K8S_VERSION=1.25 IMG=your-private-registry/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
 ```
 > **NOTE:**  The remote configuration updater test requires the owner of the API Key to have the permission `Fleet Policies Write`. 
 > To get the permission:

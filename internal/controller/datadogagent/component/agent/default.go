@@ -152,6 +152,8 @@ func agentOptimizedContainers(dda metav1.Object, requiredContainers []apicommon.
 			containers = append(containers, systemProbeContainer(dda))
 		case apicommon.OtelAgent:
 			containers = append(containers, otelAgentContainer(dda))
+		case apicommon.AgentDataPlaneContainerName:
+			containers = append(containers, agentDataPlaneContainer(dda))
 		}
 	}
 
@@ -254,6 +256,22 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
 			},
 		},
+	}
+}
+
+func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
+	return corev1.Container{
+		Name:  string(apicommon.AgentDataPlaneContainerName),
+		Image: agentImage(),
+		Command: []string{
+			"agent-data-plane",
+			"run",
+			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
+		},
+		Env:            commonEnvVars(dda),
+		VolumeMounts:   volumeMountsForAgentDataPlane(),
+		LivenessProbe:  v2alpha1.GetDefaultAgentDataPlaneLivenessProbe(),
+		ReadinessProbe: v2alpha1.GetDefaultAgentDataPlaneReadinessProbe(),
 	}
 }
 
@@ -495,6 +513,18 @@ func volumeMountsForOtelAgent() []corev1.VolumeMount {
 		common.GetVolumeMountForDogstatsdSocket(false),
 		common.GetVolumeMountForRuntimeSocket(true),
 		common.GetVolumeMountForProc(),
+	}
+}
+
+func volumeMountsForAgentDataPlane() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForAuth(true),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForDogstatsdSocket(false),
+		common.GetVolumeMountForRuntimeSocket(true),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForCgroups(),
 	}
 }
 

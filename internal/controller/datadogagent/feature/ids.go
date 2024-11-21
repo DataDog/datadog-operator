@@ -67,4 +67,6 @@ const (
 	HelmCheckIDType = "helm_check"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
+	// ServiceDiscoveryType service discovery feature.
+	ServiceDiscoveryType = "service_discovery"
 )

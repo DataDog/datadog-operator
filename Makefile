@@ -152,7 +152,7 @@ generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
 
 .PHONY: generate-docs
 generate-docs: manifests
-	go run ./hack/generate-docs.go
+	go run ./hack/generate-docs/generate-docs.go
 
 # Build the docker images, for local use
 .PHONY: docker-build
@@ -354,7 +354,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.9
+	hack/install-openshift-preflight.sh 1.10.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
