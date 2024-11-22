@@ -3881,11 +3881,12 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                      x-kubernetes-list-type: atomic
                                   type: object
                                 failureThreshold:
                                   description: |-
                                     Minimum consecutive failures for the probe to be considered failed after having succeeded.
-                                    Defaults to 6. Minimum value is 1.
+                                    Defaults to 3. Minimum value is 1.
                                   format: int32
                                   type: integer
                                 grpc:
@@ -3896,10 +3897,10 @@ spec:
                                       format: int32
                                       type: integer
                                     service:
+                                      default: ""
                                       description: |-
                                         Service is the name of the service to place in the gRPC HealthCheckRequest
                                         (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                         If this is not specified, the default behavior is defined by gRPC.
                                       type: string
@@ -3932,6 +3933,7 @@ spec:
                                           - value
                                         type: object
                                       type: array
+                                      x-kubernetes-list-type: atomic
                                     path:
                                       description: Path to access on the HTTP server.
                                       type: string
@@ -3961,7 +3963,7 @@ spec:
                                 periodSeconds:
                                   description: |-
                                     How often (in seconds) to perform the probe.
-                                    Default to 15 seconds. Minimum value is 1.
+                                    Default to 10 seconds. Minimum value is 1.
                                   format: int32
                                   type: integer
                                 successThreshold:
@@ -4005,7 +4007,7 @@ spec:
                                 timeoutSeconds:
                                   description: |-
                                     Number of seconds after which the probe times out.
-                                    Defaults to 5 second. Minimum value is 1.
+                                    Defaults to 1 second. Minimum value is 1.
                                     More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
                                   format: int32
                                   type: integer
@@ -5148,7 +5150,7 @@ spec:
                                     description: DownwardAPIVolumeFile represents information to create the file containing the pod field
                                     properties:
                                       fieldRef:
-                                   description: 'Required: Selects a field of the pod: only annotations, labels, name, namespace and uid are supported.'
+                                        description: 'Required: Selects a field of the pod: only annotations, labels, name, namespace and uid are supported.'
                                         properties:
                                           apiVersion:
                                             description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -5171,7 +5173,7 @@ spec:
                                         format: int32
                                         type: integer
                                       path:
-                                        description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the '..' path. Must be utf-8 encoded. The first item of the relative path must not start with '..''
+                                        description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the ''..'' path. Must be utf-8 encoded. The first item of the relative path must not start with ''..'''
                                         type: string
                                       resourceFieldRef:
                                         description: |-
@@ -6053,7 +6055,7 @@ spec:
                                               description: DownwardAPIVolumeFile represents information to create the file containing the pod field
                                               properties:
                                                 fieldRef:
-                                                  description: 'Required: Selects a field of the pod: only annotations, labels, name and namespace are supported.'
+                                                  description: 'Required: Selects a field of the pod: only annotations, labels, name, namespace and uid are supported.'
                                                   properties:
                                                     apiVersion:
                                                       description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -6076,7 +6078,7 @@ spec:
                                                   format: int32
                                                   type: integer
                                                 path:
-                                                  description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the '..' path. Must be utf-8 encoded. The first item of the relative path must not start with '..''
+                                                  description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the ''..'' path. Must be utf-8 encoded. The first item of the relative path must not start with ''..'''
                                                   type: string
                                                 resourceFieldRef:
                                                   description: |-
