@@ -639,7 +639,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "override liveness probe with default HTTPGet",
+			name:          "override startup probe with default HTTPGet",
 			containerName: common.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -680,7 +680,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "override liveness probe with non-HTTPGet handler",
+			name:          "override startup probe with non-HTTPGet handler",
 			containerName: common.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
@@ -723,7 +723,7 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:          "override liveness probe",
+			name:          "override startup probe",
 			containerName: common.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
