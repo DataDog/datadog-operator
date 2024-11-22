@@ -82,18 +82,19 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 		}
 
 		if componentOverride.Containers[apicommon.FIPSProxyContainerName].Image == nil {
+			componentOverride.Containers[apicommon.FIPSProxyContainerName].Image = &v2alpha1.AgentImageConfig{}
+		}
+
+		if componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.Name == "" {
 			if fipsConfig.Image != nil {
-				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image = &v2alpha1.AgentImageConfig{
-					Name: overrideImage(fipsContainer.Image, fipsConfig.Image),
-				}
-				if fipsConfig.Image.PullPolicy != nil {
-					componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.PullPolicy = fipsConfig.Image.PullPolicy
-				}
+				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.Name = overrideImage(fipsContainer.Image, fipsConfig.Image)
 			} else {
-				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image = &v2alpha1.AgentImageConfig{
-					Name: fipsContainer.Image,
-				}
+				componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.Name = fipsContainer.Image
 			}
+		}
+
+		if fipsConfig.Image.PullPolicy != nil {
+			componentOverride.Containers[apicommon.FIPSProxyContainerName].Image.PullPolicy = fipsConfig.Image.PullPolicy
 		}
 
 		dda.Spec.Override[componentName] = componentOverride
