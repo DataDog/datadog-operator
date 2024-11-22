@@ -39,6 +39,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -54,6 +55,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -69,6 +71,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -85,6 +88,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -101,6 +105,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -118,6 +123,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -135,6 +141,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           true,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -153,6 +160,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           true,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -168,6 +176,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -183,6 +192,7 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 		{
@@ -201,6 +211,39 @@ func TestBuilder(t *testing.T) {
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Default DDA, default feature Option, adp-enabled annotation true",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/adp-enabled": "true"}).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          true,
+			},
+		},
+		{
+			name: "Default DDA, default feature Option, adp-enabled annotation false",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/adp-enabled": "false"}).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
 		},
 	}

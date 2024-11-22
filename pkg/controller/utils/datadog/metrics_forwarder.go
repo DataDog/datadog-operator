@@ -563,16 +563,25 @@ func (mf *metricsForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	return dda, err
 }
 
-// getCredentials retrieves the api key configured in the DatadogAgent
+// getCredentials retrieves the API key configured in the Operator or the DatadogAgent
 func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, error) {
+
+	// Check Operator configured credentials first
+	if mf.credsManager != nil {
+		if creds, err := mf.credsManager.GetCredentials(); err == nil {
+			return creds.APIKey, nil
+		}
+	}
+
+	// Check DatadogAgent credentials
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
 		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
+	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
+
 	var err error
 	apiKey := ""
-
-	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey

@@ -47,6 +47,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/sbom"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/usm"
 )
@@ -57,13 +58,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions        componentagent.ExtendedDaemonsetOptions
-	SupportCilium                   bool
-	OperatorMetricsEnabled          bool
-	IntrospectionEnabled            bool
-	DatadogAgentProfileEnabled      bool
-	ProcessChecksInCoreAgentEnabled bool
-	OtelAgentEnabled                bool
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
+	OtelAgentEnabled           bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -79,7 +79,7 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricForwardersManager,
 ) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,
@@ -88,7 +88,7 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 		scheme:       scheme,
 		log:          log,
 		recorder:     recorder,
-		forwarders:   metricForwarder,
+		forwarders:   metricForwardersMgr,
 	}, nil
 }
 
@@ -105,10 +105,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset:        opts.ExtendedDaemonsetOptions.Enabled,
-		Logger:                          logger,
-		ProcessChecksInCoreAgentEnabled: opts.ProcessChecksInCoreAgentEnabled,
-		OtelAgentEnabled:                opts.OtelAgentEnabled,
+		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
+		Logger:                   logger,
+		OtelAgentEnabled:         opts.OtelAgentEnabled,
 	}
 }
 

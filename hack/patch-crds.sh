@@ -32,4 +32,8 @@ done
 for crd in "$ROOT/$v1"/*.yaml
 do
   $YQ -i -P "$crd"
+  go run $SCRIPTS_DIR/jsonschema/openapi2jsonschema.go "$crd"
 done
+
+# Special run for the DatadogPodAutoscaler CRD
+OPT_PATCH_RESOURCE_LIST=true go run $SCRIPTS_DIR/jsonschema/openapi2jsonschema.go "$ROOT/$v1/datadoghq.com_datadogpodautoscalers.yaml"

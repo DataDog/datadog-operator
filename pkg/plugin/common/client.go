@@ -31,7 +31,7 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	}
 
 	// Create the mapper provider
-	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig, httpClient)
+	mapper, err := apiutil.NewDynamicRESTMapper(restConfig, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
 	}

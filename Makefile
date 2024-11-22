@@ -82,7 +82,7 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
@@ -152,7 +152,7 @@ generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
 
 .PHONY: generate-docs
 generate-docs: manifests
-	go run ./hack/generate-docs.go
+	go run ./hack/generate-docs/generate-docs.go
 
 # Build the docker images, for local use
 .PHONY: docker-build
@@ -286,8 +286,8 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v1alpha1 -O zz_generated.openapi -p ./api/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "." -i ./api/datadoghq/v2alpha1 -O zz_generated.openapi -p ./api/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
@@ -341,7 +341,7 @@ bin/$(PLATFORM)/jq: Makefile
 	hack/install-jq.sh 1.7.1
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.59.1
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.61.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1
@@ -354,11 +354,11 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.9
+	hack/install-openshift-preflight.sh 1.10.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240228011516-70dd3763d340
 
 bin/$(PLATFORM)/kubebuilder:
 	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)

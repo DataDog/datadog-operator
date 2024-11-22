@@ -29,11 +29,14 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
+	defaultRunProcessChecksInCoreAgent    bool = false
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
 
 	defaultEBPFCheckEnabled bool = false
+
+	defaultServiceDiscoveryEnabled bool = false
 
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
@@ -180,6 +183,8 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
@@ -242,6 +247,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.EBPFCheck = &EBPFCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
+
+	if ddaSpec.Features.ServiceDiscovery == nil {
+		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// APM Feature
 	// APM is enabled by default
