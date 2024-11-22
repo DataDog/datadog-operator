@@ -367,6 +367,12 @@ func schema__api_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Refe
 							Ref:         ref("k8s.io/api/core/v1.Probe"),
 						},
 					},
+					"startupProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Startup Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Container-level SecurityContext.",

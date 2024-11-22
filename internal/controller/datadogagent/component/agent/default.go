@@ -126,6 +126,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
 		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+		StartupProbe:   v2alpha1.GetDefaultStartupProbe(), // do we want this here?
 	}
 
 	containers := []corev1.Container{

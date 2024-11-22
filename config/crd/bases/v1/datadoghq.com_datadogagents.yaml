@@ -196,7 +196,7 @@ spec:
                                                 (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                               properties:
                                                 containerName:
-                                                  description: 'Container name: required for volumes, optional for env vars'
+                                                  description: "Container name: required for volumes, optional for env vars"
                                                   type: string
                                                 divisor:
                                                   anyOf:
@@ -206,7 +206,7 @@ spec:
                                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                   x-kubernetes-int-or-string: true
                                                 resource:
-                                                  description: 'Required: resource to select'
+                                                  description: "Required: resource to select"
                                                   type: string
                                               required:
                                                 - resource
@@ -875,10 +875,10 @@ spec:
                             description: EventTypes defines the kind and reasons of events to collect.
                             properties:
                               kind:
-                                description: 'Kind is the kind of event to collect. (ex: Pod, Node, CronJob)'
+                                description: "Kind is the kind of event to collect. (ex: Pod, Node, CronJob)"
                                 type: string
                               reasons:
-                                description: 'Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)'
+                                description: "Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)"
                                 items:
                                   type: string
                                 type: array
@@ -1625,7 +1625,7 @@ spec:
                                   (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                 properties:
                                   containerName:
-                                    description: 'Container name: required for volumes, optional for env vars'
+                                    description: "Container name: required for volumes, optional for env vars"
                                     type: string
                                   divisor:
                                     anyOf:
@@ -1635,7 +1635,7 @@ spec:
                                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                     x-kubernetes-int-or-string: true
                                   resource:
-                                    description: 'Required: resource to select'
+                                    description: "Required: resource to select"
                                     type: string
                                 required:
                                   - resource
@@ -1904,7 +1904,7 @@ spec:
                                 (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                               properties:
                                 containerName:
-                                  description: 'Container name: required for volumes, optional for env vars'
+                                  description: "Container name: required for volumes, optional for env vars"
                                   type: string
                                 divisor:
                                   anyOf:
@@ -1914,7 +1914,7 @@ spec:
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
                                 resource:
-                                  description: 'Required: resource to select'
+                                  description: "Required: resource to select"
                                   type: string
                               required:
                                 - resource
@@ -2983,7 +2983,7 @@ spec:
                                           (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                         properties:
                                           containerName:
-                                            description: 'Container name: required for volumes, optional for env vars'
+                                            description: "Container name: required for volumes, optional for env vars"
                                             type: string
                                           divisor:
                                             anyOf:
@@ -2993,7 +2993,7 @@ spec:
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                             x-kubernetes-int-or-string: true
                                           resource:
-                                            description: 'Required: resource to select'
+                                            description: "Required: resource to select"
                                             type: string
                                         required:
                                           - resource
@@ -3141,7 +3141,7 @@ spec:
                                   description: TCPSocket specifies an action involving a TCP port.
                                   properties:
                                     host:
-                                      description: 'Optional: Host name to connect to, defaults to the pod IP.'
+                                      description: "Optional: Host name to connect to, defaults to the pod IP."
                                       type: string
                                     port:
                                       anyOf:
@@ -3295,7 +3295,7 @@ spec:
                                   description: TCPSocket specifies an action involving a TCP port.
                                   properties:
                                     host:
-                                      description: 'Optional: Host name to connect to, defaults to the pod IP.'
+                                      description: "Optional: Host name to connect to, defaults to the pod IP."
                                       type: string
                                     port:
                                       anyOf:
@@ -3608,6 +3608,151 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            startupProbe:
+                              description: Configure the Startup Probe of the container
+                              properties:
+                                exec:
+                                  description: Exec specifies the action to take.
+                                  properties:
+                                    command:
+                                      description: |-
+                                        Command is the command line to execute inside the container, the working directory for the
+                                        command  is root ('/') in the container's filesystem. The command is simply exec'd, it is
+                                        not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use
+                                        a shell, you need to explicitly call out to that shell.
+                                        Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
+                                      items:
+                                        type: string
+                                      type: array
+                                  type: object
+                                failureThreshold:
+                                  description: |-
+                                    Minimum consecutive failures for the probe to be considered failed after having succeeded.
+                                    Defaults to 6. Minimum value is 1.
+                                  format: int32
+                                  type: integer
+                                grpc:
+                                  description: GRPC specifies an action involving a GRPC port.
+                                  properties:
+                                    port:
+                                      description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                      format: int32
+                                      type: integer
+                                    service:
+                                      description: |-
+                                        Service is the name of the service to place in the gRPC HealthCheckRequest
+                                        (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+
+
+                                        If this is not specified, the default behavior is defined by gRPC.
+                                      type: string
+                                  required:
+                                    - port
+                                  type: object
+                                httpGet:
+                                  description: HTTPGet specifies the http request to perform.
+                                  properties:
+                                    host:
+                                      description: |-
+                                        Host name to connect to, defaults to the pod IP. You probably want to set
+                                        "Host" in httpHeaders instead.
+                                      type: string
+                                    httpHeaders:
+                                      description: Custom headers to set in the request. HTTP allows repeated headers.
+                                      items:
+                                        description: HTTPHeader describes a custom header to be used in HTTP probes
+                                        properties:
+                                          name:
+                                            description: |-
+                                              The header field name.
+                                              This will be canonicalized upon output, so case-variant names will be understood as the same header.
+                                            type: string
+                                          value:
+                                            description: The header field value
+                                            type: string
+                                        required:
+                                          - name
+                                          - value
+                                        type: object
+                                      type: array
+                                    path:
+                                      description: Path to access on the HTTP server.
+                                      type: string
+                                    port:
+                                      anyOf:
+                                        - type: integer
+                                        - type: string
+                                      description: |-
+                                        Name or number of the port to access on the container.
+                                        Number must be in the range 1 to 65535.
+                                        Name must be an IANA_SVC_NAME.
+                                      x-kubernetes-int-or-string: true
+                                    scheme:
+                                      description: |-
+                                        Scheme to use for connecting to the host.
+                                        Defaults to HTTP.
+                                      type: string
+                                  required:
+                                    - port
+                                  type: object
+                                initialDelaySeconds:
+                                  description: |-
+                                    Number of seconds after the container has started before liveness probes are initiated.
+                                    More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+                                  format: int32
+                                  type: integer
+                                periodSeconds:
+                                  description: |-
+                                    How often (in seconds) to perform the probe.
+                                    Default to 15 seconds. Minimum value is 1.
+                                  format: int32
+                                  type: integer
+                                successThreshold:
+                                  description: |-
+                                    Minimum consecutive successes for the probe to be considered successful after having failed.
+                                    Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1.
+                                  format: int32
+                                  type: integer
+                                tcpSocket:
+                                  description: TCPSocket specifies an action involving a TCP port.
+                                  properties:
+                                    host:
+                                      description: "Optional: Host name to connect to, defaults to the pod IP."
+                                      type: string
+                                    port:
+                                      anyOf:
+                                        - type: integer
+                                        - type: string
+                                      description: |-
+                                        Number or name of the port to access on the container.
+                                        Number must be in the range 1 to 65535.
+                                        Name must be an IANA_SVC_NAME.
+                                      x-kubernetes-int-or-string: true
+                                  required:
+                                    - port
+                                  type: object
+                                terminationGracePeriodSeconds:
+                                  description: |-
+                                    Optional duration in seconds the pod needs to terminate gracefully upon probe failure.
+                                    The grace period is the duration in seconds after the processes running in the pod are sent
+                                    a termination signal and the time when the processes are forcibly halted with a kill signal.
+                                    Set this value longer than the expected cleanup time for your process.
+                                    If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this
+                                    value overrides the value provided by the pod spec.
+                                    Value must be non-negative integer. The value zero indicates stop immediately via
+                                    the kill signal (no opportunity to shut down).
+                                    This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate.
+                                    Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset.
+                                  format: int64
+                                  type: integer
+                                timeoutSeconds:
+                                  description: |-
+                                    Number of seconds after which the probe times out.
+                                    Defaults to 5 second. Minimum value is 1.
+                                    More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes
+                                  format: int32
+                                  type: integer
+                              type: object
                             volumeMounts:
                               description: Specify additional volume mounts in the container.
                               items:
@@ -3838,7 +3983,7 @@ spec:
                                     (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                   properties:
                                     containerName:
-                                      description: 'Container name: required for volumes, optional for env vars'
+                                      description: "Container name: required for volumes, optional for env vars"
                                       type: string
                                     divisor:
                                       anyOf:
@@ -3848,7 +3993,7 @@ spec:
                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                       x-kubernetes-int-or-string: true
                                     resource:
-                                      description: 'Required: resource to select'
+                                      description: "Required: resource to select"
                                       type: string
                                   required:
                                     - resource
@@ -4405,7 +4550,7 @@ spec:
                               description: azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
                               properties:
                                 cachingMode:
-                                  description: 'cachingMode is the Host Caching mode: None, Read Only, Read Write.'
+                                  description: "cachingMode is the Host Caching mode: None, Read Only, Read Write."
                                   type: string
                                 diskName:
                                   description: diskName is the Name of the data disk in the blob storage
@@ -4420,7 +4565,7 @@ spec:
                                     Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
                                   type: string
                                 kind:
-                                  description: 'kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared'
+                                  description: "kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared"
                                   type: string
                                 readOnly:
                                   description: |-
@@ -4460,7 +4605,7 @@ spec:
                                     type: string
                                   type: array
                                 path:
-                                  description: 'path is Optional: Used as the mounted root, rather than the full Ceph tree, default is /'
+                                  description: "path is Optional: Used as the mounted root, rather than the full Ceph tree, default is /"
                                   type: string
                                 readOnly:
                                   description: |-
@@ -4661,7 +4806,7 @@ spec:
                                     description: DownwardAPIVolumeFile represents information to create the file containing the pod field
                                     properties:
                                       fieldRef:
-                                        description: 'Required: Selects a field of the pod: only annotations, labels, name and namespace are supported.'
+                                        description: "Required: Selects a field of the pod: only annotations, labels, name and namespace are supported."
                                         properties:
                                           apiVersion:
                                             description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -4684,7 +4829,7 @@ spec:
                                         format: int32
                                         type: integer
                                       path:
-                                        description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the ''..'' path. Must be utf-8 encoded. The first item of the relative path must not start with ''..'''
+                                        description: "Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the '..' path. Must be utf-8 encoded. The first item of the relative path must not start with '..'"
                                         type: string
                                       resourceFieldRef:
                                         description: |-
@@ -4692,7 +4837,7 @@ spec:
                                           (limits.cpu, limits.memory, requests.cpu and requests.memory) are currently supported.
                                         properties:
                                           containerName:
-                                            description: 'Container name: required for volumes, optional for env vars'
+                                            description: "Container name: required for volumes, optional for env vars"
                                             type: string
                                           divisor:
                                             anyOf:
@@ -4702,7 +4847,7 @@ spec:
                                             pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                             x-kubernetes-int-or-string: true
                                           resource:
-                                            description: 'Required: resource to select'
+                                            description: "Required: resource to select"
                                             type: string
                                         required:
                                           - resource
@@ -5024,7 +5169,7 @@ spec:
                                     TODO: how do we prevent errors in the filesystem from compromising the machine
                                   type: string
                                 lun:
-                                  description: 'lun is Optional: FC target lun number'
+                                  description: "lun is Optional: FC target lun number"
                                   format: int32
                                   type: integer
                                 readOnly:
@@ -5033,7 +5178,7 @@ spec:
                                     the ReadOnly setting in VolumeMounts.
                                   type: boolean
                                 targetWWNs:
-                                  description: 'targetWWNs is Optional: FC target worldwide names (WWNs)'
+                                  description: "targetWWNs is Optional: FC target worldwide names (WWNs)"
                                   items:
                                     type: string
                                   type: array
@@ -5062,7 +5207,7 @@ spec:
                                 options:
                                   additionalProperties:
                                     type: string
-                                  description: 'options is Optional: this field holds extra command options if any.'
+                                  description: "options is Optional: this field holds extra command options if any."
                                   type: object
                                 readOnly:
                                   description: |-
@@ -5445,7 +5590,7 @@ spec:
                                               description: DownwardAPIVolumeFile represents information to create the file containing the pod field
                                               properties:
                                                 fieldRef:
-                                                  description: 'Required: Selects a field of the pod: only annotations, labels, name and namespace are supported.'
+                                                  description: "Required: Selects a field of the pod: only annotations, labels, name and namespace are supported."
                                                   properties:
                                                     apiVersion:
                                                       description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -5468,7 +5613,7 @@ spec:
                                                   format: int32
                                                   type: integer
                                                 path:
-                                                  description: 'Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the ''..'' path. Must be utf-8 encoded. The first item of the relative path must not start with ''..'''
+                                                  description: "Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the '..' path. Must be utf-8 encoded. The first item of the relative path must not start with '..'"
                                                   type: string
                                                 resourceFieldRef:
                                                   description: |-
@@ -5476,7 +5621,7 @@ spec:
                                                     (limits.cpu, limits.memory, requests.cpu and requests.memory) are currently supported.
                                                   properties:
                                                     containerName:
-                                                      description: 'Container name: required for volumes, optional for env vars'
+                                                      description: "Container name: required for volumes, optional for env vars"
                                                       type: string
                                                     divisor:
                                                       anyOf:
@@ -5486,7 +5631,7 @@ spec:
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                       x-kubernetes-int-or-string: true
                                                     resource:
-                                                      description: 'Required: resource to select'
+                                                      description: "Required: resource to select"
                                                       type: string
                                                   required:
                                                     - resource
@@ -6298,7 +6443,7 @@ spec:
                                                     (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
                                                   properties:
                                                     containerName:
-                                                      description: 'Container name: required for volumes, optional for env vars'
+                                                      description: "Container name: required for volumes, optional for env vars"
                                                       type: string
                                                     divisor:
                                                       anyOf:
@@ -6308,7 +6453,7 @@ spec:
                                                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                                       x-kubernetes-int-or-string: true
                                                     resource:
-                                                      description: 'Required: resource to select'
+                                                      description: "Required: resource to select"
                                                       type: string
                                                   required:
                                                     - resource
@@ -6977,10 +7122,10 @@ spec:
                                 description: EventTypes defines the kind and reasons of events to collect.
                                 properties:
                                   kind:
-                                    description: 'Kind is the kind of event to collect. (ex: Pod, Node, CronJob)'
+                                    description: "Kind is the kind of event to collect. (ex: Pod, Node, CronJob)"
                                     type: string
                                   reasons:
-                                    description: 'Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)'
+                                    description: "Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)"
                                     items:
                                       type: string
                                     type: array
