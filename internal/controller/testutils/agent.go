@@ -501,6 +501,21 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 					SuccessThreshold:    1,
 					FailureThreshold:    5,
 				},
+				StartupProbe: &v1.Probe{
+					ProbeHandler: v1.ProbeHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Port: intstr.IntOrString{
+								IntVal: v2alpha1.DefaultAgentHealthPort,
+							},
+						},
+					},
+					InitialDelaySeconds: 15,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       15,
+					SuccessThreshold:    1,
+					FailureThreshold:    6,
+				},
 				SecurityContext: &v1.SecurityContext{
 					RunAsUser: apiutils.NewInt64Pointer(12345),
 				},
