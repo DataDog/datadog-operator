@@ -668,7 +668,7 @@ func TestContainer(t *testing.T) {
 							FailureThreshold:    5,
 							ProbeHandler: corev1.ProbeHandler{
 								HTTPGet: &corev1.HTTPGetAction{
-									Path: "/live",
+									Path: "/startup",
 									Port: intstr.IntOrString{
 										IntVal: 5555,
 									},

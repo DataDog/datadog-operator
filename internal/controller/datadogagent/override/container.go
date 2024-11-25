@@ -244,10 +244,10 @@ func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
 }
 
 func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
-	// Add default httpGet probeHandler if probeHandler is not configured in livenessProbe override
+	// Add default httpGet probeHandler if probeHandler is not configured in startupProbe override
 	if !hasProbeHandler(startupProbeOverride) {
 		startupProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+			Path: v2alpha1.DefaultStartupProbeHTTPPath,
 			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
 	}
 	return startupProbeOverride
