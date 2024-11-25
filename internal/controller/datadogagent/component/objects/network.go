@@ -132,21 +132,17 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 
 // GetNetworkPolicyMetadata generates a label selector based on component
 func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
-	var suffix string
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
 		policyName = componentagent.GetAgentName(dda)
-		suffix = v2alpha1.DefaultAgentResourceSuffix
 	case v2alpha1.ClusterAgentComponentName:
 		policyName = componentdca.GetClusterAgentName(dda)
-		suffix = v2alpha1.DefaultClusterAgentResourceSuffix
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policyName = componentccr.GetClusterChecksRunnerName(dda)
-		suffix = v2alpha1.DefaultClusterChecksRunnerResourceSuffix
 	}
 	podSelector = metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: suffix,
+			kubernetes.AppKubernetesInstanceLabelKey: policyName,
 			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
 		},
 	}
@@ -555,7 +551,7 @@ func egressCCRToDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.
 				ToEndpoints: []metav1.LabelSelector{
 					{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+							kubernetes.AppKubernetesInstanceLabelKey: componentdca.GetClusterAgentName(dda),
 							kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
 						},
 					},

@@ -186,7 +186,7 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
-func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
@@ -241,14 +241,12 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder = builder.Owns(policy)
 	}
 
-	var metricForwarder datadog.MetricForwardersManager
 	var builderOptions []ctrlbuilder.ForOption
 	if r.Options.OperatorMetricsEnabled {
-		metricForwarder = datadog.NewForwardersManager(r.Client, &r.PlatformInfo)
 		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwarder.Register(e.Object)
+				metricForwardersMgr.Register(e.Object)
 				return true
 			},
 		}))
@@ -258,7 +256,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
 	if err != nil {
 		return err
 	}
