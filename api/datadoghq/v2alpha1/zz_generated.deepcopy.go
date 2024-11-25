@@ -1500,6 +1500,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.ChecksTagCardinality != nil {
+		in, out := &in.ChecksTagCardinality, &out.ChecksTagCardinality
+		*out = new(string)
+		**out = **in
+	}
 	if in.OriginDetectionUnified != nil {
 		in, out := &in.OriginDetectionUnified, &out.OriginDetectionUnified
 		*out = new(OriginDetectionUnified)
@@ -1620,6 +1625,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		in, out := &in.SecretBackend, &out.SecretBackend
 		*out = new(SecretBackendConfig)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.RunProcessChecksInCoreAgent != nil {
+		in, out := &in.RunProcessChecksInCoreAgent, &out.RunProcessChecksInCoreAgent
+		*out = new(bool)
+		**out = **in
 	}
 }
 

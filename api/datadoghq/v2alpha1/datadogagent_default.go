@@ -29,6 +29,7 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
+	defaultRunProcessChecksInCoreAgent    bool = false
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
@@ -182,6 +183,8 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
