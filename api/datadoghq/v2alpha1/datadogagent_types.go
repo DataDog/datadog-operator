@@ -1199,6 +1199,13 @@ type GlobalConfig struct {
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`).
+	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality.
+	// Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low.
+	// Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625.
+	// +optional
+	ChecksTagCardinality *string `json:"checksTagCardinality,omitempty"`
+
 	// OriginDetectionUnified defines the origin detection unified mechanism behavior.
 	// +optional
 	OriginDetectionUnified *OriginDetectionUnified `json:"originDetectionUnified,omitempty"`
@@ -1278,6 +1285,13 @@ type GlobalConfig struct {
 	// Configure the secret backend feature https://docs.datadoghq.com/agent/guide/secrets-management
 	// See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
+
+	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
+	// The Process Agent container won't spin up if there are no other running checks as a result.
+	// (Requires Agent 7.57.0+)
+	// Default: 'false'
+	// +optional
+	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.

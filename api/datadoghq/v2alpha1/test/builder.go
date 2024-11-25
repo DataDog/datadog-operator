@@ -168,6 +168,15 @@ func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stri
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithProcessChecksInCoreAgent(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global == nil {
+		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgent.Spec.Global.RunProcessChecksInCoreAgent = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Admission Controller
 func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
@@ -789,11 +798,18 @@ func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *Da
 	return builder
 }
 
-// Global OriginDetectionUnified
+// Global Registry
 
 func (builder *DatadogAgentBuilder) WithRegistry(registry string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Registry = apiutils.NewStringPointer(registry)
 
+	return builder
+}
+
+// Global ChecksTagCardinality
+
+func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ChecksTagCardinality = apiutils.NewStringPointer(cardinality)
 	return builder
 }
 
