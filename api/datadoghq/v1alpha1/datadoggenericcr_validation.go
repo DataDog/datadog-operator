@@ -21,5 +21,10 @@ func IsValidDatadogGenericCR(spec *DatadogGenericCRSpec) error {
 	if _, ok := allowedCustomResourcesEnumMap[spec.Type]; !ok {
 		errs = append(errs, fmt.Errorf("spec.Type must be a supported resource type"))
 	}
+
+	if spec.JsonSpec == "" {
+		errs = append(errs, fmt.Errorf("spec.JsonSpec must be defined"))
+	}
+
 	return utilserrors.NewAggregate(errs)
 }
