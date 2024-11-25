@@ -6,6 +6,7 @@
 package enabledefault
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -72,6 +73,9 @@ type defaultFeature struct {
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+
+	kubernetesResourcesLabelsAsTags      map[string]map[string]string
+	kubernetesResourcesAnnotationsAsTags map[string]map[string]string
 }
 
 type credentialsInfo struct {
@@ -99,6 +103,8 @@ type secretInfo struct {
 type clusterAgentConfig struct {
 	serviceAccountName        string
 	serviceAccountAnnotations map[string]string
+
+	resourceMetadataAsTagsClusterRoleName string
 }
 
 type agentConfig struct {
@@ -189,6 +195,11 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
+
+		f.kubernetesResourcesLabelsAsTags = dda.Spec.Global.KubernetesResourcesLabelsAsTags
+		f.kubernetesResourcesAnnotationsAsTags = dda.Spec.Global.KubernetesResourcesAnnotationsAsTags
+		f.clusterAgent.resourceMetadataAsTagsClusterRoleName = componentdca.GetResourceMetadataAsTagsClusterRoleName(dda)
+
 		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
 		if err != nil {
 			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
@@ -346,6 +357,18 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		return err
 	}
 
+	if len(f.kubernetesResourcesLabelsAsTags) > 0 || len(f.kubernetesResourcesAnnotationsAsTags) > 0 {
+		err := managers.RBACManager().AddClusterPolicyRules(
+			f.owner.GetNamespace(),
+			f.clusterAgent.resourceMetadataAsTagsClusterRoleName,
+			f.clusterAgent.serviceAccountName,
+			getKubernetesResourceMetadataAsTagsPolicyRules(f.kubernetesResourcesLabelsAsTags, f.kubernetesResourcesAnnotationsAsTags),
+		)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -397,6 +420,7 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		Name:  DDDatadogAgentCustomResource,
 		Value: f.owner.GetName(),
 	})
+
 	return nil
 }
 
@@ -445,6 +469,30 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 	if f.credentialsInfo.appKey.SecretName != "" {
 		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
+	}
+
+	if len(f.kubernetesResourcesLabelsAsTags) > 0 {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(f.kubernetesResourcesLabelsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	if len(f.kubernetesResourcesAnnotationsAsTags) > 0 {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(f.kubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
 	}
 }
 
