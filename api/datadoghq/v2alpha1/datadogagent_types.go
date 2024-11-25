@@ -690,13 +690,13 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+	// Validation contains Admission Controller validation configurations.
 	// +optional
-	AdmissionControllerValidationConfig *AdmissionControllerValidationConfig `json:"validation,omitempty"`
+	Validation *AdmissionControllerValidationConfig `json:"validation,omitempty"`
 
-	// AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+	// Mutation contains Admission Controller mutation configurations.
 	// +optional
-	AdmissionControllerMutationConfig *AdmissionControllerMutationConfig `json:"mutation,omitempty"`
+	Mutation *AdmissionControllerMutationConfig `json:"mutation,omitempty"`
 
 	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
 	// Default: false

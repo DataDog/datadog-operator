@@ -480,16 +480,16 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// AdmissionControllerValidation Feature
-	if ddaSpec.Features.AdmissionController.AdmissionControllerValidationConfig == nil {
-		ddaSpec.Features.AdmissionController.AdmissionControllerValidationConfig = &AdmissionControllerValidationConfig{}
+	if ddaSpec.Features.AdmissionController.Validation == nil {
+		ddaSpec.Features.AdmissionController.Validation = &AdmissionControllerValidationConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.AdmissionControllerValidationConfig.Enabled, defaultAdmissionControllerValidationEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Validation.Enabled, defaultAdmissionControllerValidationEnabled)
 
 	// AdmissionControllerMutation Feature
-	if ddaSpec.Features.AdmissionController.AdmissionControllerMutationConfig == nil {
-		ddaSpec.Features.AdmissionController.AdmissionControllerMutationConfig = &AdmissionControllerMutationConfig{}
+	if ddaSpec.Features.AdmissionController.Mutation == nil {
+		ddaSpec.Features.AdmissionController.Mutation = &AdmissionControllerMutationConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.AdmissionControllerMutationConfig.Enabled, defaultAdmissionControllerMutationEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Mutation.Enabled, defaultAdmissionControllerMutationEnabled)
 
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {

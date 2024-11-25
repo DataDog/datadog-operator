@@ -86,11 +86,11 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	ac := dda.Spec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
-		if ac.AdmissionControllerValidationConfig != nil && ac.AdmissionControllerValidationConfig.Enabled != nil {
-			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.AdmissionControllerValidationConfig.Enabled)}
+		if ac.Validation != nil && ac.Validation.Enabled != nil {
+			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
 		}
-		if ac.AdmissionControllerMutationConfig != nil && ac.AdmissionControllerMutationConfig.Enabled != nil {
-			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.AdmissionControllerMutationConfig.Enabled)}
+		if ac.Mutation != nil && ac.Mutation.Enabled != nil {
+			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.Mutation.Enabled)}
 		}
 
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)

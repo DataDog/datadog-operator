@@ -441,7 +441,7 @@ spec:
                             Default: false
                           type: boolean
                         mutation:
-                          description: AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+                          description: Mutation contains Admission Controller mutation configurations.
                           properties:
                             enabled:
                               description: |-
@@ -456,7 +456,7 @@ spec:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
                         validation:
-                          description: AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+                          description: Validation contains Admission Controller validation configurations.
                           properties:
                             enabled:
                               description: |-
@@ -7023,7 +7023,7 @@ spec:
                                 Default: false
                               type: boolean
                             mutation:
-                              description: AdmissionControllerMutationConfig contains Admission Controller mutation configurations.
+                              description: Mutation contains Admission Controller mutation configurations.
                               properties:
                                 enabled:
                                   description: |-
@@ -7038,7 +7038,7 @@ spec:
                               description: ServiceName corresponds to the webhook service name.
                               type: string
                             validation:
-                              description: AdmissionControllerValidationConfig contains Admission Controller validation configurations.
+                              description: Validation contains Admission Controller validation configurations.
                               properties:
                                 enabled:
                                   description: |-

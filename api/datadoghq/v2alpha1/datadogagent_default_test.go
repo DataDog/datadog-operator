@@ -278,10 +278,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -367,9 +367,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled:                             apiutils.NewBoolPointer(valueFalse),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
-						AdmissionControllerMutationConfig:   &AdmissionControllerMutationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						Enabled:    apiutils.NewBoolPointer(valueFalse),
+						Validation: &AdmissionControllerValidationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						Mutation:   &AdmissionControllerMutationConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -471,10 +471,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 						CWSInstrumentation: &CWSInstrumentationConfig{
@@ -614,10 +614,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -755,10 +755,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -891,10 +891,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1029,10 +1029,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1172,10 +1172,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1311,10 +1311,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1447,10 +1447,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1473,10 +1473,10 @@ func Test_defaultFeatures(t *testing.T) {
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					AdmissionController: &AdmissionControllerFeatureConfig{
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(true),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(true),
 						},
 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
@@ -1593,10 +1593,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled:       apiutils.NewBoolPointer(valueTrue),
@@ -1732,10 +1732,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -1890,10 +1890,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -2039,10 +2039,10 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						AdmissionControllerValidationConfig: &AdmissionControllerValidationConfig{
+						Validation: &AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						AdmissionControllerMutationConfig: &AdmissionControllerMutationConfig{
+						Mutation: &AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),

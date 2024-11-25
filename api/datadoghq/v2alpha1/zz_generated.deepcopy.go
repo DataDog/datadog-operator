@@ -149,13 +149,13 @@ func (in *AdmissionControllerFeatureConfig) DeepCopyInto(out *AdmissionControlle
 		*out = new(bool)
 		**out = **in
 	}
-	if in.AdmissionControllerValidationConfig != nil {
-		in, out := &in.AdmissionControllerValidationConfig, &out.AdmissionControllerValidationConfig
+	if in.Validation != nil {
+		in, out := &in.Validation, &out.Validation
 		*out = new(AdmissionControllerValidationConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.AdmissionControllerMutationConfig != nil {
-		in, out := &in.AdmissionControllerMutationConfig, &out.AdmissionControllerMutationConfig
+	if in.Mutation != nil {
+		in, out := &in.Mutation, &out.Mutation
 		*out = new(AdmissionControllerMutationConfig)
 		(*in).DeepCopyInto(*out)
 	}
