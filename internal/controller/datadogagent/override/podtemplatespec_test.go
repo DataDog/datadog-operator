@@ -51,6 +51,25 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "given URI, override image name, tag; don't override a nonAgentContainer",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0", nonAgentName: "someregistry.com/datadog/non-agent:1.1.0"}, t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{
+					Name: "custom-agent",
+					Tag:  "latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assertImageConfigValues(
+					manager,
+					containerImageOptions{name: "someregistry.com/datadog/custom-agent:latest", nonAgentName: "someregistry.com/datadog/non-agent:1.1.0"},
+					t,
+				)
+			},
+		},
+		{
 			name: "01: given URI, override image name, tag, JMX",
 			existingManager: func() *fake.PodTemplateManagers {
 				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"}, t)
@@ -983,6 +1002,8 @@ type containerImageOptions struct {
 	name           string
 	pullPolicy     string
 	pullSecretName string
+
+	nonAgentName string
 }
 
 // In practice, image string registry will be derived either from global.registry setting or the default.
@@ -998,6 +1019,12 @@ func fakePodTemplateManagersWithImageOverride(imageOptions containerImageOptions
 	manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{basicContainer}
 	manager.PodTemplateSpec().Spec.Containers = []v1.Container{basicContainer}
 
+	// This represents a container that doesn't use the agent image
+	if imageOptions.nonAgentName != "" {
+		basicNonAgentContainer := v1.Container{Name: "nonAgent", Image: imageOptions.nonAgentName}
+		manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, basicNonAgentContainer)
+	}
+
 	if imageOptions.pullSecretName != "" {
 		manager.PodTemplateSpec().Spec.ImagePullSecrets = []v1.LocalObjectReference{{Name: imageOptions.pullSecretName}}
 	}
@@ -1011,9 +1038,13 @@ func assertImageConfigValues(manager *fake.PodTemplateManagers, imageOptions con
 		manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
 	)
 
-	image := imageOptions.name
 	for _, container := range allContainers {
-		assert.Equal(t, image, container.Image)
+		if container.Name == "agent" {
+			assert.Equal(t, imageOptions.name, container.Image)
+		} else {
+			// This represents a container that doesn't use the agent image
+			assert.Equal(t, imageOptions.nonAgentName, container.Image)
+		}
 	}
 
 	if imageOptions.pullPolicy != "" {
