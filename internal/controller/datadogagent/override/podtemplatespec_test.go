@@ -990,7 +990,7 @@ type containerImageOptions struct {
 func fakePodTemplateManagersWithImageOverride(imageOptions containerImageOptions, t *testing.T) *fake.PodTemplateManagers {
 	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 
-	basicContainer := v1.Container{Image: imageOptions.name}
+	basicContainer := v1.Container{Name: "agent", Image: imageOptions.name}
 	if imageOptions.pullPolicy != "" {
 		basicContainer.ImagePullPolicy = v1.PullPolicy(imageOptions.pullPolicy)
 	}

@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
+// Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
 func Container(containerName common.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override == nil {
 		return
