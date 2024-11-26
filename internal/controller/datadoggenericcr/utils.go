@@ -16,6 +16,8 @@ import (
 type operation string
 
 const (
+	// mockSubresource is used to mock the subresource in tests
+	mockSubresource           = "mock_resource"
 	operationDelete operation = "delete"
 	operationGet    operation = "get"
 	operationUpdate operation = "update"
@@ -52,6 +54,15 @@ var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
 	{v1alpha1.Notebook, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 	},
+	// {mockSubresource, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	// 	return nil
+	// },
+	// {mockSubresource, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	// 	return nil
+	// },
+	// {mockSubresource, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	// 	return nil
+	// },
 }
 
 // Common handler executor (delete, get and update)
