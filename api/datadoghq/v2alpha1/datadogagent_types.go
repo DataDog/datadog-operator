@@ -1645,6 +1645,10 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 
+	// Configure the Startup Probe of the container
+	// +optional
+	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
+
 	// Container-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
