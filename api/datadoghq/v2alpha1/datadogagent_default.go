@@ -76,6 +76,8 @@ const (
 
 	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
 	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerValidationEnabled               bool   = true
+	defaultAdmissionControllerMutationEnabled                 bool   = true
 	defaultAdmissionControllerMutateUnlabelled                bool   = false
 	defaultAdmissionServiceName                               string = "datadog-admission-controller"
 	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
@@ -475,21 +477,23 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
-
 	}
+
+	// AdmissionControllerValidation Feature
+	if ddaSpec.Features.AdmissionController.Validation == nil {
+		ddaSpec.Features.AdmissionController.Validation = &AdmissionControllerValidationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Validation.Enabled, defaultAdmissionControllerValidationEnabled)
+
+	// AdmissionControllerMutation Feature
+	if ddaSpec.Features.AdmissionController.Mutation == nil {
+		ddaSpec.Features.AdmissionController.Mutation = &AdmissionControllerMutationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Mutation.Enabled, defaultAdmissionControllerMutationEnabled)
+
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
-	}
-
-	// CWS Instrumentation in AdmissionController Feature
-	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
-		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
-	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
-
-	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
 	}
 
 	// CWS Instrumentation in AdmissionController Feature
