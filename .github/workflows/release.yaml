@@ -42,7 +42,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
-          token:  ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -124,7 +124,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
-          token:  ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
