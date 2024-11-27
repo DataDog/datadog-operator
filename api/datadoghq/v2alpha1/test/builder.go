@@ -182,6 +182,12 @@ func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.Validation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.Validation = &v2alpha1.AdmissionControllerValidationConfig{}
+	}
+	if builder.datadogAgent.Spec.Features.AdmissionController.Mutation == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController.Mutation = &v2alpha1.AdmissionControllerMutationConfig{}
+	}
 	if builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation == nil {
 		builder.datadogAgent.Spec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
@@ -199,6 +205,18 @@ func (builder *DatadogAgentBuilder) initSidecarInjection() {
 func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerValidationEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Validation.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerMutationEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Mutation.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 

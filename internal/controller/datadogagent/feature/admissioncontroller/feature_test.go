@@ -36,7 +36,18 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "", false)),
+				admissionControllerWantFunc(false, false, "", "", false)),
+		},
+		{
+			Name: "Admission Controller enabled with validation and mutation enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerValidationEnabled(true).
+				WithAdmissionControllerMutationEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				admissionControllerWantFunc(true, true, "", "", false)),
 		},
 		{
 			Name: "Admission controller enabled, cwsInstrumentation enabled",
@@ -47,7 +58,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "", true)),
+				admissionControllerWantFunc(false, false, "", "", true)),
 		},
 		{
 			Name: "Admission Controller enabled with overriding registry",
@@ -57,7 +68,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "testRegistry", false)),
+				admissionControllerWantFunc(false, false, "", "testRegistry", false)),
 		},
 		{
 			Name: "Admission Controller enabled with custom registry in global config, override with feature config",
@@ -68,7 +79,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("", "featureRegistry", false)),
+				admissionControllerWantFunc(false, false, "", "featureRegistry", false)),
 		},
 		{
 			Name: "Admission Controller enabled with apm uds",
@@ -79,7 +90,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("socket", "", false)),
+				admissionControllerWantFunc(false, false, "socket", "", false)),
 		},
 		{
 			Name: "Admission Controller enabled with DSD uds",
@@ -89,7 +100,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				admissionControllerWantFunc("socket", "", false)),
+				admissionControllerWantFunc(false, false, "socket", "", false)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar basic setup",
@@ -201,6 +212,14 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 					Value: "true",
 				},
 				{
+					Name:  apicommon.DDAdmissionControllerValidationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAdmissionControllerMutationEnabled,
+					Value: "true",
+				},
+				{
 					Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
 					Value: "true",
 				},
@@ -254,7 +273,7 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 	)
 }
 
-func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
+func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDAdmissionControllerEnabled,
@@ -272,6 +291,22 @@ func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
 			Name:  apicommon.DDAdmissionControllerWebhookName,
 			Value: "datadog-webhook",
 		},
+	}
+
+	if validation {
+		validationEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerValidationEnabled,
+			Value: apiutils.BoolToString(&validation),
+		}
+		envVars = append(envVars, &validationEnv)
+	}
+
+	if mutation {
+		mutationEnv := corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerMutationEnabled,
+			Value: apiutils.BoolToString(&mutation),
+		}
+		envVars = append(envVars, &mutationEnv)
 	}
 
 	if acm != "" {
@@ -305,11 +340,11 @@ func getACEnvVars(acm, registry string, cws bool) []*corev1.EnvVar {
 	return envVars
 }
 
-func admissionControllerWantFunc(acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
+func admissionControllerWantFunc(validation, mutation bool, acm, registry string, cws bool) func(testing.TB, feature.PodTemplateManagers) {
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-		want := getACEnvVars(acm, registry, cws)
+		want := getACEnvVars(validation, mutation, acm, registry, cws)
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,
@@ -384,7 +419,7 @@ func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageT
 	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
-		want := sidecarHelperFunc(getACEnvVars(acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles))
+		want := sidecarHelperFunc(getACEnvVars(false, false, acm, acRegistry, false), getSidecarEnvVars(imageName, imageTag, sidecarRegstry, selectors, profiles))
 		assert.ElementsMatch(
 			t,
 			dcaEnvVars,

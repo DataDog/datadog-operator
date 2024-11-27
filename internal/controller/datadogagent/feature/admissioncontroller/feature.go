@@ -32,20 +32,30 @@ func init() {
 }
 
 type admissionControllerFeature struct {
-	mutateUnlabelled       bool
-	serviceName            string
-	webhookName            string
-	agentCommunicationMode string
-	agentSidecarConfig     *AgentSidecarInjectionConfig
-	localServiceName       string
-	failurePolicy          string
-	registry               string
-	serviceAccountName     string
-	owner                  metav1.Object
-	networkPolicy          v2alpha1.NetworkPolicyFlavor
+	validationWebhookConfig *ValidationConfig
+	mutationWebhookConfig   *MutationConfig
+	mutateUnlabelled        bool
+	serviceName             string
+	webhookName             string
+	agentCommunicationMode  string
+	agentSidecarConfig      *AgentSidecarInjectionConfig
+	localServiceName        string
+	failurePolicy           string
+	registry                string
+	serviceAccountName      string
+	owner                   metav1.Object
+	networkPolicy           v2alpha1.NetworkPolicyFlavor
 
 	cwsInstrumentationEnabled bool
 	cwsInstrumentationMode    string
+}
+
+type ValidationConfig struct {
+	enabled bool
+}
+
+type MutationConfig struct {
+	enabled bool
 }
 
 type AgentSidecarInjectionConfig struct {
@@ -81,6 +91,13 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	ac := dda.Spec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
+		if ac.Validation != nil && ac.Validation.Enabled != nil {
+			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
+		}
+		if ac.Mutation != nil && ac.Mutation.Enabled != nil {
+			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.Mutation.Enabled)}
+		}
+
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
@@ -294,6 +311,20 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  apicommon.DDAdmissionControllerEnabled,
 		Value: "true",
 	})
+
+	if f.validationWebhookConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerValidationEnabled,
+			Value: apiutils.BoolToString(&f.validationWebhookConfig.enabled),
+		})
+	}
+
+	if f.mutationWebhookConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerMutationEnabled,
+			Value: apiutils.BoolToString(&f.mutationWebhookConfig.enabled),
+		})
+	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
