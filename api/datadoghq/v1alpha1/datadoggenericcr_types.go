@@ -13,6 +13,7 @@ type SupportedResourcesType string
 
 const (
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
+	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	Notebook              SupportedResourcesType = "notebook"
 )
 

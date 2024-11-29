@@ -11,10 +11,12 @@ import (
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-var allowedCustomResourcesEnumMap = map[SupportedResourcesType]struct{}{
-	SyntheticsBrowserTest: {},
-	Notebook:              {},
-	"mock_resource":       {},
+var allowedCustomResourcesEnumMap = map[SupportedResourcesType]string{
+	SyntheticsAPITest:     "",
+	SyntheticsBrowserTest: "",
+	Notebook:              "",
+	// mockSubresource is used to mock the subresource in tests
+	"mock_resource": "",
 }
 
 func IsValidDatadogGenericCR(spec *DatadogGenericCRSpec) error {

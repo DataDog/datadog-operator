@@ -52,3 +52,25 @@ func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.Synthet
 	}
 	return testUpdated, nil
 }
+
+// API test: create
+func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsAPITest, error) {
+	apiTestBody := &datadogV1.SyntheticsAPITest{}
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	test, _, err := client.CreateSyntheticsAPITest(auth, *apiTestBody)
+	if err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error creating API test")
+	}
+	return test, nil
+}
+
+// API test: update
+func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsAPITest, error) {
+	apiTestBody := &datadogV1.SyntheticsAPITest{}
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
+	testUpdated, _, err := client.UpdateAPITest(auth, instance.Status.Id, *apiTestBody)
+	if err != nil {
+		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error updating API test")
+	}
+	return testUpdated, nil
+}

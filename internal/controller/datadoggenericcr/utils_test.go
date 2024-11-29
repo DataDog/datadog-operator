@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -143,89 +145,110 @@ func Test_translateClientError(t *testing.T) {
 	}
 }
 
-// func TestUnsupportedInstanceType(t *testing.T) {
-// 	instance := &v1alpha1.DatadogGenericCR{
-// 		Spec: v1alpha1.DatadogGenericCRSpec{
-// 			Type: "unsupported",
-// 		},
-// 	}
-// 	err := unsupportedInstanceType(instance)
-// 	assert.Contains(t, err.Error(), "unsupported type: unsupported")
-// }
+func Test_updateStatusFromSyntheticsTest(t *testing.T) {
+	mockLogger := logr.Discard()
+	hash := "test-hash"
 
-// func TestApiDelete(t *testing.T) {
-// 	mockReconciler := &MockReconciler{}
-// 	instance := &v1alpha1.DatadogGenericCR{
-// 		Spec: v1alpha1.DatadogGenericCRSpec{
-// 			Type: v1alpha1.SyntheticsBrowserTest,
-// 		},
-// 		Status: v1alpha1.DatadogGenericCRStatus{
-// 			Id: "test-id",
-// 		},
-// 	}
+	tests := []struct {
+		name                 string
+		additionalProperties map[string]interface{}
+		expectedStatus       v1alpha1.DatadogGenericCRStatus
+	}{
+		{
+			name: "valid properties",
+			additionalProperties: map[string]interface{}{
+				"created_at": "2024-01-01T00:00:00Z",
+				"created_by": map[string]interface{}{
+					"handle": "test-handle",
+				},
+			},
+			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+				Id:                "test-id",
+				Creator:           "test-handle",
+				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
+				CurrentHash:       hash,
+				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			},
+		},
+		{
+			name: "missing created_at",
+			additionalProperties: map[string]interface{}{
+				"created_by": map[string]interface{}{
+					"handle": "test-handle",
+				},
+			},
+			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+				Id:                "test-id",
+				Creator:           "test-handle",
+				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
+				CurrentHash:       hash,
+				Created:           &metav1.Time{Time: time.Now()},
+				LastForceSyncTime: &metav1.Time{Time: time.Now()},
+			},
+		},
+		{
+			name: "invalid created_at",
+			additionalProperties: map[string]interface{}{
+				"created_at": "invalid-date",
+				"created_by": map[string]interface{}{
+					"handle": "test-handle",
+				},
+			},
+			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+				Id:                "test-id",
+				Creator:           "test-handle",
+				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
+				CurrentHash:       hash,
+				Created:           &metav1.Time{Time: time.Now()},
+				LastForceSyncTime: &metav1.Time{Time: time.Now()},
+			},
+		},
+		{
+			name: "missing created_by",
+			additionalProperties: map[string]interface{}{
+				"created_at": "2024-01-01T00:00:00Z",
+			},
+			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+				Id:                "test-id",
+				Creator:           "",
+				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
+				CurrentHash:       hash,
+				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			},
+		},
+		{
+			name: "missing handle in created_by",
+			additionalProperties: map[string]interface{}{
+				"created_at": "2024-01-01T00:00:00Z",
+				"created_by": map[string]interface{}{},
+			},
+			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+				Id:                "test-id",
+				Creator:           "",
+				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
+				CurrentHash:       hash,
+				Created:           &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+				LastForceSyncTime: &metav1.Time{Time: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)},
+			},
+		},
+	}
 
-// 	apiHandlers[apiHandlerKey{v1alpha1.SyntheticsBrowserTest, operationDelete}] = func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-// 		return nil
-// 	}
-
-// 	err := apiDelete(mockReconciler, instance)
-// 	assert.NoError(t, err)
-// }
-
-// func TestApiGet(t *testing.T) {
-// 	mockReconciler := &MockReconciler{}
-// 	instance := &v1alpha1.DatadogGenericCR{
-// 		Spec: v1alpha1.DatadogGenericCRSpec{
-// 			Type: v1alpha1.SyntheticsBrowserTest,
-// 		},
-// 		Status: v1alpha1.DatadogGenericCRStatus{
-// 			Id: "test-id",
-// 		},
-// 	}
-
-// 	apiHandlers[apiHandlerKey{v1alpha1.SyntheticsBrowserTest, operationGet}] = func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-// 		return nil
-// 	}
-
-// 	err := apiGet(mockReconciler, instance)
-// 	assert.NoError(t, err)
-// }
-
-// func TestApiUpdate(t *testing.T) {
-// 	mockReconciler := &MockReconciler{}
-// 	instance := &v1alpha1.DatadogGenericCR{
-// 		Spec: v1alpha1.DatadogGenericCRSpec{
-// 			Type: v1alpha1.SyntheticsBrowserTest,
-// 		},
-// 		Status: v1alpha1.DatadogGenericCRStatus{
-// 			Id: "test-id",
-// 		},
-// 	}
-
-// 	apiHandlers[apiHandlerKey{v1alpha1.SyntheticsBrowserTest, operationUpdate}] = func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-// 		return nil
-// 	}
-
-// 	err := apiUpdate(mockReconciler, instance)
-// 	assert.NoError(t, err)
-// }
-
-// func TestApiCreateAndUpdateStatus(t *testing.T) {
-// 	mockReconciler := &MockReconciler{}
-// 	instance := &v1alpha1.DatadogGenericCR{
-// 		Spec: v1alpha1.DatadogGenericCRSpec{
-// 			Type: v1alpha1.SyntheticsBrowserTest,
-// 		},
-// 	}
-// 	status := &v1alpha1.DatadogGenericCRStatus{}
-// 	now := metav1.Now()
-// 	hash := "test-hash"
-// 	logger := logr.Discard()
-
-// 	createHandlers[v1alpha1.SyntheticsBrowserTest] = func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
-// 		return nil
-// 	}
-
-// 	err := apiCreateAndUpdateStatus(mockReconciler, logger, instance, status, now, hash)
-// 	assert.NoError(t, err)
-// }
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status := &v1alpha1.DatadogGenericCRStatus{}
+			syntheticTest := &datadogV1.SyntheticsAPITest{}
+			syntheticTest.SetPublicId("test-id")
+			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, mockLogger, hash)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedStatus.Id, status.Id)
+			assert.Equal(t, tt.expectedStatus.Creator, status.Creator)
+			assert.Equal(t, tt.expectedStatus.SyncStatus, status.SyncStatus)
+			assert.Equal(t, tt.expectedStatus.CurrentHash, status.CurrentHash)
+			// Compare time with a tolerance of 1 ms (time.Now() is called in the function)
+			assert.True(t, status.Created.Time.Sub(tt.expectedStatus.Created.Time) < time.Millisecond)
+			assert.True(t, status.LastForceSyncTime.Time.Sub(tt.expectedStatus.LastForceSyncTime.Time) < time.Millisecond)
+		})
+	}
+}

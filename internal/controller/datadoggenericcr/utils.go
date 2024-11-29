@@ -43,6 +43,17 @@ var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
 	{v1alpha1.SyntheticsBrowserTest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 	},
+	{v1alpha1.SyntheticsAPITest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+		return err
+	},
+	{v1alpha1.SyntheticsAPITest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
+		return err
+	},
+	{v1alpha1.SyntheticsAPITest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
+	},
 	{v1alpha1.Notebook, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 		return err
@@ -85,20 +96,18 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
 			return err
 		}
-		status.Id = createdTest.GetPublicId()
-		createdTimeString := createdTest.AdditionalProperties["created_at"].(string)
-		createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
+		additionalProperties := createdTest.AdditionalProperties
+		return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
+	},
+	v1alpha1.SyntheticsAPITest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+		createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		if err != nil {
-			logger.Error(err, "error parsing created time")
-			createdTimeParsed = time.Now()
+			logger.Error(err, "error creating API test")
+			updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
+			return err
 		}
-		createdTime := metav1.NewTime(createdTimeParsed)
-		status.Created = &createdTime
-		status.LastForceSyncTime = &createdTime
-		status.Creator = createdTest.AdditionalProperties["created_by"].(map[string]interface{})["handle"].(string)
-		status.SyncStatus = v1alpha1.DatadogSyncStatusOK
-		status.CurrentHash = hash
-		return nil
+		additionalProperties := createdTest.AdditionalProperties
+		return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 	},
 	v1alpha1.Notebook: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
@@ -171,4 +180,46 @@ func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 
 func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 	return executeCreateHandler(r, logger, instance, status, now, hash)
+}
+
+func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]interface{}, status *v1alpha1.DatadogGenericCRStatus, logger logr.Logger, hash string) error {
+	// All synthetic test types share this method
+	status.Id = createdTest.GetPublicId()
+
+	// Parse Created Time
+	createdTimeString, ok := additionalProperties["created_at"].(string)
+	if !ok {
+		logger.Error(nil, "missing or invalid created_at field, using current time")
+		createdTimeString = time.Now().Format(time.RFC3339)
+	}
+
+	createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
+	if err != nil {
+		logger.Error(err, "error parsing created time, using current time")
+		createdTimeParsed = time.Now()
+	}
+	createdTime := metav1.NewTime(createdTimeParsed)
+
+	// Update status fields
+	status.Created = &createdTime
+	status.LastForceSyncTime = &createdTime
+
+	// Update Creator
+	if createdBy, ok := additionalProperties["created_by"].(map[string]interface{}); ok {
+		if handle, ok := createdBy["handle"].(string); ok {
+			status.Creator = handle
+		} else {
+			logger.Error(nil, "missing handle field in created_by")
+			status.Creator = ""
+		}
+	} else {
+		logger.Error(nil, "missing or invalid created_by field")
+		status.Creator = ""
+	}
+
+	// Update Sync Status and Hash
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+
+	return nil
 }
