@@ -12,9 +12,9 @@ import (
 type SupportedResourcesType string
 
 const (
-	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
-	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	Notebook              SupportedResourcesType = "notebook"
+	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
+	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
 )
 
 // DatadogGenericCRSpec defines the desired state of DatadogGenericCR

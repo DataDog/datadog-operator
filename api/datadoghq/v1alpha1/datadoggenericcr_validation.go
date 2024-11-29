@@ -12,9 +12,9 @@ import (
 )
 
 var allowedCustomResourcesEnumMap = map[SupportedResourcesType]string{
+	Notebook:              "",
 	SyntheticsAPITest:     "",
 	SyntheticsBrowserTest: "",
-	Notebook:              "",
 	// mockSubresource is used to mock the subresource in tests
 	"mock_resource": "",
 }
