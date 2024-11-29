@@ -118,6 +118,12 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 		return nil
 	},
 	mockSubresource: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+		status.Id = "mock-id"
+		status.Created = &now
+		status.LastForceSyncTime = &now
+		status.Creator = "mock-creator"
+		status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+		status.CurrentHash = hash
 		return nil
 	},
 }

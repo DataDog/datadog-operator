@@ -14,6 +14,7 @@ import (
 var allowedCustomResourcesEnumMap = map[SupportedResourcesType]struct{}{
 	SyntheticsBrowserTest: {},
 	Notebook:              {},
+	"mock_resource":       {},
 }
 
 func IsValidDatadogGenericCR(spec *DatadogGenericCRSpec) error {
