@@ -126,6 +126,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
 		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -265,6 +266,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"agent-data-plane",
+			"run",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
 		Env:            commonEnvVars(dda),

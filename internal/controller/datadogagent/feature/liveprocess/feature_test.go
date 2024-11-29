@@ -64,7 +64,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false),
 		},
 		{
-			Name: "live process collection enabled in core agent via option",
+			Name: "live process collection enabled in core agent via spec",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
@@ -73,13 +73,13 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.CoreAgentContainerName, true, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true, false),
 		},
 		{
-			Name: "live process collection enabled in core agent via option without min version",
+			Name: "live process collection enabled in core agent via spec without min version",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithLiveProcessEnabled(true).
 				WithComponentOverride(
@@ -88,10 +88,10 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
 		},
 		{
 			Name: "live process collection disabled in core agent via env var override",
@@ -104,10 +104,10 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false, false),
 		},
 		{
 			Name: "live process collection enabled on single container",

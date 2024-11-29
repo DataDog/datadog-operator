@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
+// Container use to override a corev1.Container with a v2alpha1.DatadogAgentGenericContainer.
 func Container(containerName common.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override == nil {
 		return
@@ -140,6 +140,10 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 		container.LivenessProbe = overrideLivenessProbe(override.LivenessProbe)
 	}
 
+	if override.StartupProbe != nil {
+		container.StartupProbe = overrideStartupProbe(override.StartupProbe)
+	}
+
 	if override.SecurityContext != nil {
 		container.SecurityContext = override.SecurityContext
 	}
@@ -237,4 +241,14 @@ func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
 			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
 	}
 	return livenessProbeOverride
+}
+
+func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
+	// Add default httpGet probeHandler if probeHandler is not configured in startupProbe override
+	if !hasProbeHandler(startupProbeOverride) {
+		startupProbeOverride.HTTPGet = &corev1.HTTPGetAction{
+			Path: v2alpha1.DefaultStartupProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
+	}
+	return startupProbeOverride
 }

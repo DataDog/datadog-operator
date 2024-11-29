@@ -32,8 +32,9 @@ type ForwardersManager struct {
 	k8sClient    client.Client
 	platformInfo *kubernetes.PlatformInfo
 	forwarders   map[string]*metricsForwarder
-	decryptor    secrets.Decryptor
-	wg           sync.WaitGroup
+	// TODO expand this to include a metadataForwarder
+	decryptor secrets.Decryptor
+	wg        sync.WaitGroup
 	sync.Mutex
 }
 

@@ -22,6 +22,21 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
+func getAgentContainersMap() map[apicommon.AgentContainerName]string {
+	return map[apicommon.AgentContainerName]string{
+		apicommon.UnprivilegedSingleAgentContainerName: "",
+		apicommon.CoreAgentContainerName:               "",
+		apicommon.TraceAgentContainerName:              "",
+		apicommon.ProcessAgentContainerName:            "",
+		apicommon.SecurityAgentContainerName:           "",
+		apicommon.SystemProbeContainerName:             "",
+		apicommon.OtelAgent:                            "",
+		apicommon.AgentDataPlaneContainerName:          "",
+		apicommon.ClusterAgentContainerName:            "",
+		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName
+	}
+}
+
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
 func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentComponentOverride, componentName v2alpha1.ComponentName, ddaName string) {
 	// Note that there are several attributes in v2alpha1.DatadogAgentComponentOverride, like "Replicas" or "Disabled",
@@ -36,10 +51,13 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	if override.Image != nil {
+		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
-			if override.Image.PullPolicy != nil {
-				manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
+			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
+				manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
+				if override.Image.PullPolicy != nil {
+					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
+				}
 			}
 		}
 

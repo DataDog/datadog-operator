@@ -57,7 +57,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
-			Name: "process discovery enabled in core agent via option",
+			Name: "process discovery enabled in core agent via spec",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
@@ -66,13 +66,13 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.CoreAgentContainerName, true),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.CoreAgentContainerName, true),
 		},
 		{
-			Name: "process discovery enabled in core agent via option without min version",
+			Name: "process discovery enabled in core agent via spec without min version",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
@@ -81,10 +81,10 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 						Image: &v2alpha1.AgentImageConfig{Tag: "7.52.0"},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery disabled in core agent via env var override",
@@ -97,10 +97,10 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
+				WithProcessChecksInCoreAgent(true).
 				Build(),
-			WantConfigure:  true,
-			FeatureOptions: &feature.Options{ProcessChecksInCoreAgentEnabled: true},
-			Agent:          testExpectedAgent(apicommon.ProcessAgentContainerName, false),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled on single container",
