@@ -123,7 +123,6 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
-	processChecksInCoreAgentEnabled        bool
 	otelAgentEnabled                       bool
 	datadogDashboardEnabled                bool
 	datadogGenericCREnabled                bool
@@ -159,7 +158,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
-	flag.BoolVar(&opts.processChecksInCoreAgentEnabled, "processChecksInCoreAgentEnabled", false, "Enable running process checks in the core agent (beta)")
 	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericCREnabled, "datadogGenericCREnabled", false, "Enable the DatadogGenericCR controller")
@@ -296,19 +294,18 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:                   opts.supportCilium,
-		Creds:                           creds,
-		DatadogAgentEnabled:             opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:           opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:               opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:          opts.operatorMetricsEnabled,
-		V2APIEnabled:                    true,
-		IntrospectionEnabled:            opts.introspectionEnabled,
-		DatadogAgentProfileEnabled:      opts.datadogAgentProfileEnabled,
-		ProcessChecksInCoreAgentEnabled: opts.processChecksInCoreAgentEnabled,
-		OtelAgentEnabled:                opts.otelAgentEnabled,
-		DatadogDashboardEnabled:         opts.datadogDashboardEnabled,
-		DatadogGenericCREnabled:         opts.datadogGenericCREnabled,
+		SupportCilium:              opts.supportCilium,
+		Creds:                      creds,
+		DatadogAgentEnabled:        opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:          opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
+		V2APIEnabled:               true,
+		IntrospectionEnabled:       opts.introspectionEnabled,
+		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
+		OtelAgentEnabled:           opts.otelAgentEnabled,
+		DatadogDashboardEnabled:    opts.datadogDashboardEnabled,
+		DatadogGenericCREnabled:    opts.datadogGenericCREnabled,
 	}
 
 	if err = controller.SetupControllers(setupLog, mgr, options); err != nil {
