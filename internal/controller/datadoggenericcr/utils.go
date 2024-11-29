@@ -54,15 +54,15 @@ var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
 	{v1alpha1.Notebook, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
 		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 	},
-	// {mockSubresource, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-	// 	return nil
-	// },
-	// {mockSubresource, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-	// 	return nil
-	// },
-	// {mockSubresource, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
-	// 	return nil
-	// },
+	{mockSubresource, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return nil
+	},
+	{mockSubresource, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return nil
+	},
+	{mockSubresource, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+		return nil
+	},
 }
 
 // Common handler executor (delete, get and update)
@@ -115,6 +115,9 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 		status.Creator = *createdNotebook.Data.GetAttributes().Author.Handle
 		status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 		status.CurrentHash = hash
+		return nil
+	},
+	mockSubresource: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
 		return nil
 	},
 }
