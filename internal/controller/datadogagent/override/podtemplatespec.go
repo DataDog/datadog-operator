@@ -140,6 +140,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		manager.PodTemplateSpec().Spec.PriorityClassName = *override.PriorityClassName
 	}
 
+	if override.RuntimeClassName != nil {
+		manager.PodTemplateSpec().Spec.RuntimeClassName = override.RuntimeClassName
+	}
+
 	if override.Affinity != nil {
 		manager.PodTemplateSpec().Spec.Affinity = mergeAffinities(manager.PodTemplateSpec().Spec.Affinity, override.Affinity)
 	}

@@ -4639,6 +4639,10 @@
                 "format": "int32",
                 "type": "integer"
               },
+              "runtimeClassName": {
+                "description": "If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.\nIf the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod will enter the Failed terminal phase.\nIf no runtimeClassName is specified, the default RuntimeHandler will be used, which is equivalent to the behavior when the RuntimeClass feature is disabled.",
+                "type": "string"
+              },
               "securityContext": {
                 "additionalProperties": false,
                 "description": "Pod-level SecurityContext.",

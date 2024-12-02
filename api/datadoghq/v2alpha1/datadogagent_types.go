@@ -1539,6 +1539,12 @@ type DatadogAgentComponentOverride struct {
 	// the pod priority is default, or zero if there is no default.
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
+	// If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.
+	// If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod will enter the Failed terminal phase.
+	// If no runtimeClassName is specified, the default RuntimeHandler will be used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
 	// If specified, the pod's scheduling constraints.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
