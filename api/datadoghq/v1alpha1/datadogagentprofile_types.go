@@ -54,6 +54,12 @@ type Override struct {
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
+	// If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.
+	// If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod will enter the Failed terminal phase.
+	// If no runtimeClassName is specified, the default RuntimeHandler will be used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
 	// The deployment strategy to use to replace existing pods with new ones.
 	// Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
 	// +optional
