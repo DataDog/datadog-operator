@@ -10,20 +10,21 @@ package e2e
 
 import (
 	"fmt"
+	teste2e "github.com/DataDog/datadog-operator/test/e2e"
+	"github.com/DataDog/datadog-operator/test/e2e/rc-updater"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	updater "github.com/DataDog/datadog-operator/e2e/rc-updater"
-	"github.com/DataDog/datadog-operator/e2e/rc-updater/api"
+	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type updaterSuite struct {
-	e2e.BaseSuite[kindEnv]
+	e2e.BaseSuite[teste2e.kindEnv]
 	apiClient      *api.Client
 	kubectlOptions *k8s.KubectlOptions
 	cleanUpContext func()
@@ -35,34 +36,34 @@ type updaterSuite struct {
 func TestUpdaterSuite(t *testing.T) {
 
 	e2eParams := []e2e.SuiteOption{
-		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", k8sVersion)),
-		e2e.WithProvisioner(kindProvisioner(k8sVersion, []string{"rc-e2e-manager.yaml"})),
+		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", teste2e.k8sVersion)),
+		e2e.WithProvisioner(kindProvisioner(teste2e.k8sVersion, []string{"rc-e2e-manager.yaml"})),
 	}
 
 	apiKey, _ := api.GetAPIKey()
 	appKey, _ := api.GetAPPKey()
 	require.NotEmpty(t, apiKey, "Could not get APIKey")
 	require.NotEmpty(t, appKey, "Could not get APPKey")
-	e2e.Run[kindEnv](t, &updaterSuite{clusterName: "rc-updater-e2e-test-cluster"}, e2eParams...)
+	e2e.Run[teste2e.kindEnv](t, &updaterSuite{clusterName: "rc-updater-e2e-test-cluster"}, e2eParams...)
 
 }
 
 func (u *updaterSuite) SetupSuite() {
 	u.BaseSuite.SetupSuite()
 	u.apiClient = api.NewClient()
-	cleanUpContext, err := contextConfig(u.Env().Kind.ClusterOutput.KubeConfig)
+	cleanUpContext, err := teste2e.contextConfig(u.Env().Kind.ClusterOutput.KubeConfig)
 	u.Assert().NoError(err, "Error retrieving E2E kubeconfig.")
 	u.cleanUpContext = cleanUpContext
-	u.kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, namespaceName)
-	ddaManifest := filepath.Join(manifestsPath, "datadog-agent-rc-updater.yaml")
-	ddaConfigPath, err := getAbsPath(ddaManifest)
+	u.kubectlOptions = k8s.NewKubectlOptions("", teste2e.kubeConfigPath, teste2e.namespaceName)
+	ddaManifest := filepath.Join(teste2e.manifestsPath, "datadog-agent-rc-updater.yaml")
+	ddaConfigPath, err := teste2e.getAbsPath(ddaManifest)
 	u.Assert().NoError(err, "Error retrieving dda config.")
 	u.ddaConfigPath = ddaConfigPath
 
 }
 
 func (u *updaterSuite) TearDownSuite() {
-	deleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
+	teste2e.deleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	u.cleanUpContext()
 	if u.configID != "" {
 		u.Client().DeleteConfig(u.configID)
@@ -80,13 +81,13 @@ func (u *updaterSuite) Client() *api.Client {
 }
 
 func (u *updaterSuite) TestOperatorDeployed() {
-	verifyOperator(u.T(), u.kubectlOptions)
+	teste2e.verifyOperator(u.T(), u.kubectlOptions)
 
 }
 
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
-	verifyAgentPods(u.T(), u.kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
+	teste2e.verifyAgentPods(u.T(), u.kubectlOptions, teste2e.nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
 }
 
 func (u *updaterSuite) TestEnableFeatures() {

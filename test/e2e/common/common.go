@@ -3,7 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package e2e
+//go:build e2e
+// +build e2e
+
+package common
 
 import (
 	"encoding/json"
@@ -23,9 +26,23 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
+var (
+	NamespaceName     = "e2e-operator"
+	K8sVersion        = GetEnv("K8S_VERSION", "1.26")
+	ImgPullPassword   = GetEnv("IMAGE_PULL_PASSWORD", "")
+	OperatorImageName = GetEnv("IMG", "")
+
+	KubeConfigPath string
+
+	tmpDir         string
+	DdaMinimalPath = filepath.Join(ManifestsPath, "datadog-agent-minimum.yaml")
+
+	timeout int64 = 60
+)
+
 const (
-	manifestsPath       = "./manifests"
-	mgrKustomizeDirPath = "../../config/e2e"
+	ManifestsPath       = "../manifests"
+	MgrKustomizeDirPath = "../../../config/e2e"
 	UserData            = `#!/bin/bash
 echo "User Data"
 echo "Installing kubectl"
@@ -53,28 +70,16 @@ alias kl="kubectl logs"
 alias kx="kubectl exec"
 ' >> /home/ubuntu/.bashrc
 `
-	defaultMgrImageName        = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag           = "latest"
-	defaultMgrFileName         = "e2e-manager.yaml"
-	nodeAgentSelector          = "agent.datadoghq.com/component=agent"
-	clusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
-	clusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
-)
-
-var (
-	namespaceName   = "system"
-	k8sVersion      = getEnv("K8S_VERSION", "1.26")
-	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
-
-	kubeConfigPath string
-	kubectlOptions *k8s.KubectlOptions
-
-	tmpDir         string
-	ddaMinimalPath = filepath.Join(manifestsPath, "datadog-agent-minimum.yaml")
+	DefaultMgrImageName        = "gcr.io/datadoghq/operator"
+	DefaultMgrImgTag           = "latest"
+	DefaultMgrFileName         = "e2e-manager.yaml"
+	NodeAgentSelector          = "agent.datadoghq.com/component=agent"
+	ClusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
+	ClusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
 )
 
 // getAbsPath Return absolute path for given path
-func getAbsPath(path string) (string, error) {
+func GetAbsPath(path string) (string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
@@ -90,11 +95,11 @@ func getAbsPath(path string) (string, error) {
 	return absPath, nil
 }
 
-func contextConfig(kubeConfig string) (cleanupFunc func(), err error) {
+func ContextConfig(kubeConfig string) (cleanupFunc func(), err error) {
 	tmpDir = "/tmp"
-	kubeConfigPath = filepath.Join(tmpDir, ".kubeconfig")
+	KubeConfigPath = filepath.Join(tmpDir, ".kubeconfig")
 
-	kcFile, err := os.Create(kubeConfigPath)
+	kcFile, err := os.Create(KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -102,41 +107,43 @@ func contextConfig(kubeConfig string) (cleanupFunc func(), err error) {
 
 	_, err = kcFile.WriteString(kubeConfig)
 	return func() {
-		_ = os.Remove(kubeConfigPath)
+		_ = os.Remove(KubeConfigPath)
 	}, nil
 }
 
-func verifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
-	verifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
+func VerifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
+	VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
 }
 
-func verifyAgentPods(t *testing.T, kubectlOptions *k8s.KubectlOptions, selector string) {
+func VerifyAgentPods(t *testing.T, kubectlOptions *k8s.KubectlOptions, selector string) {
 	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
 	nodes := k8s.GetNodes(t, kubectlOptions)
-	verifyNumPodsForSelector(t, kubectlOptions, len(nodes), selector)
+	VerifyNumPodsForSelector(t, kubectlOptions, len(nodes), selector)
 }
 
-func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
+func VerifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
-		LabelSelector: selector,
+		LabelSelector:  selector,
+		FieldSelector:  "status.phase=Running",
+		TimeoutSeconds: &timeout,
 	}, numPods, 9, 15*time.Second)
 }
 
-func getEnv(key, fallback string) string {
+func GetEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
 	return fallback
 }
 
-func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
-	if !*keepStacks {
-		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
-	}
-}
+//func DeleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
+//	if !*e2e.keepStacks {
+//		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
+//	}
+//}
 
-func loadKustomization(path string) (*types.Kustomization, error) {
+func LoadKustomization(path string) (*types.Kustomization, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -150,7 +157,7 @@ func loadKustomization(path string) (*types.Kustomization, error) {
 	return &kustomization, nil
 }
 
-func saveKustomization(path string, kustomization *types.Kustomization) error {
+func SaveKustomization(path string, kustomization *types.Kustomization) error {
 	data, err := yaml.Marshal(kustomization)
 	if err != nil {
 		return err
@@ -164,11 +171,11 @@ func saveKustomization(path string, kustomization *types.Kustomization) error {
 }
 
 // updateKustomization Updates kustomization.yaml file in given kustomize directory with extra resources and image name and tag if `IMG` environment variable is set.
-func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []string) error {
+func UpdateKustomization(kustomizeDirPath string, kustomizeResourcePaths []string) error {
 	var imgName, imgTag string
 
 	kustomizationFilePath := fmt.Sprintf("%s/kustomization.yaml", kustomizeDirPath)
-	k, err := loadKustomization(kustomizationFilePath)
+	k, err := LoadKustomization(kustomizationFilePath)
 	if err != nil {
 		return err
 	}
@@ -191,8 +198,8 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 	if os.Getenv("IMG") != "" {
 		imgName, imgTag = common.SplitImageString(os.Getenv("IMG"))
 	} else {
-		imgName = defaultMgrImageName
-		imgTag = defaultMgrImgTag
+		imgName = DefaultMgrImageName
+		imgTag = DefaultMgrImgTag
 	}
 	for i, img := range k.Images {
 		if img.Name == "controller" {
@@ -201,14 +208,14 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 		}
 	}
 
-	if err := saveKustomization(kustomizationFilePath, k); err != nil {
+	if err = SaveKustomization(kustomizationFilePath, k); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func parseCollectorJson(collectorOutput string) map[string]interface{} {
+func ParseCollectorJson(collectorOutput string) map[string]interface{} {
 	var jsonString string
 	var jsonObject map[string]interface{}
 

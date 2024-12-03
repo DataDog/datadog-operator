@@ -1,56 +1,15 @@
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog
+  name: datadog-minimum
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-minimum
 spec:
-  global:
-    credentials:
-      apiSecret:
-        keyName: api-key
-        secretName: datadog-secret
-      appSecret:
-        keyName: app-key
-        secretName: datadog-secret
-    kubelet:
-      tlsVerify: false
   features:
     clusterChecks:
       enabled: true
-      useClusterChecksRunners: false
+      useClusterChecksRunners: true
     logCollection:
       enabled: true
     liveContainerCollection:
       enabled: true
-  override:
-    nodeAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
-      containers:
-        agent:
-          env:
-            - name: DD_SKIP_SSL_VALIDATION
-              value: "true"
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
-    clusterAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
-    clusterChecksRunner:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-minimum
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME

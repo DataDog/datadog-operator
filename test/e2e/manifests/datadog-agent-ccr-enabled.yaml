@@ -1,18 +1,10 @@
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog
+  name: datadog-ccr-enabled
+  labels:
+    agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
 spec:
-  global:
-    credentials:
-      apiSecret:
-        keyName: api-key
-        secretName: datadog-secret
-      appSecret:
-        keyName: app-key
-        secretName: datadog-secret
-    kubelet:
-      tlsVerify: false
   features:
     clusterChecks:
       enabled: true
@@ -21,36 +13,3 @@ spec:
       enabled: true
     logCollection:
       enabled: true
-  override:
-    nodeAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
-      containers:
-        agent:
-          env:
-            - name: DD_SKIP_SSL_VALIDATION
-              value: "true"
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
-    clusterAgent:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
-    clusterChecksRunner:
-      labels:
-        agent.datadoghq.com/e2e-test: datadog-agent-ccr-enabled
-      env:
-        - name: DD_CLUSTER_NAME
-          valueFrom:
-            configMapKeyRef:
-              name: datadog-cluster-name
-              key: DD_CLUSTER_NAME
