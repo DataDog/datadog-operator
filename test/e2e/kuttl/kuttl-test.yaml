@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+kindContext: kind-swang392-kuttl
+metadata:
+  name: kuttl-test
+testDirs:
+- ./test/e2e/kuttl
+namespace: system
+timeout: 30

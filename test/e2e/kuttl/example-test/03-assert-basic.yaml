@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent-cluster-agent
+  namespace: system
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent-agent
+  namespace: system

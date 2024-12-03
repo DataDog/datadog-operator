@@ -1,0 +1,453 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    agent.datadoghq.com/agentspechash: d841b825feedf6cee6ad61ea97a5ee2c
+    deprecated.daemonset.template.generation: "3"
+  creationTimestamp: "2024-11-20T19:38:02Z"
+  generation: 3
+  labels:
+    agent.datadoghq.com/component: agent
+    agent.datadoghq.com/name: datadog
+    agent.datadoghq.com/provider: ""
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/instance: datadog-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: system-datadog
+    app.kubernetes.io/version: ""
+  name: datadog-agent
+  namespace: system
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog
+    uid: 5b102436-3304-4b5d-bc49-9ce98780fbb3
+  resourceVersion: "1367"
+  uid: f21c3cef-92d7-44c4-b7b2-936a9f241c70
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      agent.datadoghq.com/component: agent
+      agent.datadoghq.com/name: datadog
+  template:
+    metadata:
+      annotations:
+        checksum/default-custom-config: 3c94c07f6ff2989c16428668aea9bac9
+      creationTimestamp: null
+      labels:
+        agent.datadoghq.com/component: agent
+        agent.datadoghq.com/name: datadog
+        agent.datadoghq.com/provider: ""
+        app.kubernetes.io/component: agent
+        app.kubernetes.io/instance: datadog-agent
+        app.kubernetes.io/managed-by: datadog-operator
+        app.kubernetes.io/name: datadog-agent-deployment
+        app.kubernetes.io/part-of: system-datadog
+        app.kubernetes.io/version: ""
+    spec:
+      containers:
+      - command:
+        - agent
+        - run
+        env:
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: DD_LEADER_ELECTION
+          value: "true"
+        - name: DD_CONTAINER_IMAGE_ENABLED
+          value: "true"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-cluster-agent
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: kuttl-test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_EXTRA_CONFIG_PROVIDERS
+          value: clusterchecks endpointschecks
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-token
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_COLLECT_KUBERNETES_EVENTS
+          value: "true"
+        - name: DD_LEADER_LEASE_NAME
+          value: datadog-leader-election
+        - name: DD_IGNORE_AUTOCONF
+          value: kubernetes_state
+        - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
+          value: "false"
+        - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
+          value: "true"
+        - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
+          value: "true"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: gcr.io/datadoghq/agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /live
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: agent
+        ports:
+        - containerPort: 8125
+          name: dogstatsdport
+          protocol: UDP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /ready
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        startupProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /startup
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /etc/datadog-agent/install_info
+          name: installinfo
+          readOnly: true
+          subPath: install_info
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /var/run/datadog
+          name: dsdsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+      - command:
+        - trace-agent
+        - --config=/etc/datadog-agent/datadog.yaml
+        env:
+        - name: DD_INSTRUMENTATION_INSTALL_ID
+          value: 5b102436-3304-4b5d-bc49-9ce98780fbb3
+        - name: DD_INSTRUMENTATION_INSTALL_TIME
+          value: "1732131482"
+        - name: DD_INSTRUMENTATION_INSTALL_TYPE
+          value: k8s_manual
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-cluster-agent
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: kuttl-test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_APM_ENABLED
+          value: "true"
+        - name: DD_APM_RECEIVER_SOCKET
+          value: /var/run/datadog/apm.socket
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-token
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: gcr.io/datadoghq/agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          tcpSocket:
+            port: 8126
+          timeoutSeconds: 5
+        name: trace-agent
+        ports:
+        - containerPort: 8126
+          name: traceport
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/run/datadog
+          name: apmsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+      - command:
+        - process-agent
+        - --config=/etc/datadog-agent/datadog.yaml
+        - --sysprobe-config=/etc/datadog-agent/system-probe.yaml
+        env:
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-cluster-agent
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        - name: DD_CLUSTER_NAME
+          value: kuttl-test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-token
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_DOGSTATSD_SOCKET
+          value: /var/run/datadog/dsd.socket
+        - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
+          value: "false"
+        - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
+          value: "true"
+        - name: DD_PROCESS_CONFIG_PROCESS_DISCOVERY_ENABLED
+          value: "true"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: gcr.io/datadoghq/agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        name: process-agent
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /var/run/datadog
+          name: dsdsocket
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/sys/fs/cgroup
+          name: cgroups
+          readOnly: true
+        - mountPath: /etc/passwd
+          name: passwd
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - args:
+        - cp -vnr /etc/datadog-agent /opt
+        command:
+        - bash
+        - -c
+        image: gcr.io/datadoghq/agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        name: init-volume
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /opt/datadog-agent
+          name: config
+      - args:
+        - for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do
+          bash $script ; done
+        command:
+        - bash
+        - -c
+        env:
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: DD_LEADER_ELECTION
+          value: "true"
+        - name: DD_CONTAINER_IMAGE_ENABLED
+          value: "true"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_CLUSTER_AGENT_ENABLED
+          value: "true"
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-cluster-agent
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-token
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.hostIP
+        image: gcr.io/datadoghq/agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        name: init-config
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /checks.d
+          name: checksd
+          readOnly: true
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /conf.d
+          name: confd
+          readOnly: true
+        - mountPath: /etc/datadog-agent
+          name: config
+        - mountPath: /host/proc
+          name: procdir
+          readOnly: true
+        - mountPath: /host/var/run
+          name: runtimesocketdir
+          readOnly: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsUser: 0
+      serviceAccount: datadog-agent
+      serviceAccountName: datadog-agent
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: logdatadog
+      - emptyDir: {}
+        name: datadog-agent-auth
+      - configMap:
+          defaultMode: 420
+          name: datadog-install-info
+        name: installinfo
+      - emptyDir: {}
+        name: checksd
+      - emptyDir: {}
+        name: confd
+      - emptyDir: {}
+        name: config
+      - hostPath:
+          path: /proc
+          type: ""
+        name: procdir
+      - hostPath:
+          path: /sys/fs/cgroup
+          type: ""
+        name: cgroups
+      - hostPath:
+          path: /var/run/datadog
+          type: DirectoryOrCreate
+        name: dsdsocket
+      - hostPath:
+          path: /var/run
+          type: ""
+        name: runtimesocketdir
+      - hostPath:
+          path: /var/run/datadog
+          type: DirectoryOrCreate
+        name: apmsocket
+      - hostPath:
+          path: /etc/passwd
+          type: ""
+        name: passwd
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 1
+  desiredNumberScheduled: 1
+  numberMisscheduled: 0
+  numberReady: 0
+  numberUnavailable: 1
+  observedGeneration: 3
+  updatedNumberScheduled: 1

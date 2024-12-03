@@ -1,0 +1,252 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 5
+collectors:
+- type: deployment
+  pod: cluster-agent
+  namespace: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+  generation: 3
+  labels:
+    agent.datadoghq.com/component: cluster-agent
+    agent.datadoghq.com/name: datadog
+    app.kubernetes.io/component: cluster-agent
+    app.kubernetes.io/instance: datadog-cluster-agent
+    app.kubernetes.io/managed-by: datadog-operator
+    app.kubernetes.io/name: datadog-agent-deployment
+    app.kubernetes.io/part-of: system-datadog
+    app.kubernetes.io/version: ""
+  name: datadog-cluster-agent
+  namespace: system
+  ownerReferences:
+  - apiVersion: datadoghq.com/v2alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DatadogAgent
+    name: datadog
+  resourceVersion: "1479"
+  uid: bb3de76c-8eef-4e21-95f3-4651c5bfbced
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      agent.datadoghq.com/component: cluster-agent
+      agent.datadoghq.com/name: datadog
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/cluster_checks-custom-config: f7dc31a1080204b2a0f72ea0cc314033
+      creationTimestamp: null
+      labels:
+        agent.datadoghq.com/component: cluster-agent
+        agent.datadoghq.com/name: datadog
+        app.kubernetes.io/component: cluster-agent
+        app.kubernetes.io/instance: datadog-cluster-agent
+        app.kubernetes.io/managed-by: datadog-operator
+        app.kubernetes.io/name: datadog-agent-deployment
+        app.kubernetes.io/part-of: system-datadog
+        app.kubernetes.io/version: ""
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  agent.datadoghq.com/component: cluster-agent
+              topologyKey: kubernetes.io/hostname
+            weight: 50
+      containers:
+      - env:
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+          value: datadog-cluster-agent
+        - name: DD_KUBE_RESOURCES_NAMESPACE
+          value: system
+        - name: DD_LEADER_ELECTION
+          value: "true"
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        - name: DD_INSTRUMENTATION_INSTALL_ID
+        - name: DD_INSTRUMENTATION_INSTALL_TIME
+        - name: DD_INSTRUMENTATION_INSTALL_TYPE
+          value: k8s_manual
+        - name: DD_AUTH_TOKEN_FILE_PATH
+          value: /etc/datadog-agent/auth/token
+        - name: DD_CLUSTER_NAME
+          value: kuttl-test-cluster
+        - name: DD_SITE
+          value: datadoghq.com
+        - name: DD_LOG_LEVEL
+          value: info
+        - name: DD_ADMISSION_CONTROLLER_ENABLED
+          value: "true"
+        - name: DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED
+          value: "false"
+        - name: DD_ADMISSION_CONTROLLER_CONTAINER_REGISTRY
+          value: gcr.io/datadoghq
+        - name: DD_ADMISSION_CONTROLLER_SERVICE_NAME
+          value: datadog-admission-controller
+        - name: DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE
+          value: socket
+        - name: DD_ADMISSION_CONTROLLER_INJECT_CONFIG_LOCAL_SERVICE_NAME
+          value: datadog-agent
+        - name: DD_ADMISSION_CONTROLLER_WEBHOOK_NAME
+          value: datadog-webhook
+        - name: DD_APM_INSTRUMENTATION_ENABLED
+          value: "false"
+        - name: DD_CLUSTER_CHECKS_ENABLED
+          value: "true"
+        - name: DD_EXTRA_CONFIG_PROVIDERS
+          value: kube_services kube_endpoints
+        - name: DD_EXTRA_LISTENERS
+          value: kube_services kube_endpoints
+        - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: datadog-token
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: api-key
+              name: datadog-secret
+        - name: DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME
+          value: datadog-cluster-agent
+        - name: AGENT_DAEMONSET
+          value: datadog-agent
+        - name: CLUSTER_AGENT_DEPLOYMENT
+          value: datadog-cluster-agent
+        - name: DATADOGAGENT_CR_NAME
+          value: datadog
+        - name: DD_COLLECT_KUBERNETES_EVENTS
+          value: "true"
+        - name: DD_LEADER_LEASE_NAME
+          value: datadog-leader-election
+        - name: DD_CLUSTER_AGENT_TOKEN_NAME
+          value: datadog-token
+        - name: DD_KUBE_STATE_METRICS_CORE_ENABLED
+          value: "true"
+        - name: DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME
+          value: datadog-kube-state-metrics-core-config
+        - name: DD_ORCHESTRATOR_EXPLORER_ENABLED
+          value: "true"
+        - name: DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED
+          value: "true"
+        - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        image: gcr.io/datadoghq/cluster-agent:7.59.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /live
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: cluster-agent
+        ports:
+        - containerPort: 5005
+          name: agentport
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /ready
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /startup
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 5
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/datadog-agent/install_info
+          name: installinfo
+          readOnly: true
+          subPath: install_info
+        - mountPath: /conf.d
+          name: confd
+          readOnly: true
+        - mountPath: /var/log/datadog
+          name: logdatadog
+        - mountPath: /etc/datadog-agent/certificates
+          name: certificates
+        - mountPath: /etc/datadog-agent/auth
+          name: datadog-agent-auth
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /etc/datadog-agent/conf.d/kubernetes_state_core.d
+          name: ksm-core-config
+          readOnly: true
+        - mountPath: /etc/datadog-agent/conf.d/orchestrator.d
+          name: orchestrator-explorer-config
+          readOnly: true
+        - mountPath: /opt/datadog-agent/run/
+          name: datadogrun
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: datadog-cluster-agent
+      serviceAccountName: datadog-cluster-agent
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: datadog-install-info
+        name: installinfo
+      - emptyDir: {}
+        name: confd
+      - emptyDir: {}
+        name: logdatadog
+      - emptyDir: {}
+        name: certificates
+      - emptyDir: {}
+        name: datadog-agent-auth
+      - emptyDir: {}
+        name: tmp
+      - configMap:
+          defaultMode: 420
+          name: datadog-kube-state-metrics-core-config
+        name: ksm-core-config
+      - configMap:
+          defaultMode: 420
+          name: datadog-orchestrator-explorer-config
+        name: orchestrator-explorer-config
+      - emptyDir: {}
+        name: datadogrun

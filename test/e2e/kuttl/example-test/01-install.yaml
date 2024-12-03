@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: system
+spec:
+  global:
+    clusterName: kuttl-test-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
