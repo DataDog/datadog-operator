@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.22.7 AS builder
+FROM golang:1.23.0 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -15,11 +15,14 @@ COPY api/ api/
 COPY internal/controller/ internal/controller/
 COPY pkg/ pkg/
 COPY cmd/helpers/ cmd/helpers/
+# COPY orchestrion.tool.go orchestrion.tool.go
 
 # Build
 ARG LDFLAGS
 ARG GOARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go
+RUN go install github.com/DataDog/orchestrion@latest
+RUN orchestrion pin
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on orchestrion go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
