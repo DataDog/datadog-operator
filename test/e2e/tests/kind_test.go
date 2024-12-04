@@ -11,15 +11,16 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
-	"github.com/DataDog/datadog-agent/test/fakeintake/client"
-	"github.com/stretchr/testify/suite"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
+	"github.com/DataDog/datadog-agent/test/fakeintake/client"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
@@ -178,7 +179,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		}, 600*time.Second, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
 	})
 
-	s.T().Run("KSM check works (cluster check runner)", func(t *testing.T) {
+	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
 		// Update DDA
 		ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(t, err)
