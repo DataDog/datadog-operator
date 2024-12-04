@@ -11,8 +11,11 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
+	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/stretchr/testify/suite"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -86,7 +89,6 @@ func (s *k8sSuite) TestGenericK8s() {
 	kubeConfigPath, err := k8s.GetKubeConfigPathE(s.T())
 	s.Require().NoError(err)
 	kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, common.NamespaceName)
-
 	s.T().Run("Minimal DDA config", func(t *testing.T) {
 		common.VerifyOperator(t, kubectlOptions)
 
@@ -143,6 +145,10 @@ func (s *k8sSuite) TestGenericK8s() {
 			s.Assert().NoError(err)
 			s.Assert().Contains(metricNames, "kubernetes.cpu.usage.total")
 
+			tags := []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
+			var opts []client.MatchOpt[*aggregator.MetricSeries]
+			opts = append(opts, client.WithMatchingTags[*aggregator.MetricSeries](tags))
+
 			metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total")
 			s.Assert().NoError(err)
 			for _, metric := range metrics {
@@ -170,134 +176,153 @@ func (s *k8sSuite) TestGenericK8s() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s)
 		}, 600*time.Second, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
-		// })
+	})
 
-		s.T().Run("KSM check works (cluster check runner)", func(t *testing.T) {
-			// Update DDA
-			ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
-			assert.NoError(t, err)
-			// k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-			operatorOpts := []operatorparams.Option{
-				operatorparams.WithNamespace(common.NamespaceName),
-				operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-				operatorparams.WithHelmValues("installCRDs: false"),
-			}
+	s.T().Run("KSM check works (cluster check runner)", func(t *testing.T) {
+		// Update DDA
+		ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
+		assert.NoError(t, err)
 
-			ddaOpts := []agentwithoperatorparams.Option{
-				agentwithoperatorparams.WithNamespace(common.NamespaceName),
-				agentwithoperatorparams.WithTLSKubeletVerify(false),
-				agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-					Name:         "dda-minimum",
-					YamlFilePath: ddaConfigPath,
-				}),
-			}
+		operatorOpts := []operatorparams.Option{
+			operatorparams.WithNamespace(common.NamespaceName),
+			operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+			operatorparams.WithHelmValues("installCRDs: false"),
+		}
 
-			provisionerOptions := []provisioners.KubernetesProvisionerOption{
-				provisioners.WithK8sVersion(common.K8sVersion),
-				provisioners.WithOperatorOptions(operatorOpts...),
-				provisioners.WithDDAOptions(ddaOpts...),
-			}
+		ddaOpts := []agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithNamespace(common.NamespaceName),
+			agentwithoperatorparams.WithTLSKubeletVerify(false),
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "dda-minimum",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}
 
-			s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
-			common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=datadog-ccr-enabled-agent")
-			common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-agent")
-			common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner")
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
 
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-					LabelSelector: "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner",
-				})
+		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
+		common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner",
+			})
+			assert.NoError(c, err)
+
+			for _, ccr := range ccrPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, ccr.Name, 9, 15*time.Second)
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
 				assert.NoError(c, err)
 
-				for _, ccr := range ccrPods {
-					k8s.WaitUntilPodAvailable(t, kubectlOptions, ccr.Name, 9, 15*time.Second)
-					output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
-					assert.NoError(c, err)
-
-					verifyCheck(c, output, "kubernetes_state_core")
-				}
-			}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
-
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				verifyKSMCheck(s)
-			}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
-		})
-
-		s.T().Run("Autodiscovery works", func(t *testing.T) {
-			// Install DDA
-			ddaConfigPath, err = common.GetAbsPath(common.DdaMinimalPath)
-			assert.NoError(t, err)
-
-			ddaOpts := []agentwithoperatorparams.Option{
-				agentwithoperatorparams.WithNamespace(common.NamespaceName),
-				agentwithoperatorparams.WithTLSKubeletVerify(false),
-				agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
+				verifyCheck(c, output, "kubernetes_state_core")
 			}
+		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
-			provisionerOptions := []provisioners.KubernetesProvisionerOption{
-				provisioners.WithK8sVersion(common.K8sVersion),
-				provisioners.WithOperatorOptions(provisioners.DefaultOperatorOptions...),
-				provisioners.WithDDAOptions(ddaOpts...),
-				provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			}
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyKSMCheck(s)
+		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
+	})
 
-			// Add nginx with annotations
-			s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
+	s.T().Run("Autodiscovery works", func(t *testing.T) {
+		// Install DDA
+		ddaConfigPath, err = common.GetAbsPath(common.DdaMinimalPath)
+		assert.NoError(t, err)
 
-			common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app=nginx")
-			common.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
+		ddaOpts := []agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithNamespace(common.NamespaceName),
+			agentwithoperatorparams.WithTLSKubeletVerify(false),
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
+		}
 
-			// check agent pods for http check
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-					LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
-					FieldSelector: "status.phase=Running",
-				})
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(provisioners.DefaultOperatorOptions...),
+			provisioners.WithDDAOptions(ddaOpts...),
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
+		}
+
+		// Add nginx with annotations
+		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
+
+		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app=nginx")
+		common.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
+
+		// check agent pods for http check
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
+				FieldSelector: "status.phase=Running",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "-j")
 				assert.NoError(c, err)
 
-				for _, pod := range agentPods {
-					output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "-j")
-					assert.NoError(c, err)
+				verifyCheck(c, output, "http_check")
+			}
+		}, 900*time.Second, 30*time.Second, "could not validate http check on agent pod")
 
-					verifyCheck(c, output, "http_check")
-				}
-			}, 900*time.Second, 30*time.Second, "could not validate http check on agent pod")
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyHTTPCheck(s)
+		}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check fake intake client")
+	})
 
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				verifyHTTPCheck(s)
-			}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check fake intake client")
-		})
+	s.T().Run("Logs collection works", func(t *testing.T) {
+		// Update DDA
+		ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
+		assert.NoError(t, err)
 
-		s.T().Run("Logs collection works", func(t *testing.T) {
-			// Update DDA
-			ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
-			assert.NoError(t, err)
+		operatorOpts := []operatorparams.Option{
+			operatorparams.WithNamespace(common.NamespaceName),
+			operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+			operatorparams.WithHelmValues("installCRDs: false"),
+		}
 
-			k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-			common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=datadog-agent-logs-agent")
+		ddaOpts := []agentwithoperatorparams.Option{
+			agentwithoperatorparams.WithNamespace(common.NamespaceName),
+			agentwithoperatorparams.WithTLSKubeletVerify(false),
+			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+				Name:         "datadog-agent-logs",
+				YamlFilePath: ddaConfigPath,
+			}),
+		}
 
-			// Verify logs collection on agent pod
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-					LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent",
-				})
+		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithK8sVersion(common.K8sVersion),
+			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithDDAOptions(ddaOpts...),
+		}
+
+		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
+		common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=datadog-agent-logs-agent")
+
+		// Verify logs collection on agent pod
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "logs agent", "-j")
 				assert.NoError(c, err)
 
-				for _, pod := range agentPods {
-					k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+				verifyAgentPodLogs(c, output)
+			}
+		}, 900*time.Second, 30*time.Second, "could not validate logs status on agent pod")
 
-					output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "logs agent", "-j")
-					assert.NoError(c, err)
-
-					verifyAgentPodLogs(c, output)
-				}
-			}, 900*time.Second, 30*time.Second, "could not validate logs status on agent pod")
-
-			s.EventuallyWithTf(func(c *assert.CollectT) {
-				verifyAPILogs(s, c)
-			}, 600*time.Second, 30*time.Second, "could not valid logs collection with fake intake client")
-
-		})
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyAPILogs(s)
+		}, 600*time.Second, 30*time.Second, "could not valid logs collection with fake intake client")
 	})
 }
 
@@ -354,31 +379,26 @@ func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	}
 }
 
-func verifyAPILogs(s *k8sSuite, c *assert.CollectT) {
-	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
-	s.Assert().NoError(err)
-	s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
-	//
-	//assert.NoError(c, err, "failed to query logs: %v", err)
-	//assert.NotEmptyf(c, logs, fmt.Sprintf("expected logs to not be empty: %s", err))
+func verifyAPILogs(s *k8sSuite) {
+	s.EventuallyWithTf(func(c *assert.CollectT) {
+		logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
+		s.Assert().NoError(err)
+		s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
+	}, 600*time.Second, 30*time.Second, "could not valid logs collection with fake intake client")
 }
 
 func verifyKSMCheck(s *k8sSuite) {
 	metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
 	s.Assert().NoError(err)
 	s.Assert().Contains(metricNames, "kubernetes_state.container.running")
-	//tags := []string{fmt.Sprintf("kube_container_name:%s", s.Env().KubernetesCluster.ClusterName)}
-	fmt.Println(fmt.Sprintf("kube_container_name:%s", s.Env().KubernetesCluster.ClusterName))
-	//var opts []client.MatchOpt[*aggregator.MetricSeries]
-	//opts = append(opts, client.WithTags[*aggregator.MetricSeries](tags))
 
-	//metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running", opts...)
-	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running")
+	tags := []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
+	var opts []client.MatchOpt[*aggregator.MetricSeries]
+	opts = append(opts, client.WithMatchingTags[*aggregator.MetricSeries](tags))
+
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running", opts...)
 	s.Assert().NoError(err)
-	fmt.Println("METRICS: ", metrics)
 	s.Assert().NotEmptyf(metrics, fmt.Sprintf("expected metric series to not be empty: %s", err))
-
-	//assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }
 
 func verifyHTTPCheck(s *k8sSuite) {

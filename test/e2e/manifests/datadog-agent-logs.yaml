@@ -1,7 +1,7 @@
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog
+  name: datadog-agent-logs
   labels:
     agent.datadoghq.com/e2e-test: datadog-agent-logs
 spec:
