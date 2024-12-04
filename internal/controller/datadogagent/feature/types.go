@@ -133,7 +133,7 @@ type Feature interface {
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterAgent(managers PodTemplateManagers) error
-	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
+	// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers, provider string) error
 	// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
@@ -151,8 +151,7 @@ type Options struct {
 
 	Logger logr.Logger
 
-	ProcessChecksInCoreAgentEnabled bool
-	OtelAgentEnabled                bool
+	OtelAgentEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

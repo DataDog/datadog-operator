@@ -155,6 +155,19 @@ func NewDatadogAgentWithEBPFCheck(namespace string, name string) v2alpha1.Datado
 	)
 }
 
+// NewDatadogAgentWithServiceDiscovery returns an agent with Service Discovery enabled
+func NewDatadogAgentWithServiceDiscovery(namespace, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithEventCollection returns an agent with event collection enabled
 func NewDatadogAgentWithEventCollection(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
@@ -487,6 +500,21 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 					PeriodSeconds:       30,
 					SuccessThreshold:    1,
 					FailureThreshold:    5,
+				},
+				StartupProbe: &v1.Probe{
+					ProbeHandler: v1.ProbeHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Port: intstr.IntOrString{
+								IntVal: v2alpha1.DefaultAgentHealthPort,
+							},
+						},
+					},
+					InitialDelaySeconds: 15,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       15,
+					SuccessThreshold:    1,
+					FailureThreshold:    6,
 				},
 				SecurityContext: &v1.SecurityContext{
 					RunAsUser: apiutils.NewInt64Pointer(12345),

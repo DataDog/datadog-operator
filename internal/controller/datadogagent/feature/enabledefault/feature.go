@@ -6,6 +6,7 @@
 package enabledefault
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -16,6 +17,7 @@ import (
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -25,10 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
-)
-
-const (
-	enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
 )
 
 func init() {
@@ -71,9 +69,13 @@ type defaultFeature struct {
 	logger                  logr.Logger
 	disableNonResourceRules bool
 	otelAgentEnabled        bool
+	adpEnabled              bool
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
+
+	kubernetesResourcesLabelsAsTags      map[string]map[string]string
+	kubernetesResourcesAnnotationsAsTags map[string]map[string]string
 }
 
 type credentialsInfo struct {
@@ -101,6 +103,8 @@ type secretInfo struct {
 type clusterAgentConfig struct {
 	serviceAccountName        string
 	serviceAccountAnnotations map[string]string
+
+	resourceMetadataAsTagsClusterRoleName string
 }
 
 type agentConfig struct {
@@ -131,7 +135,11 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
 
 	if dda.ObjectMeta.Annotations != nil {
-		f.otelAgentEnabled = f.otelAgentEnabled || dda.ObjectMeta.Annotations[enableOtelAnnotation] == "true"
+		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
+	}
+
+	if dda.ObjectMeta.Annotations != nil {
+		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 	}
 
 	if dda.Spec.Global != nil {
@@ -187,6 +195,11 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
+
+		f.kubernetesResourcesLabelsAsTags = dda.Spec.Global.KubernetesResourcesLabelsAsTags
+		f.kubernetesResourcesAnnotationsAsTags = dda.Spec.Global.KubernetesResourcesAnnotationsAsTags
+		f.clusterAgent.resourceMetadataAsTagsClusterRoleName = componentdca.GetResourceMetadataAsTagsClusterRoleName(dda)
+
 		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
 		if err != nil {
 			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
@@ -197,30 +210,29 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
+	agentContainers := make([]apicommon.AgentContainerName, 0)
+
+	// If the OpenTelemetry Agent is enabled, add the OTel Agent to the list of required containers for the Agent
+	// feature.
 	//
-	// In Operator 1.9 OTel Agent will be configured through a feature.
-	// In the meantime we add the OTel Agent as a required component here, if the flag is enabled.
+	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
 	if f.otelAgentEnabled {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-				Containers: []apicommon.AgentContainerName{
-					apicommon.OtelAgent,
-				},
-			},
-		}
-	} else {
-		return feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-			Agent: feature.RequiredComponent{
-				IsRequired: &trueValue,
-			},
-		}
+		agentContainers = append(agentContainers, apicommon.OtelAgent)
+	}
+
+	// If Agent Data Plane is enabled, add the ADP container to the list of required containers for the Agent feature.
+	if f.adpEnabled {
+		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
+	}
+
+	return feature.RequiredComponents{
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+		},
+		Agent: feature.RequiredComponent{
+			IsRequired: &trueValue,
+			Containers: agentContainers,
+		},
 	}
 }
 
@@ -345,6 +357,18 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		return err
 	}
 
+	if len(f.kubernetesResourcesLabelsAsTags) > 0 || len(f.kubernetesResourcesAnnotationsAsTags) > 0 {
+		err := managers.RBACManager().AddClusterPolicyRules(
+			f.owner.GetNamespace(),
+			f.clusterAgent.resourceMetadataAsTagsClusterRoleName,
+			f.clusterAgent.serviceAccountName,
+			getKubernetesResourceMetadataAsTagsPolicyRules(f.kubernetesResourcesLabelsAsTags, f.kubernetesResourcesAnnotationsAsTags),
+		)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -396,6 +420,7 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		Name:  DDDatadogAgentCustomResource,
 		Value: f.owner.GetName(),
 	})
+
 	return nil
 }
 
@@ -444,6 +469,30 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 	if f.credentialsInfo.appKey.SecretName != "" {
 		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
+	}
+
+	if len(f.kubernetesResourcesLabelsAsTags) > 0 {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(f.kubernetesResourcesLabelsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	if len(f.kubernetesResourcesAnnotationsAsTags) > 0 {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(f.kubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			f.logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
 	}
 }
 

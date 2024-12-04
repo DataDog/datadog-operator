@@ -29,11 +29,14 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
+	defaultRunProcessChecksInCoreAgent    bool = false
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
 
 	defaultEBPFCheckEnabled bool = false
+
+	defaultServiceDiscoveryEnabled bool = false
 
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
@@ -73,6 +76,8 @@ const (
 
 	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
 	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerValidationEnabled               bool   = true
+	defaultAdmissionControllerMutationEnabled                 bool   = true
 	defaultAdmissionControllerMutateUnlabelled                bool   = false
 	defaultAdmissionServiceName                               string = "datadog-admission-controller"
 	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
@@ -180,6 +185,8 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
@@ -242,6 +249,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.EBPFCheck = &EBPFCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
+
+	if ddaSpec.Features.ServiceDiscovery == nil {
+		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// APM Feature
 	// APM is enabled by default
@@ -465,21 +477,23 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
-
 	}
+
+	// AdmissionControllerValidation Feature
+	if ddaSpec.Features.AdmissionController.Validation == nil {
+		ddaSpec.Features.AdmissionController.Validation = &AdmissionControllerValidationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Validation.Enabled, defaultAdmissionControllerValidationEnabled)
+
+	// AdmissionControllerMutation Feature
+	if ddaSpec.Features.AdmissionController.Mutation == nil {
+		ddaSpec.Features.AdmissionController.Mutation = &AdmissionControllerMutationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Mutation.Enabled, defaultAdmissionControllerMutationEnabled)
+
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
-	}
-
-	// CWS Instrumentation in AdmissionController Feature
-	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
-		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
-	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
-
-	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
 	}
 
 	// CWS Instrumentation in AdmissionController Feature

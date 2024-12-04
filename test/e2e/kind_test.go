@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +51,7 @@ type kindSuite struct {
 type datadogClient struct {
 	ctx        context.Context
 	metricsApi *datadogV1.MetricsApi
+	logsApi    *datadogV1.LogsApi
 }
 
 func (suite *kindSuite) SetupSuite() {
@@ -72,6 +74,7 @@ func (suite *kindSuite) SetupSuite() {
 	configuration := datadog.NewConfiguration()
 	client := datadog.NewAPIClient(configuration)
 	suite.datadogClient.metricsApi = datadogV1.NewMetricsApi(client)
+	suite.datadogClient.logsApi = datadogV1.NewLogsApi(client)
 }
 
 func TestKindSuite(t *testing.T) {
@@ -227,6 +230,37 @@ func (s *kindSuite) TestKindRun() {
 		verifyNumPodsForSelector(t, kubectlOptions, 1, clusterAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-minimum")
 	})
 
+	s.T().Run("Autodiscovery works", func(t *testing.T) {
+		// Add nginx with annotations
+		var nginxConfigPath string
+		nginxConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "autodiscovery-annotation.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, nginxConfigPath)
+
+		verifyNumPodsForSelector(t, kubectlOptions, 1, "agent.datadoghq.com/e2e-test=datadog-agent-autodiscovery-annotated")
+
+		// check agent pods for http check
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "-j")
+				assert.NoError(c, err)
+
+				verifyCheck(c, output, "http_check")
+			}
+		}, 900*time.Second, 30*time.Second, "could not validate http check on agent pod")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyHTTPCheck(s, c)
+		}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
+	})
+
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
@@ -242,7 +276,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubelet")
 			}
-		}, 900*time.Second, 30*time.Second, fmt.Sprintf("could not validate kubelet check on agent pod"))
+		}, 900*time.Second, 30*time.Second, "could not validate kubelet check on agent pod")
 
 		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -302,10 +336,67 @@ func (s *kindSuite) TestKindRun() {
 		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
 	})
 
+	s.T().Run("Logs collection works", func(t *testing.T) {
+		// Update DDA
+		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "datadog-agent-logs.yaml"))
+		assert.NoError(t, err)
+
+		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
+		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-logs")
+
+		// Verify logs collection on agent pod
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-logs",
+			})
+			assert.NoError(c, err)
+
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "logs agent", "-j")
+				assert.NoError(c, err)
+
+				verifyAgentPodLogs(c, output)
+			}
+		}, 900*time.Second, 30*time.Second, "could not validate log check on agent pod")
+
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyAPILogs(s, c)
+		}, 600*time.Second, 30*time.Second, "could not valid logs collection with api client")
+
+	})
+
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
 }
+
+func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
+	var agentLogs []interface{}
+	logsJson := parseCollectorJson(collectorOutput)
+
+	tailedIntegrations := 0
+	if logsJson != nil {
+		agentLogs = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		for _, log := range agentLogs {
+			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
+				message, exists := integration["messages"].([]interface{})[0].(string)
+				if exists && len(message) > 0 {
+					num, _ := strconv.Atoi(string(message[0]))
+					if num > 0 && strings.Contains(message, "files tailed") {
+						tailedIntegrations++
+					}
+				}
+			} else {
+				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
+			}
+		}
+	}
+	totalIntegrations := len(agentLogs)
+	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
+}
+
 func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	var runningChecks map[string]interface{}
 
@@ -334,10 +425,40 @@ func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	}
 }
 
+func verifyAPILogs(s *kindSuite, c *assert.CollectT) {
+	logQuery := fmt.Sprintf("kube_cluster_name:%s", s.Env().Kind.ClusterName)
+	requestBody := datadogV1.LogsListRequest{
+		Query: &logQuery,
+		Time: datadogV1.LogsListRequestTime{
+			From: time.Now().AddDate(0, 0, -1), // One day ago
+			To:   time.Now(),
+		},
+		Limit: datadog.PtrInt32(100),
+	}
+
+	resp, _, err := s.datadogClient.logsApi.ListLogs(s.datadogClient.ctx, requestBody)
+
+	assert.NoError(c, err, "failed to query logs: %v", err)
+	assert.True(c, len(resp.Logs) > 0, fmt.Sprintf("expected logs to not be empty: %s", err))
+}
+
 func verifyKSMCheck(s *kindSuite, c *assert.CollectT) {
 	metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes_state.container.running{kube_cluster_name:%s, kube_container_name:*})", s.Env().Kind.ClusterName)
 
 	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
 
+	assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
+}
+
+func verifyHTTPCheck(s *kindSuite, c *assert.CollectT) {
+	metricQuery := fmt.Sprintf("exclude_null(avg:network.http.can_connect{kube_cluster_name:%s})", s.Env().Kind.ClusterName)
+
+	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+	assert.EqualValues(c, *resp.Status, "ok")
+	for _, series := range resp.Series {
+		for _, point := range series.Pointlist {
+			assert.Equal(c, int(*point[1]), 1)
+		}
+	}
 	assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }
