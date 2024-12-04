@@ -8,6 +8,7 @@ package datadog
 import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/agent"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/clusteragent"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/dap"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics"
@@ -50,6 +51,9 @@ func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 
 	// DatadogMetric commands
 	cmd.AddCommand(metrics.New(streams))
+
+	// DatadogAgentProfile commands
+	cmd.AddCommand(dap.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

@@ -13,6 +13,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -24,6 +25,7 @@ type Options struct {
 	Clientset       *kubernetes.Clientset
 	APIExtClient    *apiextensionclient.Clientset
 	DiscoveryClient discovery.DiscoveryInterface
+	MetadataClient  metadata.Interface
 
 	UserNamespace string
 }
@@ -59,6 +61,12 @@ func (o *Options) Init(cmd *cobra.Command) error {
 		return fmt.Errorf("unable to create DiscoveryClient, err:%w", err)
 	}
 	o.SetDiscoveryClient(discoveryClient)
+
+	metadataClient, err := metadata.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create MetadataClient, err:%w", err)
+	}
+	o.SetMetadataClient(metadataClient)
 
 	nsConfig, _, err := clientConfig.Namespace()
 	if err != nil {
@@ -101,6 +109,11 @@ func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) {
 // SetDiscoveryClient configures the DiscoveryClient
 func (o *Options) SetDiscoveryClient(client discovery.DiscoveryInterface) {
 	o.DiscoveryClient = client
+}
+
+// SetMetadataClient configures the MetadataClient
+func (o *Options) SetMetadataClient(client metadata.Interface) {
+	o.MetadataClient = client
 }
 
 // GetClientConfig returns the client config
