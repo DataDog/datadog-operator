@@ -197,7 +197,6 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=1800
-	// +kubebuilder:default:0
 	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
