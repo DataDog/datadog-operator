@@ -11,6 +11,7 @@ package e2e
 import (
 	"fmt"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
@@ -31,20 +32,20 @@ type updaterSuite struct {
 	configID       string
 }
 
-// func TestUpdaterSuite(t *testing.T) {
+func TestUpdaterSuite(t *testing.T) {
 
-// 	e2eParams := []e2e.SuiteOption{
-// 		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", k8sVersion)),
-// 		e2e.WithProvisioner(kindProvisioner(k8sVersion, []string{"rc-e2e-manager.yaml"})),
-// 	}
+	e2eParams := []e2e.SuiteOption{
+		e2e.WithStackName(fmt.Sprintf("operator-kind-rc-%s", k8sVersion)),
+		e2e.WithProvisioner(kindProvisioner(k8sVersion, []string{"rc-e2e-manager.yaml"})),
+	}
 
-// 	apiKey, _ := api.GetAPIKey()
-// 	appKey, _ := api.GetAPPKey()
-// 	require.NotEmpty(t, apiKey, "Could not get APIKey")
-// 	require.NotEmpty(t, appKey, "Could not get APPKey")
-// 	e2e.Run[kindEnv](t, &updaterSuite{clusterName: "rc-updater-e2e-test-cluster"}, e2eParams...)
+	apiKey, _ := api.GetAPIKey()
+	appKey, _ := api.GetAPPKey()
+	require.NotEmpty(t, apiKey, "Could not get APIKey")
+	require.NotEmpty(t, appKey, "Could not get APPKey")
+	e2e.Run[kindEnv](t, &updaterSuite{clusterName: "rc-updater-e2e-test-cluster"}, e2eParams...)
 
-// }
+}
 
 func (u *updaterSuite) SetupSuite() {
 	u.BaseSuite.SetupSuite()
