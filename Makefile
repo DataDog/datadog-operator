@@ -218,10 +218,11 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: e2e-test-specific 
 e2e-test-specific:
-	@if [ -z "$(filter-out e2e-test-specific,$(MAKECMDGOALS))" ]; then \
-		echo "Usage: make e2e-specific <TEST_NAME>"; \
+	@if [ -z "$(E2ETESTNAME)" ]; then \
+		echo "The environment variable E2ETESTNAME is not set. Please set E2ETESTNAME to the name of the test you want to run."; \
+		exit 1; \
 	else \
-		go test ./test/e2e/... -count=1 --tags=e2e -v -run '$(filter-out e2e-test-specific,$(MAKECMDGOALS))'; \
+		go test ./test/e2e/tests/... -count=1 --tags=e2e -v -run $(E2ETESTNAME); \
 	fi
 
 .PHONY: bundle
