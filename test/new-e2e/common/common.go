@@ -41,8 +41,8 @@ var (
 )
 
 const (
-	ManifestsPath       = "../manifests"
-	MgrKustomizeDirPath = "../../../config/e2e"
+	ManifestsPath       = "./manifests"
+	MgrKustomizeDirPath = "../../config/new-e2e"
 	UserData            = `#!/bin/bash
 echo "User Data"
 echo "Installing kubectl"
@@ -72,7 +72,6 @@ alias kx="kubectl exec"
 `
 	DefaultMgrImageName        = "gcr.io/datadoghq/operator"
 	DefaultMgrImgTag           = "latest"
-	DefaultMgrFileName         = "e2e-manager.yaml"
 	NodeAgentSelector          = "agent.datadoghq.com/component=agent"
 	ClusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
 	ClusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"

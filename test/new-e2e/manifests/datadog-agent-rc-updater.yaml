@@ -28,7 +28,7 @@ spec:
     clusterName: rc-updater-e2e-test-cluster
     site: datadoghq.com
     kubelet:
-      tlsVerify: false
+        tlsVerify: false
   override:
     nodeAgent:
       labels:

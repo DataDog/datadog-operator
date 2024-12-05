@@ -1,10 +1,18 @@
 apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog-agent-logs
-  labels:
-    agent.datadoghq.com/e2e-test: datadog-agent-logs
+  name: datadog
 spec:
+  global:
+    credentials:
+      apiSecret:
+        keyName: api-key
+        secretName: datadog-secret
+      appSecret:
+        keyName: app-key
+        secretName: datadog-secret
+    kubelet:
+      tlsVerify: false
   features:
     clusterChecks:
       enabled: true
@@ -14,3 +22,18 @@ spec:
       containerCollectAll: true
     liveContainerCollection:
       enabled: true
+  override:
+    nodeAgent:
+      labels:
+        agent.datadoghq.com/e2e-test: datadog-agent-logs
+      containers:
+        agent:
+          env:
+            - name: DD_SKIP_SSL_VALIDATION
+              value: "true"
+      env:
+        - name: DD_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datadog-cluster-name
+              key: DD_CLUSTER_NAME

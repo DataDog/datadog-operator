@@ -10,21 +10,30 @@ package e2e
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/kubernetes"
-	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/new-e2e/common"
+	"github.com/DataDog/datadog-operator/test/new-e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"testing"
 )
 
-// not working yet
-func TestAWSKindSuite(t *testing.T) {
+type localKindSuite struct {
+	k8sSuite
+}
+
+func TestLocalKindSuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
 		operatorparams.WithHelmValues("installCRDs: false"),
 	}
 
-	e2e.Run(t, &k8sSuite{}, e2e.WithProvisioner(awskubernetes.KindProvisioner(
-		awskubernetes.WithOperatorOptions(operatorOptions...),
-	)), e2e.WithSkipDeleteOnFailure(), e2e.WithDevMode())
+	provisionerOptions := []provisioners.KubernetesProvisionerOption{
+		provisioners.WithK8sVersion(common.K8sVersion),
+		provisioners.WithOperatorOptions(operatorOptions...),
+		provisioners.WithoutDDA(),
+	}
+
+	t.Parallel()
+
+	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)), e2e.WithSkipDeleteOnFailure(), e2e.WithDevMode())
 }

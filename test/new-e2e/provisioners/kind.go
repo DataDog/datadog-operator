@@ -4,9 +4,11 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/kubernetes"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
-	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/new-e2e/common"
+	"github.com/DataDog/test-infra-definitions/common/config"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
@@ -38,7 +40,6 @@ var (
 
 	DefaultDDAOptions = []agentwithoperatorparams.Option{
 		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-		agentwithoperatorparams.WithTLSKubeletVerify(false),
 	}
 )
 
@@ -161,8 +162,9 @@ func WithYAMLWorkload(yamlWorkload YAMLWorkload) KubernetesProvisionerOption {
 	}
 }
 
-// KubernetesProvisioner creates a new provisioner
-func KubernetesProvisioner(runFunc func(ctx *pulumi.Context, env *K8sEnv, params *KubernetesProvisionerParams) error, opts ...KubernetesProvisionerOption) e2e.TypedProvisioner[K8sEnv] {
+// KubernetesProvisioner creates a new local Kubernetes w/operator provisioner
+// Inspired by https://github.com/DataDog/datadog-agent/blob/main/test/new-e2e/pkg/environments/local/kubernetes/kind.go
+func KubernetesProvisioner(kindRunFunc func(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error, opts ...KubernetesProvisionerOption) e2e.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
 	params := newKubernetesProvisionerParams()
@@ -170,20 +172,20 @@ func KubernetesProvisioner(runFunc func(ctx *pulumi.Context, env *K8sEnv, params
 
 	provisionerName := provisionerBaseID + params.name
 
-	provisioner := e2e.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *K8sEnv) error {
+	provisioner := e2e.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 		// and it's easy to forget about it, leading to hard to debug issues.
 		params := newKubernetesProvisionerParams()
 		_ = optional.ApplyOptions(params, opts)
 
-		return runFunc(ctx, env, params)
+		return kindRunFunc(ctx, env, params)
 
 	}, params.extraConfigParams)
 
 	return provisioner
 }
 
-func LocalKindRunFunc(ctx *pulumi.Context, env *K8sEnv, params *KubernetesProvisionerParams) error {
+func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
 	localEnv, err := local.NewEnvironment(ctx)
 	if err != nil {
 		return err
@@ -269,12 +271,6 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *K8sEnv, params *KubernetesProvis
 		if err != nil {
 			return err
 		}
-
-		if err = operatorComp.Export(ctx, &env.Operator.OperatorOutput); err != nil {
-			return err
-		}
-	} else {
-		env.Operator = nil
 	}
 
 	// Setup DDA options
@@ -307,4 +303,43 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *K8sEnv, params *KubernetesProvis
 		}
 	}
 	return nil
+}
+
+func AWSKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
+	awsKindOpts := []awskubernetes.ProvisionerOption{
+		awskubernetes.WithOperator(),
+		awskubernetes.WithOperatorOptions(params.operatorOptions...),
+		awskubernetes.WithoutDDA(),
+		awskubernetes.WithWorkloadApp(func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+			kustomizeOpts := []pulumi.ResourceOption{
+				pulumi.Provider(kubeProvider),
+			}
+			k8sComp := &kubeComp.Workload{}
+			if err := e.Ctx().RegisterComponentResource("dd:agent-with-operator", "kustomizations", k8sComp, kustomizeOpts...); err != nil {
+				return nil, err
+			}
+
+			// Install kustomizations
+			kustomizeDirPath, err := filepath.Abs(common.MgrKustomizeDirPath)
+			if err != nil {
+				return nil, err
+			}
+
+			err = common.UpdateKustomization(kustomizeDirPath, params.kustomizeResources)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = kustomize.NewDirectory(ctx, "e2e-manager",
+				kustomize.DirectoryArgs{
+					Directory: pulumi.String(kustomizeDirPath),
+				}, kustomizeOpts...)
+			if err != nil {
+				return nil, err
+			}
+			return k8sComp, nil
+		}),
+	}
+	awsKindParams := awskubernetes.GetProvisionerParams(awsKindOpts...)
+	return awskubernetes.KindRunFunc(ctx, env, awsKindParams)
 }

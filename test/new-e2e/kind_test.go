@@ -9,10 +9,12 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-operator/test/new-e2e/common"
+	"github.com/DataDog/datadog-operator/test/new-e2e/provisioners"
 	"github.com/stretchr/testify/suite"
 	"path/filepath"
 	"regexp"
@@ -21,63 +23,37 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-operator/test/e2e/common"
-	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"github.com/gruntwork-io/terratest/modules/k8s"
-	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	restclient "k8s.io/client-go/rest"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	defaultOperatorOpts = []operatorparams.Option{
+		operatorparams.WithNamespace(common.NamespaceName),
+		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+		operatorparams.WithHelmValues("installCRDs: false"),
+	}
+
+	defaultDDAOpts = []agentwithoperatorparams.Option{
+		agentwithoperatorparams.WithNamespace(common.NamespaceName),
+	}
+
+	defaultProvisionerOpts = []provisioners.KubernetesProvisionerOption{
+		provisioners.WithK8sVersion(common.K8sVersion),
+		provisioners.WithOperatorOptions(defaultOperatorOpts...),
+	}
+)
+
 type k8sSuite struct {
-	e2e.BaseSuite[provisioners.K8sEnv]
-	datadogClient
-
-	kubeProvider *kubernetes.Provider
-	fakeintake   *fakeintake.Fakeintake
-
-	K8sConfig *restclient.Config
-	//K8sClient kubernetes.Interface
+	e2e.BaseSuite[environments.Kubernetes]
 }
 
-type datadogClient struct {
-	ctx        context.Context
-	metricsApi *datadogV1.MetricsApi
-	logsApi    *datadogV1.LogsApi
-}
-
-func (suite *k8sSuite) SetupSuite() {
-	apiKey, err := runner.GetProfile().SecretStore().Get(parameters.APIKey)
-	suite.Require().NoError(err)
-	appKey, err := runner.GetProfile().SecretStore().Get(parameters.APPKey)
-	suite.Require().NoError(err)
-	suite.datadogClient.ctx = context.WithValue(
-		context.Background(),
-		datadog.ContextAPIKeys,
-		map[string]datadog.APIKey{
-			"apiKeyAuth": {
-				Key: apiKey,
-			},
-			"appKeyAuth": {
-				Key: appKey,
-			},
-		},
-	)
-	configuration := datadog.NewConfiguration()
-	client := datadog.NewAPIClient(configuration)
-	suite.datadogClient.metricsApi = datadogV1.NewMetricsApi(client)
-	suite.datadogClient.logsApi = datadogV1.NewLogsApi(client)
-}
+func (suite *k8sSuite) SetupSuite() {}
 
 func TestK8sSuite(t *testing.T) {
 	suite.Run(t, &k8sSuite{})
@@ -96,24 +72,17 @@ func (s *k8sSuite) TestGenericK8s() {
 		ddaConfigPath, err = common.GetAbsPath(common.DdaMinimalPath)
 		assert.NoError(t, err)
 
-		operatorOpts := []operatorparams.Option{
-			operatorparams.WithNamespace(common.NamespaceName),
-			operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-			operatorparams.WithHelmValues("installCRDs: false"),
-		}
-
 		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithNamespace(common.NamespaceName),
-			agentwithoperatorparams.WithTLSKubeletVerify(false),
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
 				Name:         "dda-minimum",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 
@@ -183,24 +152,17 @@ func (s *k8sSuite) TestGenericK8s() {
 		ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(t, err)
 
-		operatorOpts := []operatorparams.Option{
-			operatorparams.WithNamespace(common.NamespaceName),
-			operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-			operatorparams.WithHelmValues("installCRDs: false"),
-		}
-
 		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithNamespace(common.NamespaceName),
-			agentwithoperatorparams.WithTLSKubeletVerify(false),
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
 				Name:         "dda-minimum",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 
@@ -235,17 +197,16 @@ func (s *k8sSuite) TestGenericK8s() {
 		assert.NoError(t, err)
 
 		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithNamespace(common.NamespaceName),
-			agentwithoperatorparams.WithTLSKubeletVerify(false),
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
 		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(provisioners.DefaultOperatorOptions...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-		}
+		provisionerOptions := make([]provisioners.KubernetesProvisionerOption, 0)
+		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+		provisionerOptions = append(provisionerOptions,
+			provisioners.WithDDAOptions(ddaOpts...))
+		provisionerOptions = append(provisionerOptions,
+			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}))
 
 		// Add nginx with annotations
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
@@ -279,24 +240,17 @@ func (s *k8sSuite) TestGenericK8s() {
 		ddaConfigPath, err = common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
 		assert.NoError(t, err)
 
-		operatorOpts := []operatorparams.Option{
-			operatorparams.WithNamespace(common.NamespaceName),
-			operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-			operatorparams.WithHelmValues("installCRDs: false"),
-		}
-
 		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithNamespace(common.NamespaceName),
-			agentwithoperatorparams.WithTLSKubeletVerify(false),
 			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
 				Name:         "datadog-agent-logs",
 				YamlFilePath: ddaConfigPath,
 			}),
 		}
+		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
 		provisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(operatorOpts...),
+			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 		}
 
