@@ -1696,6 +1696,11 @@ func (in *Override) DeepCopyInto(out *Override) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.RuntimeClassName != nil {
+		in, out := &in.RuntimeClassName, &out.RuntimeClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.UpdateStrategy != nil {
 		in, out := &in.UpdateStrategy, &out.UpdateStrategy
 		*out = new(common.UpdateStrategy)
