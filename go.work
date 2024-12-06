@@ -1,8 +1,7 @@
-go 1.22.7
-
-toolchain go1.22.7
+go 1.23.2
 
 use (
 	.
+	./api
 	./test/e2e
 )
