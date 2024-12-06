@@ -13,12 +13,12 @@ import (
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	"github.com/DataDog/datadog-operator/test/new-e2e/common"
-	"github.com/DataDog/datadog-operator/test/new-e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 	"github.com/stretchr/testify/suite"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"github.com/gruntwork-io/terratest/modules/k8s"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/stretchr/testify/assert"
@@ -62,11 +62,17 @@ func TestK8sSuite(t *testing.T) {
 func (s *k8sSuite) TestGenericK8s() {
 	var ddaConfigPath string
 	var kubectlOptions *k8s.KubectlOptions
-	kubeConfigPath, err := k8s.GetKubeConfigPathE(s.T())
-	s.Require().NoError(err)
-	kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, common.NamespaceName)
+	var kubeConfigPath string
+	var err error
+
+	s.T().Run("Setup kubectl", func(t *testing.T) {
+		kubeConfigPath, err = k8s.GetKubeConfigPathE(t)
+		s.Require().NoError(err)
+		kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, common.NamespaceName)
+	})
+
 	s.T().Run("Minimal DDA config", func(t *testing.T) {
-		common.VerifyOperator(t, kubectlOptions)
+		utils.VerifyOperator(t, kubectlOptions)
 
 		// Install DDA
 		ddaConfigPath, err = common.GetAbsPath(common.DdaMinimalPath)
@@ -89,12 +95,12 @@ func (s *k8sSuite) TestGenericK8s() {
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
 
 		s.EventuallyWithT(func(c *assert.CollectT) {
-			common.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
-			common.VerifyNumPodsForSelector(t, kubectlOptions, 1, common.ClusterAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+			utils.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+			utils.VerifyNumPodsForSelector(t, kubectlOptions, 1, common.ClusterAgentSelector+",agent.datadoghq.com/name=dda-minimum")
 
 		}, 900*time.Second, 10*time.Second, "Agent pods did not become ready in time.")
 
-		agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+		agentPods, err := k8s.ListPodsE(t, kubectlOptions, metav1.ListOptions{
 			LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-minimum",
 			FieldSelector: "status.phase=Running",
 		})
@@ -105,7 +111,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
 				assert.NoError(c, err)
 
-				verifyCheck(c, output, "kubelet")
+				utils.VerifyCheck(c, output, "kubelet")
 			}
 		}, 900*time.Second, 30*time.Second, "could not validate kubelet check on agent pod")
 
@@ -128,7 +134,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		}, 600*time.Second, 30*time.Second, "Could not verify kubelet metrics in time")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, metav1.ListOptions{
 				LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
 			})
 			assert.NoError(t, err)
@@ -138,7 +144,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "collector", "-j")
 				assert.NoError(t, err)
 
-				verifyCheck(c, output, "kubernetes_state_core")
+				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
 		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
@@ -167,12 +173,12 @@ func (s *k8sSuite) TestGenericK8s() {
 		}
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
-		common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
-		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
-		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+		utils.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+		utils.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
+		utils.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, metav1.ListOptions{
 				LabelSelector: "app.kubernetes.io/instance=dda-minimum-cluster-checks-runner",
 			})
 			assert.NoError(c, err)
@@ -182,7 +188,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", ccr.Name, "--", "agent", "status", "collector", "-j")
 				assert.NoError(c, err)
 
-				verifyCheck(c, output, "kubernetes_state_core")
+				utils.VerifyCheck(c, output, "kubernetes_state_core")
 			}
 		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
@@ -211,12 +217,12 @@ func (s *k8sSuite) TestGenericK8s() {
 		// Add nginx with annotations
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
 
-		common.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app=nginx")
-		common.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
+		utils.VerifyNumPodsForSelector(t, kubectlOptions, 1, "app=nginx")
+		utils.VerifyAgentPods(t, kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
 
 		// check agent pods for http check
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, metav1.ListOptions{
 				LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
 				FieldSelector: "status.phase=Running",
 			})
@@ -226,7 +232,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "-j")
 				assert.NoError(c, err)
 
-				verifyCheck(c, output, "http_check")
+				utils.VerifyCheck(c, output, "http_check")
 			}
 		}, 900*time.Second, 30*time.Second, "could not validate http check on agent pod")
 
@@ -255,11 +261,11 @@ func (s *k8sSuite) TestGenericK8s() {
 		}
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...))
-		common.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=datadog-agent-logs-agent")
+		utils.VerifyAgentPods(t, kubectlOptions, "app.kubernetes.io/instance=datadog-agent-logs-agent")
 
 		// Verify logs collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
-			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, metav1.ListOptions{
 				LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent",
 			})
 			assert.NoError(c, err)
@@ -270,7 +276,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "logs agent", "-j")
 				assert.NoError(c, err)
 
-				verifyAgentPodLogs(c, output)
+				utils.VerifyAgentPodLogs(c, output)
 			}
 		}, 900*time.Second, 30*time.Second, "could not validate logs status on agent pod")
 
@@ -280,65 +286,10 @@ func (s *k8sSuite) TestGenericK8s() {
 	})
 }
 
-func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
-	var agentLogs []interface{}
-	logsJson := common.ParseCollectorJson(collectorOutput)
-
-	tailedIntegrations := 0
-	if logsJson != nil {
-		agentLogs = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
-		for _, log := range agentLogs {
-			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
-				message, exists := integration["messages"].([]interface{})[0].(string)
-				if exists && len(message) > 0 {
-					num, _ := strconv.Atoi(string(message[0]))
-					if num > 0 && strings.Contains(message, "files tailed") {
-						tailedIntegrations++
-					}
-				}
-			} else {
-				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
-			}
-		}
-	}
-	totalIntegrations := len(agentLogs)
-	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
-}
-
-func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
-	var runningChecks map[string]interface{}
-
-	checksJson := common.ParseCollectorJson(collectorOutput)
-	if checksJson != nil {
-		runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
-		if check, found := runningChecks[checkName].(map[string]interface{}); found {
-			for _, instance := range check {
-				assert.EqualValues(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
-
-				lastError, exists := instance.(map[string]interface{})["LastError"].(string)
-				assert.True(c, exists)
-				assert.Empty(c, lastError)
-
-				totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
-				assert.True(c, exists)
-				assert.Zero(c, totalErrors)
-
-				totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
-				assert.True(c, exists)
-				assert.Greater(c, totalMetricSamples, float64(0))
-			}
-		} else {
-			assert.True(c, found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
-		}
-	}
-}
-
 func verifyAPILogs(s *k8sSuite) {
-	s.EventuallyWithTf(func(c *assert.CollectT) {
-		logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
-		s.Assert().NoError(err)
-		s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
-	}, 600*time.Second, 30*time.Second, "could not valid logs collection with fake intake client")
+	logs, err := s.Env().FakeIntake.Client().FilterLogs("agent")
+	s.Assert().NoError(err)
+	s.Assert().NotEmptyf(logs, fmt.Sprintf("Expected fake intake-ingested logs to not be empty: %s", err))
 }
 
 func verifyKSMCheck(s *k8sSuite) {

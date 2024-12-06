@@ -10,8 +10,8 @@ package e2e
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-operator/test/new-e2e/common"
-	"github.com/DataDog/datadog-operator/test/new-e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"testing"
 )
@@ -32,8 +32,6 @@ func TestLocalKindSuite(t *testing.T) {
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
 	}
-
-	t.Parallel()
 
 	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)), e2e.WithSkipDeleteOnFailure(), e2e.WithDevMode())
 }

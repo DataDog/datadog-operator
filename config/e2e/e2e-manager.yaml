@@ -3,13 +3,13 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/name: datadog-operator
-  name: system
+  name: e2e-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: manager
-  namespace: system
+  namespace: e2e-operator
   labels:
     app.kubernetes.io/name: datadog-operator
     control-plane: controller-manager
