@@ -12,8 +12,8 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
 )
 
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.

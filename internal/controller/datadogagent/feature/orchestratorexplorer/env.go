@@ -10,8 +10,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 )
 
 func (f *orchestratorExplorerFeature) getEnvVars() []*corev1.EnvVar {

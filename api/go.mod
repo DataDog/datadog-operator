@@ -1,4 +1,4 @@
-module github.com/DataDog/datadog-operator/api
+module github.com/DataDog/datadog-operator/api/crds
 
 go 1.23.2
 

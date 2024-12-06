@@ -6,7 +6,7 @@
 package merger
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 )
 

@@ -5,7 +5,7 @@
 
 package merger
 
-import "github.com/DataDog/datadog-operator/api/datadoghq/common"
+import "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 
 // AllAgentContainers is a map of all agent containers
 var AllAgentContainers = map[common.AgentContainerName]struct{}{

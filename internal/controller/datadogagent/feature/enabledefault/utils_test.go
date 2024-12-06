@@ -8,8 +8,8 @@ package enabledefault
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1/test"
 	"github.com/stretchr/testify/assert"
 )
 

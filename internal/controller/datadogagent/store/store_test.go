@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"

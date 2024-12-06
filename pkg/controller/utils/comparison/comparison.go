@@ -15,7 +15,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 )
 
 // IsSameSpecMD5Hash used to compare the DatadogAgent.spec md5 hash with the one set in annotations

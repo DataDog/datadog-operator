@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 )
 
 func OverrideComponentImage(spec *v2alpha1.DatadogAgentSpec, cmpName v2alpha1.ComponentName, imageName, imageTag string) error {

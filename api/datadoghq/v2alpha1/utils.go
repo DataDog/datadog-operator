@@ -10,7 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"

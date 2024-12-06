@@ -6,8 +6,8 @@
 package v2alpha1
 
 import (
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 

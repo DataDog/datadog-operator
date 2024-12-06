@@ -8,8 +8,8 @@ package override
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/apps/v1"

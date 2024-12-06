@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"k8s.io/apimachinery/pkg/util/wait"

@@ -6,7 +6,7 @@
 package override
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
 	v1 "k8s.io/api/apps/v1"
 )
 

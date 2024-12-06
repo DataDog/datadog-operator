@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	common "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	common "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 )
 
 func Test_merge(t *testing.T) {

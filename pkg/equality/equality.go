@@ -17,7 +17,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 

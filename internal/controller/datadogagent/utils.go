@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

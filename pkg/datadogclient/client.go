@@ -19,7 +19,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
 )
 
 const prefix = "https://api."

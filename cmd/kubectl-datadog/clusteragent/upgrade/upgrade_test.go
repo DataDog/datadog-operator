@@ -12,9 +12,9 @@ package upgrade
 // 	"fmt"
 // 	"testing"
 
-// 	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
-// 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-// 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+// 	commonv1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/common/v1"
+// 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+// 	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 // 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 // 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

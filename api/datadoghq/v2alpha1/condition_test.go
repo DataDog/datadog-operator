@@ -3,7 +3,7 @@ package v2alpha1
 import (
 	"testing"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
