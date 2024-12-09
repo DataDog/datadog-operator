@@ -144,11 +144,13 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
+# todo: i think this is wrong
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="github.com/DataDog/datadog-operator/api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+# todo: i think this is wrong
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="github.com/DataDog/datadog-operator/api/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
@@ -218,7 +220,7 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./api -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir github.com/DataDog/datadog-operator/api -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -286,8 +288,10 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
+# only go header file should refernece the go module, the rest are for outputting
+# no change expected from testString
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
