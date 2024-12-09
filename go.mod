@@ -1,8 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.22.0
-
-toolchain go1.22.7
+go 1.23.2
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
@@ -17,7 +15,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.33.1
-	github.com/pkg/errors v0.9.1
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
@@ -42,6 +40,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
+	github.com/DataDog/datadog-operator/api v0.0.0-20241209163940-675d628496ec
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
