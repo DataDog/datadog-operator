@@ -22,9 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled

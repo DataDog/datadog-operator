@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 func Test_buildThreshold(t *testing.T) {

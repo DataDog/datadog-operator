@@ -8,8 +8,8 @@ package common
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"

@@ -8,9 +8,9 @@ package autoscaling
 import (
 	"errors"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"

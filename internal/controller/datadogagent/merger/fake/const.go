@@ -1,6 +1,6 @@
 package fake
 
-import "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+import "github.com/DataDog/datadog-operator/api/datadoghq/common"
 
 const (
 	// AllContainers all containers container name

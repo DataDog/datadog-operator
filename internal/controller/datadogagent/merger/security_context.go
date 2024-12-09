@@ -8,7 +8,7 @@ package merger
 import (
 	"sort"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
 )
 

@@ -21,9 +21,9 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // These constants are only used within pkg/config

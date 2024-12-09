@@ -3,7 +3,7 @@ package v2alpha1
 import (
 	"fmt"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

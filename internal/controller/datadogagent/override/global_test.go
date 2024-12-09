@@ -12,10 +12,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1/test"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 

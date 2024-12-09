@@ -3,11 +3,11 @@ package test
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"

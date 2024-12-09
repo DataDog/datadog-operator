@@ -3,7 +3,7 @@ package fake
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	merger "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 
 	v1 "k8s.io/api/core/v1"

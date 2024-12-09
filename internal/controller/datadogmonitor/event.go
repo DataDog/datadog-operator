@@ -8,7 +8,7 @@ package datadogmonitor
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )

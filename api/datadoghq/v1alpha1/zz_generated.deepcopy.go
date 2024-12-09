@@ -11,7 +11,7 @@ package v1alpha1
 
 import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"

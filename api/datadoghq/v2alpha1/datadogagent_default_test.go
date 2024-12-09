@@ -8,8 +8,8 @@ package v2alpha1
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"

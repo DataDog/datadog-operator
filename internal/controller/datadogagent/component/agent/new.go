@@ -8,7 +8,7 @@ package agent
 import (
 	"time"
 
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"

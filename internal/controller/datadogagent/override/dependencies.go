@@ -13,7 +13,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/errors"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"

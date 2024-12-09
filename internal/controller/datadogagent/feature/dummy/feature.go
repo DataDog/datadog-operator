@@ -6,7 +6,7 @@
 package dummy
 
 import (
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 

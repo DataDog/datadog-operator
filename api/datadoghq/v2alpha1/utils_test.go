@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

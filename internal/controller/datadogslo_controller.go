@@ -8,7 +8,7 @@ package controller
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogslo"
 	"github.com/go-logr/logr"

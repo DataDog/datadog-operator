@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 
 	"github.com/stretchr/testify/assert"

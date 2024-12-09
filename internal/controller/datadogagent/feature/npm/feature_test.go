@@ -8,9 +8,9 @@ package npm
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/crds/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"

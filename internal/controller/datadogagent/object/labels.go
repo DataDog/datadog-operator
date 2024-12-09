@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	apicommon "github.com/DataDog/datadog-operator/api/crds/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"

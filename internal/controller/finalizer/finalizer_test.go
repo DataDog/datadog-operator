@@ -7,10 +7,7 @@ package finalizer
 
 import (
 	"context"
-	"testing"
-	"time"
-
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"testing"
+	"time"
 )
 
 type testResource struct {

@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/DataDog/datadog-operator/api/crds/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogdashboard"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/go-logr/logr"
