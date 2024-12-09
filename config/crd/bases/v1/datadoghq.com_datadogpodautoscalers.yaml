@@ -231,7 +231,7 @@ spec:
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
                           maximum: 1800
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         strategy:
                           description: |-
@@ -305,7 +305,7 @@ spec:
                             before deciding to apply a new one. Defaults to 0.
                           format: int32
                           maximum: 1800
-                          minimum: 1
+                          minimum: 0
                           type: integer
                         strategy:
                           description: |-
