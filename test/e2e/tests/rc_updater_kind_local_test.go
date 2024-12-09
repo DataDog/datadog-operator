@@ -9,55 +9,30 @@
 package e2e
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
-	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 )
 
 func TestRcLocalKindSuite(t *testing.T) {
 
-	operatorOpts := []operatorparams.Option{
-		operatorparams.WithNamespace(common.NamespaceName),
-		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
-		// Remote configuration requires API, app keys, cluster name and site
-		operatorparams.WithHelmValues("remoteConfiguration.enabled: true"),
-		operatorparams.WithHelmValues("apiKeyExistingSecret: dda-datadog-credentials"),
-		operatorparams.WithHelmValues("appKeyExistingSecret: dda-datadog-credentials"),
-		operatorparams.WithHelmValues("clusterName: rc-updater-e2e-test-cluster"),
-		operatorparams.WithHelmValues("site: datadoghq.com"),
-	}
-
-	ddaManifest := filepath.Join(common.ManifestsPath, "datadog-agent-rc-updater.yaml")
-	ddaConfigPath, _ := common.GetAbsPath(ddaManifest)
-
-	ddaOpts := []agentwithoperatorparams.Option{
-		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-		agentwithoperatorparams.WithTLSKubeletVerify(false),
-		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-			Name:         "datadog-agent-rc-updater",
-			YamlFilePath: ddaConfigPath,
-		}),
-	}
-
 	provisionerOpts := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithK8sVersion(common.K8sVersion),
-		provisioners.WithOperatorOptions(operatorOpts...),
-		provisioners.WithDDAOptions(ddaOpts...),
+		provisioners.WithoutOperator(),
+		provisioners.WithoutFakeIntake(),
+		provisioners.WithoutDDA(),
 	}
 
 	e2eParams := []e2e.SuiteOption{
-		e2e.WithStackName("rc-updater-e2e-test-cluster"),
+		e2e.WithSkipDeleteOnFailure(),
+		// Un-comment the following line to run the test in dev mode (keep stack after test)
 		// e2e.WithDevMode(),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOpts...)),
 	}
 
 	t.Parallel()
 
-	e2e.Run(t, &updaterSuite{clusterName: "rc-updater-e2e-test-cluster"}, e2eParams...)
+	e2e.Run(t, &updaterSuite{}, e2eParams...)
 }
