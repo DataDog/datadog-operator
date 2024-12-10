@@ -40,7 +40,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
-	github.com/DataDog/datadog-operator/api v0.0.0-20241209163940-675d628496ec
+	github.com/DataDog/datadog-operator/api v0.0.0-20241210180103-2830f65f199d
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
