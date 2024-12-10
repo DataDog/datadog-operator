@@ -67,16 +67,16 @@ data:
 
 It is possible to use the same secret to store both credentials:
 
-    ```yaml
-    ---
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: test-secret
-    data:
-      api_key: <api-key>
-      app_key: <app-key>
-    ```
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret
+data:
+  api_key: <api-key>
+  app_key: <app-key>
+```
 
 ## 3. Use the secret backend feature
 
