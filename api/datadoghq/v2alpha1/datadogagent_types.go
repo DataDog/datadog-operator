@@ -133,6 +133,20 @@ type APMFeatureConfig struct {
 	// Enabled Default: false
 	// +optional
 	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
+
+	// ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.
+	// Feature is in beta.
+	// +optional
+	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
+}
+
+// ErrorTrackingStandalone contains the configuration for Error Tracking standalone.
+// +k8s:openapi-gen=true
+type ErrorTrackingStandalone struct {
+	// Enabled enables Error Tracking backend standalone.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
@@ -1215,7 +1229,7 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	//Env contains a list of environment variables that are set for all Agents.
+	// Env contains a list of environment variables that are set for all Agents.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -1314,6 +1328,19 @@ type GlobalConfig struct {
 	// Default: 'false'
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
+
+	// CoreAgent contains the settings for the core agent.
+	// +optional
+	CoreAgent *CoreAgent `json:"coreAgent,omitempty"`
+}
+
+// CoreAgent contains the core agent configuration.
+// +k8s:openapi-gen=true
+type CoreAgent struct {
+	// Enabled enables the Core Agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.

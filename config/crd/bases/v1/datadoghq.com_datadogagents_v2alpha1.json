@@ -479,6 +479,17 @@
                   "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                   "type": "boolean"
                 },
+                "errorTrackingStandalone": {
+                  "additionalProperties": false,
+                  "description": "ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.\nFeature is in beta.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables Error Tracking backend standalone.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "hostPortConfig": {
                   "additionalProperties": false,
                   "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8126",
@@ -1588,6 +1599,17 @@
             "containerStrategy": {
               "description": "ContainerStrategy determines whether agents run in a single or multiple containers.\nDefault: 'optimized'",
               "type": "string"
+            },
+            "coreAgent": {
+              "additionalProperties": false,
+              "description": "CoreAgent contains the settings for the core agent.",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables the Core Agent.\nDefault: true",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
             },
             "credentials": {
               "additionalProperties": false,
@@ -7147,6 +7169,17 @@
                     "enabled": {
                       "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                       "type": "boolean"
+                    },
+                    "errorTrackingStandalone": {
+                      "additionalProperties": false,
+                      "description": "ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.\nFeature is in beta.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Error Tracking backend standalone.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     },
                     "hostPortConfig": {
                       "additionalProperties": false,

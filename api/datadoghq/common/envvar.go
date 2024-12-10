@@ -36,7 +36,9 @@ const (
 	DDAdmissionControllerAppsecSCAEnabled                = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_APPSEC_SCA_ENABLED"
 	DDAdmissionControllerIASTEnabled                     = "DD_ADMISSION_CONTROLLER_AUTO_INSTRUMENTATION_IAST_ENABLED"
 	DDAPIKey                                             = "DD_API_KEY"
+	DDCoreAgentEnabled                                   = "DD_CORE_AGENT_ENABLED"
 	DDAPMEnabled                                         = "DD_APM_ENABLED"
+	DDAPMErrorTrackingStandaloneEnabled                  = "DD_APM_ERROR_TRACKING_STANDALONE_ENABLED"
 	DDAPMInstrumentationInstallTime                      = "DD_INSTRUMENTATION_INSTALL_TIME"
 	DDAPMInstrumentationInstallId                        = "DD_INSTRUMENTATION_INSTALL_ID"
 	DDAPMInstrumentationInstallType                      = "DD_INSTRUMENTATION_INSTALL_TYPE"
@@ -178,7 +180,7 @@ const (
 	DDOTLPgRPCEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
 	DDOTLPHTTPEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
 
-	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
+	// KubernetesEnvVar Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
 	KubernetesEnvVar = "KUBERNETES"
 
