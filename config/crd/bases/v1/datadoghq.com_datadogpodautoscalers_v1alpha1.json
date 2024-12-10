@@ -31,71 +31,6 @@
                     "description": "Enabled false allows to disable resources autoscaling for the container. Default to true.",
                     "type": "boolean"
                   },
-                  "limits": {
-                    "additionalProperties": false,
-                    "description": "Limits defines the constraints for the limits of the container.",
-                    "properties": {
-                      "maxAllowed": {
-                        "additionalProperties": false,
-                        "description": "MaxAllowed is the upper limit for the requests of the container.",
-                        "properties": {
-                          "cpu": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
-                          },
-                          "memory": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
-                          }
-                        },
-                        "type": "object"
-                      },
-                      "minAllowed": {
-                        "additionalProperties": false,
-                        "description": "MinAllowed is the lower limit for the requests of the container.",
-                        "properties": {
-                          "cpu": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
-                          },
-                          "memory": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
-                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
-                          }
-                        },
-                        "type": "object"
-                      }
-                    },
-                    "type": "object"
-                  },
                   "name": {
                     "description": "Name is the name of the container. Can be \"*\" to apply to all containers.",
                     "type": "string"
@@ -109,25 +44,11 @@
                         "description": "MaxAllowed is the upper limit for the requests of the container.",
                         "properties": {
                           "cpu": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
+                            "type": "string",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
                           },
                           "memory": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
+                            "type": "string",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
                           }
                         },
@@ -138,25 +59,11 @@
                         "description": "MinAllowed is the lower limit for the requests of the container.",
                         "properties": {
                           "cpu": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
+                            "type": "string",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
                           },
                           "memory": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "integer"
-                              }
-                            ],
+                            "type": "string",
                             "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
                           }
                         },
@@ -176,10 +83,11 @@
             "maxReplicas": {
               "description": "MaxReplicas is the upper limit for the number of POD replicas. Needs to be \u003e= minReplicas.",
               "format": "int32",
+              "minimum": 1,
               "type": "integer"
             },
             "minReplicas": {
-              "description": "MinReplicas is the lower limit for the number of POD replicas. Needs to be \u003e= 1. Default to 1.",
+              "description": "MinReplicas is the lower limit for the number of POD replicas. Needs to be \u003e= 1. Defaults to 1.",
               "format": "int32",
               "minimum": 1,
               "type": "integer"
@@ -213,7 +121,7 @@
               ],
               "type": "string"
             },
-            "downscale": {
+            "downscale": { // This seems overly complicated. I can see case for 2 fields (pods and %) + max; not sure whats IfScalingEvent even does
               "additionalProperties": false,
               "description": "Downscale defines the policy to scale down the target resource.",
               "properties": {
@@ -221,10 +129,10 @@
                   "description": "Rules is a list of potential scaling polices which can be used during scaling.\nAt least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid",
                   "items": {
                     "additionalProperties": false,
-                    "description": "DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.",
+                    "description": "DatadogPodAutoscalerScalingRule defines rules for horizontal that should be true for a certain amount of time.",
                     "properties": {
-                      "match": {
-                        "description": "Match defines if the rule should be considered or not in the calculation.\nDefault to Always if not set.",
+                      "match": { // WHAT DOES IT DO?
+                        "description": "Match defines if the rule should be considered or not in the calculation.\nDefaults to Always if not set.",
                         "enum": [
                           "Always",
                           "IfScalingEvent"
@@ -238,7 +146,7 @@
                         "minimum": 1,
                         "type": "integer"
                       },
-                      "type": {
+                      "type": { // ???
                         "description": "Type is used to specify the scaling policy.",
                         "enum": [
                           "Pods",
@@ -247,7 +155,7 @@
                         "type": "string"
                       },
                       "value": {
-                        "description": "Value contains the amount of change which is permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.",
+                        "description": "Value contains the amount of change permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.",
                         "format": "int32",
                         "minimum": 0,
                         "type": "integer"
@@ -290,7 +198,7 @@
               },
               "type": "object"
             },
-            "upscale": {
+            "upscale": { // ditto
               "additionalProperties": false,
               "description": "Upscale defines the policy to scale up the target resource.",
               "properties": {
@@ -356,7 +264,7 @@
           "type": "object"
         },
         "remoteVersion": {
-          "description": "RemoteVersion is the version of the .Spec currently store in this object.\nOnly set if the owner is Remote.",
+          "description": "RemoteVersion is the version of the .Spec currently stored in this object.\nOnly set if the owner is Remote.",
           "format": "int64",
           "type": "integer"
         },
@@ -383,8 +291,8 @@
           ],
           "type": "object"
         },
-        "targets": {
-          "description": "Targets are objectives to reach and maintain for the target resource.\nDefault to a single target to maintain 80% POD CPU utilization.",
+        "targets": { // Don't we want to be closer to https://pkg.go.dev/k8s.io/api/autoscaling/v2#MetricSpec ?
+          "description": "Targets are objectives to reach and maintain for the target resource.\nDefaults to a single target to maintain 80% POD CPU utilization.",
           "items": {
             "additionalProperties": false,
             "description": "DatadogPodAutoscalerTarget defines the objectives to reach and maintain for the target resource.",
@@ -409,14 +317,7 @@
                     "description": "Value is the value of the target.",
                     "properties": {
                       "absolute": {
-                        "anyOf": [
-                          {
-                            "type": "integer"
-                          },
-                          {
-                            "type": "string"
-                          }
-                        ],
+                        "type": "string",
                         "description": "Absolute defines the absolute value of the target (for instance 500 millicores).",
                         "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
                         "x-kubernetes-int-or-string": true
@@ -533,7 +434,7 @@
             "description": "DatadogPodAutoscalerCondition describes the state of DatadogPodAutoscaler.",
             "properties": {
               "lastTransitionTime": {
-                "description": "Last time the condition transitioned from one status to another.",
+                "description": "The last time the condition transitioned from one status to another.",
                 "format": "date-time",
                 "type": "string"
               },
@@ -576,7 +477,7 @@
           "description": "Horizontal is the status of the horizontal scaling, if activated.",
           "properties": {
             "lastActions": {
-              "description": "LastActions are the last successful actions done by the controller",
+              "description": "LastActions are the last successful actions performed by the controller",
               "items": {
                 "additionalProperties": false,
                 "description": "DatadogPodAutoscalerHorizontalAction represents an horizontal action done by the controller",
