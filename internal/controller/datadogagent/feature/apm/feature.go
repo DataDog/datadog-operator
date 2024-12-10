@@ -97,8 +97,8 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 		return true
 	}
 
-	if apmConf.ErrorTrackingStandalone != nil && apiutils.BoolValue(apmConf.ErrorTrackingStandalone.Enabled) {
-		return true
+	if apmConf.ErrorTrackingStandalone != nil {
+		return apiutils.BoolValue(apmConf.ErrorTrackingStandalone.Enabled)
 	}
 
 	return false
