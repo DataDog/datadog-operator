@@ -288,10 +288,8 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-# only go header file should refernece the go module, the rest are for outputting
-# no change expected from testString
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir ./api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg ./api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir ./api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg ./api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
