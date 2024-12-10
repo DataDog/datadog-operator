@@ -679,6 +679,20 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "override runtime class name",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.RuntimeClassName = apiutils.NewStringPointer("old-name")
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				RuntimeClassName: apiutils.NewStringPointer("new-name"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
+			},
+		},
+		{
 			name: "override affinity",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
