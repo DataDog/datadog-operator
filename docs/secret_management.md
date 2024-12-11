@@ -116,9 +116,9 @@ First, mount the secret in the Operator container, for instance at `/etc/secret-
 
 **Note:** This secret helper requires Datadog Operator v0.5.0+
 
-### How to deploy the agent components using the secret backend feature with DatadogAgent
+### How to deploy the agent components using the secret backend feature with DatadogAgent (Operator 1.11+)
 
-If using a custom script, create a Datadog Agent (or Cluster Agent) image following the example for the Datadog Operator above. Then, to activate the secret backend feature in the `DatadogAgent` configuration, the `spec.credentials.useSecretBackend` parameter should be set to `true`.
+If using a custom script, create a Datadog Agent (or Cluster Agent) image following the example for the Datadog Operator above and reference credentials with `ENC[<placeholder>]`.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -133,7 +133,7 @@ spec:
   # ...
 ```
 
-Then inside the `spec.agent` configuration, the secret backend command can be specified by adding a new environment variable: "DD_SECRET_BACKEND_COMMAND".
+The secret backend command can be specified in the `spec.global.secretBackend.command`:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -141,43 +141,15 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
+  global:
+    secretBackend:
+      command: "/my-secret-backend.sh"
   # ...
-  override:
-    nodeAgent:
-      containers:
-        agent:
-          env:
-            - name: DD_SECRET_BACKEND_COMMAND
-              value: "/my-secret-backend.sh"
 ```
 
-If the "Cluster Agent" and the "Cluster Check Runner" are also deployed, the environment variable needs to be added also in the other environment variables configuration.
+The environment variable `DD_SECRET_BACKEND_COMMAND` from this configuration will be automatically applied to all the deployed components: node Agent, cluster Agent, cluster checks runners. Ensure the image you are using for all the components includes your command.
 
-```yaml
-apiVersion: datadoghq.com/v2alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  # ...
-  override:
-    clusterAgent:
-      # ...
-      containers:
-        cluster-agent:
-          env:
-            - name: DD_SECRET_BACKEND_COMMAND
-              value: "/my-secret-backend.sh"
-    clusterChecksRunner:
-      # ...
-      containers:
-        agent:
-          env:
-            - name: DD_SECRET_BACKEND_COMMAND
-              value: "/my-secret-backend.sh"
-```
-
-As in the Datadog Operator, the Datadog Agent image includes a helper function `readsecret.sh` that can be used to read mounted secrets. After creating the secret and setting the volume mount (in any container that requires it), set the `DD_SECRET_BACKEND_COMMAND` and `DD_SECRET_BACKEND_ARGUMENTS` environmental variables.
+For convenience, the Datadog Agent and its sibling Cluster images already include a [helper function][2] `readsecret_multiple_providers.sh` that can be used to read from both files as well as Kubernetes Secrets. After creating the secret, set `spec.global.secretBackend.command` to `"/readsecret_multiple_providers.sh"`.
 
 For instance, to use the secret backend for the Agent and Cluster Agent, create a secret called "test-secret":
 
@@ -192,68 +164,55 @@ metadata:
   name: datadog
 spec:
   global:
-    credentials:
-      apiKey: ENC[api_key]
-      appKey: ENC[app_key]
-  override:
-    nodeAgent:
-      env:
-        - name: DD_SECRET_BACKEND_COMMAND
-          value: "/readsecret.sh"
-        - name: DD_SECRET_BACKEND_ARGUMENTS
-          value: "/etc/secret-volume"
-      containers:
-        agent:
-          volumeMounts:
-            - name: secret-volume
-              mountPath: "/etc/secret-volume"
-      volumes:
-        - name: secret-volume
-          secret:
-            secretName: test-secret
-    clusterAgent:
-      containers:
-        cluster-agent:
-          env:
-            - name: DD_SECRET_BACKEND_COMMAND
-              value: "/readsecret.sh"
-            - name: DD_SECRET_BACKEND_ARGUMENTS
-              value: "/etc/secret-volume"
-          volumeMounts:
-            - name: secret-volume
-              mountPath: "/etc/secret-volume"
-      volumes:
-        - name: secret-volume
-          secret:
-            secretName: test-secret
-```
-
-The Datadog Agent also includes a script that can be used to read secrets from files mounted from Kubernetes secrets, or directly from Kubernetes secrets. This script can be used by setting `DD_SECRET_BACKEND_COMMAND` to `/readsecret_multiple_providers.sh`. An example of how to configure the DatadogAgent spec is provided below. For more details, see [Secrets Management][2].
-
-```yaml
-apiVersion: datadoghq.com/v2alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  global:
+    secretBackend:
+      command: "/readsecret_multiple_providers.sh"
     credentials:
       apiKey: ENC[k8s_secret@default/test-secret/api_key]
       appKey: ENC[k8s_secret@default/test-secret/app_key]
-  override:
-    nodeAgent:
-      env:
-        - name: DD_SECRET_BACKEND_COMMAND
-          value: "/readsecret_multiple_providers.sh"
 ```
 
 **Remarks:**
 
-* For the "Agent" and "Cluster Agent", others options exist to configure secret backend command:
+* The helper `"/readsecret_multiple_providers.sh"` allows the (cluster) Agent to directly read Kubernetes secrets within both its own and other namespaces. Note that to do this, the associated ServiceAccount must be granted permissions with the appropriate Roles and RoleBindings. This can be done manually or using the following options:
+    * `global.secretBackend.enableGlobalPermissions`: whether a ClusterRole allowing the Agents to read **ALL** Kubernetes secrets is created.
+      ```yaml
+      apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      metadata:
+        name: datadog
+      spec:
+        global:
+          secretBackend:
+            command: "/readsecret_multiple_providers.sh"
+            enableGlobalPermissions: true
+      # ...
+      ```
+    * `global.secretBackend.roles`: replacing `enableGlobalPermissions`, list of namespaces/secrets the Agents should have access to.
+      ```yaml
+      apiVersion: datadoghq.com/v2alpha1
+      kind: DatadogAgent
+      metadata:
+        name: datadog
+      spec:
+        global:
+          secretBackend:
+            command: "/readsecret_multiple_providers.sh"
+            roles:
+            - namespace: rabbitmq-system
+              secrets:
+              - "rabbitmqcluster-sample-default-user"
+      # ...
+      ```
+      In this example, a Role is created granting read access to the secret `rabbitmqcluster-sample-default-user` in the `rabbitmq-system` namespace.
 
-  * **DD_SECRET_BACKEND_ARGUMENTS**: those arguments will be specified to the command when the agent executes the secret backend command.
-  * **DD_SECRET_BACKEND_OUTPUT_MAX_SIZE**: maximum output size of the secret backend command. The default value is 1048576 (1Mb).
-  * **DD_SECRET_BACKEND_TIMEOUT**: secret backend execution timeout in second. The default value is 5 seconds.
+      *Note: Each namespace from this list needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE` environment variables on the **Datadog Operator** container.*
+
+
+* For the Agent and Cluster Agent, others options exist to configure secret backend command:
+  * `global.secretBackend.args`: those arguments will be specified to the command when the agent executes the secret backend command.
+  * `global.secretBackend.timeout`: secret backend execution timeout in second. The default value is 30 seconds.
+* Prior to Operator 1.11+, `spec.global.secretBackend` is not available. [These instructions][3] should be followed instead.
 
 [1]: https://docs.datadoghq.com/agent/guide/secrets-management
 [2]: https://docs.datadoghq.com/agent/guide/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
+[3]: https://github.com/DataDog/datadog-operator/blob/2bbda7adace27de3d397b3d76d87fbd49fa304e3/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent
