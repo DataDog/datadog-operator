@@ -325,3 +325,13 @@ func assignNumeralState(state string) int {
 		return 0
 	}
 }
+
+// DatadogForwarderConditionType type use to represent a Datadog Metrics Forwarder condition.
+type DatadogForwarderConditionType string
+
+const (
+	// DatadogMetricsActive forwarding metrics and events to Datadog is active.
+	DatadogMetricsActive DatadogForwarderConditionType = "ActiveDatadogMetrics"
+	// DatadogMetricsError cannot forward deployment metrics and events to Datadog.
+	DatadogMetricsError DatadogForwarderConditionType = "DatadogMetricsError"
+)

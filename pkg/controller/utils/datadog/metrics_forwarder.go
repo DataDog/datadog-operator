@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -669,14 +668,17 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	conditionStatus := true
 	message := "Datadog metrics forwarding ok"
 	reason := "MetricsForwardingSucceeded"
+	conditionType := string(v2alpha1.DatadogMetricsActive)
+
 	if err != nil {
 		conditionStatus = false
 		message = "Datadog metrics forwarding error"
 		reason = "MetricsForwardingError"
+		conditionType = string(v2alpha1.DatadogMetricsError)
 	}
 
 	newConditionStatus := &ConditionCommon{
-		ConditionType:  string(v1alpha1.DatadogMetricsActive),
+		ConditionType:  conditionType,
 		Status:         conditionStatus,
 		LastUpdateTime: now,
 		Message:        message,
