@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	apmSocketHostPath  = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + apicommon.APMSocketName
+	apmSocketHostPath  = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
+	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + v2alpha1.APMSocketName
 )
 
 func TestShouldEnableAPM(t *testing.T) {
@@ -487,7 +487,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketHostPath,
+							Path: v2alpha1.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},
@@ -733,7 +733,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketHostPath,
+							Path: v2alpha1.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},

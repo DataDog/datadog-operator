@@ -118,17 +118,17 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(v2alpha1.PasswdVolumeName, v2alpha1.PasswdHostPath, v2alpha1.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 

@@ -12,7 +12,6 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -70,7 +69,7 @@ func GetVolumesFromConfigMap(configMap *v2alpha1.ConfigMapConfig, volumeName, de
 
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
+		MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, configFolder),
 		ReadOnly:  true,
 	}
 	return volume, volumeMount

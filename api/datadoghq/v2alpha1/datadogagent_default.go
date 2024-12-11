@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -42,7 +41,7 @@ const (
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
 	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultAPMSocketHostPath          string = DogstatsdAPMSocketHostPath + "/" + APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
@@ -61,7 +60,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = DogstatsdAPMSocketHostPath + "/" + DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -211,7 +210,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, apicommon.DefaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature

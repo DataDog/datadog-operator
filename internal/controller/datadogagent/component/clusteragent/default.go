@@ -188,7 +188,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDAuthTokenFilePath,
-			Value: filepath.Join(apicommon.AuthVolumePath, "token"),
+			Value: filepath.Join(v2alpha1.AuthVolumePath, "token"),
 		},
 	}
 
