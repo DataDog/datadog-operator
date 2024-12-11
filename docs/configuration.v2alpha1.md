@@ -141,6 +141,11 @@ spec:
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otelAgent.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.otelAgent.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.otelAgent.conf.configMap.name | Is the name of the ConfigMap. |
+| features.otelAgent.enabled | Enables the OTel Agent. Default: true |
+| features.otelAgent.ports | Contains the ports for the otel-agent. Default: 4317/4318 |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
 | features.otlp.receiver.protocols.grpc.endpoint | For OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
 | features.otlp.receiver.protocols.grpc.hostPortConfig.enabled | Enables host port configuration |

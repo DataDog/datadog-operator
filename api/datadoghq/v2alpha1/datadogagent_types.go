@@ -44,6 +44,8 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
+	// OTelAgent configuration.
+	OTelAgent *OTelAgentFeatureConfig `json:"otelAgent,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -680,6 +682,25 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
+}
+
+// OTelAgentFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+type OTelAgentFeatureConfig struct {
+	// Enabled enables the OTel Agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports for the otel-agent.
+	// Default: 4317/4318
+	// +optional
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.

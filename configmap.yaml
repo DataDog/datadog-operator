@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-provided-config-map
+  namespace: system
+data:
+  otel-config.yaml: |-
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+          http:
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog:
+        api:
+          key: ""
+    processors:
+      batch:
+    connectors:
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]

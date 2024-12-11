@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagent/defaultconfig"
 	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -371,6 +372,53 @@ func (builder *DatadogAgentBuilder) initProcessDiscovery() {
 func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initProcessDiscovery()
 	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// OTel Agent
+func (builder *DatadogAgentBuilder) initOtelAgent() {
+	if builder.datadogAgent.Spec.Features.OTelAgent == nil {
+		builder.datadogAgent.Spec.Features.OTelAgent = &v2alpha1.OTelAgentFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOtelAgent()
+	builder.datadogAgent.Spec.Features.OTelAgent.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentConfig() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OTelAgent.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OTelAgent.Conf.ConfigData =
+		apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentConfigMap() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OTelAgent.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OTelAgent.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key: "otel-config.yaml",
+			},
+		},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelAgentPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OTelAgent.Ports = []*corev1.ContainerPort{
+		{
+			Name:          "otel-http",
+			ContainerPort: httpPort,
+		},
+		{
+			Name:          "otel-grpc",
+			ContainerPort: grpcPort,
+		},
+	}
 	return builder
 }
 
