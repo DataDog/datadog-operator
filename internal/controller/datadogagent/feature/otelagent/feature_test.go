@@ -117,14 +117,6 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 			agentMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentMounts, wantVolumeMounts), "%s volume mounts \ndiff = %s", agentContainerName, cmp.Diff(agentMounts, wantVolumeMounts))
 
-			var keyToPathSlice []corev1.KeyToPath
-			if localObjectReferenceName == "user-provided-config-map" {
-				keyToPathSlice = []corev1.KeyToPath{
-					{
-						Key: "otel-config.yaml",
-					},
-				}
-			}
 			// check volumes "otel-agent-config"
 			wantVolumes := []corev1.Volume{
 				{
@@ -132,11 +124,8 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
 							LocalObjectReference: corev1.LocalObjectReference{
-								// [investigation needed]: seems strange that
-								// the string is prefixed by `-`.
 								Name: localObjectReferenceName,
 							},
-							Items: keyToPathSlice,
 						},
 					},
 				},

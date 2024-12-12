@@ -399,11 +399,6 @@ func (builder *DatadogAgentBuilder) WithOTelAgentConfigMap() *DatadogAgentBuilde
 	builder.datadogAgent.Spec.Features.OTelAgent.Conf = &v2alpha1.CustomConfig{}
 	builder.datadogAgent.Spec.Features.OTelAgent.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
 		Name: "user-provided-config-map",
-		Items: []corev1.KeyToPath{
-			{
-				Key: "otel-config.yaml",
-			},
-		},
 	}
 	return builder
 }
