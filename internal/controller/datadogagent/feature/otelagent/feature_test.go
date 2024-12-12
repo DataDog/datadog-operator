@@ -141,11 +141,13 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					Name:          "otel-http",
 					ContainerPort: expectedPorts.httpPort,
 					HostPort:      expectedPorts.httpPort,
+					Protocol:      corev1.ProtocolTCP,
 				},
 				{
 					Name:          "otel-grpc",
 					ContainerPort: expectedPorts.grpcPort,
 					HostPort:      expectedPorts.grpcPort,
+					Protocol:      corev1.ProtocolTCP,
 				},
 			}
 

@@ -408,10 +408,12 @@ func (builder *DatadogAgentBuilder) WithOTelAgentPorts(grpcPort int32, httpPort 
 		{
 			Name:          "otel-http",
 			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
 		},
 		{
 			Name:          "otel-grpc",
 			ContainerPort: grpcPort,
+			Protocol:      corev1.ProtocolTCP,
 		},
 	}
 	return builder
