@@ -494,6 +494,7 @@ publish_community_operators:
     - git config --global user.name $GITLAB_USER_NAME
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
     - gh auth login --with-token < git-token.txt
+    - gh auth refresh -s workflow
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
@@ -552,3 +553,46 @@ publish_release_candidate_workflow:
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
     OPERATOR_IMAGE_TAG: $CI_COMMIT_REF_SLUG
+
+
+test_publish_community_prs:
+  stage: test
+  tags: [ "runner:docker", "size:large" ]
+  image: $JOB_DOCKER_IMAGE
+  before_script:
+    - mkdir -p .cache
+    - make install-tools
+  script:
+    # Set version
+    - export VERSION=1.10.0 # vX.Y.Z => X.Y.Z
+    # Install github-cli and skopeo deps
+    - curl -fsSL "https://cli.github.com/packages/githubcli-archive-keyring.gpg" -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+    - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+    - apt-get update -y
+    - apt-get install -y gh libgpgme-dev libassuan-dev libbtrfs-dev libdevmapper-dev pkg-config
+    - rm -rf /var/lib/apt/lists/*
+    # Build skopeo and install (needed for make bundle-redhat)
+    # Note: skopeo apt package is only available in for ubuntu 20.10+
+    # https://github.com/containers/skopeo/blob/main/install.md#ubuntu
+    # TODO: use apt-get when gitlab runner image base is updated to use ubuntu 20.10+
+    - git clone --single-branch -b $SKOPEO_VERSION https://github.com/containers/skopeo /tmp/skopeo
+    - cd /tmp/skopeo && DISABLE_DOCS=1 make bin/skopeo
+    - DISABLE_DOCS=1 make install
+    - skopeo --version
+    # Set up redhat registry access to generate bundle-redhat
+    - mkdir ~/.redhat
+    - aws ssm get-parameter --region us-east-1 --name
+      ci.datadog-operator.redhat-registry-token --with-decryption --query "Parameter.Value" --out text > ~/.redhat/auths.json
+    - cd $CI_PROJECT_DIR
+    - make bundle-redhat
+    # configure git and github-cli
+    - git config --global user.email $GITLAB_USER_EMAIL
+    - git config --global user.name $GITLAB_USER_NAME
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
+    - gh auth login --with-token < git-token.txt
+    - gh auth refresh -s workflow
+    - gh auth setup-git
+    # create pull request for each marketplace repo
+    - make publish-community-bundles
+  variables:
+    SKOPEO_VERSION: release-1.16

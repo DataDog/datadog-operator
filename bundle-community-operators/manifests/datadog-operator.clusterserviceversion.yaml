@@ -1,0 +1,1186 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogAgentProfile",
+          "metadata": {
+            "name": "datadogagentprofile-sample"
+          },
+          "spec": {
+            "config": {
+              "override": {
+                "nodeAgent": {
+                  "containers": {
+                    "agent": {
+                      "resources": {
+                        "requests": {
+                          "cpu": "256m"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "profileAffinity": {
+              "profileNodeAffinity": [
+                {
+                  "key": "kubernetes.io/os",
+                  "operator": "In",
+                  "values": [
+                    "linux"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogDashboard",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "datadog-operator",
+              "app.kubernetes.io/instance": "datadogdashboard-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "datadogdashboard",
+              "app.kubernetes.io/part-of": "datadog-operator"
+            },
+            "name": "datadogdashboard-sample"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogMetric",
+          "metadata": {
+            "name": "datadogmetric-sample"
+          },
+          "spec": {
+            "query": "avg:kubernetes.cpu.usage.total{app:foo}.rollup(avg,30)/(avg:kubernetes.cpu.limits{app:foo}.rollup(avg,30)*10000000)"
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogMonitor",
+          "metadata": {
+            "name": "datadogmonitor-sample"
+          },
+          "spec": {
+            "message": "Something is wrong and we need to fix it.",
+            "query": "avg(last_15m):avg:foo{env:staging,service:bar} \u003e 1",
+            "tags": [
+              "env:staging",
+              "service:bar"
+            ],
+            "title": "Latency is increasing on staging",
+            "type": "metric alert"
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogPodAutoscaler",
+          "metadata": {
+            "name": "datadogpodautoscaler-sample"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "datadoghq.com/v1alpha1",
+          "kind": "DatadogSLO",
+          "metadata": {
+            "name": "datadogslo-sample"
+          },
+          "spec": {
+            "description": "This is an example metric SLO from datadog-operator",
+            "name": "datadogslo-sample",
+            "query": {
+              "denominator": "sum:requests.total{service:example,env:prod}.as_count()",
+              "numerator": "sum:requests.success{service:example,env:prod}.as_count()"
+            },
+            "tags": [
+              "service:example",
+              "env:prod"
+            ],
+            "targetThreshold": "99.9",
+            "timeframe": "7d",
+            "type": "metric"
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v2alpha1",
+          "kind": "DatadogAgent",
+          "metadata": {
+            "name": "datadogagent-sample"
+          },
+          "spec": {
+            "features": {
+              "admissionController": {
+                "enabled": false
+              },
+              "apm": {
+                "enabled": false
+              },
+              "clusterChecks": {
+                "enabled": true,
+                "useClusterChecksRunners": true
+              },
+              "liveProcessCollection": {
+                "enabled": false
+              },
+              "logCollection": {
+                "containerCollectAll": true,
+                "enabled": true
+              }
+            },
+            "global": {
+              "clusterAgentToken": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e",
+              "clusterName": "\u003cCLUSTER_NAME\u003e",
+              "credentials": {
+                "apiKey": "\u003cDATADOG_API_KEY\u003e",
+                "appKey": "\u003cDATADOG_APP_KEY\u003e"
+              },
+              "criSocketPath": "/var/run/crio/crio.sock",
+              "kubelet": {
+                "tlsVerify": false
+              }
+            },
+            "override": {
+              "clusterAgent": {
+                "containers": {
+                  "cluster-agent": {
+                    "securityContext": {
+                      "readOnlyRootFilesystem": false
+                    }
+                  }
+                },
+                "replicas": 2,
+                "serviceAccountName": "datadog-agent-scc"
+              },
+              "clusterChecksRunner": {
+                "replicas": 2
+              },
+              "nodeAgent": {
+                "hostNetwork": true,
+                "securityContext": {
+                  "runAsUser": 0,
+                  "seLinuxOptions": {
+                    "level": "s0",
+                    "role": "system_r",
+                    "type": "spc_t",
+                    "user": "system_u"
+                  }
+                },
+                "serviceAccountName": "datadog-agent-scc"
+              }
+            }
+          }
+        }
+      ]
+    capabilities: Full Lifecycle
+    categories: Monitoring, Logging & Tracing
+    createdAt: "2024-11-08 16:22:29"
+    description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
+    operators.operatorframework.io/builder: operator-sdk-v1.34.1
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+    repository: https://github.com/DataDog/datadog-operator
+    containerImage: gcr.io/datadoghq/operator:1.10.0
+    support: Datadog, Inc.
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
+    olm.skipRange: '>=1.7.0 <1.10.0'
+  labels:
+    operatorframework.io/arch.amd64: supported
+    operatorframework.io/arch.arm64: supported
+    operatorframework.io/os.linux: supported
+  name: datadog-operator.v1.10.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+      - description: DatadogAgentProfile is the Schema for the datadogagentprofiles API
+        displayName: Datadog Agent Profile
+        kind: DatadogAgentProfile
+        name: datadogagentprofiles.datadoghq.com
+        version: v1alpha1
+      - description: DatadogAgent Deployment with the Datadog Operator.
+        displayName: Datadog Agent
+        kind: DatadogAgent
+        name: datadogagents.datadoghq.com
+        version: v2alpha1
+      - description: DatadogDashboard is the Schema for the datadogdashboards API
+        displayName: Datadog Dashboard
+        kind: DatadogDashboard
+        name: datadogdashboards.datadoghq.com
+        version: v1alpha1
+      - description: DatadogMetric allows autoscaling on arbitrary Datadog query
+        displayName: Datadog Metric
+        kind: DatadogMetric
+        name: datadogmetrics.datadoghq.com
+        version: v1alpha1
+      - description: DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster
+        displayName: Datadog Monitor
+        kind: DatadogMonitor
+        name: datadogmonitors.datadoghq.com
+        version: v1alpha1
+      - description: DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
+        displayName: Datadog Pod Autoscaler
+        kind: DatadogPodAutoscaler
+        name: datadogpodautoscalers.datadoghq.com
+        version: v1alpha1
+      - description: DatadogSLO allows a user to define and manage datadog SLOs from Kubernetes cluster.
+        displayName: Datadog SLO
+        kind: DatadogSLO
+        name: datadogslos.datadoghq.com
+        version: v1alpha1
+  description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
+  displayName: Datadog Operator
+  icon:
+    - base64data: PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDIzLjAuNCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCA4MDAuNTUgODU2Ljg1IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA4MDAuNTUgODU2Ljg1OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+Cgkuc3Qwe2ZpbGwtcnVsZTpldmVub2RkO2NsaXAtcnVsZTpldmVub2RkO2ZpbGw6IzYzMkNBNjt9Cjwvc3R5bGU+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik02NzAuMzgsNjA4LjI3bC03MS4yNC00Ni45OWwtNTkuNDMsOTkuMjdsLTY5LjEyLTIwLjIxbC02MC44Niw5Mi44OWwzLjEyLDI5LjI0bDMzMC45LTYwLjk3bC0xOS4yMi0yMDYuNzUKCUw2NzAuMzgsNjA4LjI3eiBNMzYxLjc5LDUxOS4xM2w1My4wOS03LjNjOC41OSwzLjg2LDE0LjU3LDUuMzMsMjQuODcsNy45NWMxNi4wNCw0LjE4LDM0LjYxLDguMTksNjIuMTEtNS42NwoJYzYuNC0zLjE3LDE5LjczLTE1LjM2LDI1LjEyLTIyLjMxbDIxNy41Mi0zOS40NmwyMi4xOSwyNjguNTZsLTM3Mi42NSw2Ny4xNkwzNjEuNzksNTE5LjEzeiBNNzY1Ljg1LDQyMi4zNmwtMjEuNDcsNC4wOUw3MDMuMTMsMC4yNwoJTDAuMjcsODEuNzdsODYuNTksNzAyLjY4bDgyLjI3LTExLjk0Yy02LjU3LTkuMzgtMTYuOC0yMC43My0zNC4yNy0zNS4yNmMtMjQuMjMtMjAuMTMtMTUuNjYtNTQuMzItMS4zNy03NS45MQoJYzE4LjkxLTM2LjQ4LDExNi4zNC04Mi44NCwxMTAuODItMTQxLjE1Yy0xLjk4LTIxLjItNS4zNS00OC44LTI1LjAzLTY3LjcxYy0wLjc0LDcuODUsMC41OSwxNS40MSwwLjU5LDE1LjQxCglzLTguMDgtMTAuMzEtMTIuMTEtMjQuMzdjLTQtNS4zOS03LjE0LTcuMTEtMTEuMzktMTQuMzFjLTMuMDMsOC4zMy0yLjYzLDE3Ljk5LTIuNjMsMTcuOTlzLTYuNjEtMTUuNjItNy42OC0yOC44CgljLTMuOTIsNS45LTQuOTEsMTcuMTEtNC45MSwxNy4xMXMtOC41OS0yNC42Mi02LjYzLTM3Ljg4Yy0zLjkyLTExLjU0LTE1LjU0LTM0LjQ0LTEyLjI1LTg2LjQ5YzIxLjQ1LDE1LjAzLDY4LjY3LDExLjQ2LDg3LjA3LTE1LjY2CgljNi4xMS04Ljk4LDEwLjI5LTMzLjUtMy4wNS04MS44MWMtOC41Ny0zMC45OC0yOS43OS03Ny4xMS0zOC4wNi05NC42MWwtMC45OSwwLjcxYzQuMzYsMTQuMSwxMy4zNSw0My42NiwxNi44LDU3Ljk5CgljMTAuNDQsNDMuNDcsMTMuMjQsNTguNiw4LjM0LDc4LjY0Yy00LjE3LDE3LjQyLTE0LjE3LDI4LjgyLTM5LjUyLDQxLjU2Yy0yNS4zNSwxMi43OC01OC45OS0xOC4zMi02MS4xMi0yMC4wNAoJYy0yNC42My0xOS42Mi00My42OC01MS42My00NS44MS02Ny4xOGMtMi4yMS0xNy4wMiw5LjgxLTI3LjI0LDE1Ljg3LTQxLjE2Yy04LjY3LDIuNDgtMTguMzQsNi44OC0xOC4zNCw2Ljg4CglzMTEuNTQtMTEuOTQsMjUuNzctMjIuMjdjNS44OS0zLjksOS4zNS02LjM4LDE1LjU2LTExLjU0Yy04Ljk5LTAuMTUtMTYuMjksMC4xMS0xNi4yOSwwLjExczE0Ljk5LTguMSwzMC41My0xNAoJYy0xMS4zNy0wLjUtMjIuMjUtMC4wOC0yMi4yNS0wLjA4czMzLjQ1LTE0Ljk2LDU5Ljg3LTI1Ljk0YzE4LjE3LTcuNDUsMzUuOTItNS4yNSw0NS44OSw5LjE3YzEzLjA5LDE4Ljg5LDI2Ljg0LDI5LjE1LDU1Ljk4LDM1LjUxCgljMTcuODktNy45MywyMy4zMy0xMi4wMSw0NS44MS0xOC4xM2MxOS43OS0yMS43NiwzNS4zMy0yNC41OCwzNS4zMy0yNC41OHMtNy43MSw3LjA3LTkuNzcsMTguMTgKCWMxMS4yMi04Ljg0LDIzLjUyLTE2LjIyLDIzLjUyLTE2LjIycy00Ljc2LDUuODgtOS4yLDE1LjIybDEuMDMsMS41M2MxMy4wOS03Ljg1LDI4LjQ4LTE0LjA0LDI4LjQ4LTE0LjA0cy00LjQsNS41Ni05LjU2LDEyLjc2CgljOS44Ny0wLjA4LDI5Ljg5LDAuNDIsMzcuNjYsMS4zYzQ1Ljg3LDEuMDEsNTUuMzktNDguOTksNzIuOTktNTUuMjZjMjIuMDQtNy44NywzMS44OS0xMi42Myw2OS40NSwyNC4yNgoJYzMyLjIzLDMxLjY3LDU3LjQxLDg4LjM2LDQ0LjkxLDEwMS4wNmMtMTAuNDgsMTAuNTQtMzEuMTYtNC4xMS01NC4wOC0zMi42OGMtMTIuMTEtMTUuMTMtMjEuMjctMzMuMDEtMjUuNTYtNTUuNzQKCWMtMy42Mi0xOS4xOC0xNy43MS0zMC4zMS0xNy43MS0zMC4zMVM1MjAsOTIuOTUsNTIwLDEwOS4wMWMwLDguNzcsMS4xLDQxLjU2LDE1LjE2LDU5Ljk2Yy0xLjM5LDIuNjktMi4wNCwxMy4zMS0zLjU4LDE1LjM0CgljLTE2LjM2LTE5Ljc3LTUxLjQ5LTMzLjkyLTU3LjIyLTM4LjA5YzE5LjM5LDE1Ljg5LDYzLjk2LDUyLjM5LDgxLjA4LDg3LjM3YzE2LjE5LDMzLjA4LDYuNjUsNjMuNCwxNC44NCw3MS4yNQoJYzIuMzMsMi4yNSwzNC44Miw0Mi43Myw0MS4wNyw2My4wN2MxMC45LDM1LjQ1LDAuNjUsNzIuNy0xMy42Miw5NS44MWwtMzkuODUsNi4yMWMtNS44My0xLjYyLTkuNzYtMi40My0xNC45OS01LjQ2CgljMi44OC01LjEsOC42MS0xNy44Miw4LjY3LTIwLjQ0bC0yLjI1LTMuOTVjLTEyLjQsMTcuNTctMzMuMTgsMzQuNjMtNTAuNDQsNDQuNDNjLTIyLjU5LDEyLjgtNDguNjMsMTAuODMtNjUuNTgsNS41OAoJYy00OC4xMS0xNC44NC05My42LTQ3LjM1LTEwNC41Ny01NS44OWMwLDAtMC4zNCw2LjgyLDEuNzMsOC4zNWMxMi4xMywxMy42OCwzOS45MiwzOC40Myw2Ni43OCw1NS42OGwtNTcuMjYsNi4zbDI3LjA3LDIxMC43OAoJYy0xMiwxLjcyLTEzLjg3LDIuNTYtMjcuMDEsNC40M2MtMTEuNTgtNDAuOTEtMzMuNzMtNjcuNjItNTcuOTQtODMuMThjLTIxLjM1LTEzLjcyLTUwLjgtMTYuODEtNzguOTktMTEuMjNsLTEuODEsMi4xCgljMTkuNi0yLjA0LDQyLjc0LDAuOCw2Ni41MSwxNS44NWMyMy4zMywxNC43NSw0Mi4xMyw1Mi44NSw0OS4wNSw3NS43OWM4Ljg2LDI5LjMyLDE0Ljk5LDYwLjY4LTguODYsOTMuOTIKCWMtMTYuOTcsMjMuNjMtNjYuNTEsMzYuNjktMTA2LjUzLDguNDRjMTAuNjksMTcuMTksMjUuMTQsMzEuMjUsNDQuNTksMzMuOWMyOC44OCwzLjkyLDU2LjI5LTEuMDksNzUuMTYtMjAuNDYKCWMxNi4xMS0xNi41NiwyNC42NS01MS4xOSwyMi40LTg3LjY2bDI1LjQ5LTMuN2w5LjIsNjUuNDZsNDIxLjk4LTUwLjgxTDc2NS44NSw0MjIuMzZ6IE01MDkuMTIsMjQ0LjU5CgljLTEuMTgsMi42OS0zLjAzLDQuNDUtMC4yNSwxMy4ybDAuMTcsMC41bDAuNDQsMS4xM2wxLjE2LDIuNjJjNS4wMSwxMC4yNCwxMC41MSwxOS45LDE5LjcsMjQuODNjMi4zOC0wLjQsNC44NC0wLjY3LDcuMzktMC44CgljOC42My0wLjM4LDE0LjA4LDAuOTksMTcuNTQsMi44NWMwLjMxLTEuNzIsMC4zOC00LjI0LDAuMTktNy45NWMtMC42Ny0xMi45NywyLjU3LTM1LjAzLTIyLjM2LTQ2LjY0CgljLTkuNDEtNC4zNy0yMi42MS0zLjAyLTI3LjAxLDIuNDNjMC44LDAuMSwxLjUyLDAuMjcsMi4wOCwwLjQ2QzUxNC44MiwyMzkuNTUsNTEwLjMxLDI0MS44NCw1MDkuMTIsMjQ0LjU5IE01NzguOTksMzY1LjYxCgljLTMuMjctMS44LTE4LjU1LTEuMDktMjkuMjksMC4xOWMtMjAuNDYsMi40MS00Mi41NSw5LjUxLTQ3LjM5LDEzLjI5Yy04LjgsNi44LTQuOCwxOC42NiwxLjcsMjMuNTMKCWMxOC4yMywxMy42MiwzNC4yMSwyMi43NSw1MS4wOCwyMC41M2MxMC4zNi0xLjM2LDE5LjQ5LTE3Ljc2LDI1Ljk2LTMyLjY0QzU4NS40OCwzODAuMjYsNTg1LjQ4LDM2OS4yLDU3OC45OSwzNjUuNjEgTTM5Ny44NSwyNjAuNjUKCWM1Ljc3LTUuNDgtMjguNzQtMTIuNjgtNTUuNTIsNS41OGMtMTkuNzUsMTMuNDctMjAuMzgsNDIuMzUtMS40Nyw1OC43MmMxLjg5LDEuNjIsMy40NSwyLjc3LDQuOTEsMy43MQoJYzUuNTItMi42LDExLjgxLTUuMjMsMTkuMDUtNy41OGMxMi4yMy0zLjk3LDIyLjQtNi4wMiwzMC43Ni03LjExYzQtNC40Nyw4LjY1LTEyLjM0LDcuNDktMjYuNTkKCUM0MDEuNDksMjY4LjA1LDM4Ni44NCwyNzEuMTIsMzk3Ljg1LDI2MC42NSIvPgo8L3N2Zz4K
+      mediatype: image/svg+xml
+  install:
+    spec:
+      clusterPermissions:
+        - rules:
+            - nonResourceURLs:
+                - /metrics
+              verbs:
+                - get
+            - nonResourceURLs:
+                - /metrics/slis
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
+                - componentstatuses
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - deployments
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - endpoints
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - limitranges
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - namespaces
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - nodes
+              verbs:
+                - get
+                - list
+                - patch
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - nodes/metrics
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
+                - nodes/proxy
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
+                - nodes/spec
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
+                - nodes/stats
+              verbs:
+                - get
+            - apiGroups:
+                - ""
+              resources:
+                - persistentvolumeclaims
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - persistentvolumes
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - pods
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - replicationcontrollers
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - resourcequotas
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - secrets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - serviceaccounts
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - services
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - '*'
+              resources:
+                - '*/scale'
+              verbs:
+                - get
+                - update
+            - apiGroups:
+                - admissionregistration.k8s.io
+              resources:
+                - mutatingwebhookconfigurations
+                - validatingwebhookconfigurations
+              verbs:
+                - '*'
+            - apiGroups:
+                - apiextensions.k8s.io
+              resources:
+                - customresourcedefinitions
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - apiregistration.k8s.io
+              resources:
+                - apiservices
+              verbs:
+                - '*'
+                - list
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - daemonsets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - deployments
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - replicasets
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - replicationcontrollers
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - statefulsets
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - apps
+                - extensions
+              resources:
+                - daemonsets
+                - deployments
+                - replicasets
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - authentication.k8s.io
+              resources:
+                - tokenreviews
+              verbs:
+                - create
+                - get
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - clusterrolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - clusterroles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - pods/exec
+              verbs:
+                - create
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - rolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - roles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - subjectaccessreviews
+              verbs:
+                - create
+                - get
+            - apiGroups:
+                - autoscaling
+              resources:
+                - horizontalpodautoscalers
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - autoscaling.k8s.io
+              resources:
+                - verticalpodautoscalers
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - cronjobs
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - jobs
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - certificates.k8s.io
+              resources:
+                - certificatesigningrequests
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - cilium.io
+              resources:
+                - ciliumnetworkpolicies
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagentprofiles/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagents
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagents/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogagents/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards/finalizers
+              verbs:
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogdashboards/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogmetrics
+              verbs:
+                - create
+                - delete
+                - list
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogmetrics/status
+              verbs:
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogmonitors
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogmonitors/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogmonitors/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogpodautoscalers
+              verbs:
+                - '*'
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogpodautoscalers/status
+              verbs:
+                - '*'
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - extendeddaemonsetreplicasets
+              verbs:
+                - get
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - extendeddaemonsets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - watermarkpodautoscalers
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - extensions
+              resources:
+                - customresourcedefinitions
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - external.metrics.k8s.io
+              resources:
+                - '*'
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingresses
+              verbs:
+                - list
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - networkpolicies
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - policy
+              resources:
+                - poddisruptionbudgets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - policy
+              resources:
+                - podsecuritypolicies
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - quota.openshift.io
+              resources:
+                - clusterresourcequotas
+              verbs:
+                - get
+                - list
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterrolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterroles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - rolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - roles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - roles.rbac.authorization.k8s.io
+              resources:
+                - clusterrolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - roles.rbac.authorization.k8s.io
+              resources:
+                - clusterroles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - roles.rbac.authorization.k8s.io
+              resources:
+                - rolebindings
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - roles.rbac.authorization.k8s.io
+              resources:
+                - roles
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - security.openshift.io
+              resourceNames:
+                - restricted
+              resources:
+                - securitycontextconstraints
+              verbs:
+                - use
+            - apiGroups:
+                - storage.k8s.io
+              resources:
+                - storageclasses
+                - volumeattachments
+              verbs:
+                - list
+                - watch
+          serviceAccountName: datadog-operator-controller-manager
+        - rules:
+            - apiGroups:
+                - security.openshift.io
+              resourceNames:
+                - hostaccess
+                - privileged
+              resources:
+                - securitycontextconstraints
+              verbs:
+                - use
+          serviceAccountName: datadog-agent-scc
+      deployments:
+        - label:
+            app.kubernetes.io/name: datadog-operator
+            control-plane: controller-manager
+          name: datadog-operator-manager
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: datadog-operator
+            strategy: {}
+            template:
+              metadata:
+                annotations:
+                  ad.datadoghq.com/manager.check_names: '["openmetrics"]'
+                  ad.datadoghq.com/manager.init_configs: '[{}]'
+                  ad.datadoghq.com/manager.instances: |
+                    [{
+                      "prometheus_url": "http://%%host%%:8080/metrics",
+                      "namespace": "datadog.operator",
+                      "metrics": ["*"]
+                    }]
+                labels:
+                  app.kubernetes.io/name: datadog-operator
+              spec:
+                containers:
+                  - args:
+                      - --enable-leader-election
+                      - --pprof
+                    command:
+                      - /manager
+                    env:
+                      - name: POD_NAME
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.name
+                      - name: WATCH_NAMESPACE
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.annotations['olm.targetNamespaces']
+                      - name: DD_TOOL_VERSION
+                        value: operatorhub
+                    image: gcr.io/datadoghq/operator:1.10.0
+                    imagePullPolicy: IfNotPresent
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz/
+                        port: 8081
+                      periodSeconds: 10
+                    name: manager
+                    ports:
+                      - containerPort: 8080
+                        name: metrics
+                        protocol: TCP
+                    resources:
+                      limits:
+                        cpu: 100m
+                        memory: 250Mi
+                      requests:
+                        cpu: 100m
+                        memory: 250Mi
+                serviceAccountName: datadog-operator-controller-manager
+                terminationGracePeriodSeconds: 10
+      permissions:
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps/status
+              verbs:
+                - get
+                - update
+                - patch
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases/status
+              verbs:
+                - get
+                - update
+                - patch
+          serviceAccountName: datadog-operator-controller-manager
+    strategy: deployment
+  installModes:
+    - supported: false
+      type: OwnNamespace
+    - supported: false
+      type: SingleNamespace
+    - supported: false
+      type: MultiNamespace
+    - supported: true
+      type: AllNamespaces
+  keywords:
+    - Datadog
+    - Monitoring
+    - Logs
+    - Tracing
+  links:
+    - name: Documentation
+      url: https://docs.datadoghq.com/agent/kubernetes/
+    - name: Kubernetes Monitoring Info
+      url: https://www.datadoghq.com/blog/tag/kubernetes/
+  maintainers:
+    - email: support@datadoghq.com
+      name: Datadog Inc.
+  maturity: alpha
+  minKubeVersion: 1.16.0
+  provider:
+    name: Datadog
+  version: 1.10.0
