@@ -590,7 +590,7 @@ test_publish_community_prs:
     - git config --global user.name $GITLAB_USER_NAME
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.github-robot-token --with-decryption --query "Parameter.Value" --out text > git-token.txt
     - gh auth login --with-token < git-token.txt
-    - gh auth refresh -s workflow
+    - gh auth refresh -s workflow -h github.com
     - gh auth setup-git
     # create pull request for each marketplace repo
     - make publish-community-bundles
