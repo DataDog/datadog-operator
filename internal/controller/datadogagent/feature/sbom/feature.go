@@ -175,7 +175,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 				apicommon.CoreAgentContainerName,
 			)
 
-			managers.Annotation().AddAnnotation(apicommon.AgentAppArmorAnnotationKey, apicommon.AgentAppArmorAnnotationValue)
+			managers.Annotation().AddAnnotation(v2alpha1.AgentAppArmorAnnotationKey, v2alpha1.AgentAppArmorAnnotationValue)
 		}
 
 		volMgr := managers.Volume()
@@ -206,7 +206,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true)
+		osReleaseVol, osReleaseVolMount := volume.GetVolumes(v2alpha1.SystemProbeOSReleaseDirVolumeName, v2alpha1.SystemProbeOSReleaseDirVolumePath, v2alpha1.SystemProbeOSReleaseDirMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&osReleaseVol)
 

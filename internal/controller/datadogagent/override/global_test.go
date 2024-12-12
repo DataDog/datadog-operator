@@ -298,7 +298,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 func getExpectedVolumes() []*corev1.Volume {
 	return []*corev1.Volume{
 		{
-			Name: apicommon.KubeletCAVolumeName,
+			Name: v2alpha1.KubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
@@ -306,7 +306,7 @@ func getExpectedVolumes() []*corev1.Volume {
 			},
 		},
 		{
-			Name: apicommon.CriSocketVolumeName,
+			Name: v2alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
@@ -319,12 +319,12 @@ func getExpectedVolumes() []*corev1.Volume {
 func getExpectedVolumeMounts() []*corev1.VolumeMount {
 	return []*corev1.VolumeMount{
 		{
-			Name:      apicommon.KubeletCAVolumeName,
+			Name:      v2alpha1.KubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
 		},
 		{
-			Name:      apicommon.CriSocketVolumeName,
+			Name:      v2alpha1.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
 		},
