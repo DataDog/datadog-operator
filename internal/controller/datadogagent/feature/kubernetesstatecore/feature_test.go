@@ -119,7 +119,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
 				assert.NoError(t, err)
 				wantAnnotations := map[string]string{
-					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+					fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
 				}
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

@@ -8,7 +8,6 @@ package v2alpha1
 import (
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/google/go-cmp/cmp"
@@ -652,7 +651,7 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
 						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(apicommon.DefaultLogTempStoragePath),
+						TempStoragePath:            apiutils.NewStringPointer(DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),

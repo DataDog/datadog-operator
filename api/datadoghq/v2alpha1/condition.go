@@ -3,8 +3,6 @@ package v2alpha1
 import (
 	"fmt"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -124,7 +122,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus,
 		return depStatus
 	}
 
-	if hash, ok := dep.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := dep.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
 		depStatus.CurrentHash = hash
 	}
 	if updateTime != nil {
@@ -186,7 +184,7 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, up
 	if updateTime != nil {
 		newStatus.LastUpdate = updateTime
 	}
-	if hash, ok := ds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := ds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
 		newStatus.CurrentHash = hash
 	}
 
@@ -236,7 +234,7 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	if updateTime != nil {
 		newStatus.LastUpdate = updateTime
 	}
-	if hash, ok := eds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := eds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
 		newStatus.CurrentHash = hash
 	}
 
