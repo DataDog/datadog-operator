@@ -20,10 +20,10 @@ spec:
     otelAgent:
       enabled: true
       ports:
-        - containerPort: 4444
-          name: otel-grpc
-        - containerPort: 3333
-          name: otel-http
+        # - containerPort: 4317
+        #   name: grpc
+        # - containerPort: 4318
+        #   name: http
       # conf: 
       #   configMap: 
       #     name: user-provided-config-map

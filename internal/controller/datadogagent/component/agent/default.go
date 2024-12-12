@@ -219,19 +219,18 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 		Env:          []corev1.EnvVar{},
 		VolumeMounts: volumeMountsForOtelAgent(),
 		Ports: []corev1.ContainerPort{
-			// mackjmr(todo): this will break the annotations and flag
-			// {
-			// 	Name:          "grpc",
-			// 	ContainerPort: 4317,
-			// 	HostPort:      4317,
-			// 	Protocol:      corev1.ProtocolTCP,
-			// },
-			// {
-			// 	Name:          "http",
-			// 	ContainerPort: 4318,
-			// 	HostPort:      4318,
-			// 	Protocol:      corev1.ProtocolTCP,
-			// },
+			{
+				Name:          "otel-grpc",
+				ContainerPort: 4317,
+				HostPort:      4317,
+				Protocol:      corev1.ProtocolTCP,
+			},
+			{
+				Name:          "otel-http",
+				ContainerPort: 4318,
+				HostPort:      4318,
+				Protocol:      corev1.ProtocolTCP,
+			},
 		},
 	}
 }

@@ -55,10 +55,14 @@ func (o *otelAgentFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Require
 			{
 				Name:          "otel-http",
 				ContainerPort: 4318,
+				HostPort:      4318,
+				Protocol:      corev1.ProtocolTCP,
 			},
 			{
 				Name:          "otel-grpc",
 				ContainerPort: 4317,
+				HostPort:      4317,
+				Protocol:      corev1.ProtocolTCP,
 			},
 		}
 	}

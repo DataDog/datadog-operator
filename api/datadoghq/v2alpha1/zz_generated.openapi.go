@@ -1296,13 +1296,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OTelAgentFeatureConfig(ref c
 					},
 					"conf": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Conf overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration.",
+							Description: "Conf overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration. When passing a configmap, file name *must* be otel-config.yaml.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
 						},
 					},
 					"ports": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Ports contains the ports for the otel-agent. Default: 4317/4318",
+							Description: "Ports contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

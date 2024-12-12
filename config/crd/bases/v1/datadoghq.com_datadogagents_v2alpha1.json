@@ -1336,7 +1336,7 @@
               "properties": {
                 "conf": {
                   "additionalProperties": false,
-                  "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.",
+                  "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.\nWhen passing a configmap, file name *must* be otel-config.yaml.",
                   "properties": {
                     "configData": {
                       "description": "ConfigData corresponds to the configuration file content.",
@@ -1393,7 +1393,7 @@
                   "type": "boolean"
                 },
                 "ports": {
-                  "description": "Ports contains the ports for the otel-agent.\nDefault: 4317/4318",
+                  "description": "Ports contains the ports for the otel-agent.\nDefaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317\nor 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).\nIf not, this will lead to a port conflict.\nThis limitation will be lifted once annotations support is removed.",
                   "items": {
                     "additionalProperties": false,
                     "description": "ContainerPort represents a network port in a single container.",
@@ -8107,7 +8107,7 @@
                   "properties": {
                     "conf": {
                       "additionalProperties": false,
-                      "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.",
+                      "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.\nWhen passing a configmap, file name *must* be otel-config.yaml.",
                       "properties": {
                         "configData": {
                           "description": "ConfigData corresponds to the configuration file content.",
@@ -8164,7 +8164,7 @@
                       "type": "boolean"
                     },
                     "ports": {
-                      "description": "Ports contains the ports for the otel-agent.\nDefault: 4317/4318",
+                      "description": "Ports contains the ports for the otel-agent.\nDefaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317\nor 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).\nIf not, this will lead to a port conflict.\nThis limitation will be lifted once annotations support is removed.",
                       "items": {
                         "additionalProperties": false,
                         "description": "ContainerPort represents a network port in a single container.",
