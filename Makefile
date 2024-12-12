@@ -132,7 +132,7 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
+	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(subst operator:v,operator:,$(IMG))
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy

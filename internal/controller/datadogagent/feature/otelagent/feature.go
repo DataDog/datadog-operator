@@ -147,7 +147,7 @@ func (o otelAgentFeature) ManageNodeAgent(managers feature.PodTemplateManagers, 
 	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
 	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
 	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, apicommon.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, v2alpha1.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
 	// add ports
