@@ -152,6 +152,7 @@ func (o otelAgentFeature) ManageNodeAgent(managers feature.PodTemplateManagers, 
 
 	// add ports
 	for _, port := range o.ports {
+		// bind container port to host port.
 		port.HostPort = port.ContainerPort
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}

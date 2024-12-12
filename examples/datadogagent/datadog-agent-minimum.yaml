@@ -2,60 +2,8 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
-  annotations:
-    agent.datadoghq.com/otel-agent-enabled: "true"
 spec:
-  override:
-    nodeAgent:
-      containers: 
-        agent:
-          env:
-            - name: DD_HOSTNAME
-              value: "mack.test.node.name"
   global:
-    kubelet:
-      tlsVerify: false
     clusterName: my-example-cluster
     credentials:
-      apiKey: XXX
-  # features:
-  #   otelAgent:
-  #     enabled: true
-  #     ports:
-        # - containerPort: 4317
-        #   name: grpc
-        # - containerPort: 4318
-        #   name: http
-      # conf: 
-      #   configMap: 
-      #     name: user-provided-config-map
-        # configData: |-
-        #     receivers:
-        #       otlp:
-        #         protocols:
-        #           grpc:
-        #           http:
-        #     exporters:
-        #       debug:
-        #         verbosity: detailed
-        #       datadog:
-        #         api:
-        #           key: ""
-        #     processors:
-        #       batch:
-        #     connectors:
-        #     service:
-        #       pipelines:
-        #         traces:
-        #           receivers: [otlp]
-        #           processors: [batch]
-        #           exporters: [datadog]
-        #         metrics:
-        #           receivers: [otlp]
-        #           processors: [batch]
-        #           exporters: [datadog]
-        #         logs:
-        #           receivers: [otlp]
-        #           processors: [batch]
-        #           exporters: [datadog]
-
+      apiKey: <DATADOG_API_KEY>
