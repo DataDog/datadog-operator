@@ -182,7 +182,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		vol = volume.GetBasicVolume(f.configConfigMapName, ksmCoreVolumeName)
 		volMount = corev1.VolumeMount{
 			Name:      ksmCoreVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, ksmCoreCheckFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}
 	}

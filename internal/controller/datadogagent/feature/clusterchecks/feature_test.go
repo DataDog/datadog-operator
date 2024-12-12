@@ -110,7 +110,7 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("checksum unique")
 
-	annotationKey := fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	feature := buildClusterChecksFeature(&feature.Options{
 		Logger: logger,
 	})
@@ -188,7 +188,7 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 
 func wantClusterAgentHasNonEmptyChecksumAnnotation(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	annotationKey := fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	annotations := mgr.AnnotationMgr.Annotations
 	assert.NotEmpty(t, annotations[annotationKey])
 }

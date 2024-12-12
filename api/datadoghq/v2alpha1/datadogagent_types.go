@@ -690,6 +690,14 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// Validation contains Admission Controller validation configurations.
+	// +optional
+	Validation *AdmissionControllerValidationConfig `json:"validation,omitempty"`
+
+	// Mutation contains Admission Controller mutation configurations.
+	// +optional
+	Mutation *AdmissionControllerMutationConfig `json:"mutation,omitempty"`
+
 	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
 	// Default: false
 	// +optional
@@ -724,6 +732,20 @@ type AdmissionControllerFeatureConfig struct {
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
+}
+
+type AdmissionControllerValidationConfig struct {
+	// Enabled enables the Admission Controller validation webhook.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type AdmissionControllerMutationConfig struct {
+	// Enabled enables the Admission Controller mutation webhook.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 type AgentSidecarInjectionConfig struct {
@@ -1517,6 +1539,12 @@ type DatadogAgentComponentOverride struct {
 	// the pod priority is default, or zero if there is no default.
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
+	// If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.
+	// If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase.
+	// If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
+
 	// If specified, the pod's scheduling constraints.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
@@ -1622,6 +1650,10 @@ type DatadogAgentGenericContainer struct {
 	// Configure the Liveness Probe of the container
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Configure the Startup Probe of the container
+	// +optional
+	StartupProbe *corev1.Probe `json:"startupProbe,omitempty"`
 
 	// Container-level SecurityContext.
 	// +optional

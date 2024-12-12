@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -48,6 +48,25 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-service-account", manager.PodTemplateSpec().Spec.ServiceAccountName)
+			},
+		},
+		{
+			name: "given URI, override image name, tag; don't override a nonAgentContainer",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0", nonAgentName: "someregistry.com/datadog/non-agent:1.1.0"}, t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &v2alpha1.AgentImageConfig{
+					Name: "custom-agent",
+					Tag:  "latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assertImageConfigValues(
+					manager,
+					containerImageOptions{name: "someregistry.com/datadog/custom-agent:latest", nonAgentName: "someregistry.com/datadog/non-agent:1.1.0"},
+					t,
+				)
 			},
 		},
 		{
@@ -401,7 +420,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: common.FieldPathStatusPodIP,
+								FieldPath: v2alpha1.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -421,7 +440,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: common.FieldPathStatusPodIP,
+								FieldPath: v2alpha1.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -473,7 +492,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ConfdVolumeName {
+					if vol.Name == v2alpha1.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -496,7 +515,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ConfdVolumeName {
+					if vol.Name == v2alpha1.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -519,7 +538,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ChecksdVolumeName {
+					if vol.Name == v2alpha1.ChecksdVolumeName {
 						found = true
 						break
 					}
@@ -542,7 +561,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ChecksdVolumeName {
+					if vol.Name == v2alpha1.ChecksdVolumeName {
 						found = true
 						break
 					}
@@ -557,19 +576,19 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
 					Spec: v1.PodSpec{
 						Containers: []v1.Container{
-							{Name: string(common.CoreAgentContainerName)},
-							{Name: string(common.ClusterAgentContainerName)},
+							{Name: string(apicommon.CoreAgentContainerName)},
+							{Name: string(apicommon.ClusterAgentContainerName)},
 						},
 						InitContainers: []v1.Container{
-							{Name: string(common.InitConfigContainerName)},
+							{Name: string(apicommon.InitConfigContainerName)},
 						},
 					},
 				})
 
 				manager.EnvVarMgr.AddEnvVarToContainer(
-					common.ClusterAgentContainerName,
+					apicommon.ClusterAgentContainerName,
 					&v1.EnvVar{
-						Name:  common.DDLogLevel,
+						Name:  apicommon.DDLogLevel,
 						Value: "info",
 					},
 				)
@@ -577,8 +596,8 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					common.ClusterAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.ClusterAgentContainerName: {
 						LogLevel: apiutils.NewStringPointer("trace"),
 					},
 				},
@@ -586,8 +605,8 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				envSet := false
 
-				for _, env := range manager.EnvVarMgr.EnvVarsByC[common.ClusterAgentContainerName] {
-					if env.Name == common.DDLogLevel && env.Value == "trace" {
+				for _, env := range manager.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName] {
+					if env.Name == apicommon.DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
 					}
@@ -657,6 +676,20 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", manager.PodTemplateSpec().Spec.PriorityClassName)
+			},
+		},
+		{
+			name: "override runtime class name",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.RuntimeClassName = apiutils.NewStringPointer("old-name")
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				RuntimeClassName: apiutils.NewStringPointer("new-name"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
 			},
 		},
 		{
@@ -983,6 +1016,8 @@ type containerImageOptions struct {
 	name           string
 	pullPolicy     string
 	pullSecretName string
+
+	nonAgentName string
 }
 
 // In practice, image string registry will be derived either from global.registry setting or the default.
@@ -990,13 +1025,19 @@ type containerImageOptions struct {
 func fakePodTemplateManagersWithImageOverride(imageOptions containerImageOptions, t *testing.T) *fake.PodTemplateManagers {
 	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 
-	basicContainer := v1.Container{Image: imageOptions.name}
+	basicContainer := v1.Container{Name: "agent", Image: imageOptions.name}
 	if imageOptions.pullPolicy != "" {
 		basicContainer.ImagePullPolicy = v1.PullPolicy(imageOptions.pullPolicy)
 	}
 
 	manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{basicContainer}
 	manager.PodTemplateSpec().Spec.Containers = []v1.Container{basicContainer}
+
+	// This represents a container that doesn't use the agent image
+	if imageOptions.nonAgentName != "" {
+		basicNonAgentContainer := v1.Container{Name: "nonAgent", Image: imageOptions.nonAgentName}
+		manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, basicNonAgentContainer)
+	}
 
 	if imageOptions.pullSecretName != "" {
 		manager.PodTemplateSpec().Spec.ImagePullSecrets = []v1.LocalObjectReference{{Name: imageOptions.pullSecretName}}
@@ -1011,9 +1052,13 @@ func assertImageConfigValues(manager *fake.PodTemplateManagers, imageOptions con
 		manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
 	)
 
-	image := imageOptions.name
 	for _, container := range allContainers {
-		assert.Equal(t, image, container.Image)
+		if container.Name == "agent" {
+			assert.Equal(t, imageOptions.name, container.Image)
+		} else {
+			// This represents a container that doesn't use the agent image
+			assert.Equal(t, imageOptions.nonAgentName, container.Image)
+		}
 	}
 
 	if imageOptions.pullPolicy != "" {

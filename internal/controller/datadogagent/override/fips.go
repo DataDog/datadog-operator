@@ -75,18 +75,18 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	vol := getFIPSDefaultVolume(dda.Name)
 	if fipsConfig.CustomFIPSConfig != nil {
 		volMount := corev1.VolumeMount{
-			Name:      apicommon.FIPSProxyCustomConfigVolumeName,
-			MountPath: apicommon.FIPSProxyCustomConfigMountPath,
-			SubPath:   apicommon.FIPSProxyCustomConfigFileName,
+			Name:      v2alpha1.FIPSProxyCustomConfigVolumeName,
+			MountPath: v2alpha1.FIPSProxyCustomConfigMountPath,
+			SubPath:   v2alpha1.FIPSProxyCustomConfigFileName,
 			ReadOnly:  true,
 		}
 
 		// Add md5 hash annotation to component for custom config
 		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
 		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", apicommon.FIPSProxyCustomConfigFileName)
+			logger.Error(err, "couldn't generate hash for custom config", "filename", v2alpha1.FIPSProxyCustomConfigFileName)
 		}
-		annotationKey := object.GetChecksumAnnotationKey(string(apicommon.FIPSProxyCustomConfigFileName))
+		annotationKey := object.GetChecksumAnnotationKey(string(v2alpha1.FIPSProxyCustomConfigFileName))
 		if annotationKey != "" && hash != "" {
 			manager.Annotation().AddAnnotation(annotationKey, hash)
 		}
@@ -95,15 +95,15 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 		if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
 			vol = volume.GetVolumeFromConfigMap(
 				fipsConfig.CustomFIPSConfig.ConfigMap,
-				fmt.Sprintf(apicommon.FIPSProxyCustomConfigMapName, dda.Name),
-				apicommon.FIPSProxyCustomConfigVolumeName,
+				fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, dda.Name),
+				v2alpha1.FIPSProxyCustomConfigVolumeName,
 			)
 			// configData
 		} else if fipsConfig.CustomFIPSConfig.ConfigData != nil {
 			cm, err := configmap.BuildConfigMapMulti(
 				dda.Namespace,
-				map[string]string{apicommon.FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
-				fmt.Sprintf(apicommon.FIPSProxyCustomConfigMapName, dda.Name),
+				map[string]string{v2alpha1.FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
+				fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, dda.Name),
 				false,
 			)
 			if err != nil {
@@ -161,16 +161,16 @@ func getFIPSPorts(fipsConfig *v2alpha1.FIPSConfig) []corev1.ContainerPort {
 
 func getFIPSDefaultVolume(name string) corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.FIPSProxyCustomConfigVolumeName,
+		Name: v2alpha1.FIPSProxyCustomConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: fmt.Sprintf(apicommon.FIPSProxyCustomConfigMapName, name),
+					Name: fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, name),
 				},
 				Items: []corev1.KeyToPath{
 					{
-						Key:  apicommon.FIPSProxyCustomConfigFileName,
-						Path: apicommon.FIPSProxyCustomConfigFileName,
+						Key:  v2alpha1.FIPSProxyCustomConfigFileName,
+						Path: v2alpha1.FIPSProxyCustomConfigFileName,
 					},
 				},
 			},

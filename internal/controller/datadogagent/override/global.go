@@ -15,7 +15,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -232,43 +231,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
-	// Provide a mapping of Kubernetes Resource Labels to Datadog Tags.
-	if config.KubernetesResourcesLabelsAsTags != nil {
-		kubernetesResourceLabelsAsTags, err := json.Marshal(config.KubernetesResourcesLabelsAsTags)
-		if err != nil {
-			logger.Error(err, "Failed to unmarshal json input")
-		} else {
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
-				Value: string(kubernetesResourceLabelsAsTags),
-			})
-		}
-	}
-
-	// Provide a mapping of Kubernetes Resource Annotations to Datadog Tags.
-	if config.KubernetesResourcesLabelsAsTags != nil {
-		kubernetesResourceAnnotationsAsTags, err := json.Marshal(config.KubernetesResourcesAnnotationsAsTags)
-		if err != nil {
-			logger.Error(err, "Failed to unmarshal json input")
-		} else {
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
-				Value: string(kubernetesResourceAnnotationsAsTags),
-			})
-		}
-	}
-
-	if componentName == v2alpha1.ClusterAgentComponentName {
-		if err := resourcesManager.RBACManager().AddClusterPolicyRules(
-			dda.Namespace,
-			componentdca.GetResourceMetadataAsTagsClusterRoleName(dda),
-			v2alpha1.GetClusterAgentServiceAccount(dda),
-			getKubernetesResourceMetadataAsTagsPolicyRules(config.KubernetesResourcesLabelsAsTags, config.KubernetesResourcesAnnotationsAsTags),
-		); err != nil {
-			logger.Error(err, "error adding kubernetes resource metadata as tags clusterrole and clusterrolebinding to store")
-		}
-	}
-
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Kubelet contains the kubelet configuration parameters.
 		// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
@@ -292,9 +254,9 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if config.Kubelet.AgentCAPath != "" {
 					agentCAPath = config.Kubelet.AgentCAPath
 				} else {
-					agentCAPath = apicommon.KubeletAgentCAPath
+					agentCAPath = v2alpha1.KubeletAgentCAPath
 				}
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
+				kubeletVol, kubeletVolMount := volume.GetVolumes(v2alpha1.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
@@ -328,20 +290,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+			dockerMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.DockerSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
 		} else if config.CriSocketPath != nil {
 			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+			criSocketMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 
