@@ -199,14 +199,14 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceConfigEnabled,
+		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, enabledEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceConfigCheckInterval,
+			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, intervalEnvVar)
@@ -317,27 +317,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	// env vars
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceConfigEnabled,
+		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SecurityAgentContainerName}, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDHostRootEnvVar,
+		Name:  v2alpha1.DDHostRootEnvVar,
 		Value: v2alpha1.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceConfigCheckInterval,
+			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)

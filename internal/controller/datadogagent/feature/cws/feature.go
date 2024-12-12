@@ -190,20 +190,20 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+		Name:  DDRuntimeSecurityConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
 	runtimeSocketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDRuntimeSecurityConfigSocket,
+		Name:  DDRuntimeSecurityConfigSocket,
 		Value: filepath.Join(v2alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
 	if f.syscallMonitorEnabled {
 		monitorEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+			Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, monitorEnvVar)
@@ -211,7 +211,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	if f.networkEnabled {
 		networkEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDRuntimeSecurityConfigNetworkEnabled,
+			Name:  DDRuntimeSecurityConfigNetworkEnabled,
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, networkEnvVar)
@@ -219,7 +219,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	if f.activityDumpEnabled {
 		adEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+			Name:  DDRuntimeSecurityConfigActivityDumpEnabled,
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, adEnvVar)
@@ -227,20 +227,20 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	if f.remoteConfigurationEnabled {
 		rcEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
+			Name:  DDRuntimeSecurityConfigRemoteConfigurationEnabled,
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, rcEnvVar)
 	}
 
 	policiesDirEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+		Name:  DDRuntimeSecurityConfigPoliciesDir,
 		Value: securityAgentRuntimePoliciesDirVolumePath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDHostRootEnvVar,
+		Name:  v2alpha1.DDHostRootEnvVar,
 		Value: v2alpha1.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)

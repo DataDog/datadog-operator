@@ -365,7 +365,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDHealthPort,
+						Name:  v2alpha1.DDHealthPort,
 						Value: "1234",
 					},
 				}

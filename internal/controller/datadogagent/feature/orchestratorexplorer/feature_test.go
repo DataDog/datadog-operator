@@ -33,19 +33,19 @@ instances:
 
 var expectedOrchestratorEnvsV2 = []*corev1.EnvVar{
 	{
-		Name:  apicommon.DDOrchestratorExplorerEnabled,
+		Name:  DDOrchestratorExplorerEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerExtraTags,
+		Name:  DDOrchestratorExplorerExtraTags,
 		Value: `["a:z","b:y","c:x"]`,
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerDDUrl,
+		Name:  DDOrchestratorExplorerDDUrl,
 		Value: "https://foo.bar",
 	},
 }

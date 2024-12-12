@@ -146,13 +146,13 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
+		Name:  DDSystemProbeServiceMonitoringEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enabledEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeEnabled,
+		Name:  v2alpha1.DDSystemProbeEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(
@@ -161,14 +161,14 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	)
 
 	sysProbeSocketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
+		Name:  v2alpha1.DDSystemProbeSocket,
 		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeSocketEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeExternal,
+		Name:  v2alpha1.DDSystemProbeExternal,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)

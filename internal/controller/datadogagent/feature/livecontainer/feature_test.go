@@ -115,11 +115,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  apicommon.DDContainerCollectionEnabled,
+					Name:  v2alpha1.DDContainerCollectionEnabled,
 					Value: "true",
 				},
 			}

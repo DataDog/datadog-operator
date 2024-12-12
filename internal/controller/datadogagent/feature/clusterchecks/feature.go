@@ -140,7 +140,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDClusterChecksEnabled,
+			Name:  DDClusterChecksEnabled,
 			Value: "true",
 		},
 	)
@@ -148,7 +148,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDExtraConfigProviders,
+			Name:  DDExtraConfigProviders,
 			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 	)
@@ -156,7 +156,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDExtraListeners,
+			Name:  DDExtraListeners,
 			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	)
@@ -186,7 +186,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 		managers.EnvVar().AddEnvVarToContainer(
 			agentContainerName,
 			&corev1.EnvVar{
-				Name:  apicommon.DDExtraConfigProviders,
+				Name:  DDExtraConfigProviders,
 				Value: v2alpha1.EndpointsChecksConfigProvider,
 			},
 		)
@@ -194,7 +194,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 		managers.EnvVar().AddEnvVarToContainer(
 			agentContainerName,
 			&corev1.EnvVar{
-				Name:  apicommon.DDExtraConfigProviders,
+				Name:  DDExtraConfigProviders,
 				Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 			},
 		)
@@ -208,7 +208,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
-				Name:  apicommon.DDClusterChecksEnabled,
+				Name:  DDClusterChecksEnabled,
 				Value: "true",
 			},
 		)
@@ -216,8 +216,8 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 		managers.EnvVar().AddEnvVarToContainer(
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
-				Name:  apicommon.DDExtraConfigProviders,
-				Value: apicommon.ClusterChecksConfigProvider,
+				Name:  DDExtraConfigProviders,
+				Value: ClusterChecksConfigProvider,
 			},
 		)
 	}
