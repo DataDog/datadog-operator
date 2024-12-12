@@ -2,6 +2,8 @@ apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
+  annotations:
+    agent.datadoghq.com/otel-agent-enabled: "true"
 spec:
   override:
     nodeAgent:
@@ -16,10 +18,10 @@ spec:
     clusterName: my-example-cluster
     credentials:
       apiKey: XXX
-  features:
-    otelAgent:
-      enabled: true
-      ports:
+  # features:
+  #   otelAgent:
+  #     enabled: true
+  #     ports:
         # - containerPort: 4317
         #   name: grpc
         # - containerPort: 4318

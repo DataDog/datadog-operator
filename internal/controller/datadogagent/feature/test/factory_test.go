@@ -200,9 +200,6 @@ func TestBuilder(t *testing.T) {
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				BuildWithDefaults(),
-			featureOptions: feature.Options{
-				OtelAgentEnabled: true,
-			},
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,

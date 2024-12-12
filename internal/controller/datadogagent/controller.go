@@ -64,7 +64,6 @@ type ReconcilerOptions struct {
 	OperatorMetricsEnabled     bool
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
-	OtelAgentEnabled           bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -108,7 +107,6 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 	return &feature.Options{
 		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
 		Logger:                   logger,
-		OtelAgentEnabled:         opts.OtelAgentEnabled,
 	}
 }
 
