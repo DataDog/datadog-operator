@@ -220,7 +220,7 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 		VolumeMounts: volumeMountsForOtelAgent(),
 		// todo(mackjmr): remove once support for annotations is removed.
 		// the otel-agent feature adds these ports if none are supplied by
-		// the user. 
+		// the user.
 		Ports: []corev1.ContainerPort{
 			{
 				Name:          "otel-grpc",
@@ -409,7 +409,13 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 
 func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForChecksd(),
+		common.GetVolumeMountForAuth(false),
+		common.GetVolumeMountForConfd(),
 		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
