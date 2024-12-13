@@ -230,6 +230,23 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
+			name: "Default DDA, otel annotation true, otel collector feature disabled",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
+				WithOTelCollectorEnabled(false).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
 			name: "Default DDA, otel annotation true, otel collector feature enabled",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
