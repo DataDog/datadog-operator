@@ -208,10 +208,10 @@ spec:
       **Note**: Each namespace in the `roles` list must also be configured in the `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE` environment variable on the **Datadog Operator** deployment.
 
 
-* For the Agent and Cluster Agent, others options exist to configure the secret backend command:
-  * `global.secretBackend.args`: These arguments are supplied to the command when the Agent executes the secret backend command.
-  * `global.secretBackend.timeout`: secret backend execution timeout in second. The default value is 30 seconds.
-* For versions prior to Operator 1.11+, `spec.global.secretBackend` is unavailable. You should follow [these instructions][3] instead.
+* For the Agent and Cluster Agent, there are other configuration options for the secret backend command:
+  * `global.secretBackend.args`: these arguments are supplied to the command when the Agent executes the secret backend command.
+  * `global.secretBackend.timeout`: secret backend execution timeout in seconds. The default value is 30 seconds.
+* For versions prior to Operator 1.11, `spec.global.secretBackend` is unavailable. You should follow [these instructions][3] instead.
 
 [1]: https://docs.datadoghq.com/agent/guide/secrets-management
 [2]: https://docs.datadoghq.com/agent/guide/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers
