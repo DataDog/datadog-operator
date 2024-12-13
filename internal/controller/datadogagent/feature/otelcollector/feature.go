@@ -100,10 +100,10 @@ func (o otelCollectorFeature) ManageDependencies(managers feature.ResourceManage
 		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
 		for _, port := range o.ports {
 			if port.Name == "otel-grpc" {
-				defaultConfig = strings.ReplaceAll(defaultConfig, "4317", strconv.Itoa(int(port.ContainerPort)))
+				defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(int(port.ContainerPort)), 1)
 			}
 			if port.Name == "otel-http" {
-				defaultConfig = strings.ReplaceAll(defaultConfig, "4318", strconv.Itoa(int(port.ContainerPort)))
+				defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(int(port.ContainerPort)), 1)
 			}
 		}
 		o.customConfig.ConfigData = &defaultConfig

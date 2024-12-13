@@ -176,8 +176,8 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	// validate that default ports were overriden by user provided ports in default config. hacky to need to
 	// hardcode test name but unaware of a better approach that doesn't require modifying WantDependenciesFunc definition.
 	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_without_config_non_default_ports" {
-		expectedCM["otel-config.yaml"] = strings.ReplaceAll(expectedCM["otel-config.yaml"], "4317", "4444")
-		expectedCM["otel-config.yaml"] = strings.ReplaceAll(expectedCM["otel-config.yaml"], "4318", "5555")
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4317", "4444", 1)
+		expectedCM["otel-config.yaml"] = strings.Replace(expectedCM["otel-config.yaml"], "4318", "5555", 1)
 		assert.True(
 			t,
 			apiutils.IsEqualStruct(configMap.Data, expectedCM),
