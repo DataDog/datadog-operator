@@ -7,13 +7,15 @@ package agentprofile
 
 import (
 	"fmt"
+	"os"
 	"sort"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/controllers/metrics"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/go-logr/logr"
@@ -23,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -34,12 +37,15 @@ const (
 	labelValueMaxLength = 63
 )
 
-// ProfileToApply validates a profile spec and returns a map that maps each
+// ApplyProfile validates a profile spec and returns a map that maps each
 // node name to the profile that should be applied to it.
-func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
-	now metav1.Time) (map[string]types.NamespacedName, error) {
-	nodesThatMatchProfile := map[string]bool{}
-	profileStatus := datadoghqv1alpha1.DatadogAgentProfileStatus{}
+// When create strategy is enabled, the profile is mapped to:
+// - existing nodes with the correct label
+// - nodes that need a new or corrected label up to maxUnavailable # of nodes
+func ApplyProfile(logger logr.Logger, profile *v1alpha1.DatadogAgentProfile, nodes []v1.Node, profileAppliedByNode map[string]types.NamespacedName,
+	now metav1.Time, maxUnavailable int) (map[string]types.NamespacedName, error) {
+	matchingNodes := map[string]bool{}
+	profileStatus := v1alpha1.DatadogAgentProfileStatus{}
 
 	if hash, err := comparison.GenerateMD5ForSpec(profile.Spec); err != nil {
 		logger.Error(err, "couldn't generate hash for profile", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
@@ -51,18 +57,20 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 		logger.Error(err, "profile name is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
-		UpdateProfileStatus(profile, profileStatus, now)
+		UpdateProfileStatus(logger, profile, profileStatus, now)
 		return profileAppliedByNode, err
 	}
 
-	if err := datadoghqv1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
+	if err := v1alpha1.ValidateDatadogAgentProfileSpec(&profile.Spec); err != nil {
 		logger.Error(err, "profile spec is invalid, skipping", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 		profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 		profileStatus.Valid = metav1.ConditionFalse
-		UpdateProfileStatus(profile, profileStatus, now)
+		UpdateProfileStatus(logger, profile, profileStatus, now)
 		return profileAppliedByNode, err
 	}
+
+	toLabelNodeCount := 0
 
 	for _, node := range nodes {
 		matchesNode, err := profileMatchesNode(profile, node.Labels)
@@ -71,7 +79,7 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 			metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.FalseValue)
 			profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(ValidConditionType, metav1.ConditionFalse, now, InvalidConditionReason, err.Error()))
 			profileStatus.Valid = metav1.ConditionFalse
-			UpdateProfileStatus(profile, profileStatus, now)
+			UpdateProfileStatus(logger, profile, profileStatus, now)
 			return profileAppliedByNode, err
 		}
 		metrics.DAPValid.With(prometheus.Labels{"datadogagentprofile": profile.Name}).Set(metrics.TrueValue)
@@ -84,29 +92,61 @@ func ProfileToApply(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentP
 				logger.Info("conflict with existing profile, skipping", "conflicting profile", profile.Namespace+"/"+profile.Name, "existing profile", existingProfile.String())
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionFalse, now, ConflictConditionReason, "Conflict with existing profile"))
 				profileStatus.Applied = metav1.ConditionFalse
-				UpdateProfileStatus(profile, profileStatus, now)
+				UpdateProfileStatus(logger, profile, profileStatus, now)
 				return profileAppliedByNode, fmt.Errorf("conflict with existing profile")
 			} else {
-				nodesThatMatchProfile[node.Name] = true
+				profileLabelValue, labelExists := node.Labels[ProfileLabelKey]
+				if labelExists && profileLabelValue == profile.Name {
+					matchingNodes[node.Name] = true
+				} else {
+					matchingNodes[node.Name] = false
+					toLabelNodeCount++
+				}
 				profileStatus.Conditions = SetDatadogAgentProfileCondition(profileStatus.Conditions, NewDatadogAgentProfileCondition(AppliedConditionType, metav1.ConditionTrue, now, AppliedConditionReason, "Profile applied"))
 				profileStatus.Applied = metav1.ConditionTrue
 			}
 		}
 	}
 
-	for node := range nodesThatMatchProfile {
+	numNodesToLabel := 0
+	if CreateStrategyEnabled() {
+		profileStatus.CreateStrategy = &v1alpha1.CreateStrategy{}
+		if profile.Status.CreateStrategy != nil {
+			profileStatus.CreateStrategy.PodsReady = profile.Status.CreateStrategy.PodsReady
+			profileStatus.CreateStrategy.LastTransition = profile.Status.CreateStrategy.LastTransition
+		}
+		profileStatus.CreateStrategy.Status = getCreateStrategyStatus(profile.Status.CreateStrategy, toLabelNodeCount)
+		profileStatus.CreateStrategy.MaxUnavailable = int32(maxUnavailable)
+
+		if canLabel(logger, profileStatus.CreateStrategy) {
+			numNodesToLabel = getNumNodesToLabel(profile.Status.CreateStrategy, maxUnavailable, toLabelNodeCount)
+		}
+	}
+
+	for node, hasCorrectProfileLabel := range matchingNodes {
+		if CreateStrategyEnabled() {
+			if hasCorrectProfileLabel {
+				profileStatus.CreateStrategy.NodesLabeled++
+			} else {
+				if numNodesToLabel <= 0 {
+					continue
+				}
+				numNodesToLabel--
+				profileStatus.CreateStrategy.NodesLabeled++
+			}
+		}
+
 		profileAppliedByNode[node] = types.NamespacedName{
 			Namespace: profile.Namespace,
 			Name:      profile.Name,
 		}
 	}
 
-	UpdateProfileStatus(profile, profileStatus, now)
-
+	UpdateProfileStatus(logger, profile, profileStatus, now)
 	return profileAppliedByNode, nil
 }
 
-func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []datadoghqv1alpha1.DatadogAgentProfile {
+func ApplyDefaultProfile(profilesToApply []v1alpha1.DatadogAgentProfile, profileAppliedByNode map[string]types.NamespacedName, nodes []v1.Node) []v1alpha1.DatadogAgentProfile {
 	profilesToApply = append(profilesToApply, defaultProfile())
 
 	// Apply the default profile to all nodes that don't have a profile applied
@@ -123,7 +163,7 @@ func ApplyDefaultProfile(profilesToApply []datadoghqv1alpha1.DatadogAgentProfile
 
 // OverrideFromProfile returns the component override that should be
 // applied according to the given profile.
-func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
+func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
 	if profile.Name == "" && profile.Namespace == "" {
 		return v2alpha1.DatadogAgentComponentOverride{}
 	}
@@ -140,9 +180,10 @@ func OverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha
 
 	if !IsDefaultProfile(profile.Namespace, profile.Name) && profile.Spec.Config != nil {
 		// We only support overrides for the node agent
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
 			profileComponentOverride.Containers = containersOverride(nodeAgentOverride)
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
+			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
 		}
 	}
@@ -168,8 +209,8 @@ func DaemonSetName(profileNamespacedName types.NamespacedName) string {
 
 // defaultProfile returns the default profile, we just need a name to identify
 // it.
-func defaultProfile() datadoghqv1alpha1.DatadogAgentProfile {
-	return datadoghqv1alpha1.DatadogAgentProfile{
+func defaultProfile() v1alpha1.DatadogAgentProfile {
+	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "",
 			Name:      defaultProfileName,
@@ -177,7 +218,7 @@ func defaultProfile() datadoghqv1alpha1.DatadogAgentProfile {
 	}
 }
 
-func affinityOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) *v1.Affinity {
+func affinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return affinityOverrideForDefaultProfile()
 	}
@@ -259,20 +300,20 @@ func podAntiAffinityOverride() *v1.PodAntiAffinity {
 	}
 }
 
-func containersOverride(nodeAgentOverride *datadoghqv1alpha1.Override) map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
+func containersOverride(nodeAgentOverride *v1alpha1.Override) map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
 	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
 
-	containersInNodeAgent := []common.AgentContainerName{
-		common.CoreAgentContainerName,
-		common.TraceAgentContainerName,
-		common.ProcessAgentContainerName,
-		common.SecurityAgentContainerName,
-		common.SystemProbeContainerName,
+	containersInNodeAgent := []apicommon.AgentContainerName{
+		apicommon.CoreAgentContainerName,
+		apicommon.TraceAgentContainerName,
+		apicommon.ProcessAgentContainerName,
+		apicommon.SecurityAgentContainerName,
+		apicommon.SystemProbeContainerName,
 	}
 
-	res := map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
+	res := map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
 
 	for _, containerName := range containersInNodeAgent {
 		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
@@ -286,7 +327,7 @@ func containersOverride(nodeAgentOverride *datadoghqv1alpha1.Override) map[commo
 	return res
 }
 
-func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]string {
+func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return nil
 	}
@@ -294,7 +335,7 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 	labels := map[string]string{}
 
 	if profile.Spec.Config != nil {
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[datadoghqv1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
 			for labelName, labelVal := range nodeAgentOverride.Labels {
 				labels[labelName] = labelVal
 			}
@@ -308,8 +349,8 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 
 // SortProfiles sorts the profiles by creation timestamp. If two profiles have
 // the same creation timestamp, it sorts them by name.
-func SortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
-	sortedProfiles := make([]datadoghqv1alpha1.DatadogAgentProfile, len(profiles))
+func SortProfiles(profiles []v1alpha1.DatadogAgentProfile) []v1alpha1.DatadogAgentProfile {
+	sortedProfiles := make([]v1alpha1.DatadogAgentProfile, len(profiles))
 	copy(sortedProfiles, profiles)
 
 	sort.Slice(sortedProfiles, func(i, j int) bool {
@@ -323,7 +364,7 @@ func SortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv
 	return sortedProfiles
 }
 
-func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
+func profileMatchesNode(profile *v1alpha1.DatadogAgentProfile, nodeLabels map[string]string) (bool, error) {
 	if profile.Spec.ProfileAffinity == nil {
 		return true, nil
 	}
@@ -376,4 +417,101 @@ func validateProfileName(profileName string) error {
 	}
 
 	return nil
+}
+
+func canLabel(logger logr.Logger, createStrategy *v1alpha1.CreateStrategy) bool {
+	if createStrategy == nil {
+		return false
+	}
+
+	switch createStrategy.Status {
+	case v1alpha1.CompletedStatus:
+		return true
+	case v1alpha1.InProgressStatus:
+		return true
+	case v1alpha1.WaitingStatus:
+		return false
+	default:
+		logger.Error(fmt.Errorf("received unexpected create strategy status condition"), string(createStrategy.Status))
+		return false
+	}
+}
+
+func getNumNodesToLabel(createStrategyStatus *v1alpha1.CreateStrategy, maxUnavailable, toLabelNodeCount int) int {
+	if createStrategyStatus == nil {
+		return 0
+	}
+
+	// once create strategy status is completed, label all necessary nodes
+	if createStrategyStatus.Status == v1alpha1.CompletedStatus {
+		return toLabelNodeCount
+	}
+
+	return maxUnavailable - (int(createStrategyStatus.NodesLabeled - createStrategyStatus.PodsReady))
+}
+
+func getCreateStrategyStatus(status *v1alpha1.CreateStrategy, toLabelNodeCount int) v1alpha1.CreateStrategyStatus {
+	// new profiles start in waiting to ensure profile daemonsets are created prior to node labeling
+	if status == nil {
+		return v1alpha1.WaitingStatus
+	}
+
+	// all necessary nodes have been labeled
+	if toLabelNodeCount == 0 {
+		return v1alpha1.CompletedStatus
+	}
+
+	return status.Status
+}
+
+// CreateStrategyEnabled returns true if the create strategy enabled env var is set to true
+func CreateStrategyEnabled() bool {
+	return os.Getenv(apicommon.CreateStrategyEnabled) == "true"
+}
+
+// GetMaxUnavailable gets the maxUnavailable value as in int.
+// Priority is DAP > DDA > Kubernetes default value
+func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
+	// Kubernetes default for DaemonSet MaxUnavailable is 1
+	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
+	defaultMaxUnavailable := 1
+
+	// maxUnavailable from profile
+	if profile.Spec.Config != nil {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
+			if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
+				numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
+				if err != nil {
+					logger.Error(err, "unable to get max unavailable pods from DatadogAgentProfile, defaulting to 1")
+					return defaultMaxUnavailable
+				}
+				return numToScale
+			}
+		}
+	}
+
+	// maxUnavilable from DDA
+	if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
+			numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
+			if err != nil {
+				logger.Error(err, "unable to get max unavailable pods from DatadogAgent, defaulting to 1")
+				return defaultMaxUnavailable
+			}
+			return numToScale
+		}
+	}
+
+	// maxUnavailable from EDS options
+	if edsOptions != nil && edsOptions.MaxPodUnavailable != "" {
+		numToScale, err := intstr.GetScaledValueFromIntOrPercent(apiutils.NewIntOrStringPointer(edsOptions.MaxPodUnavailable), numNodes, true)
+		if err != nil {
+			logger.Error(err, "unable to get max unavailable pods from EDS options, defaulting to 1")
+			return defaultMaxUnavailable
+		}
+		return numToScale
+	}
+
+	// k8s default
+	return defaultMaxUnavailable
 }

@@ -8,8 +8,8 @@ package common
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -31,7 +31,7 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	}
 
 	// Create the mapper provider
-	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig, httpClient)
+	mapper, err := apiutil.NewDynamicRESTMapper(restConfig, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to instantiate mapper: %w", err)
 	}

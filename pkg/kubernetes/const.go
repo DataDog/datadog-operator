@@ -5,84 +5,93 @@
 
 package kubernetes
 
+// This file tracks string constants that are native to Kubernetes
+
 const (
-	// AppKubernetesNameLabelKey The name of the application
-	AppKubernetesNameLabelKey = "app.kubernetes.io/name"
-	// AppKubernetesInstanceLabelKey A unique name identifying the instance of an application
-	AppKubernetesInstanceLabelKey = "app.kubernetes.io/instance"
-	// AppKubernetesVersionLabelKey The current version of the application
-	AppKubernetesVersionLabelKey = "app.kubernetes.io/version"
-	// AppKubernetesComponentLabelKey The component within the architecture
+	// AppKubernetesComponentLabelKey is the key for the component within the architecture
 	AppKubernetesComponentLabelKey = "app.kubernetes.io/component"
-	// AppKubernetesPartOfLabelKey The name of a higher level application this one is part of
-	AppKubernetesPartOfLabelKey = "app.kubernetes.io/part-of"
-	// AppKubernetesManageByLabelKey The tool being used to manage the operation of an application
+	// AppKubernetesInstanceLabelKey is the key for a unique name identifying the instance of an application
+	AppKubernetesInstanceLabelKey = "app.kubernetes.io/instance"
+	// AppKubernetesManageByLabelKey is the key for the tool being used to manage the operation of an application
 	AppKubernetesManageByLabelKey = "app.kubernetes.io/managed-by"
+	// AppKubernetesNameLabelKey is the key for the name of the application
+	AppKubernetesNameLabelKey = "app.kubernetes.io/name"
+	// AppKubernetesPartOfLabelKey is the key for the name of a higher level application this one is part of
+	AppKubernetesPartOfLabelKey = "app.kubernetes.io/part-of"
+	// AppKubernetesVersionLabelKey is the key for the current version of the application
+	AppKubernetesVersionLabelKey = "app.kubernetes.io/version"
 )
 
-// ObjectKind type for kubernetes resource kind.
+// ObjectKind type for kubernetes resource kind. These strings are plural because
+// their list kind is used to query the Kubernetes API when cleaning up resources.
+
+// They are also used in the store for DatadogAgent dependencies.
 type ObjectKind string
 
 const (
-	// ConfigMapKind ConfigMaps resource kind
-	ConfigMapKind ObjectKind = "configmaps"
-	// ClusterRolesKind ClusterRoles resource kind
-	ClusterRolesKind = "clusterroles"
-	// ClusterRoleBindingKind ClusterRoleBindings resource kind
-	ClusterRoleBindingKind = "clusterrolebindings"
-	// RolesKind Roles resource kind
-	RolesKind = "roles"
-	// RoleBindingKind RoleBinding resource kind
-	RoleBindingKind = "rolebindings"
-	// ValidatingWebhookConfigurationsKind ValidatingWebhookConfigurations resource kind
-	ValidatingWebhookConfigurationsKind = "validatingwebhookconfigurations"
-	// MutatingWebhookConfigurationsKind MutatingWebhookConfigurations resource kind
-	MutatingWebhookConfigurationsKind = "mutatingwebhookconfigurations"
-	// APIServiceKind APIService resource kind
+	// APIServiceKind is the APIService resource kind
 	APIServiceKind = "apiservices"
-	// SecretsKind Secrets resource kind
-	SecretsKind = "secrets"
-	// ServicesKind Services resource kind
-	ServicesKind = "services"
-	// ServiceAccountsKind ServiceAccounts resource kind
-	ServiceAccountsKind = "serviceaccounts"
-	// PodDisruptionBudgetsKind PodDisruptionBudgets resource kind
-	PodDisruptionBudgetsKind = "poddisruptionbudgets"
-	// NetworkPoliciesKind NetworkPolicies resource kind
-	NetworkPoliciesKind = "networkpolicies"
-	// PodSecurityPoliciesKind PodSecurityPolicies resource kind
-	PodSecurityPoliciesKind = "podsecuritypolicies"
-	// CiliumNetworkPoliciesKind CiliumNetworkPolicies resource kind
+	// CiliumNetworkPoliciesKind is the CiliumNetworkPolicies resource kind
 	CiliumNetworkPoliciesKind = "ciliumnetworkpolicies"
-	// NodeKind Nodes resource kind
+	// ClusterRolesKind is the ClusterRoles resource kind
+	ClusterRolesKind = "clusterroles"
+	// ClusterRoleBindingKind is the ClusterRoleBindings resource kind
+	ClusterRoleBindingKind = "clusterrolebindings"
+	// ConfigMapKind is the ConfigMaps resource kind
+	ConfigMapKind ObjectKind = "configmaps"
+	// MutatingWebhookConfigurationsKind is the MutatingWebhookConfigurations resource kind
+	MutatingWebhookConfigurationsKind = "mutatingwebhookconfigurations"
+	// NetworkPoliciesKind is the NetworkPolicies resource kind
+	NetworkPoliciesKind = "networkpolicies"
+	// NodeKind is the Nodes resource kind
 	NodeKind = "nodes"
+	// PodDisruptionBudgetsKind is the PodDisruptionBudgets resource kind
+	PodDisruptionBudgetsKind = "poddisruptionbudgets"
+	// RoleBindingKind is the RoleBinding resource kind
+	RoleBindingKind = "rolebindings"
+	// RolesKind is the Roles resource kind
+	RolesKind = "roles"
+	// SecretsKind is the Secrets resource kind
+	SecretsKind = "secrets"
+	// ServiceAccountsKind is the ServiceAccounts resource kind
+	ServiceAccountsKind = "serviceaccounts"
+	// ServicesKind is the Services resource kind
+	ServicesKind = "services"
+	// ValidatingWebhookConfigurationsKind is the ValidatingWebhookConfigurations resource kind
+	ValidatingWebhookConfigurationsKind = "validatingwebhookconfigurations"
 )
 
-// GetResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
-func getResourcesKind(withCiliumResources, withPodSecurityPolicy bool) []ObjectKind {
+// getResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
+func getResourcesKind(withCiliumResources bool) []ObjectKind {
 	resources := []ObjectKind{
-		ConfigMapKind,
+		APIServiceKind,
 		ClusterRolesKind,
 		ClusterRoleBindingKind,
+		ConfigMapKind,
+		MutatingWebhookConfigurationsKind,
+		NetworkPoliciesKind,
+		PodDisruptionBudgetsKind,
 		RolesKind,
 		RoleBindingKind,
-		ValidatingWebhookConfigurationsKind,
-		MutatingWebhookConfigurationsKind,
-		APIServiceKind,
 		SecretsKind,
-		ServicesKind,
 		ServiceAccountsKind,
-		PodDisruptionBudgetsKind,
-		NetworkPoliciesKind,
+		ServicesKind,
+		ValidatingWebhookConfigurationsKind,
 	}
 
 	if withCiliumResources {
 		resources = append(resources, CiliumNetworkPoliciesKind)
 	}
 
-	if withPodSecurityPolicy {
-		resources = append(resources, PodSecurityPoliciesKind)
-	}
-
 	return resources
 }
+
+// These constants are used in Datadog event submission
+const (
+	// ExtendedDaemonSetKind is the ExtendedDaemonset resource kind
+	ExtendedDaemonSetKind = "extendeddaemonset"
+	// DaemonSetKind is the Daemonset resource kind
+	DaemonSetKind = "daemonset"
+	// DeploymentKind is the Deployment resource kind
+	DeploymentKind = "deployment"
+)

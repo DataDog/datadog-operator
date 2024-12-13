@@ -17,6 +17,7 @@ import (
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/kustomize/api/types"
+	"sigs.k8s.io/kustomize/kyaml/resid"
 	"sigs.k8s.io/yaml"
 
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
@@ -173,16 +174,16 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 	}
 
 	// Update resources with target e2e-manager resource yaml
-	for _, res := range kustomizeResourcePaths {
-		exists := false
-		for _, r := range k.Resources {
-			if r == res {
-				exists = true
-				break
-			}
-		}
-		if !exists {
-			k.Resources = append(k.Resources, res)
+	if kustomizeResourcePaths != nil {
+		// We empty slice to avoid accumulating patches from previous tests
+		k.Patches = k.Patches[:0]
+		for _, res := range kustomizeResourcePaths {
+			k.Patches = append(k.Patches, types.Patch{
+				Path: res,
+				Target: &types.Selector{
+					ResId: resid.NewResIdKindOnly("Deployment", "manager"),
+				},
+			})
 		}
 	}
 

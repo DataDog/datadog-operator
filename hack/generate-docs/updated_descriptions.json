@@ -1,0 +1,11 @@
+{
+	"global.fips.image.pullPolicy": "The Kubernetes pull policy for the FIPS sidecar image. Values: Always, Never, IfNotPresent.",
+	"global.fips.image.tag": "Defines the tag of the FIPS sidecar image. This parameter is used if global.fips.image.name does not correspond to a full image string.",
+	"global.fips.image.pullSecrets": "Specifies Docker registry credentials (https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) for the FIPS sidecar.",
+	"global.fips.localAddress": "The local IP address of the FIPS sidecar. Default: 127.0.0.1.",
+	"global.fips.portRange": "The number of ports used by the containers to communicate to the FIPS sidecar. Default: 15",
+	"global.fips.resources.limits": "Resource limits for the FIPS sidecar. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container .",
+	"global.fips.resources.requests": "Resource requests for the FIPS sidecar. If undefined, defaults to global.fips.resources.limits (if set), then to an implementation-defined value. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container .",
+	"global.fips.useHTTPS": "If true, enables HTTPS on the FIPS sidecar. Default: false",
+	"[key].containers.[key].livenessProbe.terminationGracePeriodSeconds": "Duration (in seconds) the pod needs to terminate gracefully after the liveness probe fails. This value sets how long to wait after the processes running in the pod are sent a termination signal, before forcibly halting the processes with a kill signal. Set this value longer than the expected cleanup time for your process. Must be a non-negative integer. If 0, a kill signal is sent immediately when the liveness probe fails, giving no opportunity for the processes to shut down. Defaults to the pod’s terminationGracePeriodSeconds."
+}

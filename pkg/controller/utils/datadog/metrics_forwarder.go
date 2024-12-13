@@ -14,9 +14,7 @@ import (
 	"sync"
 	"time"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -98,9 +96,9 @@ type metricsForwarder struct {
 	apiKey       string
 	clusterName  string
 	labels       map[string]string
-	dsStatus     []*commonv1.DaemonSetStatus
-	dcaStatus    *commonv1.DeploymentStatus
-	ccrStatus    *commonv1.DeploymentStatus
+	dsStatus     []*v2alpha1.DaemonSetStatus
+	dcaStatus    *v2alpha1.DeploymentStatus
+	ccrStatus    *v2alpha1.DeploymentStatus
 
 	EnabledFeatures map[string][]string
 
@@ -438,7 +436,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey string) (*api.Client, 
 	return datadogClient, nil
 }
 
-func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*commonv1.DaemonSetStatus, dcaStatus, ccrStatus *commonv1.DeploymentStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(dsStatus []*v2alpha1.DaemonSetStatus, dcaStatus, ccrStatus *v2alpha1.DeploymentStatus) error {
 	var metricValue float64
 
 	// Agent deployment metrics
@@ -564,16 +562,25 @@ func (mf *metricsForwarder) getDatadogAgent() (*v2alpha1.DatadogAgent, error) {
 	return dda, err
 }
 
-// getCredentials retrieves the api key configured in the DatadogAgent
+// getCredentials retrieves the API key configured in the Operator or the DatadogAgent
 func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, error) {
+
+	// Check Operator configured credentials first
+	if mf.credsManager != nil {
+		if creds, err := mf.credsManager.GetCredentials(); err == nil {
+			return creds.APIKey, nil
+		}
+	}
+
+	// Check DatadogAgent credentials
 	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
 		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
+	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
+
 	var err error
 	apiKey := ""
-
-	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
@@ -661,14 +668,17 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	conditionStatus := true
 	message := "Datadog metrics forwarding ok"
 	reason := "MetricsForwardingSucceeded"
+	conditionType := string(v2alpha1.DatadogMetricsActive)
+
 	if err != nil {
 		conditionStatus = false
 		message = "Datadog metrics forwarding error"
 		reason = "MetricsForwardingError"
+		conditionType = string(v2alpha1.DatadogMetricsError)
 	}
 
 	newConditionStatus := &ConditionCommon{
-		ConditionType:  string(v1alpha1.DatadogMetricsActive),
+		ConditionType:  conditionType,
 		Status:         conditionStatus,
 		LastUpdateTime: now,
 		Message:        message,

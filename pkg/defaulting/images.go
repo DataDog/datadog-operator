@@ -16,11 +16,11 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.56.2"
+	AgentLatestVersion = "7.59.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.56.2"
+	ClusterAgentLatestVersion = "7.59.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.0.1"
+	FIPSProxyLatestVersion = "1.1.6"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry ContainerRegistry = "gcr.io/datadoghq"
 	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry
@@ -28,7 +28,7 @@ const (
 	// PublicECSContainerRegistry corresponds to the datadoghq PublicECSContainerRegistry registry
 	PublicECSContainerRegistry ContainerRegistry = "public.ecr.aws/datadog"
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
-	DefaultImageRegistry = GCRContainerRegistry
+	DefaultImageRegistry = GCRContainerRegistry // TODO: this is also defined elsewhere and not used; consolidate
 	// JMXTagSuffix prefix tag for agent JMX images
 	JMXTagSuffix = "-jmx"
 
@@ -46,7 +46,7 @@ func IsImageNameContainsTag(name string) bool {
 	return imageHasTag.MatchString(name)
 }
 
-// Image represent a container image information
+// Image represents a container image information
 type Image struct {
 	registry  ContainerRegistry
 	imageName string

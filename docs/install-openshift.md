@@ -120,6 +120,43 @@ This issue is resolved in Datadog Operator bundle 1.4.2+. Use the OperatorHub UI
 For further help, contact [Datadog Support][7].
 
 
+### Datadog Operator 1.8.0 on OpenShift
+
+![Error after upgrading to 1.8.0 without removing the deprecated v1alpha1 from CRD](assets/openshift_1.8.0_crd_error.png)
+
+When upgrading from versions <1.8.0 to Datadog Operator 1.8.0 of the Datadog Operator bundle provided to OperatorHub in OpenShift, one may encounter an error in the `InstallPlan` and/or `ClusterServiceVersion` resource:
+```
+Message: Risk of data loss updating "datadogagents.datadoghq.com": new CRD removes version v1alpha1 that is listed as a stored version on the existing CRD
+```
+
+#### Background
+
+Datadog Operator bundle 1.8.0 includes the removal of the deprecated `v1alpha1` CRD version. If an older bundle installation stored this version in the DatadogAgent CRD `status` field, the Operator Lifecycle Manager automatically prevents the upgrade from completing. For more details, see [Removing an old version][8] from the Kubernetes Custom Resources documentation.
+
+#### Identification and remediation
+You can identify whether or not you are impacted by running:
+```bash
+oc get customresourcedefinitions datadogagents.datadoghq.com -osjon | jq .status.storedVersions
+```
+
+* If the returned array contains the entry `v1alpha1`, you are impacted and should follow the rest of this guide. There are **two different courses of action**, depending on whether or not the upgrade was attempted.
+* If not, ignore this guide and proceed with the installation/upgrade as usual.
+
+**Note**: During these steps, the Datadog Agents will keep running, ensuring your observability is not disrupted.
+
+##### Scenario 1: Presence of v1alpha1 CRD confirmed before upgrading to 1.8.0
+
+1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
+2. Proceed with the upgrade as usual from the OperatorHub UI.
+
+##### Scenario 2: Presence of v1alpha1 CRD confirmed after attempting to upgrade to 1.8.0
+
+1. Remove `v1alpha1` from the DatadogAgent CRD: `oc patch customresourcedefinitions datadogagents.datadoghq.com --subresource='status' --type='merge' -p '{"status":{"storedVersions":["v2alpha1"]}}'`
+2. Remove both `ClusterServiceVersion` resources (current and failed upgrade): `oc delete csv datadog-operator.v1.7.0 datadog-operator.v1.8.0`
+3. Remove the status from the `Subscription` to force a new reconciliation: `oc patch sub <subscription name> --subresource='status' --type='json' -p='[{"op": "remove", "path": "/status"}]'`
+4. A new `ClusterServiceVersion` should automatically be created (identical to the one preceding the upgrade). Depending on the `installPlanApproval` configuration, you may need to approve the `InstallPlan`.
+5. Proceed with the upgrade as usual from OperatorHub.
+![Error after upgrading to 1.8.0 without removing the deprecated v1alpha1 from CRD](assets/openshift_1.8.0_upgrade.png)
 
 [1]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12#deploy-instructions
 [2]: https://olm.operatorframework.io/
@@ -128,5 +165,4 @@ For further help, contact [Datadog Support][7].
 [5]: https://app.datadoghq.com/organization-settings/api-keys
 [6]: https://app.datadoghq.com/organization-settings/application-keys
 [7]: https://www.datadoghq.com/support/
-
-
+[8]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/

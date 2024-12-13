@@ -82,11 +82,11 @@ echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.3)
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v5@v5.4.3)
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
@@ -110,9 +110,9 @@ endef
 
 .PHONY: manager
 manager: generate lint managergobuild ## Build manager binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 
 ##@ Deploy
 
@@ -120,7 +120,7 @@ manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
-	go run ./main.go
+	go run ./cmd/main.go
 
 .PHONY: install
 install: manifests $(KUSTOMIZE) ## Install CRDs into a cluster
@@ -132,7 +132,7 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(subst operator:v,operator:,$(IMG))
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy
@@ -144,15 +144,15 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./apis/..." paths="./controllers/..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:crdVersions=v1 rbac:roleName=manager-role paths="./api/..." paths="./internal/controller/..." output:crd:artifacts:config=config/crd/bases/v1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
 
 .PHONY: generate-docs
 generate-docs: manifests
-	go run ./hack/generate-docs.go
+	go run ./hack/generate-docs/generate-docs.go
 
 # Build the docker images, for local use
 .PHONY: docker-build
@@ -202,11 +202,11 @@ gotest:
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
+	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v1.out
 
 .PHONY: integration-tests-v2
 integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
+	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v2.out
 
 .PHONY: e2e-tests
 e2e-tests: manifests $(KUSTOMIZE) ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
@@ -218,7 +218,7 @@ e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environm
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
-	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./apis -q
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests --apis-dir ./api -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
@@ -282,12 +282,12 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/jq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "./" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
@@ -308,11 +308,16 @@ lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
-	./bin/$(PLATFORM)/go-licenses report . --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
+	./bin/$(PLATFORM)/go-licenses report ./cmd --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
 
 .PHONY: verify-licenses
 verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 	hack/verify-licenses.sh
+
+# Update the golang version in different repository files from the version present in go.mod file
+.PHONY: update-golang
+update-golang:
+	hack/update-golang.sh
 
 .PHONY: tidy
 tidy: ## Run go tidy
@@ -332,8 +337,11 @@ publish-community-bundles: ## Publish bundles to community repositories
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
 
+bin/$(PLATFORM)/jq: Makefile
+	hack/install-jq.sh 1.7.1
+
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.56.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.61.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.34.1
@@ -346,14 +354,14 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.9.9
+	hack/install-openshift-preflight.sh 1.10.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
-	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20230717233707-2695361300d9
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen@v0.0.0-20240228011516-70dd3763d340
 
 bin/$(PLATFORM)/kubebuilder:
-	./hack/install-kubebuilder.sh 3.13.0 ./bin/$(PLATFORM)
+	./hack/install-kubebuilder.sh 4.1.1 ./bin/$(PLATFORM)
 
 bin/$(PLATFORM)/kubebuilder-tools:
 	./hack/install-kubebuilder-tools.sh 1.28.3 ./bin/$(PLATFORM)

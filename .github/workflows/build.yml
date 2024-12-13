@@ -1,11 +1,18 @@
 name: Build
-
+env:
+  GO_VERSION: 1.22.7
 on:
   push:
-
+# Permission forced by repo-level setting; only elevate on job-level
+permissions:
+  contents: read
+  # packages: read
 jobs:
   build-linux-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -19,14 +26,17 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.22
+          go-version: ${{ env.GO_VERSION }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
-          version: latest
+          version: 2.4.1
           args: build --skip=validate --config .goreleaser-for-linux.yaml
   build-darwin-binary:
     runs-on: macos-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -37,13 +47,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.22
+          go-version: ${{ env.GO_VERSION }}
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
           args: build --skip=validate --config .goreleaser-for-darwin.yaml
   build-windows-binary:
     runs-on: ubuntu-latest
+    permissions:
+      # https://github.com/marketplace/actions/goreleaser-action
+      contents: write
     steps:
       - uses: actions/checkout@v3
         with:
@@ -54,7 +67,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.22
+          go-version: ${{ env.GO_VERSION }}
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:

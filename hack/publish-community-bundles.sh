@@ -68,7 +68,7 @@ do
     certified-operators)
       ORG="redhat-openshift-ecosystem"
       OPERATOR_SUBPATH="datadog-operator-certified"
-      BUNDLE_NAME="bundle-redhat"
+      BUNDLE_NAME="bundle-redhat-certified"
       ;;
     redhat-marketplace-operators)
       ORG="redhat-openshift-ecosystem"

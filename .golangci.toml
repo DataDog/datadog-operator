@@ -1,22 +1,16 @@
 [run]
-  deadline = "5m"
   tests = false
-  skip-dirs = [
-    ".cache",
-    "go/pkg/mod",
-    "pkg/mod",
-  ]
+  timeout = "10m"
 
 [linters-settings]
 
   [linters-settings.govet]
-    check-shadowing = true
+    enable = [
+      "shadow"
+    ]
 
   [linters-settings.gocyclo]
     min-complexity = 12.0
-
-  [linters-settings.maligned]
-    suggest-new = true
 
   [linters-settings.goconst]
     min-len = 3.0
@@ -26,7 +20,9 @@
     locale = "US"
 
   [linters-settings.gci]
-    local-prefixes = "github.com/DataDog/datadog-operator"
+    sections = [
+      "prefix(github.com/DataDog/datadog-operator)"
+    ]
 
   [linters-settings.godot]
     exclude = [
@@ -37,15 +33,12 @@
   enable-all = true
   disable = [
     "exhaustruct",
-    "nosnakecase",
-    "logrlint",
     "nonamedreturns",
-    "maligned",
     "revive",
     "lll",
-    "gas",
+    "gosec",
     "dupl",
-    "scopelint",
+    "execinquery",
     "gocyclo",
     "gochecknoinits",
     "gochecknoglobals",
@@ -54,16 +47,14 @@
     "cyclop",
     "gomnd",
     "wrapcheck",
-    "exhaustivestruct",
     "forcetypeassert",
-    "goerr113",
+    "err113",
     "testpackage",
     "wastedassign",
     "thelper",
     "paralleltest",
     "nestif",
     "exhaustive",
-    "interfacer",
     "gci",
     "wsl",
     "godox",
@@ -76,11 +67,9 @@
     "nilnil",
     "ireturn",
     "maintidx",
-    "ifshort",
     "gocritic",
     "errchkjson",
     "gofumpt",
-    "golint",
     "stylecheck",
     "staticcheck",
     "whitespace",
@@ -94,9 +83,6 @@
     "goconst",
     "errcheck",
     "misspell",
-    "varcheck",
-    "structcheck",
-    "deadcode",
     "rowserrcheck",
     "sqlclosecheck",
     "depguard",
@@ -105,6 +91,9 @@
     "nakedret",
     "gomoddirectives",
     "dupword",
+    "intrange",
+    "mnd",
+    "musttag"
   ]
 
 [issues]
@@ -112,3 +101,8 @@
   max-per-linter = 0
   max-same-issues = 0
   exclude = []
+  exclude-dirs = [
+    ".cache",
+    "go/pkg/mod",
+    "pkg/mod",
+  ]

@@ -11,7 +11,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -32,8 +32,9 @@ type ForwardersManager struct {
 	k8sClient    client.Client
 	platformInfo *kubernetes.PlatformInfo
 	forwarders   map[string]*metricsForwarder
-	decryptor    secrets.Decryptor
-	wg           sync.WaitGroup
+	// TODO expand this to include a metadataForwarder
+	decryptor secrets.Decryptor
+	wg        sync.WaitGroup
 	sync.Mutex
 }
 

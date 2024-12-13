@@ -8,16 +8,18 @@ package datadog
 import (
 	"context"
 	"errors"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
@@ -172,6 +174,25 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		wantFunc   func(*metricsForwarder, *secrets.DummyDecryptor) error
 	}{
 		{
+			name: "creds found in credential manager",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+						APIKey: apiutils.NewStringPointer(apiKey),
+					},
+				}),
+				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Setenv(apicommon.DDAPIKey, "test123")
+					os.Setenv(apicommon.DDAppKey, "testabc")
+				},
+			},
+			wantAPIKey: "test123",
+			wantErr:    false,
+		},
+		{
 			name: "creds found in CR",
 			fields: fields{
 				client: fake.NewFakeClient(),
@@ -182,6 +203,10 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
 				}),
+				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Unsetenv(apicommon.DDAPIKey)
+					os.Unsetenv(apicommon.DDAppKey)
+				},
 			},
 			wantAPIKey: "foundAPIKey",
 			wantErr:    false,
@@ -194,13 +219,15 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
 					Credentials: &datadoghqv2alpha1.DatadogCredentials{
-						APISecret: &commonv1.SecretConfig{
+						APISecret: &datadoghqv2alpha1.SecretConfig{
 							SecretName: "datadog-creds-api",
 							KeyName:    "datadog_api_key",
 						},
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Unsetenv(apicommon.DDAPIKey)
+					os.Unsetenv(apicommon.DDAppKey)
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds-api",
@@ -228,6 +255,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Unsetenv(apicommon.DDAPIKey)
+					os.Unsetenv(apicommon.DDAppKey)
 					m.cleanSecretsCache()
 					m.creds.Store(encAPIKey, "cachedAPIKey")
 				},
@@ -254,6 +283,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Unsetenv(apicommon.DDAPIKey)
+					os.Unsetenv(apicommon.DDAppKey)
 					m.cleanSecretsCache()
 					d.On("Decrypt", []string{encAPIKey}).Once()
 				},
@@ -276,6 +307,10 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			},
 			args: args{
 				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
+				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+					os.Unsetenv(apicommon.DDAPIKey)
+					os.Unsetenv(apicommon.DDAppKey)
+				},
 			},
 			wantErr: true,
 		},
@@ -284,9 +319,10 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := &secrets.DummyDecryptor{}
 			mf := &metricsForwarder{
-				k8sClient: tt.fields.client,
-				decryptor: d,
-				creds:     sync.Map{},
+				k8sClient:    tt.fields.client,
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
 			}
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
