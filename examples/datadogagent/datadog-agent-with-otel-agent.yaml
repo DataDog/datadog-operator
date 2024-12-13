@@ -3,6 +3,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
+  global:
     credentials:
       apiKey: <DATADOG_API_KEY>
   features:
@@ -43,4 +44,3 @@ spec:
                   receivers: [otlp]
                   processors: [batch]
                   exporters: [datadog]
-
