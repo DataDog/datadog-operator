@@ -12,7 +12,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -167,7 +166,7 @@ func ComponentOverrideFromProvider(overrideName, provider string, providerList m
 	return v2alpha1.DatadogAgentComponentOverride{
 		Name:     &overrideDSName,
 		Affinity: getProviderNodeAffinity(provider, providerList),
-		Labels:   map[string]string{apicommon.MD5AgentDeploymentProviderLabelKey: provider},
+		Labels:   map[string]string{v2alpha1.MD5AgentDeploymentProviderLabelKey: provider},
 	}
 }
 

@@ -183,6 +183,7 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.Datadog
 		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
 			profileComponentOverride.Containers = containersOverride(nodeAgentOverride)
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
+			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
 			profileComponentOverride.UpdateStrategy = nodeAgentOverride.UpdateStrategy
 		}
 	}

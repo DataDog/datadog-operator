@@ -76,7 +76,7 @@ func GetAgentVersion(dda metav1.Object) string {
 
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
+	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
 // GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig

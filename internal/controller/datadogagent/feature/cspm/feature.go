@@ -291,27 +291,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(v2alpha1.PasswdVolumeName, v2alpha1.PasswdHostPath, v2alpha1.PasswdMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+	hostRootVol, hostRootVolMount := volume.GetVolumes(v2alpha1.HostRootVolumeName, v2alpha1.HostRootHostPath, v2alpha1.HostRootMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(v2alpha1.GroupVolumeName, v2alpha1.GroupHostPath, v2alpha1.GroupMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&groupVol)
 
@@ -324,7 +324,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDHostRootEnvVar,
-		Value: apicommon.HostRootMountPath,
+		Value: v2alpha1.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
 

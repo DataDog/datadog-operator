@@ -283,16 +283,16 @@ func getExpectedComponentContainerEnvVars(port int) []*corev1.EnvVar {
 func getExpectedFIPSVolume(customConfig bool) []*corev1.Volume {
 	vol := []*corev1.Volume{
 		{
-			Name: apicommon.FIPSProxyCustomConfigVolumeName,
+			Name: v2alpha1.FIPSProxyCustomConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf(apicommon.FIPSProxyCustomConfigMapName, ""),
+						Name: fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, ""),
 					},
 					Items: []corev1.KeyToPath{
 						{
-							Key:  apicommon.FIPSProxyCustomConfigFileName,
-							Path: apicommon.FIPSProxyCustomConfigFileName,
+							Key:  v2alpha1.FIPSProxyCustomConfigFileName,
+							Path: v2alpha1.FIPSProxyCustomConfigFileName,
 						},
 					},
 				},
@@ -315,9 +315,9 @@ func getExpectedFIPSVolumeMounts() []*corev1.VolumeMount {
 
 func getFIPSVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.FIPSProxyCustomConfigVolumeName,
-		MountPath: apicommon.FIPSProxyCustomConfigMountPath,
-		SubPath:   apicommon.FIPSProxyCustomConfigFileName,
+		Name:      v2alpha1.FIPSProxyCustomConfigVolumeName,
+		MountPath: v2alpha1.FIPSProxyCustomConfigMountPath,
+		SubPath:   v2alpha1.FIPSProxyCustomConfigFileName,
 		ReadOnly:  true,
 	}
 }

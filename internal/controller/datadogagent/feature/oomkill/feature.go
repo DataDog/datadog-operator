@@ -76,29 +76,29 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true)
+	modulesVol, modulesVolMount := volume.GetVolumes(v2alpha1.ModulesVolumeName, v2alpha1.ModulesVolumePath, v2alpha1.ModulesVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
 	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
+		srcVol, srcVolMount := volume.GetVolumes(v2alpha1.SrcVolumeName, v2alpha1.SrcVolumePath, v2alpha1.SrcVolumePath, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
 		managers.Volume().AddVolume(&srcVol)
 	}
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(v2alpha1.DebugfsVolumeName, v2alpha1.DebugfsPath, v2alpha1.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
 	// env vars
