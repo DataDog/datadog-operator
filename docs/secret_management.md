@@ -116,7 +116,7 @@ First, mount the secret in the Operator container, for instance at `/etc/secret-
 
 **Note:** This secret helper requires Datadog Operator v0.5.0+
 
-### How to deploy the agent components using the secret backend feature with DatadogAgent (Operator 1.11+)
+### How to deploy Agent components using the secret backend feature with the DatadogAgent (Operator 1.11+)
 
 If using a custom script, create a Datadog Agent (or Cluster Agent) image following the example for the Datadog Operator above, and specify credentials using `ENC[<placeholder>]`.
 
