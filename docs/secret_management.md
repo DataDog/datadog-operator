@@ -205,7 +205,7 @@ spec:
       ```
       In this example, a Role is created granting read access to the secret `rabbitmqcluster-sample-default-user` in the `rabbitmq-system` namespace.
 
-      **Note**: Each namespace in the list must be included in the DatadogAgent controller by setting `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE` environment variables on the **Datadog Operator** container.
+      **Note**: Each namespace in the `roles` list must also be configured in the `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE` environment variable on the **Datadog Operator** deployment.
 
 
 * For the Agent and Cluster Agent, others options exist to configure the secret backend command:
