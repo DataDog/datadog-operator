@@ -1163,9 +1163,6 @@ type DeploymentStatus struct {
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
 type GlobalConfig struct {
-	// TestString is a test string.
-	TestString *string `json:"testString,omitempty"`
-
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
