@@ -6,7 +6,7 @@ spec:
     credentials:
       apiKey: <DATADOG_API_KEY>
   features:
-    otelAgent:
+    otelCollector:
       enabled: true
       ports:
         - containerPort: 4317

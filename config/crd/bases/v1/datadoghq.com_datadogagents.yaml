@@ -1284,7 +1284,7 @@ spec:
                             Default: true
                           type: boolean
                       type: object
-                    otelAgent:
+                    otelCollector:
                       description: OTelAgent configuration.
                       properties:
                         conf:
@@ -8121,7 +8121,7 @@ spec:
                                 Default: true
                               type: boolean
                           type: object
-                        otelAgent:
+                        otelCollector:
                           description: OTelAgent configuration.
                           properties:
                             conf:

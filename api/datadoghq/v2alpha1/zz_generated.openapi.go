@@ -526,7 +526,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 				Description: "DatadogFeatures are features running on the Agent and Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"otelAgent": {
+					"otelCollector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "OTelAgent configuration.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTelAgentFeatureConfig"),

@@ -45,7 +45,7 @@ type DatadogFeatures struct {
 	// Application-level features
 
 	// OTelAgent configuration.
-	OTelAgent *OTelAgentFeatureConfig `json:"otelAgent,omitempty"`
+	OTelAgent *OTelAgentFeatureConfig `json:"otelCollector,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
