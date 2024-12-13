@@ -410,5 +410,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
+	// Apply core agent config
+	if config.CoreAgent != nil && config.CoreAgent.Enabled != nil && apiutils.BoolValue(config.CoreAgent.Enabled) {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDCoreAgentEnabled,
+			Value: apiutils.BoolToString(config.CoreAgent.Enabled),
+		})
+	}
+
 	return manager.PodTemplateSpec()
 }
