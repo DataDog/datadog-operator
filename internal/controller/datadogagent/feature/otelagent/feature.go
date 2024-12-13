@@ -22,36 +22,36 @@ const (
 )
 
 func init() {
-	err := feature.Register(feature.OtelAgentIDType, buildOtelAgentFeature)
+	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildOtelAgentFeature(options *feature.Options) feature.Feature {
-	return &otelAgentFeature{}
+func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
+	return &otelCollectorFeature{}
 }
 
-type otelAgentFeature struct {
+type otelCollectorFeature struct {
 	customConfig  *v2alpha1.CustomConfig
 	owner         metav1.Object
 	configMapName string
 	ports         []*corev1.ContainerPort
 }
 
-func (o otelAgentFeature) ID() feature.IDType {
+func (o otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
-func (o *otelAgentFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	o.owner = dda
-	if dda.Spec.Features.OTelAgent.Conf != nil {
-		o.customConfig = dda.Spec.Features.OTelAgent.Conf
+	if dda.Spec.Features.OtelCollector.Conf != nil {
+		o.customConfig = dda.Spec.Features.OtelCollector.Conf
 	}
 	o.configMapName = v2alpha1.GetConfName(dda, o.customConfig, v2alpha1.DefaultOTelAgentConf)
 
-	if len(dda.Spec.Features.OTelAgent.Ports) == 0 {
-		dda.Spec.Features.OTelAgent.Ports = []*corev1.ContainerPort{
+	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
+		dda.Spec.Features.OtelCollector.Ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
 				ContainerPort: 4318,
@@ -66,10 +66,10 @@ func (o *otelAgentFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Require
 			},
 		}
 	}
-	o.ports = dda.Spec.Features.OTelAgent.Ports
+	o.ports = dda.Spec.Features.OtelCollector.Ports
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(dda.Spec.Features.OTelAgent.Enabled) {
+	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -84,14 +84,14 @@ func (o *otelAgentFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Require
 	return reqComp
 }
 
-func (o *otelAgentFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
+func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
 	if o.customConfig != nil && o.customConfig.ConfigData != nil {
 		return configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
 	}
 	return nil, nil
 }
 
-func (o otelAgentFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (o otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -123,11 +123,11 @@ func (o otelAgentFeature) ManageDependencies(managers feature.ResourceManagers, 
 	return nil
 }
 
-func (o otelAgentFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (o otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o otelAgentFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
@@ -160,10 +160,10 @@ func (o otelAgentFeature) ManageNodeAgent(managers feature.PodTemplateManagers, 
 	return nil
 }
 
-func (o otelAgentFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
-func (o otelAgentFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (o otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }

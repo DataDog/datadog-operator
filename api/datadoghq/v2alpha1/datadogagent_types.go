@@ -44,8 +44,8 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
-	// OTelAgent configuration.
-	OTelAgent *OTelAgentFeatureConfig `json:"otelCollector,omitempty"`
+	// OtelCollector configuration.
+	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -684,9 +684,9 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
-// OTelAgentFeatureConfig contains the configuration for the otel-agent.
+// OtelCollectorFeatureConfig contains the configuration for the otel-agent.
 // +k8s:openapi-gen=true
-type OTelAgentFeatureConfig struct {
+type OtelCollectorFeatureConfig struct {
 	// Enabled enables the OTel Agent.
 	// Default: true
 	// +optional

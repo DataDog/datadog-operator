@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Test_otelAgent_buildOtelAgentConfigMap(t *testing.T) {
+func Test_buildOtelCollectorConfigMap(t *testing.T) {
 	// check config map
 	configMapWant := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -27,17 +27,17 @@ func Test_otelAgent_buildOtelAgentConfigMap(t *testing.T) {
 		},
 	}
 
-	otelAgentFeature, ok := buildOtelAgentFeature(&feature.Options{}).(*otelAgentFeature)
+	otelCollectorFeature, ok := buildOtelCollectorFeature(&feature.Options{}).(*otelCollectorFeature)
 	assert.True(t, ok)
 
-	otelAgentFeature.owner = &metav1.ObjectMeta{
+	otelCollectorFeature.owner = &metav1.ObjectMeta{
 		Name:      "-otel-agent-config",
 	}
-	otelAgentFeature.configMapName = "-otel-agent-config"
-	otelAgentFeature.customConfig = &v2alpha1.CustomConfig{}
-	otelAgentFeature.customConfig.ConfigData = &defaultconfig.DefaultOtelCollectorConfig
+	otelCollectorFeature.configMapName = "-otel-agent-config"
+	otelCollectorFeature.customConfig = &v2alpha1.CustomConfig{}
+	otelCollectorFeature.customConfig.ConfigData = &defaultconfig.DefaultOtelCollectorConfig
 
-	configMap, err := otelAgentFeature.buildOTelAgentCoreConfigMap()
+	configMap, err := otelCollectorFeature.buildOTelAgentCoreConfigMap()
 	assert.NoError(t, err)
 	assert.Equal(t, configMapWant, configMap)
 }

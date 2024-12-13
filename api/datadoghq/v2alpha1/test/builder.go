@@ -376,35 +376,35 @@ func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *D
 }
 
 // OTel Agent
-func (builder *DatadogAgentBuilder) initOtelAgent() {
-	if builder.datadogAgent.Spec.Features.OTelAgent == nil {
-		builder.datadogAgent.Spec.Features.OTelAgent = &v2alpha1.OTelAgentFeatureConfig{}
+func (builder *DatadogAgentBuilder) initOtelCollector() {
+	if builder.datadogAgent.Spec.Features.OtelCollector == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector = &v2alpha1.OtelCollectorFeatureConfig{}
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithOTelAgentEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.initOtelAgent()
-	builder.datadogAgent.Spec.Features.OTelAgent.Enabled = apiutils.NewBoolPointer(enabled)
+func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOtelCollector()
+	builder.datadogAgent.Spec.Features.OtelCollector.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOTelAgentConfig() *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.OTelAgent.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OTelAgent.Conf.ConfigData =
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData =
 		apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOTelAgentConfigMap() *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.OTelAgent.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OTelAgent.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
 		Name: "user-provided-config-map",
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOTelAgentPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.OTelAgent.Ports = []*corev1.ContainerPort{
+func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Ports = []*corev1.ContainerPort{
 		{
 			Name:          "otel-http",
 			ContainerPort: httpPort,

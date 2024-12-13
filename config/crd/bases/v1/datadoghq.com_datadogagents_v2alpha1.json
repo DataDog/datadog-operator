@@ -1332,7 +1332,7 @@
             },
             "otelCollector": {
               "additionalProperties": false,
-              "description": "OTelAgent configuration.",
+              "description": "OtelCollector configuration.",
               "properties": {
                 "conf": {
                   "additionalProperties": false,
@@ -8107,7 +8107,7 @@
                 },
                 "otelCollector": {
                   "additionalProperties": false,
-                  "description": "OTelAgent configuration.",
+                  "description": "OtelCollector configuration.",
                   "properties": {
                     "conf": {
                       "additionalProperties": false,

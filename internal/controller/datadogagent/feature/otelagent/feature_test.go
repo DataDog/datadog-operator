@@ -39,15 +39,15 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		{
 			Name: "otel agent disabled without config",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(false).
+				WithOTelCollectorEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "otel agent disabled with config",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(false).
-				WithOTelAgentConfig().
+				WithOTelCollectorEnabled(false).
+				WithOTelCollectorConfig().
 				Build(),
 			WantConfigure: false,
 		},
@@ -55,8 +55,8 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		{
 			Name: "otel agent enabled with config",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(true).
-				WithOTelAgentConfig().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfig().
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
@@ -65,8 +65,8 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		{
 			Name: "otel agent enabled with configMap",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(true).
-				WithOTelAgentConfigMap().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigMap().
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
@@ -75,7 +75,7 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		{
 			Name: "otel agent enabled without config",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(true).
+				WithOTelCollectorEnabled(true).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
@@ -84,8 +84,8 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		{
 			Name: "otel agent enabled without config non default ports",
 			DDA: v2alpha1test.NewDatadogAgentBuilder().
-				WithOTelAgentEnabled(true).
-				WithOTelAgentPorts(4444, 5555).
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorPorts(4444, 5555).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
@@ -98,7 +98,7 @@ func Test_otelAgentFeature_Configure(t *testing.T) {
 		},
 	}
 
-	tests.Run(t, buildOtelAgentFeature)
+	tests.Run(t, buildOtelCollectorFeature)
 }
 
 func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string) *test.ComponentTest {

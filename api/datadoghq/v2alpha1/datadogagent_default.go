@@ -25,7 +25,7 @@ const (
 	defaultLogPodLogsPath                string = "/var/log/pods"
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
 
-	defaultOtelAgentEnabled               bool = false
+	defaultOtelCollectorEnabled           bool = false
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
@@ -220,11 +220,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LiveContainerCollection.Enabled, defaultLiveContainerCollectionEnabled)
 
-	// OTelAgent Feature
-	if ddaSpec.Features.OTelAgent == nil {
-		ddaSpec.Features.OTelAgent = &OTelAgentFeatureConfig{}
+	// OTelCollector Feature
+	if ddaSpec.Features.OtelCollector == nil {
+		ddaSpec.Features.OtelCollector = &OtelCollectorFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTelAgent.Enabled, defaultOtelAgentEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.Enabled, defaultOtelCollectorEnabled)
 
 	// LiveProcessCollection Feature
 	if ddaSpec.Features.LiveProcessCollection == nil {

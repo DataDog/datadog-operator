@@ -1285,7 +1285,7 @@ spec:
                           type: boolean
                       type: object
                     otelCollector:
-                      description: OTelAgent configuration.
+                      description: OtelCollector configuration.
                       properties:
                         conf:
                           description: |-
@@ -8122,7 +8122,7 @@ spec:
                               type: boolean
                           type: object
                         otelCollector:
-                          description: OTelAgent configuration.
+                          description: OtelCollector configuration.
                           properties:
                             conf:
                               description: |-
