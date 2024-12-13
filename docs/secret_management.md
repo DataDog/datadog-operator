@@ -23,9 +23,9 @@ spec:
 
 The credentials provided here will be stored in a Secret created by the Operator. By properly setting the `RBAC` on the `DatadogAgent` CRD, one can limit who is able to see those credentials.
 
-## 2. Use secret(s) references
+## 2. Use Secret(s) references
 
-Another solution is to provide the name of the secret(s) that contains the credentials:
+Another solution is to provide the name of the Secret(s) that contains the credentials:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -44,7 +44,7 @@ spec:
   # ...
 ```
 
-Create the secret(s) before applying the DatadogAgent manifest, or the deployment will fail.
+Create the Secret(s) before applying the DatadogAgent manifest, or the deployment will fail.
 
 ```yaml
 apiVersion: v1
@@ -65,7 +65,7 @@ data:
 
 **Note:**
 
-It is possible to use the same secret to store both credentials:
+It is possible to use the same Secret to store both credentials:
 
     ```yaml
     ---
@@ -110,9 +110,9 @@ success
 
 #### Using the secret helper
 
-Kubernetes supports exposing secrets as files inside a pod, and we provide a helper script in the Datadog Operator image to read the secrets from files.
+Kubernetes supports exposing Secrets as files inside a pod, and we provide a helper script in the Datadog Operator image to read the Secrets from files.
 
-First, mount the secret in the Operator container, for instance at `/etc/secret-volume`. Then install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`.
+First, mount the Secret in the Operator container, for instance at `/etc/secret-volume`. Then install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`.
 
 **Note:** This secret helper requires Datadog Operator v0.5.0+
 
@@ -151,7 +151,7 @@ The environment variable `DD_SECRET_BACKEND_COMMAND` from this configuration is 
 
 For convenience, the Datadog Agent and its sibling Cluster Agent images already include a `readsecret_multiple_providers.sh` [helper function][2] that can be used to read from both files as well as Kubernetes Secrets. After creating the Secret, set `spec.global.secretBackend.command` to `"/readsecret_multiple_providers.sh"`.
 
-For instance, to use the secret backend for the Agent and Cluster Agent, create a secret called "test-secret":
+For instance, to use the secret backend for the Agent and Cluster Agent, create a Secret called "test-secret":
 
 `kubectl create secret generic test-secret --from-literal=api_key='<api-key>' --from-literal=app_key='<app-key>'`
 
@@ -187,7 +187,7 @@ spec:
             enableGlobalPermissions: true
       # ...
       ```
-    * `global.secretBackend.roles`: Replaces `enableGlobalPermissions`, detailing the list of namespaces/secrets to which the Agents should have access.
+    * `global.secretBackend.roles`: Replaces `enableGlobalPermissions`, detailing the list of namespace/secrets to which the Agents should have access.
       ```yaml
       apiVersion: datadoghq.com/v2alpha1
       kind: DatadogAgent
@@ -203,7 +203,7 @@ spec:
               - "rabbitmqcluster-sample-default-user"
       # ...
       ```
-      In this example, a Role is created granting read access to the secret `rabbitmqcluster-sample-default-user` in the `rabbitmq-system` namespace.
+      In this example, a Role is created granting read access to the Secret `rabbitmqcluster-sample-default-user` in the `rabbitmq-system` namespace.
 
       **Note**: Each namespace in the `roles` list must also be configured in the `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE` environment variable on the **Datadog Operator** deployment.
 
