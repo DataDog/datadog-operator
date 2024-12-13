@@ -1,4 +1,4 @@
-package otelagent
+package otelcollector
 
 import (
 	"strings"
@@ -10,7 +10,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelagent/defaultconfig"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -33,7 +33,7 @@ var (
 	defaultLocalObjectReferenceName = "-otel-agent-config"
 )
 
-func Test_otelAgentFeature_Configure(t *testing.T) {
+func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		// disabled
 		{
@@ -160,7 +160,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 	// hacky to need to hardcode test name but unaware of a better approach that doesn't require
 	// modifying WantDependenciesFunc definition.
-	if t.Name() == "Test_otelAgentFeature_Configure/otel_agent_enabled_with_configMap" {
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_configMap" {
 		// configMap is provided by user, no need to create it.
 		_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
 		assert.False(t, found)
@@ -175,7 +175,7 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 
 	// validate that default ports were overriden by user provided ports in default config. hacky to need to
 	// hardcode test name but unaware of a better approach that doesn't require modifying WantDependenciesFunc definition.
-	if t.Name() == "Test_otelAgentFeature_Configure/otel_agent_enabled_without_config_non_default_ports" {
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_without_config_non_default_ports" {
 		expectedCM["otel-config.yaml"] = strings.ReplaceAll(expectedCM["otel-config.yaml"], "4317", "4444")
 		expectedCM["otel-config.yaml"] = strings.ReplaceAll(expectedCM["otel-config.yaml"], "4318", "5555")
 		assert.True(
