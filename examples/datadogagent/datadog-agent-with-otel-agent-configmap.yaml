@@ -30,13 +30,15 @@ data:
       otlp:
         protocols:
           grpc:
+            endpoint: 0.0.0.0:4317
           http:
+            endpoint: 0.0.0.0:4318
     exporters:
       debug:
         verbosity: detailed
       datadog:
         api:
-          key: <DATADOG_API_KEY>
+          key: ${env:DD_API_KEY}
     processors:
       batch:
     connectors:
