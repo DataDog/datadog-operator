@@ -147,7 +147,7 @@ spec:
   # ...
 ```
 
-The environment variable `DD_SECRET_BACKEND_COMMAND` from this configuration is automatically applied to all the deployed components: node Agent, cluster Agent, and cluster checks runners. Ensure the image you are using for all the components includes your command.
+The environment variable `DD_SECRET_BACKEND_COMMAND` from this configuration is automatically applied to all the deployed components: node Agent, Cluster Agent, and Cluster Checks Runners. Ensure the image you are using for all the components includes your command.
 
 For convenience, the Datadog Agent and its sibling Cluster images already include a `readsecret_multiple_providers.sh` [helper function][2] that can be used to read from both files as well as Kubernetes Secrets. After creating the Secret, set `spec.global.secretBackend.command` to `"/readsecret_multiple_providers.sh"`.
 
