@@ -254,9 +254,9 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if config.Kubelet.AgentCAPath != "" {
 					agentCAPath = config.Kubelet.AgentCAPath
 				} else {
-					agentCAPath = apicommon.KubeletAgentCAPath
+					agentCAPath = v2alpha1.KubeletAgentCAPath
 				}
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
+				kubeletVol, kubeletVolMount := volume.GetVolumes(v2alpha1.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
@@ -290,20 +290,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+			dockerMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.DockerSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
 		} else if config.CriSocketPath != nil {
 			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+			criSocketMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 

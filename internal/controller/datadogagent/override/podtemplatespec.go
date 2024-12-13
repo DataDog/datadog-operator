@@ -92,7 +92,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraConfd != nil {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, apicommon.ConfdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, v2alpha1.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -109,7 +109,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraChecksd != nil {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, apicommon.ChecksdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, v2alpha1.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -204,7 +204,7 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		case v2alpha1.ClusterAgentComponentName:
 			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
-			volumeName := apicommon.ClusterAgentCustomConfigVolumeName
+			volumeName := v2alpha1.ClusterAgentCustomConfigVolumeName
 			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 

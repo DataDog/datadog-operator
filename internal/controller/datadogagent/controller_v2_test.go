@@ -581,7 +581,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 
 func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
+	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{v2alpha1.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
 	}
 

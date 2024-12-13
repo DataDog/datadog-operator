@@ -156,8 +156,8 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
-				MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
+				Name:      v2alpha1.SystemProbeOSReleaseDirVolumeName,
+				MountPath: v2alpha1.SystemProbeOSReleaseDirMountPath,
 				ReadOnly:  true,
 			},
 			{
@@ -202,10 +202,10 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumes := []corev1.Volume{
 			{
-				Name: apicommon.SystemProbeOSReleaseDirVolumeName,
+				Name: v2alpha1.SystemProbeOSReleaseDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+						Path: v2alpha1.SystemProbeOSReleaseDirVolumePath,
 					},
 				},
 			},
