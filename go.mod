@@ -7,7 +7,7 @@ toolchain go1.22.7
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
 	github.com/DataDog/extendeddaemonset v0.10.0-rc.4
-	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/go-logr/logr v1.4.2
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.6.0
