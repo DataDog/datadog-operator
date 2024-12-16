@@ -6,6 +6,14 @@
 package v2alpha1
 
 const (
+	DDAPIKey      = "DD_API_KEY"
+	DDAppKey      = "DD_APP_KEY"
+	DDddURL       = "DD_DD_URL"
+	DDURL         = "DD_URL"
+	DDSite        = "DD_SITE"
+	DDLogLevel    = "DD_LOG_LEVEL"
+	DDClusterName = "DD_CLUSTER_NAME"
+
 	DDAPMEnabled                           = "DD_APM_ENABLED"
 	DDAPMInstrumentationInstallTime        = "DD_INSTRUMENTATION_INSTALL_TIME"
 	DDAPMInstrumentationInstallId          = "DD_INSTRUMENTATION_INSTALL_ID"

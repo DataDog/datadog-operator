@@ -57,7 +57,7 @@ func overrideLogLevel(containerName apicommon.AgentContainerName, manager featur
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: logLevel,
 		},
 	)

@@ -77,7 +77,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				}

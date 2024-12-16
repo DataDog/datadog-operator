@@ -462,12 +462,12 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 

@@ -50,21 +50,21 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	if config.ClusterName != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDClusterName,
+			Name:  v2alpha1.DDClusterName,
 			Value: *config.ClusterName,
 		})
 	}
 
 	// Site is the Datadog intake site Agent data are sent to.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSite,
+		Name:  v2alpha1.DDSite,
 		Value: *config.Site,
 	})
 
 	// Endpoint is the Datadog intake URL the Agent data are sent to.
 	if config.Endpoint != nil && config.Endpoint.URL != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDddURL,
+			Name:  v2alpha1.DDddURL,
 			Value: *config.Endpoint.URL,
 		})
 	}
@@ -90,7 +90,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDLogLevel,
+		Name:  v2alpha1.DDLogLevel,
 		Value: *config.LogLevel,
 	})
 

@@ -283,11 +283,11 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDSite,
+			Name:  v2alpha1.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: "info",
 		},
 	}
