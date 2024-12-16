@@ -84,7 +84,6 @@ core,github.com/richardartoul/molecule/src/codec,Apache-2.0
 core,github.com/richardartoul/molecule/src/protowire,BSD-3-Clause
 core,github.com/secure-systems-lab/go-securesystemslib/cjson,MIT
 core,github.com/shirou/gopsutil/v3,BSD-3-Clause
-core,github.com/shoenig/go-m1cpu,MPL-2.0
 core,github.com/spaolacci/murmur3,BSD-3-Clause
 core,github.com/spf13/afero,Apache-2.0
 core,github.com/spf13/cast,MIT
@@ -93,7 +92,6 @@ core,github.com/spf13/pflag,BSD-3-Clause
 core,github.com/stretchr/objx,MIT
 core,github.com/stretchr/testify,MIT
 core,github.com/tinylib/msgp/msgp,MIT
-core,github.com/tklauser/go-sysconf,BSD-3-Clause
 core,github.com/x448/float16,MIT
 core,github.com/zorkian/go-datadog-api,BSD-3-Clause
 core,go.etcd.io/bbolt,MIT
