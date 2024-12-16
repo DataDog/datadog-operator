@@ -56,15 +56,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -78,15 +78,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -100,15 +100,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -118,7 +118,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
 
 		wantEnvVars = []*corev1.EnvVar{{
-			Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
+			Name:  DDSBOMContainerOverlayFSDirectScan,
 			Value: "true",
 		}}
 		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantEnvVars))
@@ -129,22 +129,22 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantAllAgentsEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "true",
 			},
 		}
 
 		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDHostRootEnvVar,
+				Name:  v2alpha1.DDHostRootEnvVar,
 				Value: "/host",
 			},
 		}

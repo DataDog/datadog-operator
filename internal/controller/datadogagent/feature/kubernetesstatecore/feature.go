@@ -193,12 +193,12 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	managers.Volume().AddVolume(&vol)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDKubeStateMetricsCoreEnabled,
+		Name:  DDKubeStateMetricsCoreEnabled,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
+		Name:  DDKubeStateMetricsCoreConfigMap,
 		Value: f.configConfigMapName,
 	})
 
@@ -211,7 +211,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
-		Name:  apicommon.DDIgnoreAutoConf,
+		Name:  DDIgnoreAutoConf,
 		Value: "kubernetes_state",
 	}
 
@@ -223,7 +223,7 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
-		Name:  apicommon.DDIgnoreAutoConf,
+		Name:  DDIgnoreAutoConf,
 		Value: "kubernetes_state",
 	}
 

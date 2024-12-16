@@ -166,15 +166,15 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 	expectedClusterAgentEnvs := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDClusterChecksEnabled,
+			Name:  DDClusterChecksEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDExtraConfigProviders,
+			Name:  DDExtraConfigProviders,
 			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 		{
-			Name:  apicommon.DDExtraListeners,
+			Name:  DDExtraListeners,
 			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	}
@@ -201,12 +201,12 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
 			expectedClusterRunnerEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDClusterChecksEnabled,
+					Name:  DDClusterChecksEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDExtraConfigProviders,
-					Value: apicommon.ClusterChecksConfigProvider,
+					Name:  DDExtraConfigProviders,
+					Value: ClusterChecksConfigProvider,
 				},
 			}
 
@@ -227,7 +227,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDExtraConfigProviders,
+					Name:  DDExtraConfigProviders,
 					Value: v2alpha1.EndpointsChecksConfigProvider,
 				},
 			}
@@ -249,7 +249,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDExtraConfigProviders,
+					Name:  DDExtraConfigProviders,
 					Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 				},
 			}

@@ -126,15 +126,15 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDEnableOOMKillEnvVar,
+				Name:  DDEnableOOMKillEnvVar,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeEnabled,
+				Name:  v2alpha1.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}

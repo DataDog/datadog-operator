@@ -86,22 +86,22 @@ func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDPrometheusScrapeEnabled,
+		Name:  DDPrometheusScrapeEnabled,
 		Value: "true",
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+		Name:  DDPrometheusScrapeServiceEndpoints,
 		Value: strconv.FormatBool(f.enableServiceEndpoints),
 	})
 	if f.additionalConfigs != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDPrometheusScrapeChecks,
+			Name:  DDPrometheusScrapeChecks,
 			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
 	if f.openmetricsVersion != 0 {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDPrometheusScrapeVersion,
+			Name:  DDPrometheusScrapeVersion,
 			Value: strconv.Itoa(f.openmetricsVersion),
 		})
 	}
@@ -126,22 +126,22 @@ func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 func (f *prometheusScrapeFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDPrometheusScrapeEnabled,
+		Name:  DDPrometheusScrapeEnabled,
 		Value: "true",
 	})
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+		Name:  DDPrometheusScrapeServiceEndpoints,
 		Value: strconv.FormatBool(f.enableServiceEndpoints),
 	})
 	if f.additionalConfigs != "" {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDPrometheusScrapeChecks,
+			Name:  DDPrometheusScrapeChecks,
 			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
 	if f.openmetricsVersion != 0 {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDPrometheusScrapeVersion,
+			Name:  DDPrometheusScrapeVersion,
 			Value: strconv.Itoa(f.openmetricsVersion),
 		})
 	}

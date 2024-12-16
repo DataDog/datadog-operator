@@ -83,7 +83,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := createEnvVars("true", "false", "true")
 					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-						Name:  apicommon.DDLogsConfigOpenFilesLimit,
+						Name:  DDLogsConfigOpenFilesLimit,
 						Value: "250",
 					})
 					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
@@ -233,15 +233,15 @@ func getWantVolumeMounts() []*corev1.VolumeMount {
 func createEnvVars(logsEnabled, collectAllEnabled, collectUsingFilesEnabled string) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDLogsEnabled,
+			Name:  v2alpha1.DDLogsEnabled,
 			Value: logsEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsConfigContainerCollectAll,
+			Name:  DDLogsConfigContainerCollectAll,
 			Value: collectAllEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsContainerCollectUsingFiles,
+			Name:  DDLogsContainerCollectUsingFiles,
 			Value: collectUsingFilesEnabled,
 		},
 	}

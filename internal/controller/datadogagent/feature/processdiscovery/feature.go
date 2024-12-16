@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package processdiscovery
 
 import (
@@ -64,7 +69,7 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -80,7 +85,7 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
@@ -105,7 +110,7 @@ func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.Ag
 	managers.Volume().AddVolume(&procdirVol)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessDiscoveryEnabled,
+		Name:  DDProcessDiscoveryEnabled,
 		Value: "true",
 	}
 

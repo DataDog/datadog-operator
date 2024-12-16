@@ -83,7 +83,7 @@ func (f *asmFeature) ManageDependencies(_ feature.ResourceManagers, _ feature.Re
 func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	if f.threatsEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAppsecEnabled,
+			Name:  DDAdmissionControllerAppsecEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
 			return err
@@ -92,7 +92,7 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 	if f.iastEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerIASTEnabled,
+			Name:  DDAdmissionControllerIASTEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
 			return err
@@ -101,7 +101,7 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 	if f.scaEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAppsecSCAEnabled,
+			Name:  DDAdmissionControllerAppsecSCAEnabled,
 			Value: "true",
 		}, merger.IgnoreNewEnvVarMergeFunction); err != nil {
 			return err

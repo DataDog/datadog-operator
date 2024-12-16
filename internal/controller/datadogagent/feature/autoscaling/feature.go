@@ -85,7 +85,7 @@ func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManager
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAutoscalingWorkloadEnabled,
+		Name:  DDAutoscalingWorkloadEnabled,
 		Value: "true",
 	})
 

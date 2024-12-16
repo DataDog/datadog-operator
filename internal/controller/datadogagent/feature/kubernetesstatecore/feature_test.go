@@ -102,11 +102,11 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeStateMetricsCoreEnabled,
+					Name:  DDKubeStateMetricsCoreEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
+					Name:  DDKubeStateMetricsCoreConfigMap,
 					Value: "-kube-state-metrics-core-config",
 				},
 			}
@@ -142,7 +142,7 @@ func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, ag
 
 	want := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDIgnoreAutoConf,
+			Name:  DDIgnoreAutoConf,
 			Value: "kubernetes_state",
 		},
 	}
