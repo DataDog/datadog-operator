@@ -319,9 +319,9 @@ verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 update-golang:
 	hack/update-golang.sh
 
-.PHONY: tidy
-tidy: ## Run go tidy
-	go mod tidy -v
+.PHONY: sync
+sync: ## Run go work sync
+	go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
