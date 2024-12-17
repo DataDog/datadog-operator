@@ -2,44 +2,12 @@ module github.com/DataDog/datadog-operator/test/e2e
 
 go 1.23.0
 
-replace (
-	github.com/DataDog/datadog-agent/comp/api/api/def => ../../../datadog-agent/comp/api/api/def
-	github.com/DataDog/datadog-agent/comp/api/def => ../../../datadog-agent/comp/api/def
-	github.com/DataDog/datadog-agent/comp/core/flare/builder => ../../../datadog-agent/comp/core/flare/builder
-	github.com/DataDog/datadog-agent/comp/core/flare/types => ../../../datadog-agent/comp/core/flare/types
-	github.com/DataDog/datadog-agent/comp/core/secrets => ../../../datadog-agent/comp/core/secrets
-	github.com/DataDog/datadog-agent/comp/core/tagger/types => ../../../datadog-agent/comp/core/tagger/types
-	github.com/DataDog/datadog-agent/comp/core/tagger/utils => ../../../datadog-agent/comp/core/tagger/utils
-	github.com/DataDog/datadog-agent/comp/core/telemetry => ../../../datadog-agent/comp/core/telemetry
-	github.com/DataDog/datadog-agent/comp/def => ../../../datadog-agent/comp/def
-	github.com/DataDog/datadog-agent/comp/netflow/payload => ../../../datadog-agent/comp/netflow/payload
-	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => ../../../datadog-agent/comp/otelcol/ddflareextension/def
-	github.com/DataDog/datadog-agent/pkg/collector/check/defaults => ../../../datadog-agent/pkg/collector/check/defaults
-	github.com/DataDog/datadog-agent/pkg/config/env => ../../../datadog-agent/pkg/config/env
-	github.com/DataDog/datadog-agent/pkg/config/nodetreemodel => ../../../datadog-agent/pkg/config/nodetreemodel
-	github.com/DataDog/datadog-agent/pkg/config/setup => ../../../datadog-agent/pkg/config/setup
-	github.com/DataDog/datadog-agent/pkg/config/teeconfig => ../../../datadog-agent/pkg/config/teeconfig
-	github.com/DataDog/datadog-agent/pkg/proto => ../../../datadog-agent/pkg/proto
-	github.com/DataDog/datadog-agent/pkg/trace => ../../../datadog-agent/pkg/trace
-	github.com/DataDog/datadog-agent/pkg/util/executable => ../../../datadog-agent/pkg/util/executable
-	github.com/DataDog/datadog-agent/pkg/util/filesystem => ../../../datadog-agent/pkg/util/filesystem
-	github.com/DataDog/datadog-agent/pkg/util/fxutil => ../../../datadog-agent/pkg/util/fxutil
-	github.com/DataDog/datadog-agent/pkg/util/hostname/validate => ../../../datadog-agent/pkg/util/hostname/validate
-	github.com/DataDog/datadog-agent/pkg/util/optional => ../../../datadog-agent/pkg/util/optional
-	github.com/DataDog/datadog-agent/pkg/util/system => ../../../datadog-agent/pkg/util/system
-	github.com/DataDog/datadog-agent/pkg/util/system/socket => ../../../datadog-agent/pkg/util/system/socket
-	github.com/DataDog/datadog-agent/pkg/util/winutil => ../../../datadog-agent/pkg/util/winutil
-	github.com/DataDog/datadog-agent/test/fakeintake => ../../../datadog-agent/test/fakeintake
-	github.com/DataDog/datadog-agent/test/new-e2e => ../../../datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions => ../../../test-infra-definitions
-)
-
 require (
-	github.com/DataDog/datadog-agent/test/fakeintake v0.59.0
-	github.com/DataDog/datadog-agent/test/new-e2e v0.59.0
+	github.com/DataDog/datadog-agent/test/fakeintake v0.60.0
+	github.com/DataDog/datadog-agent/test/new-e2e v0.60.0
 	github.com/DataDog/datadog-api-client-go/v2 v2.33.0
 	github.com/DataDog/datadog-operator v1.10.0
-	github.com/DataDog/test-infra-definitions v0.0.0-20241129143439-1f340fd450e3
+	github.com/DataDog/test-infra-definitions v0.0.0-20241217152533-10486aec63a8
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.18.3
 	github.com/pulumi/pulumi/sdk/v3 v3.142.0
@@ -56,10 +24,10 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/DataDog/agent-payload/v5 v5.0.137 // indirect
-	github.com/DataDog/datadog-agent/comp/netflow/payload v0.59.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.59.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/optional v0.59.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.59.0 // indirect
+	github.com/DataDog/datadog-agent/comp/netflow/payload v0.60.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.60.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/optional v0.60.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.0 // indirect
 	github.com/DataDog/extendeddaemonset v0.10.0-rc.4 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
@@ -73,27 +41,26 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.32.5 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.6 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.28.5 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.46 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.20 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.24 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.24 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.32.6 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.7 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.28.6 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.47 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.21 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.25 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.25 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.1 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.19 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.36.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecs v1.47.4 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.25 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.36.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.52.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.4.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.65.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.4.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.71.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.50.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.24.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.1 // indirect
-	github.com/aws/session-manager-plugin v0.0.0-20241010233726-61cf1288c7c6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.24.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.2 // indirect
 	github.com/aws/smithy-go v1.22.1 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -107,7 +74,6 @@ require (
 	github.com/charmbracelet/bubbletea v0.25.0 // indirect
 	github.com/charmbracelet/lipgloss v0.10.0 // indirect
 	github.com/cheggaaa/pb v1.0.29 // indirect
-	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
@@ -209,8 +175,8 @@ require (
 	github.com/pulumi/pulumi-awsx/sdk/v2 v2.16.1 // indirect
 	github.com/pulumi/pulumi-azure-native-sdk/v2 v2.73.1 // indirect
 	github.com/pulumi/pulumi-command/sdk v1.0.1 // indirect
-	github.com/pulumi/pulumi-docker/sdk/v4 v4.5.5 // indirect
-	github.com/pulumi/pulumi-eks/sdk/v3 v3.3.0 // indirect
+	github.com/pulumi/pulumi-docker/sdk/v4 v4.5.7 // indirect
+	github.com/pulumi/pulumi-eks/sdk/v3 v3.4.0 // indirect
 	github.com/pulumi/pulumi-gcp/sdk/v7 v7.38.0 // indirect
 	github.com/pulumi/pulumi-random/sdk/v4 v4.16.7 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
@@ -227,10 +193,8 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
 	github.com/tinylib/msgp v1.2.4 // indirect
-	github.com/twinj/uuid v0.0.0-20151029044442-89173bcdda19 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/urfave/cli v1.22.2 // indirect

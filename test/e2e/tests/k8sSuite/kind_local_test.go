@@ -33,5 +33,5 @@ func TestLocalKindSuite(t *testing.T) {
 		provisioners.WithoutDDA(),
 	}
 
-	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)), e2e.WithSkipDeleteOnFailure(), e2e.WithDevMode())
+	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)))
 }

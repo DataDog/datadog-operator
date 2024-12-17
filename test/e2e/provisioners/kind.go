@@ -9,7 +9,6 @@
 package provisioners
 
 import (
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
@@ -39,7 +38,6 @@ const (
 
 type K8sEnv struct {
 	environments.Kubernetes
-	Operator *components.Operator
 }
 
 type KubernetesProvisionerParams struct {
