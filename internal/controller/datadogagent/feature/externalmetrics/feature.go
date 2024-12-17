@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	"github.com/go-logr/logr"
@@ -122,9 +123,9 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			}
 		}
 
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
-		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -154,7 +155,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	}
 	selector := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      f.owner.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 	}
 	serviceName := componentdca.GetMetricsServerServiceName(f.owner)
 	if err := managers.ServiceManager().AddService(serviceName, ns, selector, emPorts, nil); err != nil {

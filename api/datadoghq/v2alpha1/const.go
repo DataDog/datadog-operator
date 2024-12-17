@@ -8,6 +8,12 @@ package v2alpha1
 // This file tracks constants related to the DatadogAgent CRD
 
 const (
+	// AgentLatestVersion corresponds to the latest stable agent release
+	AgentLatestVersion = "7.60.0"
+	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
+	FIPSProxyLatestVersion = "1.1.6"
+)
+const (
 
 	// ClusterAgentReconcileConditionType ReconcileConditionType for Cluster Agent component
 	ClusterAgentReconcileConditionType = "ClusterAgentReconcile"
@@ -25,59 +31,6 @@ const (
 	// ExtraChecksdConfigMapName is the name of the ConfigMap storing Custom Checksd data
 	ExtraChecksdConfigMapName = "%s-extra-checksd"
 
-	// DefaultAgentHealthPort default agent health port
-	DefaultAgentHealthPort int32 = 5555
-
-	// Liveness probe default config
-	DefaultLivenessProbeInitialDelaySeconds int32 = 15
-	DefaultLivenessProbePeriodSeconds       int32 = 15
-	DefaultLivenessProbeTimeoutSeconds      int32 = 5
-	DefaultLivenessProbeSuccessThreshold    int32 = 1
-	DefaultLivenessProbeFailureThreshold    int32 = 6
-	DefaultLivenessProbeHTTPPath                  = "/live"
-
-	// Readiness probe default config
-	DefaultReadinessProbeInitialDelaySeconds int32 = 15
-	DefaultReadinessProbePeriodSeconds       int32 = 15
-	DefaultReadinessProbeTimeoutSeconds      int32 = 5
-	DefaultReadinessProbeSuccessThreshold    int32 = 1
-	DefaultReadinessProbeFailureThreshold    int32 = 6
-	DefaultReadinessProbeHTTPPath                  = "/ready"
-
-	// Startup probe default config
-	DefaultStartupProbeInitialDelaySeconds int32 = 15
-	DefaultStartupProbePeriodSeconds       int32 = 15
-	DefaultStartupProbeTimeoutSeconds      int32 = 5
-	DefaultStartupProbeSuccessThreshold    int32 = 1
-	DefaultStartupProbeFailureThreshold    int32 = 6
-	DefaultStartupProbeHTTPPath                  = "/startup"
-
-	// Agent Data plane default liveness/readiness probe configs
-	DefaultADPLivenessProbeInitialDelaySeconds int32 = 5
-	DefaultADPLivenessProbePeriodSeconds       int32 = 5
-	DefaultADPLivenessProbeTimeoutSeconds      int32 = 5
-	DefaultADPLivenessProbeSuccessThreshold    int32 = 1
-	DefaultADPLivenessProbeFailureThreshold    int32 = 12
-
-	DefaultADPReadinessProbeInitialDelaySeconds int32 = 5
-	DefaultADPReadinessProbePeriodSeconds       int32 = 5
-	DefaultADPReadinessProbeTimeoutSeconds      int32 = 5
-	DefaultADPReadinessProbeSuccessThreshold    int32 = 1
-	DefaultADPReadinessProbeFailureThreshold    int32 = 12
-
-	DefaultADPHealthPort = 5100
-
-	// DefaultApmPort default apm port
-	DefaultApmPort = 8126
-	// DefaultApmPortName default apm port name
-	DefaultApmPortName = "traceport"
-
-	// DefaultAgentResourceSuffix use as suffix for agent resource naming
-	DefaultAgentResourceSuffix = "agent"
-	// DefaultClusterAgentResourceSuffix use as suffix for cluster-agent resource naming
-	DefaultClusterAgentResourceSuffix = "cluster-agent"
-	// DefaultClusterChecksRunnerResourceSuffix use as suffix for cluster-checks-runner resource naming
-	DefaultClusterChecksRunnerResourceSuffix = "cluster-checks-runner"
 	// DefaultMetricsServerResourceSuffix use as suffix for cluster-agent metrics-server resource naming
 	DefaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
 	// DefaultAPPKeyKey default app-key key (use in secret for instance).

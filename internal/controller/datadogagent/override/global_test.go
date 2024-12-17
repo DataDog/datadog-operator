@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
@@ -369,7 +370,7 @@ func assertSecretBackendGlobalPerms(t testing.TB, resourcesManager feature.Resou
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
@@ -428,7 +429,7 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
