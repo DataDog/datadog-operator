@@ -51,7 +51,7 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	o.configMapName = v2alpha1.GetConfName(dda, o.customConfig, v2alpha1.DefaultOTelAgentConf)
 
 	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
-		dda.Spec.Features.OtelCollector.Ports = []*corev1.ContainerPort{
+		o.ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
 				ContainerPort: 4318,
@@ -65,8 +65,9 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 				Protocol:      corev1.ProtocolTCP,
 			},
 		}
+	} else {
+		o.ports = dda.Spec.Features.OtelCollector.Ports
 	}
-	o.ports = dda.Spec.Features.OtelCollector.Ports
 
 	var reqComp feature.RequiredComponents
 	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
