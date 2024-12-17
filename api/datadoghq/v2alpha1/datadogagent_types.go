@@ -729,6 +729,10 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	Registry *string `json:"registry,omitempty"`
 
+	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
+	// +optional
+	KubernetesAdmissionEvents *KubernetesAdmissionEventsConfig `json:"kubernetesAdmissionEvents,omitempty"`
+
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
 	CWSInstrumentation *CWSInstrumentationConfig `json:"cwsInstrumentation,omitempty"`
@@ -807,6 +811,13 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type KubernetesAdmissionEventsConfig struct {
+	// Enable the Kubernetes Admission Events feature.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
