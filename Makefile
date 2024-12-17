@@ -109,14 +109,10 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
+manager: sync generate lint managergobuild ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -319,9 +315,9 @@ verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 update-golang:
 	hack/update-golang.sh
 
-.PHONY: tidy
-tidy: ## Run go tidy
-	go mod tidy -v
+.PHONY: sync
+sync: ## Run go work sync
+	go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
