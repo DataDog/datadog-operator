@@ -66,7 +66,7 @@ func TestASMFeature(t *testing.T) {
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM Threats enabled, admission controller not enabled",
@@ -93,7 +93,7 @@ func TestASMFeature(t *testing.T) {
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerAppsecSCAEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerAppsecSCAEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM IAST enabled",
@@ -103,7 +103,7 @@ func TestASMFeature(t *testing.T) {
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerIASTEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerIASTEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM all enabled",
@@ -115,15 +115,15 @@ func TestASMFeature(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{
-					name:    apicommon.DDAdmissionControllerAppsecEnabled,
+					name:    DDAdmissionControllerAppsecEnabled,
 					value:   "true",
 					present: true,
 				}, envVar{
-					name:    apicommon.DDAdmissionControllerAppsecSCAEnabled,
+					name:    DDAdmissionControllerAppsecSCAEnabled,
 					value:   "true",
 					present: true,
 				}, envVar{
-					name:    apicommon.DDAdmissionControllerIASTEnabled,
+					name:    DDAdmissionControllerIASTEnabled,
 					value:   "true",
 					present: true,
 				}),

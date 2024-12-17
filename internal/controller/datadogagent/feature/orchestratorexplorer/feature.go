@@ -198,7 +198,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 		volMount = corev1.VolumeMount{
 			Name:      orchestratorExplorerVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, orchestratorExplorerFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, orchestratorExplorerFolderName),
 			ReadOnly:  true,
 		}
 	}

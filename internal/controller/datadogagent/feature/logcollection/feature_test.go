@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -82,7 +83,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := createEnvVars("true", "false", "true")
 					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-						Name:  apicommon.DDLogsConfigOpenFilesLimit,
+						Name:  DDLogsConfigOpenFilesLimit,
 						Value: "250",
 					})
 					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
@@ -171,7 +172,7 @@ func getWantVolumes() []*corev1.Volume {
 			Name: pointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DefaultLogTempStoragePath,
+					Path: v2alpha1.DefaultLogTempStoragePath,
 				},
 			},
 		},
@@ -232,15 +233,15 @@ func getWantVolumeMounts() []*corev1.VolumeMount {
 func createEnvVars(logsEnabled, collectAllEnabled, collectUsingFilesEnabled string) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDLogsEnabled,
+			Name:  v2alpha1.DDLogsEnabled,
 			Value: logsEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsConfigContainerCollectAll,
+			Name:  DDLogsConfigContainerCollectAll,
 			Value: collectAllEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsContainerCollectUsingFiles,
+			Name:  DDLogsContainerCollectUsingFiles,
 			Value: collectUsingFilesEnabled,
 		},
 	}

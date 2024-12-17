@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -23,27 +23,27 @@ import (
 
 func TestContainer(t *testing.T) {
 	agentContainer := &corev1.Container{
-		Name: string(common.CoreAgentContainerName),
+		Name: string(apicommon.CoreAgentContainerName),
 	}
 	initVolContainer := &corev1.Container{
-		Name: string(common.InitVolumeContainerName),
+		Name: string(apicommon.InitVolumeContainerName),
 	}
 	initConfigContainer := &corev1.Container{
-		Name: string(common.InitConfigContainerName),
+		Name: string(apicommon.InitConfigContainerName),
 	}
 	systemProbeContainer := &corev1.Container{
-		Name: string(common.SystemProbeContainerName),
+		Name: string(apicommon.SystemProbeContainerName),
 	}
 	tests := []struct {
 		name            string
-		containerName   common.AgentContainerName
+		containerName   apicommon.AgentContainerName
 		existingManager func() *fake.PodTemplateManagers
 		override        v2alpha1.DatadogAgentGenericContainer
 		validateManager func(t *testing.T, manager *fake.PodTemplateManagers, containerName string)
 	}{
 		{
 			name:          "override container name",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -62,7 +62,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override log level",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -74,10 +74,10 @@ func TestContainer(t *testing.T) {
 				LogLevel: apiutils.NewStringPointer("debug"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				envs := manager.EnvVarMgr.EnvVarsByC[common.CoreAgentContainerName]
+				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  common.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				}
@@ -86,7 +86,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "add envs",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -94,7 +94,7 @@ func TestContainer(t *testing.T) {
 					},
 				})
 				manager.EnvVar().AddEnvVarToContainer(
-					common.CoreAgentContainerName,
+					apicommon.CoreAgentContainerName,
 					&corev1.EnvVar{
 						Name:  "existing-env",
 						Value: "some-val",
@@ -115,7 +115,7 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				envs := manager.EnvVarMgr.EnvVarsByC[common.CoreAgentContainerName]
+				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
 						Name:  "existing-env",
@@ -135,7 +135,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "add volume mounts",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -146,7 +146,7 @@ func TestContainer(t *testing.T) {
 					&corev1.VolumeMount{
 						Name: "existing-volume-mount",
 					},
-					common.CoreAgentContainerName,
+					apicommon.CoreAgentContainerName,
 				)
 				return manager
 			},
@@ -161,7 +161,7 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				mounts := manager.VolumeMountMgr.VolumeMountsByC[common.CoreAgentContainerName]
+				mounts := manager.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 				expectedMounts := []*corev1.VolumeMount{
 					{
 						Name: "existing-volume-mount",
@@ -178,7 +178,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override resources - when there are none defined",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -213,13 +213,13 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override resources - when there are some defined",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name: string(common.CoreAgentContainerName),
+								Name: string(apicommon.CoreAgentContainerName),
 								Resources: corev1.ResourceRequirements{
 									Limits: map[corev1.ResourceName]resource.Quantity{
 										corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI), // Not overridden, should be kept
@@ -264,13 +264,13 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override resources - when the override specifies a 0",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
-								Name: string(common.CoreAgentContainerName),
+								Name: string(apicommon.CoreAgentContainerName),
 								Resources: corev1.ResourceRequirements{
 									Limits: map[corev1.ResourceName]resource.Quantity{
 										corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),    // Not overridden, should be kept
@@ -312,7 +312,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override command",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -331,7 +331,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override args",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -350,7 +350,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override health port",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -362,10 +362,10 @@ func TestContainer(t *testing.T) {
 				HealthPort: apiutils.NewInt32Pointer(1234),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				envs := manager.EnvVarMgr.EnvVarsByC[common.CoreAgentContainerName]
+				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  common.DDHealthPort,
+						Name:  v2alpha1.DDHealthPort,
 						Value: "1234",
 					},
 				}
@@ -374,7 +374,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override readiness probe with default HTTPGet",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -415,7 +415,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override readiness probe with non-HTTPGet handler",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -458,7 +458,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override readiness probe",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -507,7 +507,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override liveness probe with default HTTPGet",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -548,7 +548,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override liveness probe with non-HTTPGet handler",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -591,7 +591,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override liveness probe",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -639,8 +639,141 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "override startup probe with default HTTPGet",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				StartupProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/startup",
+									Port: intstr.IntOrString{
+										IntVal: 5555,
+									},
+								},
+							},
+						},
+						container.StartupProbe)
+				})
+			},
+		},
+		{
+			name:          "override startup probe with non-HTTPGet handler",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				StartupProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						Exec: &corev1.ExecAction{
+							Command: []string{"echo", "foo", "bar"},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								Exec: &corev1.ExecAction{
+									Command: []string{"echo", "foo", "bar"},
+								},
+							},
+						},
+						container.StartupProbe)
+				})
+			},
+		},
+		{
+			name:          "override startup probe",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				StartupProbe: &corev1.Probe{
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path: "/some/path",
+							Port: intstr.IntOrString{
+								IntVal: 1234,
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/some/path",
+									Port: intstr.IntOrString{
+										IntVal: 1234,
+									},
+								},
+							},
+						},
+						container.StartupProbe)
+				})
+			},
+		},
+		{
 			name:          "override security context",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -665,7 +798,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override seccomp root path",
-			containerName: common.SystemProbeContainerName,
+			containerName: apicommon.SystemProbeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -694,7 +827,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override seccomp profile",
-			containerName: common.SystemProbeContainerName,
+			containerName: apicommon.SystemProbeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -729,7 +862,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override app armor profile",
-			containerName: common.CoreAgentContainerName,
+			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -741,13 +874,13 @@ func TestContainer(t *testing.T) {
 				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, common.CoreAgentContainerName)
+				annotation := fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
 				assert.Equal(t, "my-app-armor-profile", manager.AnnotationMgr.Annotations[annotation])
 			},
 		},
 		{
 			name:          "override initContainer name",
-			containerName: common.InitVolumeContainerName,
+			containerName: apicommon.InitVolumeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -766,7 +899,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "add initContainer envs",
-			containerName: common.InitVolumeContainerName,
+			containerName: apicommon.InitVolumeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -774,7 +907,7 @@ func TestContainer(t *testing.T) {
 					},
 				})
 				manager.EnvVar().AddEnvVarToInitContainer(
-					common.InitVolumeContainerName,
+					apicommon.InitVolumeContainerName,
 					&corev1.EnvVar{
 						Name:  "existing-env",
 						Value: "some-val",
@@ -795,7 +928,7 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				envs := manager.EnvVarMgr.EnvVarsByC[common.InitVolumeContainerName]
+				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.InitVolumeContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
 						Name:  "existing-env",
@@ -815,7 +948,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "add initContainer volume mounts",
-			containerName: common.InitVolumeContainerName,
+			containerName: apicommon.InitVolumeContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -826,7 +959,7 @@ func TestContainer(t *testing.T) {
 					&corev1.VolumeMount{
 						Name: "existing-init-container-volume-mount",
 					},
-					common.InitVolumeContainerName,
+					apicommon.InitVolumeContainerName,
 				)
 				return manager
 			},
@@ -841,7 +974,7 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				mounts := manager.VolumeMountMgr.VolumeMountsByC[common.InitVolumeContainerName]
+				mounts := manager.VolumeMountMgr.VolumeMountsByC[apicommon.InitVolumeContainerName]
 				expectedMounts := []*corev1.VolumeMount{
 					{
 						Name: "existing-init-container-volume-mount",
@@ -858,7 +991,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override initContainer resources",
-			containerName: common.InitConfigContainerName,
+			containerName: apicommon.InitConfigContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
@@ -897,7 +1030,7 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override initContainer security context",
-			containerName: common.InitConfigContainerName,
+			containerName: apicommon.InitConfigContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{

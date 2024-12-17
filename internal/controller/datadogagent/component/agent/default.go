@@ -126,6 +126,7 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
 		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
+		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -179,7 +180,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"trace-agent",
-			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
@@ -192,8 +193,8 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
-			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
-			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
+			"process-agent", fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--sysprobe-config=%s", v2alpha1.SystemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
@@ -206,7 +207,7 @@ func otelAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"/otel-agent",
-			fmt.Sprintf("--config=%s", apicommon.OtelCustomConfigVolumePath),
+			fmt.Sprintf("--config=%s", v2alpha1.OtelCustomConfigVolumePath),
 		},
 		Env:          envVarsForOtelAgent(dda),
 		VolumeMounts: volumeMountsForOtelAgent(),
@@ -233,7 +234,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"security-agent",
-			"start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath),
+			"start", fmt.Sprintf("-c=%s", v2alpha1.AgentCustomConfigVolumePath),
 		},
 		Env:          envVarsForSecurityAgent(dda),
 		VolumeMounts: volumeMountsForSecurityAgent(),
@@ -246,14 +247,14 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"system-probe",
-			fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath),
+			fmt.Sprintf("--config=%s", v2alpha1.SystemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
-				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
+				LocalhostProfile: apiutils.NewStringPointer(v2alpha1.SystemProbeSeccompProfileName),
 			},
 		},
 	}
@@ -266,7 +267,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Command: []string{
 			"agent-data-plane",
 			"run",
-			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
@@ -283,7 +284,7 @@ func initVolumeContainer() corev1.Container {
 		Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      apicommon.ConfigVolumeName,
+				Name:      v2alpha1.ConfigVolumeName,
 				MountPath: "/opt/datadog-agent",
 			},
 		},
@@ -309,8 +310,8 @@ func initSeccompSetupContainer() corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"cp",
-			fmt.Sprintf("%s/%s", apicommon.SeccompSecurityVolumePath, apicommon.SystemProbeSeccompKey),
-			fmt.Sprintf("%s/%s", apicommon.SeccompRootVolumePath, apicommon.SystemProbeSeccompProfileName),
+			fmt.Sprintf("%s/%s", v2alpha1.SeccompSecurityVolumePath, v2alpha1.SystemProbeSeccompKey),
+			fmt.Sprintf("%s/%s", v2alpha1.SeccompRootVolumePath, v2alpha1.SystemProbeSeccompProfileName),
 		},
 		VolumeMounts: volumeMountsForSeccompSetup(),
 	}
@@ -319,26 +320,26 @@ func initSeccompSetupContainer() corev1.Container {
 func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
-			Name:  apicommon.KubernetesEnvVar,
+			Name:  v2alpha1.KubernetesEnvVar,
 			Value: "yes",
 		},
 		{
-			Name:  apicommon.DDClusterAgentEnabled,
+			Name:  v2alpha1.DDClusterAgentEnabled,
 			Value: strconv.FormatBool(true),
 		},
 		{
-			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Name:  v2alpha1.DDClusterAgentKubeServiceName,
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  apicommon.DDClusterAgentTokenName,
+			Name:  v2alpha1.DDClusterAgentTokenName,
 			Value: v2alpha1.GetDefaultDCATokenSecretName(dda),
 		},
 		{
-			Name: apicommon.DDKubeletHost,
+			Name: v2alpha1.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathStatusHostIP,
+					FieldPath: v2alpha1.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -348,18 +349,18 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  apicommon.DDHealthPort,
+			Name:  v2alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  apicommon.DDLeaderElection,
-			Value: apicommon.EnvVarTrueValue,
+			Name:  v2alpha1.DDLeaderElection,
+			Value: "true",
 		},
 		{
 			// we want to default it in 7.49.0
 			// but in 7.50.0 it will be already defaulted in the agent process.
-			Name:  apicommon.DDContainerImageEnabled,
-			Value: apicommon.EnvVarTrueValue,
+			Name:  v2alpha1.DDContainerImageEnabled,
+			Value: "true",
 		},
 	}
 
@@ -369,15 +370,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallId,
+			Name:  v2alpha1.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallTime,
+			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallType,
+			Name:  v2alpha1.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 	}
@@ -389,7 +390,7 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HOST_ROOT",
-			Value: apicommon.HostRootMountPath,
+			Value: v2alpha1.HostRootMountPath,
 		},
 	}
 

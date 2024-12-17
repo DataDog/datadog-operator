@@ -33,19 +33,19 @@ instances:
 
 var expectedOrchestratorEnvsV2 = []*corev1.EnvVar{
 	{
-		Name:  apicommon.DDOrchestratorExplorerEnabled,
+		Name:  DDOrchestratorExplorerEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerExtraTags,
+		Name:  DDOrchestratorExplorerExtraTags,
 		Value: `["a:z","b:y","c:x"]`,
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerDDUrl,
+		Name:  DDOrchestratorExplorerDDUrl,
 		Value: "https://foo.bar",
 	},
 }
@@ -155,7 +155,7 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(&orchExp)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
+				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

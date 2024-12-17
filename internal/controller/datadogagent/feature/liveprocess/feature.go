@@ -88,7 +88,7 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
@@ -101,7 +101,7 @@ func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -118,22 +118,22 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(v2alpha1.PasswdVolumeName, v2alpha1.PasswdHostPath, v2alpha1.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessCollectionEnabled,
+		Name:  v2alpha1.DDProcessCollectionEnabled,
 		Value: "true",
 	}
 
@@ -141,7 +141,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	if f.scrubArgs != nil {
 		scrubArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigScrubArgs,
+			Name:  DDProcessConfigScrubArgs,
 			Value: apiutils.BoolToString(f.scrubArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, scrubArgsEnvVar)
@@ -149,7 +149,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	if f.stripArgs != nil {
 		stripArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigStripArgs,
+			Name:  DDProcessConfigStripArgs,
 			Value: apiutils.BoolToString(f.stripArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, stripArgsEnvVar)
