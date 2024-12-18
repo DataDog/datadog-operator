@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/DataDog/test-infra-definitions/common/utils"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
@@ -52,6 +53,7 @@ type datadogClient struct {
 	ctx        context.Context
 	metricsApi *datadogV1.MetricsApi
 	logsApi    *datadogV1.LogsApi
+	spansApi   *datadogV2.SpansApi
 }
 
 func (suite *kindSuite) SetupSuite() {
@@ -75,12 +77,15 @@ func (suite *kindSuite) SetupSuite() {
 	client := datadog.NewAPIClient(configuration)
 	suite.datadogClient.metricsApi = datadogV1.NewMetricsApi(client)
 	suite.datadogClient.logsApi = datadogV1.NewLogsApi(client)
+	suite.datadogClient.spansApi = datadogV2.NewSpansApi(client)
 }
 
 func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
+		// Un-comment to keep the VM running after the test
+		// TODO: should be commented on main
 		e2e.WithDevMode(),
 	}
 
@@ -259,6 +264,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyHTTPCheck(s, c)
 		}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
+		// TODO: remove nginx deployment to clean environment
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
@@ -367,6 +373,48 @@ func (s *kindSuite) TestKindRun() {
 
 	})
 
+	s.T().Run("APM (hostPort, local service, UDP) works", func(t *testing.T) {
+		var apmAgentSelector = ",agent.datadoghq.com/e2e-test=datadog-agent-apm"
+		// Update DDA
+		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "apm", "datadog-agent-apm.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
+		// Ensure agent pods are running
+		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+apmAgentSelector)
+
+		// Deploy trace generator
+		traceGenConfigPath, err := getAbsPath(filepath.Join(manifestsPath, "apm", "tracegen-deploy.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, traceGenConfigPath)
+
+		// Verify traces collection on agent pod
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + apmAgentSelector,
+			})
+			assert.NoError(c, err)
+
+			// This works because we have a single Agent pod (so located on same node as tracegen)
+			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "apm agent", "-j")
+				assert.NoError(c, err)
+
+				verifyAgentTraces(c, output)
+			}
+		}, 180*time.Second, 30*time.Second, "could not validate traces on agent pod") // 3 minutes could be reduced even further
+		// Cleanup trace generator
+		k8s.KubectlDelete(t, kubectlOptions, traceGenConfigPath)
+
+		// Verify traces collection with API client
+		// 4 queries within a minute to ensure traces are collected from the last 15 minutes
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyAPISpans(s, c)
+		}, 60*time.Second, 15*time.Second, "could not validate traces with api client")
+	})
+
 	s.T().Run("Cleanup DDA", func(t *testing.T) {
 		deleteDda(t, kubectlOptions, ddaConfigPath)
 	})
@@ -395,6 +443,53 @@ func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	}
 	totalIntegrations := len(agentLogs)
 	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
+}
+
+func verifyAgentTraces(c *assert.CollectT, collectorOutput string) {
+	apmAgentJson := parseCollectorJson(collectorOutput)
+	// The order of services in the Agent JSON output is not guaranteed.
+	// We use a map to assert that we have received traces for all expected services.
+	expectedServices := map[string]bool{
+		"e2e-test-apm-hostip":        true,
+		"e2e-test-apm-socket":        true,
+		"e2e-test-apm-agent-service": true,
+	}
+	// Track found services
+	foundServices := map[string]bool{}
+
+	if apmAgentJson != nil {
+		apmStats := apmAgentJson["apmStats"].(map[string]interface{})["receiver"].([]interface{})
+		for _, service := range apmStats {
+			serviceName := service.(map[string]interface{})["Service"].(string)
+			tracesReceived := service.(map[string]interface{})["TracesReceived"].(float64)
+			// Ensure we received at least one trace for the service
+			assert.Greater(c, tracesReceived, float64(0), "Expected traces to be received for service %s", serviceName)
+			// Mark the service as found
+			foundServices[serviceName] = true
+		}
+	}
+	assert.Equal(c, expectedServices, foundServices, "The found services do not match the expected services")
+}
+
+func verifyAPISpans(s *kindSuite, c *assert.CollectT) {
+	// TODO: check uniqueness of kind.ClusterName per test run
+	// If not unique, we can also use pod_name to filter spans
+	spansQuery := fmt.Sprintf("(env:e2e-operator service:e2e-test-apm* kube_cluster_name:%s)", s.Env().Kind.ClusterName)
+	timeNow := time.Now()
+	timeNowMinus15Mins := timeNow.Add(-15 * time.Minute)
+	timeNowMillisStr := fmt.Sprintf("%d", timeNow.UnixMilli())
+	timeNowMinus15MinsMillisStr := fmt.Sprintf("%d", timeNowMinus15Mins.UnixMilli())
+	// Query spans from the last 15 minutes, limit to 20 spans to reduce size of response
+	spansBody := datadogV2.ListSpansGetOptionalParameters{
+		FilterQuery: datadog.PtrString(spansQuery),
+		FilterFrom:  datadog.PtrString(timeNowMinus15MinsMillisStr),
+		FilterTo:    datadog.PtrString(timeNowMillisStr),
+		PageLimit:   datadog.PtrInt32(20),
+	}
+	resp, _, err := s.datadogClient.spansApi.ListSpansGet(s.datadogClient.ctx, spansBody)
+
+	assert.NoError(c, err, "failed to query spans: %v", err)
+	assert.Greater(c, len(resp.Data), 0, fmt.Sprintf("expected spans to not be empty: %s", err))
 }
 
 func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
