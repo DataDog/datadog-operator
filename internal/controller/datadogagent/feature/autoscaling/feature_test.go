@@ -152,7 +152,7 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 			if enabled {
 				expectedAgentEnvs = append(expectedAgentEnvs,
 					&corev1.EnvVar{
-						Name:  apicommon.DDAutoscalingWorkloadEnabled,
+						Name:  DDAutoscalingWorkloadEnabled,
 						Value: "true",
 					},
 				)

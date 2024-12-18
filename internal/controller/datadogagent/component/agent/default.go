@@ -330,23 +330,23 @@ func initSeccompSetupContainer() corev1.Container {
 func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
-			Name:  apicommon.KubernetesEnvVar,
+			Name:  v2alpha1.KubernetesEnvVar,
 			Value: "yes",
 		},
 		{
-			Name:  apicommon.DDClusterAgentEnabled,
+			Name:  v2alpha1.DDClusterAgentEnabled,
 			Value: strconv.FormatBool(true),
 		},
 		{
-			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Name:  v2alpha1.DDClusterAgentKubeServiceName,
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  apicommon.DDClusterAgentTokenName,
+			Name:  v2alpha1.DDClusterAgentTokenName,
 			Value: v2alpha1.GetDefaultDCATokenSecretName(dda),
 		},
 		{
-			Name: apicommon.DDKubeletHost,
+			Name: v2alpha1.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: v2alpha1.FieldPathStatusHostIP,
@@ -359,18 +359,18 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  apicommon.DDHealthPort,
+			Name:  v2alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  apicommon.DDLeaderElection,
-			Value: apicommon.EnvVarTrueValue,
+			Name:  v2alpha1.DDLeaderElection,
+			Value: "true",
 		},
 		{
 			// we want to default it in 7.49.0
 			// but in 7.50.0 it will be already defaulted in the agent process.
-			Name:  apicommon.DDContainerImageEnabled,
-			Value: apicommon.EnvVarTrueValue,
+			Name:  v2alpha1.DDContainerImageEnabled,
+			Value: "true",
 		},
 	}
 
@@ -380,15 +380,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallId,
+			Name:  v2alpha1.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallTime,
+			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallType,
+			Name:  v2alpha1.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 	}

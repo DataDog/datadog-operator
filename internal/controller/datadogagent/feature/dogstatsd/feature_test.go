@@ -63,11 +63,11 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					// custom udp envvar
 					wantCustomUDPEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDDogstatsdPort,
+							Name:  DDDogstatsdPort,
 							Value: "8125",
 						},
 						{
-							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Name:  DDDogstatsdNonLocalTraffic,
 							Value: "true",
 						},
 					}
@@ -101,11 +101,11 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					// custom udp envvar
 					wantCustomUDPEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDDogstatsdPort,
+							Name:  DDDogstatsdPort,
 							Value: "1234",
 						},
 						{
-							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Name:  DDDogstatsdNonLocalTraffic,
 							Value: "true",
 						},
 					}
@@ -135,11 +135,11 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					// custom udp envvar
 					wantCustomUDPEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDDogstatsdPort,
+							Name:  DDDogstatsdPort,
 							Value: "8125",
 						},
 						{
-							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Name:  DDDogstatsdNonLocalTraffic,
 							Value: "true",
 						},
 					}
@@ -169,11 +169,11 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					// custom udp envvar
 					wantCustomUDPEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDDogstatsdPort,
+							Name:  DDDogstatsdPort,
 							Value: "8125",
 						},
 						{
-							Name:  apicommon.DDDogstatsdNonLocalTraffic,
+							Name:  DDDogstatsdNonLocalTraffic,
 							Value: "true",
 						},
 					}
@@ -269,7 +269,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					// mapper profiles envvar
 					mapperProfilesEnvVar := corev1.EnvVar{
-						Name:  apicommon.DDDogstatsdMapperProfiles,
+						Name:  DDDogstatsdMapperProfiles,
 						Value: customMapperProfilesJSON,
 					}
 
@@ -286,7 +286,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantTagCardinalityEnvVar := corev1.EnvVar{
-						Name:  apicommon.DDDogstatsdTagCardinality,
+						Name:  DDDogstatsdTagCardinality,
 						Value: "orchestrator",
 					}
 					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), &wantTagCardinalityEnvVar)
@@ -329,7 +329,7 @@ func getWantContainerPorts() []*corev1.ContainerPort {
 
 func getOriginDetectionEnvVar() *corev1.EnvVar {
 	originDetectionEnvVar := corev1.EnvVar{
-		Name:  apicommon.DDDogstatsdOriginDetection,
+		Name:  DDDogstatsdOriginDetection,
 		Value: "true",
 	}
 	return &originDetectionEnvVar
@@ -337,7 +337,7 @@ func getOriginDetectionEnvVar() *corev1.EnvVar {
 
 func getOriginDetectionClientEnvVar() *corev1.EnvVar {
 	originDetectionClientEnvVar := corev1.EnvVar{
-		Name:  apicommon.DDDogstatsdOriginDetectionClient,
+		Name:  DDDogstatsdOriginDetectionClient,
 		Value: "true",
 	}
 	return &originDetectionClientEnvVar
@@ -346,7 +346,7 @@ func getOriginDetectionClientEnvVar() *corev1.EnvVar {
 func getCustomEnvVar() []*corev1.EnvVar {
 	customEnvVar := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogstatsdSocket,
+			Name:  DDDogstatsdSocket,
 			Value: v2alpha1.DogstatsdSocketLocalPath + "/" + customSock,
 		},
 	}
@@ -356,7 +356,7 @@ func getCustomEnvVar() []*corev1.EnvVar {
 func getWantUDSEnvVars() []*corev1.EnvVar {
 	wantUDSEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogstatsdSocket,
+			Name:  DDDogstatsdSocket,
 			Value: v2alpha1.DogstatsdSocketLocalPath + "/" + v2alpha1.DogstatsdSocketName,
 		},
 	}
@@ -366,11 +366,11 @@ func getWantUDSEnvVars() []*corev1.EnvVar {
 func getWantUDPEnvVars() []*corev1.EnvVar {
 	wantUDPEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogstatsdPort,
+			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(v2alpha1.DefaultDogstatsdPort),
 		},
 		{
-			Name:  apicommon.DDDogstatsdNonLocalTraffic,
+			Name:  DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		},
 	}

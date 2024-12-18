@@ -73,15 +73,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -98,15 +98,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -121,7 +121,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDChecksTagCardinality,
+				Name:  v2alpha1.DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
 			wantVolumeMounts: emptyVolumeMounts,
@@ -135,7 +135,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDOriginDetectionUnified,
+				Name:  v2alpha1.DDOriginDetectionUnified,
 				Value: "true",
 			}),
 			wantVolumeMounts: emptyVolumeMounts,
@@ -183,15 +183,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -212,15 +212,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -283,11 +283,11 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDSite,
+			Name:  v2alpha1.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: "info",
 		},
 	}

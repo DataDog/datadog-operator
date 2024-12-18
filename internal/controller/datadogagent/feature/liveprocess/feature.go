@@ -88,7 +88,7 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
@@ -101,7 +101,7 @@ func (f *liveProcessFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -133,7 +133,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 	managers.Volume().AddVolume(&procdirVol)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessCollectionEnabled,
+		Name:  v2alpha1.DDProcessCollectionEnabled,
 		Value: "true",
 	}
 
@@ -141,7 +141,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	if f.scrubArgs != nil {
 		scrubArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigScrubArgs,
+			Name:  DDProcessConfigScrubArgs,
 			Value: apiutils.BoolToString(f.scrubArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, scrubArgsEnvVar)
@@ -149,7 +149,7 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	if f.stripArgs != nil {
 		stripArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigStripArgs,
+			Name:  DDProcessConfigStripArgs,
 			Value: apiutils.BoolToString(f.stripArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, stripArgsEnvVar)

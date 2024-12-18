@@ -130,26 +130,26 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDExternalMetricsProviderEnabled,
+					Name:  DDExternalMetricsProviderEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDExternalMetricsProviderPort,
+					Name:  DDExternalMetricsProviderPort,
 					Value: "8443",
 				},
 				{
-					Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
+					Name:  DDExternalMetricsProviderUseDatadogMetric,
 					Value: apiutils.BoolToString(&useDDM),
 				},
 				{
-					Name:  apicommon.DDExternalMetricsProviderWPAController,
+					Name:  DDExternalMetricsProviderWPAController,
 					Value: apiutils.BoolToString(&wpaController),
 				},
 			}
 			if keySecrets {
 				secretEnvs := []*corev1.EnvVar{
 					{
-						Name: apicommon.DDExternalMetricsProviderAPIKey,
+						Name: DDExternalMetricsProviderAPIKey,
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
 								LocalObjectReference: corev1.LocalObjectReference{
@@ -160,7 +160,7 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 						},
 					},
 					{
-						Name: apicommon.DDExternalMetricsProviderAppKey,
+						Name: DDExternalMetricsProviderAppKey,
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
 								LocalObjectReference: corev1.LocalObjectReference{

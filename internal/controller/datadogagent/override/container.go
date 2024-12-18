@@ -57,7 +57,7 @@ func overrideLogLevel(containerName apicommon.AgentContainerName, manager featur
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: logLevel,
 		},
 	)
@@ -97,7 +97,7 @@ func addHealthPort(containerName apicommon.AgentContainerName, manager feature.P
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
-			Name:  apicommon.DDHealthPort,
+			Name:  v2alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(healthPort)),
 		},
 	)

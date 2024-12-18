@@ -256,21 +256,21 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			if expectedEnvVars.enabled.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+					Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
 					Value: expectedEnvVars.enabled.value,
 				})
 			}
 
 			if expectedEnvVars.extension_timeout.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  apicommon.DDOtelCollectorCoreConfigExtensionTimeout,
+					Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionTimeout,
 					Value: expectedEnvVars.extension_timeout.value,
 				})
 			}
 
 			if expectedEnvVars.extension_url.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  apicommon.DDOtelCollectorCoreConfigExtensionURL,
+					Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionURL,
 					Value: expectedEnvVars.extension_url.value,
 				})
 			}

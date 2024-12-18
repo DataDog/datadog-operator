@@ -92,11 +92,11 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDComplianceConfigEnabled,
+					Name:  DDComplianceConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDComplianceConfigCheckInterval,
+					Name:  DDComplianceConfigCheckInterval,
 					Value: "1200000000000",
 				},
 			}
@@ -150,19 +150,19 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDComplianceConfigEnabled,
+					Name:  DDComplianceConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDHostRootEnvVar,
+					Name:  v2alpha1.DDHostRootEnvVar,
 					Value: v2alpha1.HostRootMountPath,
 				},
 				{
-					Name:  apicommon.DDComplianceConfigCheckInterval,
+					Name:  DDComplianceConfigCheckInterval,
 					Value: "1200000000000",
 				},
 				{
-					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+					Name:  DDComplianceHostBenchmarksEnabled,
 					Value: "true",
 				},
 			}

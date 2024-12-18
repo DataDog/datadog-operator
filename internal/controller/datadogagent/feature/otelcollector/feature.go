@@ -176,27 +176,27 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		if *o.coreAgentConfig.enabled {
 			// only need to set env var if true, as it will default to false.
 			enableEnvVar = &corev1.EnvVar{
-				Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+				Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
 			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
 		}
 	} else {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+			Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})
 	}
 
 	if o.coreAgentConfig.extension_timeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  apicommon.DDOtelCollectorCoreConfigExtensionTimeout,
+			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionTimeout,
 			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
 		})
 	}
 	if o.coreAgentConfig.extension_url != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  apicommon.DDOtelCollectorCoreConfigExtensionURL,
+			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
 		})
 	}

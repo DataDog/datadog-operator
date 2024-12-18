@@ -73,19 +73,19 @@ func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 
 	want := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDCollectKubernetesEvents,
+			Name:  DDCollectKubernetesEvents,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDLeaderElection,
+			Name:  v2alpha1.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDLeaderLeaseName,
+			Name:  DDLeaderLeaseName,
 			Value: "ddaDCA-leader-election",
 		},
 		{
-			Name:  apicommon.DDClusterAgentTokenName,
+			Name:  v2alpha1.DDClusterAgentTokenName,
 			Value: "ddaDCA-token",
 		},
 	}
