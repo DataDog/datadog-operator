@@ -50,21 +50,21 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	if config.ClusterName != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDClusterName,
+			Name:  v2alpha1.DDClusterName,
 			Value: *config.ClusterName,
 		})
 	}
 
 	// Site is the Datadog intake site Agent data are sent to.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSite,
+		Name:  v2alpha1.DDSite,
 		Value: *config.Site,
 	})
 
 	// Endpoint is the Datadog intake URL the Agent data are sent to.
 	if config.Endpoint != nil && config.Endpoint.URL != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDddURL,
+			Name:  v2alpha1.DDddURL,
 			Value: *config.Endpoint.URL,
 		})
 	}
@@ -90,7 +90,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDLogLevel,
+		Name:  v2alpha1.DDLogLevel,
 		Value: *config.LogLevel,
 	})
 
@@ -134,7 +134,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDTags,
+				Name:  v2alpha1.DDTags,
 				Value: string(tags),
 			})
 		}
@@ -153,7 +153,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 			// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDChecksTagCardinality,
+				Name:  v2alpha1.DDChecksTagCardinality,
 				Value: *config.ChecksTagCardinality,
 			})
 		}
@@ -161,7 +161,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	if config.OriginDetectionUnified != nil && config.OriginDetectionUnified.Enabled != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDOriginDetectionUnified,
+			Name:  v2alpha1.DDOriginDetectionUnified,
 			Value: apiutils.BoolToString(config.OriginDetectionUnified.Enabled),
 		})
 	}
@@ -173,7 +173,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDPodLabelsAsTags,
+				Name:  v2alpha1.DDPodLabelsAsTags,
 				Value: string(podLabelsAsTags),
 			})
 		}
@@ -186,7 +186,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDPodAnnotationsAsTags,
+				Name:  v2alpha1.DDPodAnnotationsAsTags,
 				Value: string(podAnnotationsAsTags),
 			})
 		}
@@ -199,7 +199,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDNodeLabelsAsTags,
+				Name:  v2alpha1.DDNodeLabelsAsTags,
 				Value: string(nodeLabelsAsTags),
 			})
 		}
@@ -212,7 +212,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDNamespaceLabelsAsTags,
+				Name:  v2alpha1.DDNamespaceLabelsAsTags,
 				Value: string(namespaceLabelsAsTags),
 			})
 		}
@@ -225,7 +225,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDNamespaceAnnotationsAsTags,
+				Name:  v2alpha1.DDNamespaceAnnotationsAsTags,
 				Value: string(namespaceAnnotationsAsTags),
 			})
 		}
@@ -237,13 +237,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		if config.Kubelet != nil {
 			if config.Kubelet.Host != nil {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:      apicommon.DDKubeletHost,
+					Name:      v2alpha1.DDKubeletHost,
 					ValueFrom: config.Kubelet.Host,
 				})
 			}
 			if config.Kubelet.TLSVerify != nil {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
 				})
 			}
@@ -254,9 +254,9 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if config.Kubelet.AgentCAPath != "" {
 					agentCAPath = config.Kubelet.AgentCAPath
 				} else {
-					agentCAPath = apicommon.KubeletAgentCAPath
+					agentCAPath = v2alpha1.KubeletAgentCAPath
 				}
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
+				kubeletVol, kubeletVolMount := volume.GetVolumes(v2alpha1.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
@@ -280,7 +280,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				}
 				// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				})
 			}
@@ -290,20 +290,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+			dockerMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.DockerSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DockerHost,
+				Name:  v2alpha1.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
 		} else if config.CriSocketPath != nil {
 			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+			criSocketMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDCriSocketPath,
+				Name:  v2alpha1.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 
@@ -335,20 +335,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if config.SecretBackend != nil {
 		// Set secret backend command
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSecretBackendCommand,
+			Name:  v2alpha1.DDSecretBackendCommand,
 			Value: apiutils.StringValue(config.SecretBackend.Command),
 		})
 
 		// Set secret backend arguments
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSecretBackendArguments,
+			Name:  v2alpha1.DDSecretBackendArguments,
 			Value: apiutils.StringValue(config.SecretBackend.Args),
 		})
 
 		// Set secret backend timeout
 		if config.SecretBackend.Timeout != nil {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDSecretBackendTimeout,
+				Name:  v2alpha1.DDSecretBackendTimeout,
 				Value: strconv.FormatInt(int64(*config.SecretBackend.Timeout), 10),
 			})
 		}

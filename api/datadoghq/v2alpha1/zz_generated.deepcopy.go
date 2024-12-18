@@ -769,6 +769,11 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 		*out = new(string)
 		**out = **in
 	}
+	if in.RuntimeClassName != nil {
+		in, out := &in.RuntimeClassName, &out.RuntimeClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
 		*out = new(corev1.Affinity)

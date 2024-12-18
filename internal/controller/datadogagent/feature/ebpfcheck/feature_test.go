@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package ebpfcheck
 
 import (
@@ -46,21 +51,21 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.DebugfsVolumeName,
-				MountPath: apicommon.DebugfsPath,
+				Name:      v2alpha1.DebugfsVolumeName,
+				MountPath: v2alpha1.DebugfsPath,
 				ReadOnly:  false,
 			},
 			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
 		}
@@ -74,15 +79,15 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: apicommon.DebugfsVolumeName,
+				Name: v2alpha1.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.DebugfsPath,
+						Path: v2alpha1.DebugfsPath,
 					},
 				},
 			},
 			{
-				Name: apicommon.SystemProbeSocketVolumeName,
+				Name: v2alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -95,11 +100,11 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDEnableEBPFCheckEnvVar,
+				Name:  DDEnableEBPFCheckEnvVar,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}

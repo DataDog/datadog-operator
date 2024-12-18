@@ -408,7 +408,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathSpecNodeName,
+					FieldPath: v2alpha1.FieldPathSpecNodeName,
 				},
 			},
 			TLSVerify:  apiutils.NewBoolPointer(true),
@@ -455,7 +455,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				},

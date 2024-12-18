@@ -92,7 +92,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
-			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+			eds.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
 		for _, componentOverride := range componentOverrides {
@@ -167,7 +167,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
-		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+		daemonset.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
 	for _, componentOverride := range componentOverrides {

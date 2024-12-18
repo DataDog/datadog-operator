@@ -8,7 +8,6 @@ package utils
 import (
 	"strconv"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -35,7 +34,7 @@ func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 func OverrideRunInCoreAgent(dda *v2alpha1.DatadogAgent, currentVal bool) bool {
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		for _, env := range nodeAgent.Env {
-			if env.Name == apicommon.DDProcessConfigRunInCoreAgent {
+			if env.Name == v2alpha1.DDProcessConfigRunInCoreAgent {
 				val, err := strconv.ParseBool(env.Value)
 				if err == nil {
 					return val

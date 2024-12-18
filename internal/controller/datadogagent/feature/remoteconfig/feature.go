@@ -102,7 +102,7 @@ func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers, compon
 // It should do nothing if the feature doesn't need to configure it.
 func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDRemoteConfigurationEnabled,
+		Name:  DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	}
 	managers.EnvVar().AddEnvVar(enabledEnvVar)
@@ -129,7 +129,7 @@ func (f *rcFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateM
 // It should do nothing if the feature doesn't need to configure it.
 func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDRemoteConfigurationEnabled,
+		Name:  DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	}
 	managers.EnvVar().AddEnvVar(enabledEnvVar)

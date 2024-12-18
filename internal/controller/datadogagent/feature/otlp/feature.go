@@ -370,7 +370,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPgRPCEndpoint,
+			Name:  DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
@@ -395,7 +395,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPHTTPEndpoint,
+			Name:  DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
@@ -430,7 +430,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPgRPCEndpoint,
+			Name:  DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlpgrpcPort)
@@ -458,7 +458,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPHTTPEndpoint,
+			Name:  DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
