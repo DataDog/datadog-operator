@@ -6,7 +6,6 @@
 package v2alpha1
 
 import (
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -42,7 +41,7 @@ const (
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
 	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultAPMSocketHostPath          string = DogstatsdAPMSocketHostPath + "/" + APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
@@ -61,7 +60,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = DogstatsdAPMSocketHostPath + "/" + DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -76,6 +75,8 @@ const (
 
 	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
 	defaultAdmissionControllerEnabled                         bool   = true
+	defaultAdmissionControllerValidationEnabled               bool   = true
+	defaultAdmissionControllerMutationEnabled                 bool   = true
 	defaultAdmissionControllerMutateUnlabelled                bool   = false
 	defaultAdmissionServiceName                               string = "datadog-admission-controller"
 	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
@@ -209,7 +210,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, apicommon.DefaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature
@@ -475,21 +476,23 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
-
 	}
+
+	// AdmissionControllerValidation Feature
+	if ddaSpec.Features.AdmissionController.Validation == nil {
+		ddaSpec.Features.AdmissionController.Validation = &AdmissionControllerValidationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Validation.Enabled, defaultAdmissionControllerValidationEnabled)
+
+	// AdmissionControllerMutation Feature
+	if ddaSpec.Features.AdmissionController.Mutation == nil {
+		ddaSpec.Features.AdmissionController.Mutation = &AdmissionControllerMutationConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Mutation.Enabled, defaultAdmissionControllerMutationEnabled)
+
 	agentSidecarInjection := ddaSpec.Features.AdmissionController.AgentSidecarInjection
 	if agentSidecarInjection != nil && agentSidecarInjection.Enabled != nil && *agentSidecarInjection.Enabled {
 		apiutils.DefaultBooleanIfUnset(&agentSidecarInjection.ClusterAgentCommunicationEnabled, defaultAdmissionControllerAgentSidecarClusterAgentEnabled)
-	}
-
-	// CWS Instrumentation in AdmissionController Feature
-	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
-		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
-	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
-
-	if *ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled {
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Mode, DefaultAdmissionControllerCWSInstrumentationMode)
 	}
 
 	// CWS Instrumentation in AdmissionController Feature

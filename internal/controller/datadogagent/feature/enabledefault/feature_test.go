@@ -52,7 +52,7 @@ func Test_getInstallInfoValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(apicommon.InstallInfoToolVersion, tt.toolVersionEnvVarValue)
+			t.Setenv(InstallInfoToolVersion, tt.toolVersionEnvVarValue)
 			installInfo := InstallInfoData{}
 
 			test := getInstallInfoValue()
@@ -88,7 +88,7 @@ func defaultFeatureManageClusterAgentWantFunc(t testing.TB, mgrInterface feature
 	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 
 	want := &corev1.EnvVar{
-		Name:  apicommon.DDClusterAgentServiceAccountName,
+		Name:  DDClusterAgentServiceAccountName,
 		Value: "datadog-cluster-agent",
 	}
 	wantJSON, err := json.Marshal(want)

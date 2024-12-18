@@ -40,11 +40,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -80,11 +80,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -120,11 +120,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -158,11 +158,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -198,11 +198,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -240,11 +240,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -277,7 +277,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 				},
@@ -303,7 +303,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 				},
@@ -330,7 +330,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "somehostname:4318",
 					},
 				},
@@ -358,7 +358,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "somehostname:4318",
 					},
 				},

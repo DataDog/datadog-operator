@@ -385,6 +385,9 @@ const (
 
 	// DatadogPodAutoscalerManualValueSource is a recommendation that comes from manually applying a recommendation.
 	DatadogPodAutoscalerManualValueSource DatadogPodAutoscalerValueSource = "Manual"
+
+	// DatadogPodAutoscalerLocalValueSource is a recommendation that comes from local fallback.
+	DatadogPodAutoscalerLocalValueSource DatadogPodAutoscalerValueSource = "Local"
 )
 
 // DatadogPodAutoscalerHorizontalStatus defines the status of the horizontal scaling

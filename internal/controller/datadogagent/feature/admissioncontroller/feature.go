@@ -7,15 +7,19 @@ package admissioncontroller
 
 import (
 	"encoding/json"
+	"strconv"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -28,19 +32,30 @@ func init() {
 }
 
 type admissionControllerFeature struct {
-	mutateUnlabelled       bool
-	serviceName            string
-	webhookName            string
-	agentCommunicationMode string
-	agentSidecarConfig     *AgentSidecarInjectionConfig
-	localServiceName       string
-	failurePolicy          string
-	registry               string
-	serviceAccountName     string
-	owner                  metav1.Object
+	validationWebhookConfig *ValidationConfig
+	mutationWebhookConfig   *MutationConfig
+	mutateUnlabelled        bool
+	serviceName             string
+	webhookName             string
+	agentCommunicationMode  string
+	agentSidecarConfig      *AgentSidecarInjectionConfig
+	localServiceName        string
+	failurePolicy           string
+	registry                string
+	serviceAccountName      string
+	owner                   metav1.Object
+	networkPolicy           v2alpha1.NetworkPolicyFlavor
 
 	cwsInstrumentationEnabled bool
 	cwsInstrumentationMode    string
+}
+
+type ValidationConfig struct {
+	enabled bool
+}
+
+type MutationConfig struct {
+	enabled bool
 }
 
 type AgentSidecarInjectionConfig struct {
@@ -76,6 +91,13 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	ac := dda.Spec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
+		if ac.Validation != nil && ac.Validation.Enabled != nil {
+			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
+		}
+		if ac.Mutation != nil && ac.Mutation.Enabled != nil {
+			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.Mutation.Enabled)}
+		}
+
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
@@ -117,6 +139,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.cwsInstrumentationEnabled = true
 			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
 		}
+
+		_, f.networkPolicy = v2alpha1.IsNetworkPolicyEnabled(dda)
 
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
@@ -224,102 +248,171 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacName, f.serviceAccountName, getRBACClusterPolicyRules(f.webhookName, f.cwsInstrumentationEnabled, f.cwsInstrumentationMode)); err != nil {
 		return err
 	}
-	return managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountName, getRBACPolicyRules())
+	if err := managers.RBACManager().AddPolicyRules(ns, rbacName, f.serviceAccountName, getRBACPolicyRules()); err != nil {
+		return err
+	}
+
+	if f.networkPolicy != "" {
+		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
+		switch f.networkPolicy {
+		case v2alpha1.NetworkPolicyFlavorKubernetes:
+			ingressRules := []netv1.NetworkPolicyIngressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: v2alpha1.DefaultAdmissionControllerTargetPort,
+							},
+						},
+					},
+				},
+			}
+			return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+				policyName,
+				f.owner.GetNamespace(),
+				podSelector,
+				nil,
+				ingressRules,
+				nil,
+			)
+		case v2alpha1.NetworkPolicyFlavorCilium:
+			policySpecs := []cilium.NetworkPolicySpec{
+				{
+					Description:      "Ingress from API server for admission controller",
+					EndpointSelector: podSelector,
+					Ingress: []cilium.IngressRule{
+						{
+							FromEntities: []cilium.Entity{
+								"kube-apiserver",
+							},
+							ToPorts: []cilium.PortRule{
+								{
+									Ports: []cilium.PortProtocol{
+										{
+											Port:     strconv.Itoa(v2alpha1.DefaultAdmissionControllerTargetPort),
+											Protocol: cilium.ProtocolTCP,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
+		}
+	}
+	return nil
 }
 
 func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerEnabled,
+		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
 	})
 
+	if f.validationWebhookConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAdmissionControllerValidationEnabled,
+			Value: apiutils.BoolToString(&f.validationWebhookConfig.enabled),
+		})
+	}
+
+	if f.mutationWebhookConfig != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAdmissionControllerMutationEnabled,
+			Value: apiutils.BoolToString(&f.mutationWebhookConfig.enabled),
+		})
+	}
+
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+		Name:  DDAdmissionControllerMutateUnlabelled,
 		Value: apiutils.BoolToString(&f.mutateUnlabelled),
 	})
 
 	if f.registry != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerRegistryName,
+			Name:  DDAdmissionControllerRegistryName,
 			Value: f.registry,
 		})
 	}
 
 	if f.serviceName != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerServiceName,
+			Name:  DDAdmissionControllerServiceName,
 			Value: f.serviceName,
 		})
 	}
 
 	if f.cwsInstrumentationEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+			Name:  DDAdmissionControllerCWSInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.cwsInstrumentationEnabled),
 		})
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+			Name:  DDAdmissionControllerCWSInstrumentationMode,
 			Value: f.cwsInstrumentationMode,
 		})
 	}
 
 	if f.agentCommunicationMode != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+			Name:  DDAdmissionControllerInjectConfigMode,
 			Value: f.agentCommunicationMode,
 		})
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerLocalServiceName,
+		Name:  DDAdmissionControllerLocalServiceName,
 		Value: f.localServiceName,
 	})
 
 	if f.failurePolicy != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerFailurePolicy,
+			Name:  DDAdmissionControllerFailurePolicy,
 			Value: f.failurePolicy,
 		})
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerWebhookName,
+		Name:  DDAdmissionControllerWebhookName,
 		Value: f.webhookName,
 	})
 
 	if f.agentSidecarConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+			Name:  DDAdmissionControllerAgentSidecarEnabled,
 			Value: apiutils.BoolToString(&f.agentSidecarConfig.enabled),
 		})
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Name:  DDAdmissionControllerAgentSidecarClusterAgentEnabled,
 			Value: apiutils.BoolToString(&f.agentSidecarConfig.clusterAgentCommunicationEnabled),
 		})
 		if f.agentSidecarConfig.provider != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+				Name:  DDAdmissionControllerAgentSidecarProvider,
 				Value: f.agentSidecarConfig.provider,
 			})
 		}
 		if f.agentSidecarConfig.registry != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+				Name:  DDAdmissionControllerAgentSidecarRegistry,
 				Value: f.agentSidecarConfig.registry,
 			})
 		}
 
 		if f.agentSidecarConfig.imageName != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+				Name:  DDAdmissionControllerAgentSidecarImageName,
 				Value: f.agentSidecarConfig.imageName,
 			})
 		}
 		if f.agentSidecarConfig.imageTag != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+				Name:  DDAdmissionControllerAgentSidecarImageTag,
 				Value: f.agentSidecarConfig.imageTag,
 			})
 		}
@@ -330,7 +423,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+				Name:  DDAdmissionControllerAgentSidecarSelectors,
 				Value: string(selectorsJSON),
 			})
 		}
@@ -341,7 +434,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+				Name:  DDAdmissionControllerAgentSidecarProfiles,
 				Value: string(profilesJSON),
 			})
 		}

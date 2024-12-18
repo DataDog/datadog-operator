@@ -11,7 +11,7 @@ permissions:
   contents: read
   # packages: read
 env:
-  GO_VERSION: 1.22.7
+  GO_VERSION: 1.23.0
 jobs:
   build-linux-binary:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -42,6 +42,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -83,6 +84,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -122,6 +124,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:

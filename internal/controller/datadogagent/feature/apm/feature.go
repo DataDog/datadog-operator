@@ -267,13 +267,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			return fmt.Errorf("`spec.features.apm.instrumentation.enabledNamespaces` and `spec.features.apm.instrumentation.disabledNamespaces` cannot be set together")
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMInstrumentationEnabled,
+			Name:  DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
 
 		if f.shouldEnableLanguageDetection() {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDLanguageDetectionEnabled,
+				Name:  DDLanguageDetectionEnabled,
 				Value: "true",
 			})
 		}
@@ -284,7 +284,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
+				Name:  DDAPMInstrumentationDisabledNamespaces,
 				Value: string(ns),
 			})
 		}
@@ -294,7 +294,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+				Name:  DDAPMInstrumentationEnabledNamespaces,
 				Value: string(ns),
 			})
 		}
@@ -304,7 +304,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAPMInstrumentationLibVersions,
+				Name:  DDAPMInstrumentationLibVersions,
 				Value: string(libs),
 			})
 		}
@@ -331,7 +331,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAPMEnabled,
+		Name:  v2alpha1.DDAPMEnabled,
 		Value: "true",
 	})
 
@@ -350,11 +350,11 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 			receiverPortEnvVarValue = int(f.hostPortHostPort)
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMNonLocalTraffic,
+			Name:  DDAPMNonLocalTraffic,
 			Value: "true",
 		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMReceiverPort,
+			Name:  DDAPMReceiverPort,
 			Value: strconv.Itoa(receiverPortEnvVarValue),
 		})
 	}
@@ -365,19 +365,19 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 		// Enable language detection in core agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDLanguageDetectionEnabled,
+			Name:  DDLanguageDetectionEnabled,
 			Value: "true",
 		})
 
 		// Enable language detection in process agent
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDLanguageDetectionEnabled,
+			Name:  DDLanguageDetectionEnabled,
 			Value: "true",
 		})
 
 		// Always add this envvar to Core and Process containers
 		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessConfigRunInCoreAgent,
+			Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -389,7 +389,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMReceiverSocket,
+			Name:  DDAPMReceiverSocket,
 			Value: filepath.Join(apmSocketVolumeLocalPath, sockName),
 		})
 		socketVol, socketVolMount := volume.GetVolumes(apmSocketVolumeName, udsHostFolder, apmSocketVolumeLocalPath, false)

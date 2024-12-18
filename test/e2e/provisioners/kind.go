@@ -1,14 +1,19 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+//go:build e2e
+// +build e2e
+
 package provisioners
 
 import (
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments/aws/kubernetes"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
-	"github.com/DataDog/datadog-operator/test/new-e2e/common"
-	"github.com/DataDog/test-infra-definitions/common/config"
+	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
@@ -31,21 +36,8 @@ const (
 	defaultProvisionerName = "kind"
 )
 
-var (
-	DefaultOperatorOptions = []operatorparams.Option{
-		operatorparams.WithNamespace(common.NamespaceName),
-		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
-	}
-
-	DefaultDDAOptions = []agentwithoperatorparams.Option{
-		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-	}
-)
-
 type K8sEnv struct {
 	environments.Kubernetes
-	Operator *components.Operator
 }
 
 type KubernetesProvisionerParams struct {
@@ -237,12 +229,12 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 	}
 
 	// Install kustomizations
-	kustomizeDirPath, err := filepath.Abs(common.MgrKustomizeDirPath)
+	kustomizeDirPath, err := filepath.Abs(NewMgrKustomizeDirPath)
 	if err != nil {
 		return err
 	}
 
-	err = common.UpdateKustomization(kustomizeDirPath, params.kustomizeResources)
+	err = UpdateKustomization(kustomizeDirPath, params.kustomizeResources)
 	if err != nil {
 		return err
 	}
@@ -303,43 +295,4 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		}
 	}
 	return nil
-}
-
-func AWSKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
-	awsKindOpts := []awskubernetes.ProvisionerOption{
-		awskubernetes.WithOperator(),
-		awskubernetes.WithOperatorOptions(params.operatorOptions...),
-		awskubernetes.WithoutDDA(),
-		awskubernetes.WithWorkloadApp(func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
-			kustomizeOpts := []pulumi.ResourceOption{
-				pulumi.Provider(kubeProvider),
-			}
-			k8sComp := &kubeComp.Workload{}
-			if err := e.Ctx().RegisterComponentResource("dd:agent-with-operator", "kustomizations", k8sComp, kustomizeOpts...); err != nil {
-				return nil, err
-			}
-
-			// Install kustomizations
-			kustomizeDirPath, err := filepath.Abs(common.MgrKustomizeDirPath)
-			if err != nil {
-				return nil, err
-			}
-
-			err = common.UpdateKustomization(kustomizeDirPath, params.kustomizeResources)
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = kustomize.NewDirectory(ctx, "e2e-manager",
-				kustomize.DirectoryArgs{
-					Directory: pulumi.String(kustomizeDirPath),
-				}, kustomizeOpts...)
-			if err != nil {
-				return nil, err
-			}
-			return k8sComp, nil
-		}),
-	}
-	awsKindParams := awskubernetes.GetProvisionerParams(awsKindOpts...)
-	return awskubernetes.KindRunFunc(ctx, env, awsKindParams)
 }

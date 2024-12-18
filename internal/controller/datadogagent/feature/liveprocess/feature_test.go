@@ -131,18 +131,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      apicommon.PasswdVolumeName,
-					MountPath: apicommon.PasswdMountPath,
+					Name:      v2alpha1.PasswdVolumeName,
+					MountPath: v2alpha1.PasswdMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.CgroupsVolumeName,
-					MountPath: apicommon.CgroupsMountPath,
+					Name:      v2alpha1.CgroupsVolumeName,
+					MountPath: v2alpha1.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.ProcdirVolumeName,
-					MountPath: apicommon.ProcdirMountPath,
+					Name:      v2alpha1.ProcdirVolumeName,
+					MountPath: v2alpha1.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -153,26 +153,26 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: apicommon.PasswdVolumeName,
+					Name: v2alpha1.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.PasswdHostPath,
+							Path: v2alpha1.PasswdHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.CgroupsVolumeName,
+					Name: v2alpha1.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.CgroupsHostPath,
+							Path: v2alpha1.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.ProcdirVolumeName,
+					Name: v2alpha1.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.ProcdirHostPath,
+							Path: v2alpha1.ProcdirHostPath,
 						},
 					},
 				},
@@ -184,11 +184,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  apicommon.DDProcessCollectionEnabled,
+					Name:  v2alpha1.DDProcessCollectionEnabled,
 					Value: "true",
 				},
 			}
@@ -196,11 +196,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			if ScrubStripArgs {
 				ScrubStripArgsEnvVar := []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDProcessConfigScrubArgs,
+						Name:  DDProcessConfigScrubArgs,
 						Value: "true",
 					},
 					{
-						Name:  apicommon.DDProcessConfigStripArgs,
+						Name:  DDProcessConfigStripArgs,
 						Value: "true",
 					},
 				}

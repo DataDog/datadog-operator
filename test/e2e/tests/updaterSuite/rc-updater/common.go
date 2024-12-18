@@ -8,8 +8,8 @@ package updater
 
 import (
 	"fmt"
+	api "github.com/DataDog/datadog-operator/test/e2e/tests/updaterSuite/rc-updater/api"
 
-	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 	"github.com/stretchr/testify/assert"
 )
 

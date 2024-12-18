@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	apmSocketHostPath  = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + apicommon.APMSocketName
+	apmSocketHostPath  = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
+	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + v2alpha1.APMSocketName
 )
 
 func TestShouldEnableAPM(t *testing.T) {
@@ -375,19 +375,19 @@ func testTraceAgentEnabled(containerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[containerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMEnabled,
+					Name:  v2alpha1.DDAPMEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMNonLocalTraffic,
+					Name:  DDAPMNonLocalTraffic,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverPort,
+					Name:  DDAPMReceiverPort,
 					Value: "8126",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverSocket,
+					Name:  DDAPMReceiverSocket,
 					Value: apmSocketLocalPath,
 				},
 			}
@@ -408,15 +408,15 @@ func testAgentHostPortOnly() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMEnabled,
+					Name:  v2alpha1.DDAPMEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMNonLocalTraffic,
+					Name:  DDAPMNonLocalTraffic,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverPort,
+					Name:  DDAPMReceiverPort,
 					Value: "8126",
 				},
 			}
@@ -452,11 +452,11 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMEnabled,
+					Name:  v2alpha1.DDAPMEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverSocket,
+					Name:  DDAPMReceiverSocket,
 					Value: apmSocketLocalPath,
 				},
 			}
@@ -487,7 +487,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketHostPath,
+							Path: v2alpha1.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},
@@ -524,15 +524,15 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
+					Name:  DDAPMInstrumentationDisabledNamespaces,
 					Value: "[\"foo\",\"bar\"]",
 				},
 				{
-					Name:  apicommon.DDAPMInstrumentationLibVersions,
+					Name:  DDAPMInstrumentationLibVersions,
 					Value: "{\"java\":\"1.2.4\"}",
 				},
 			}
@@ -570,15 +570,15 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Name:  DDAPMInstrumentationEnabled,
 					Value: "false",
 				},
 				{
-					Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+					Name:  DDAPMInstrumentationEnabledNamespaces,
 					Value: "[\"foo\",\"bar\"]",
 				},
 				{
-					Name:  apicommon.DDAPMInstrumentationLibVersions,
+					Name:  DDAPMInstrumentationLibVersions,
 					Value: "{\"java\":\"1.2.4\"}",
 				},
 			}
@@ -599,7 +599,7 @@ func testAPMInstrumentation() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
 			}
@@ -621,11 +621,11 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedClusterAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Name:  DDAPMInstrumentationEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDLanguageDetectionEnabled,
+					Name:  DDLanguageDetectionEnabled,
 					Value: "true",
 				},
 			}
@@ -650,11 +650,11 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 			if languageDetectionEnabled {
 				expectedEnvVars = []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDLanguageDetectionEnabled,
+						Name:  DDLanguageDetectionEnabled,
 						Value: "true",
 					},
 					{
-						Name:  apicommon.DDProcessConfigRunInCoreAgent,
+						Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 						Value: utils.BoolToString(&processChecksInCoreAgent),
 					},
 				}
@@ -690,19 +690,19 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAPMEnabled,
+					Name:  v2alpha1.DDAPMEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMNonLocalTraffic,
+					Name:  DDAPMNonLocalTraffic,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAPMReceiverPort,
+					Name:  DDAPMReceiverPort,
 					Value: strconv.Itoa(int(receiverPortValue)),
 				},
 				{
-					Name:  apicommon.DDAPMReceiverSocket,
+					Name:  DDAPMReceiverSocket,
 					Value: apmSocketLocalPath,
 				},
 			}
@@ -733,7 +733,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketHostPath,
+							Path: v2alpha1.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},

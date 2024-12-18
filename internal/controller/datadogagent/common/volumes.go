@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // This file contains definitions of volumes used in the agent specs
@@ -19,7 +19,7 @@ import (
 // GetVolumeForConfig return the volume that contains the agent config
 func GetVolumeForConfig() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.ConfigVolumeName,
+		Name: v2alpha1.ConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -29,7 +29,7 @@ func GetVolumeForConfig() corev1.Volume {
 // GetVolumeForConfd return the volume that contains the agent confd config files
 func GetVolumeForConfd() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.ConfdVolumeName,
+		Name: v2alpha1.ConfdVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -39,7 +39,7 @@ func GetVolumeForConfd() corev1.Volume {
 // GetVolumeForChecksd return the volume that contains the agent confd config files
 func GetVolumeForChecksd() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.ChecksdVolumeName,
+		Name: v2alpha1.ChecksdVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -59,7 +59,7 @@ func GetVolumeForRmCorechecks() corev1.Volume {
 // GetVolumeForAuth return the Volume container authentication information
 func GetVolumeForAuth() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.AuthVolumeName,
+		Name: v2alpha1.AuthVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -69,7 +69,7 @@ func GetVolumeForAuth() corev1.Volume {
 // GetVolumeForLogs return the Volume that should container generated logs
 func GetVolumeForLogs() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.LogDatadogVolumeName,
+		Name: v2alpha1.LogDatadogVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -79,7 +79,7 @@ func GetVolumeForLogs() corev1.Volume {
 // GetVolumeInstallInfo return the Volume that should install-info file
 func GetVolumeInstallInfo(owner metav1.Object) corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.InstallInfoVolumeName,
+		Name: v2alpha1.InstallInfoVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -93,10 +93,10 @@ func GetVolumeInstallInfo(owner metav1.Object) corev1.Volume {
 // GetVolumeForProc returns the volume with /proc
 func GetVolumeForProc() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.ProcdirVolumeName,
+		Name: v2alpha1.ProcdirVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.ProcdirHostPath,
+				Path: v2alpha1.ProcdirHostPath,
 			},
 		},
 	}
@@ -105,7 +105,7 @@ func GetVolumeForProc() corev1.Volume {
 // GetVolumeForCgroups returns the volume that contains the cgroup directory
 func GetVolumeForCgroups() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.CgroupsVolumeName,
+		Name: v2alpha1.CgroupsVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/sys/fs/cgroup",
@@ -117,7 +117,7 @@ func GetVolumeForCgroups() corev1.Volume {
 // GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
 func GetVolumeForDogstatsd() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.DogstatsdSocketVolumeName,
+		Name: v2alpha1.DogstatsdSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -132,16 +132,16 @@ func GetInstallInfoConfigMapName(dda metav1.Object) string {
 // GetVolumeMountForConfig return the VolumeMount that contains the agent config
 func GetVolumeMountForConfig() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.ConfigVolumeName,
-		MountPath: apicommon.ConfigVolumePath,
+		Name:      v2alpha1.ConfigVolumeName,
+		MountPath: v2alpha1.ConfigVolumePath,
 	}
 }
 
 // GetVolumeMountForConfd return the VolumeMount that contains the agent confd config files
 func GetVolumeMountForConfd() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.ConfdVolumeName,
-		MountPath: apicommon.ConfdVolumePath,
+		Name:      v2alpha1.ConfdVolumeName,
+		MountPath: v2alpha1.ConfdVolumePath,
 		ReadOnly:  true,
 	}
 }
@@ -149,8 +149,8 @@ func GetVolumeMountForConfd() corev1.VolumeMount {
 // GetVolumeMountForChecksd return the VolumeMount that contains the agent checksd config files
 func GetVolumeMountForChecksd() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.ChecksdVolumeName,
-		MountPath: apicommon.ChecksdVolumePath,
+		Name:      v2alpha1.ChecksdVolumeName,
+		MountPath: v2alpha1.ChecksdVolumePath,
 		ReadOnly:  true,
 	}
 }
@@ -159,15 +159,15 @@ func GetVolumeMountForChecksd() corev1.VolumeMount {
 func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      "remove-corechecks",
-		MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
+		MountPath: fmt.Sprintf("%s/%s", v2alpha1.ConfigVolumePath, "conf.d"),
 	}
 }
 
 // GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
 func GetVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.AuthVolumeName,
-		MountPath: apicommon.AuthVolumePath,
+		Name:      v2alpha1.AuthVolumeName,
+		MountPath: v2alpha1.AuthVolumePath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -175,8 +175,8 @@ func GetVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
 // GetVolumeMountForLogs return the VolumeMount for the container generated logs
 func GetVolumeMountForLogs() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.LogDatadogVolumeName,
-		MountPath: apicommon.LogDatadogVolumePath,
+		Name:      v2alpha1.LogDatadogVolumeName,
+		MountPath: v2alpha1.LogDatadogVolumePath,
 		ReadOnly:  false,
 	}
 }
@@ -184,7 +184,7 @@ func GetVolumeMountForLogs() corev1.VolumeMount {
 // GetVolumeForTmp return the Volume use for /tmp
 func GetVolumeForTmp() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.TmpVolumeName,
+		Name: v2alpha1.TmpVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -194,8 +194,8 @@ func GetVolumeForTmp() corev1.Volume {
 // GetVolumeMountForTmp return the VolumeMount for /tmp
 func GetVolumeMountForTmp() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.TmpVolumeName,
-		MountPath: apicommon.TmpVolumePath,
+		Name:      v2alpha1.TmpVolumeName,
+		MountPath: v2alpha1.TmpVolumePath,
 		ReadOnly:  false,
 	}
 }
@@ -203,7 +203,7 @@ func GetVolumeMountForTmp() corev1.VolumeMount {
 // GetVolumeForCertificates return the Volume use to store certificates
 func GetVolumeForCertificates() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.CertificatesVolumeName,
+		Name: v2alpha1.CertificatesVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -213,8 +213,8 @@ func GetVolumeForCertificates() corev1.Volume {
 // GetVolumeMountForCertificates return the VolumeMount use to store certificates
 func GetVolumeMountForCertificates() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.CertificatesVolumeName,
-		MountPath: apicommon.CertificatesVolumePath,
+		Name:      v2alpha1.CertificatesVolumeName,
+		MountPath: v2alpha1.CertificatesVolumePath,
 		ReadOnly:  false,
 	}
 }
@@ -222,18 +222,18 @@ func GetVolumeMountForCertificates() corev1.VolumeMount {
 // GetVolumeMountForInstallInfo return the VolumeMount that contains the agent install-info file
 func GetVolumeMountForInstallInfo() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.InstallInfoVolumeName,
-		MountPath: apicommon.InstallInfoVolumePath,
-		SubPath:   apicommon.InstallInfoVolumeSubPath,
-		ReadOnly:  apicommon.InstallInfoVolumeReadOnly,
+		Name:      v2alpha1.InstallInfoVolumeName,
+		MountPath: v2alpha1.InstallInfoVolumePath,
+		SubPath:   v2alpha1.InstallInfoVolumeSubPath,
+		ReadOnly:  v2alpha1.InstallInfoVolumeReadOnly,
 	}
 }
 
 // GetVolumeMountForProc returns the VolumeMount that contains /proc
 func GetVolumeMountForProc() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.ProcdirVolumeName,
-		MountPath: apicommon.ProcdirMountPath,
+		Name:      v2alpha1.ProcdirVolumeName,
+		MountPath: v2alpha1.ProcdirMountPath,
 		ReadOnly:  true,
 	}
 }
@@ -241,8 +241,8 @@ func GetVolumeMountForProc() corev1.VolumeMount {
 // GetVolumeMountForCgroups returns the VolumeMount that contains the cgroups info
 func GetVolumeMountForCgroups() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.CgroupsVolumeName,
-		MountPath: apicommon.CgroupsMountPath,
+		Name:      v2alpha1.CgroupsVolumeName,
+		MountPath: v2alpha1.CgroupsMountPath,
 		ReadOnly:  true,
 	}
 }
@@ -250,8 +250,8 @@ func GetVolumeMountForCgroups() corev1.VolumeMount {
 // GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
 func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.DogstatsdSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketLocalPath,
+		Name:      v2alpha1.DogstatsdSocketVolumeName,
+		MountPath: v2alpha1.DogstatsdSocketLocalPath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -259,10 +259,10 @@ func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 // GetVolumeForRuntimeSocket returns the Volume for the runtime socket
 func GetVolumeForRuntimeSocket() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.CriSocketVolumeName,
+		Name: v2alpha1.CriSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.RuntimeDirVolumePath,
+				Path: v2alpha1.RuntimeDirVolumePath,
 			},
 		},
 	}
@@ -271,8 +271,8 @@ func GetVolumeForRuntimeSocket() corev1.Volume {
 // GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
 func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.CriSocketVolumeName,
-		MountPath: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath,
+		Name:      v2alpha1.CriSocketVolumeName,
+		MountPath: v2alpha1.HostCriSocketPathPrefix + v2alpha1.RuntimeDirVolumePath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -280,15 +280,15 @@ func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
 // GetVolumeMountForSecurity returns the VolumeMount for datadog-agent-security
 func GetVolumeMountForSecurity() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.SeccompSecurityVolumeName,
-		MountPath: apicommon.SeccompSecurityVolumePath,
+		Name:      v2alpha1.SeccompSecurityVolumeName,
+		MountPath: v2alpha1.SeccompSecurityVolumePath,
 	}
 }
 
 // GetVolumeForSecurity returns the Volume for datadog-agent-security
 func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.SeccompSecurityVolumeName,
+		Name: v2alpha1.SeccompSecurityVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -302,18 +302,18 @@ func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
 // GetVolumeMountForSeccomp returns the VolumeMount for seccomp root
 func GetVolumeMountForSeccomp() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.SeccompRootVolumeName,
-		MountPath: apicommon.SeccompRootVolumePath,
+		Name:      v2alpha1.SeccompRootVolumeName,
+		MountPath: v2alpha1.SeccompRootVolumePath,
 	}
 }
 
 // GetVolumeForSeccomp returns the volume for seccomp root
 func GetVolumeForSeccomp() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.SeccompRootVolumeName,
+		Name: v2alpha1.SeccompRootVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.SeccompRootPath,
+				Path: v2alpha1.SeccompRootPath,
 			},
 		},
 	}
