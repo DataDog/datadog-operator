@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package servicediscovery
 
 import (
@@ -75,7 +80,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDServiceDiscoveryEnabled,
+		Name:  DDServiceDiscoveryEnabled,
 		Value: "true",
 	}
 
@@ -83,7 +88,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
+		Name:  v2alpha1.DDSystemProbeSocket,
 		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 

@@ -33,19 +33,19 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
 		if cont.Name != string(apicommon.SystemProbeContainerName) {
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSEnabled,
+				Name:  v2alpha1.DDFIPSEnabled,
 				Value: "true",
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSPortRangeStart,
+				Name:  v2alpha1.DDFIPSPortRangeStart,
 				Value: strconv.Itoa(int(*fipsConfig.Port)),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSUseHTTPS,
+				Name:  v2alpha1.DDFIPSUseHTTPS,
 				Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSLocalAddress,
+				Name:  v2alpha1.DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			})
 		}
@@ -135,7 +135,7 @@ func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
 		Ports:           getFIPSPorts(fipsConfig),
 		Env: []corev1.EnvVar{
 			{
-				Name:  apicommon.DDFIPSLocalAddress,
+				Name:  v2alpha1.DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			},
 		},

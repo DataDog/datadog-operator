@@ -208,56 +208,56 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDAdmissionControllerEnabled,
+					Name:  DDAdmissionControllerEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerValidationEnabled,
+					Name:  DDAdmissionControllerValidationEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerMutationEnabled,
+					Name:  DDAdmissionControllerMutationEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+					Name:  DDAdmissionControllerMutateUnlabelled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerServiceName,
+					Name:  DDAdmissionControllerServiceName,
 					Value: "testServiceName",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerLocalServiceName,
+					Name:  DDAdmissionControllerLocalServiceName,
 					Value: "-agent",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerWebhookName,
+					Name:  DDAdmissionControllerWebhookName,
 					Value: "datadog-webhook",
 				},
 			}
 			if cwsInstrumentationEnabled {
 				expectedAgentEnvs = append(expectedAgentEnvs, []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+						Name:  DDAdmissionControllerCWSInstrumentationEnabled,
 						Value: apiutils.BoolToString(&cwsInstrumentationEnabled),
 					},
 					{
-						Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+						Name:  DDAdmissionControllerCWSInstrumentationMode,
 						Value: "test-mode",
 					},
 				}...)
 			}
 			if acm != "" {
 				acmEnv := corev1.EnvVar{
-					Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+					Name:  DDAdmissionControllerInjectConfigMode,
 					Value: acm,
 				}
 				expectedAgentEnvs = append(expectedAgentEnvs, &acmEnv)
 			}
 			if registry != "" {
 				registryEnv := corev1.EnvVar{
-					Name:  apicommon.DDAdmissionControllerRegistryName,
+					Name:  DDAdmissionControllerRegistryName,
 					Value: registry,
 				}
 				expectedAgentEnvs = append(expectedAgentEnvs, &registryEnv)
@@ -276,26 +276,26 @@ func testDCAResources(acm string, registry string, cwsInstrumentationEnabled boo
 func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDAdmissionControllerEnabled,
+			Name:  DDAdmissionControllerEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+			Name:  DDAdmissionControllerMutateUnlabelled,
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerLocalServiceName,
+			Name:  DDAdmissionControllerLocalServiceName,
 			Value: "-agent",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerWebhookName,
+			Name:  DDAdmissionControllerWebhookName,
 			Value: "datadog-webhook",
 		},
 	}
 
 	if validation {
 		validationEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerValidationEnabled,
+			Name:  DDAdmissionControllerValidationEnabled,
 			Value: apiutils.BoolToString(&validation),
 		}
 		envVars = append(envVars, &validationEnv)
@@ -303,7 +303,7 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 
 	if mutation {
 		mutationEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerMutationEnabled,
+			Name:  DDAdmissionControllerMutationEnabled,
 			Value: apiutils.BoolToString(&mutation),
 		}
 		envVars = append(envVars, &mutationEnv)
@@ -311,14 +311,14 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 
 	if acm != "" {
 		acmEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+			Name:  DDAdmissionControllerInjectConfigMode,
 			Value: acm,
 		}
 		envVars = append(envVars, &acmEnv)
 	}
 	if registry != "" {
 		registryEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerRegistryName,
+			Name:  DDAdmissionControllerRegistryName,
 			Value: registry,
 		}
 		envVars = append(envVars, &registryEnv)
@@ -327,11 +327,11 @@ func getACEnvVars(validation, mutation bool, acm, registry string, cws bool) []*
 	if cws {
 		cwsEnv := []corev1.EnvVar{
 			{
-				Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+				Name:  DDAdmissionControllerCWSInstrumentationEnabled,
 				Value: apiutils.BoolToString(&cws),
 			},
 			{
-				Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+				Name:  DDAdmissionControllerCWSInstrumentationMode,
 				Value: "test-mode",
 			},
 		}
@@ -369,36 +369,36 @@ func sidecarHelperFunc(admissionControllerConfig, sidecarConfig []*corev1.EnvVar
 func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles bool) []*corev1.EnvVar {
 	envVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+			Name:  DDAdmissionControllerAgentSidecarEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Name:  DDAdmissionControllerAgentSidecarClusterAgentEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+			Name:  DDAdmissionControllerAgentSidecarProvider,
 			Value: "fargate",
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+			Name:  DDAdmissionControllerAgentSidecarImageName,
 			Value: imageName,
 		},
 		{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+			Name:  DDAdmissionControllerAgentSidecarImageTag,
 			Value: imageTag,
 		},
 	}
 	if registry != "" {
 		registryEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+			Name:  DDAdmissionControllerAgentSidecarRegistry,
 			Value: registry,
 		}
 		envVars = append(envVars, &registryEnv)
 	}
 	if selectors {
 		selectorEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+			Name:  DDAdmissionControllerAgentSidecarSelectors,
 			Value: "[{\"namespaceSelector\":{\"matchLabels\":{\"testKey\":\"testValue\"}},\"objectSelector\":{\"matchLabels\":{\"testKey\":\"testValue\"}}}]",
 		}
 		envVars = append(envVars, &selectorEnv)
@@ -406,7 +406,7 @@ func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles
 
 	if profiles {
 		profileEnv := corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+			Name:  DDAdmissionControllerAgentSidecarProfiles,
 			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}}}]",
 		}
 		envVars = append(envVars, &profileEnv)

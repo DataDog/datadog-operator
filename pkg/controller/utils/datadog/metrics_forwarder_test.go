@@ -15,8 +15,7 @@ import (
 	"sync"
 	"testing"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
@@ -162,7 +161,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		client client.Client
 	}
 	type args struct {
-		dda      *datadoghqv2alpha1.DatadogAgent
+		dda      *v2alpha1.DatadogAgent
 		loadFunc func(*metricsForwarder, *secrets.DummyDecryptor)
 	}
 	tests := []struct {
@@ -179,14 +178,14 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Setenv(apicommon.DDAPIKey, "test123")
-					os.Setenv(apicommon.DDAppKey, "testabc")
+					os.Setenv(v2alpha1.DDAPIKey, "test123")
+					os.Setenv(v2alpha1.DDAppKey, "testabc")
 				},
 			},
 			wantAPIKey: "test123",
@@ -198,14 +197,14 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(apicommon.DDAPIKey)
-					os.Unsetenv(apicommon.DDAppKey)
+					os.Unsetenv(v2alpha1.DDAPIKey)
+					os.Unsetenv(v2alpha1.DDAppKey)
 				},
 			},
 			wantAPIKey: "foundAPIKey",
@@ -217,17 +216,17 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
-						APISecret: &datadoghqv2alpha1.SecretConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
+						APISecret: &v2alpha1.SecretConfig{
 							SecretName: "datadog-creds-api",
 							KeyName:    "datadog_api_key",
 						},
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(apicommon.DDAPIKey)
-					os.Unsetenv(apicommon.DDAppKey)
+					os.Unsetenv(v2alpha1.DDAPIKey)
+					os.Unsetenv(v2alpha1.DDAppKey)
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds-api",
@@ -249,14 +248,14 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(apicommon.DDAPIKey)
-					os.Unsetenv(apicommon.DDAppKey)
+					os.Unsetenv(v2alpha1.DDAPIKey)
+					os.Unsetenv(v2alpha1.DDAppKey)
 					m.cleanSecretsCache()
 					m.creds.Store(encAPIKey, "cachedAPIKey")
 				},
@@ -277,14 +276,14 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Credentials: &datadoghqv2alpha1.DatadogCredentials{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(apicommon.DDAPIKey)
-					os.Unsetenv(apicommon.DDAppKey)
+					os.Unsetenv(v2alpha1.DDAPIKey)
+					os.Unsetenv(v2alpha1.DDAppKey)
 					m.cleanSecretsCache()
 					d.On("Decrypt", []string{encAPIKey}).Once()
 				},
@@ -306,10 +305,10 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(apicommon.DDAPIKey)
-					os.Unsetenv(apicommon.DDAppKey)
+					os.Unsetenv(v2alpha1.DDAPIKey)
+					os.Unsetenv(v2alpha1.DDAppKey)
 				},
 			},
 			wantErr: true,
@@ -694,7 +693,7 @@ func Test_getbaseURL(t *testing.T) {
 	euSite := "datadoghq.eu"
 
 	type args struct {
-		dda *datadoghqv2alpha1.DatadogAgent
+		dda *v2alpha1.DatadogAgent
 	}
 	tests := []struct {
 		name string
@@ -711,7 +710,7 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Compute baseURL from site when passing Site",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 				}),
 			},
@@ -720,8 +719,8 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Compute baseURL from endpoint.URL when Site is not defined",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
-					Endpoint: &datadoghqv2alpha1.Endpoint{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
 				}),
@@ -731,9 +730,9 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Test that DDUrl takes precedence over Site",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{
+				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
-					Endpoint: &datadoghqv2alpha1.Endpoint{
+					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
 				}),

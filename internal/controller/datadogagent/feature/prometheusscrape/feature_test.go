@@ -54,11 +54,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 					}
@@ -69,11 +69,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 					}
@@ -92,11 +92,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "true",
 						},
 					}
@@ -107,11 +107,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "true",
 						},
 					}
@@ -130,15 +130,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeChecks,
+							Name:  DDPrometheusScrapeChecks,
 							Value: jsonConfigs,
 						},
 					}
@@ -149,15 +149,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeChecks,
+							Name:  DDPrometheusScrapeChecks,
 							Value: jsonConfigs,
 						},
 					}
@@ -176,15 +176,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeVersion,
+							Name:  DDPrometheusScrapeVersion,
 							Value: "1",
 						},
 					}
@@ -195,15 +195,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeVersion,
+							Name:  DDPrometheusScrapeVersion,
 							Value: "1",
 						},
 					}

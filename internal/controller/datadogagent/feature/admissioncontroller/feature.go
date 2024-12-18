@@ -308,111 +308,111 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 
 func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerEnabled,
+		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
 	})
 
 	if f.validationWebhookConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerValidationEnabled,
+			Name:  DDAdmissionControllerValidationEnabled,
 			Value: apiutils.BoolToString(&f.validationWebhookConfig.enabled),
 		})
 	}
 
 	if f.mutationWebhookConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerMutationEnabled,
+			Name:  DDAdmissionControllerMutationEnabled,
 			Value: apiutils.BoolToString(&f.mutationWebhookConfig.enabled),
 		})
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
+		Name:  DDAdmissionControllerMutateUnlabelled,
 		Value: apiutils.BoolToString(&f.mutateUnlabelled),
 	})
 
 	if f.registry != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerRegistryName,
+			Name:  DDAdmissionControllerRegistryName,
 			Value: f.registry,
 		})
 	}
 
 	if f.serviceName != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerServiceName,
+			Name:  DDAdmissionControllerServiceName,
 			Value: f.serviceName,
 		})
 	}
 
 	if f.cwsInstrumentationEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerCWSInstrumentationEnabled,
+			Name:  DDAdmissionControllerCWSInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.cwsInstrumentationEnabled),
 		})
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerCWSInstrumentationMode,
+			Name:  DDAdmissionControllerCWSInstrumentationMode,
 			Value: f.cwsInstrumentationMode,
 		})
 	}
 
 	if f.agentCommunicationMode != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+			Name:  DDAdmissionControllerInjectConfigMode,
 			Value: f.agentCommunicationMode,
 		})
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerLocalServiceName,
+		Name:  DDAdmissionControllerLocalServiceName,
 		Value: f.localServiceName,
 	})
 
 	if f.failurePolicy != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerFailurePolicy,
+			Name:  DDAdmissionControllerFailurePolicy,
 			Value: f.failurePolicy,
 		})
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDAdmissionControllerWebhookName,
+		Name:  DDAdmissionControllerWebhookName,
 		Value: f.webhookName,
 	})
 
 	if f.agentSidecarConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarEnabled,
+			Name:  DDAdmissionControllerAgentSidecarEnabled,
 			Value: apiutils.BoolToString(&f.agentSidecarConfig.enabled),
 		})
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAdmissionControllerAgentSidecarClusterAgentEnabled,
+			Name:  DDAdmissionControllerAgentSidecarClusterAgentEnabled,
 			Value: apiutils.BoolToString(&f.agentSidecarConfig.clusterAgentCommunicationEnabled),
 		})
 		if f.agentSidecarConfig.provider != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarProvider,
+				Name:  DDAdmissionControllerAgentSidecarProvider,
 				Value: f.agentSidecarConfig.provider,
 			})
 		}
 		if f.agentSidecarConfig.registry != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarRegistry,
+				Name:  DDAdmissionControllerAgentSidecarRegistry,
 				Value: f.agentSidecarConfig.registry,
 			})
 		}
 
 		if f.agentSidecarConfig.imageName != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageName,
+				Name:  DDAdmissionControllerAgentSidecarImageName,
 				Value: f.agentSidecarConfig.imageName,
 			})
 		}
 		if f.agentSidecarConfig.imageTag != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarImageTag,
+				Name:  DDAdmissionControllerAgentSidecarImageTag,
 				Value: f.agentSidecarConfig.imageTag,
 			})
 		}
@@ -423,7 +423,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarSelectors,
+				Name:  DDAdmissionControllerAgentSidecarSelectors,
 				Value: string(selectorsJSON),
 			})
 		}
@@ -434,7 +434,7 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 				return err
 			}
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDAdmissionControllerAgentSidecarProfiles,
+				Name:  DDAdmissionControllerAgentSidecarProfiles,
 				Value: string(profilesJSON),
 			})
 		}

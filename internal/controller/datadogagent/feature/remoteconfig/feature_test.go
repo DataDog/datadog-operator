@@ -62,7 +62,7 @@ func rcAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 			// Check environment variable
 			expectedEnvVars := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRemoteConfigurationEnabled,
+					Name:  DDRemoteConfigurationEnabled,
 					Value: apiutils.BoolToString(&rcEnabled),
 				},
 			}
@@ -80,7 +80,7 @@ func rcClusterAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 			// Check environment variable
 			expectedEnvVars := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRemoteConfigurationEnabled,
+					Name:  DDRemoteConfigurationEnabled,
 					Value: apiutils.BoolToString(&rcEnabled),
 				},
 			}

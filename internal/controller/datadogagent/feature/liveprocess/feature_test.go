@@ -184,11 +184,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  apicommon.DDProcessCollectionEnabled,
+					Name:  v2alpha1.DDProcessCollectionEnabled,
 					Value: "true",
 				},
 			}
@@ -196,11 +196,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			if ScrubStripArgs {
 				ScrubStripArgsEnvVar := []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDProcessConfigScrubArgs,
+						Name:  DDProcessConfigScrubArgs,
 						Value: "true",
 					},
 					{
-						Name:  apicommon.DDProcessConfigStripArgs,
+						Name:  DDProcessConfigStripArgs,
 						Value: "true",
 					},
 				}
