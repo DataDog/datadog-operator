@@ -33,21 +33,6 @@ import (
 )
 
 var (
-	defaultOperatorOpts = []operatorparams.Option{
-		operatorparams.WithNamespace(common.NamespaceName),
-		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
-	}
-
-	defaultDDAOpts = []agentwithoperatorparams.Option{
-		agentwithoperatorparams.WithNamespace(common.NamespaceName),
-	}
-
-	defaultProvisionerOpts = []provisioners.KubernetesProvisionerOption{
-		provisioners.WithK8sVersion(common.K8sVersion),
-		provisioners.WithOperatorOptions(defaultOperatorOpts...),
-	}
-
 	matchTags = []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
 	matchOpts = []client.MatchOpt[*aggregator.MetricSeries]{client.WithMatchingTags[*aggregator.MetricSeries](matchTags)}
 )
@@ -64,6 +49,21 @@ func TestK8sSuite(t *testing.T) {
 
 func (s *k8sSuite) TestGenericK8s() {
 	var ddaConfigPath string
+
+	defaultOperatorOpts := []operatorparams.Option{
+		operatorparams.WithNamespace(common.NamespaceName),
+		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+		operatorparams.WithHelmValues("installCRDs: false"),
+	}
+
+	defaultDDAOpts := []agentwithoperatorparams.Option{
+		agentwithoperatorparams.WithNamespace(common.NamespaceName),
+	}
+
+	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
+		provisioners.WithK8sVersion(common.K8sVersion),
+		provisioners.WithOperatorOptions(defaultOperatorOpts...),
+	}
 
 	kubeConfigPath, err := k8s.GetKubeConfigPathE(s.T())
 	s.Require().NoError(err)
