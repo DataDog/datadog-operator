@@ -288,6 +288,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -479,6 +482,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(valueFalse),
+						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -624,6 +630,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -765,6 +774,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -900,6 +912,9 @@ func Test_defaultFeatures(t *testing.T) {
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1038,6 +1053,9 @@ func Test_defaultFeatures(t *testing.T) {
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1182,6 +1200,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1321,6 +1342,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1457,6 +1481,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -1482,6 +1509,9 @@ func Test_defaultFeatures(t *testing.T) {
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(true),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 				},
@@ -1604,6 +1634,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(valueTrue),
 							Mode:    apiutils.NewStringPointer(DefaultAdmissionControllerCWSInstrumentationMode),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1741,6 +1774,9 @@ func Test_defaultFeatures(t *testing.T) {
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
@@ -1900,6 +1936,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
@@ -2048,6 +2087,9 @@ func Test_defaultFeatures(t *testing.T) {
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{

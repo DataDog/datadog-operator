@@ -49,6 +49,7 @@ spec:
 | features.admissionController.cwsInstrumentation.mode | Defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
+| features.admissionController.kubernetesAdmissionEvents.enabled | Enable the Kubernetes Admission Events feature. Default: false |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.mutation.enabled | Enables the Admission Controller mutation webhook. Default: true |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
