@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -54,7 +55,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	// Configure FIPS container
 	fipsContainer := getFIPSProxyContainer(fipsConfig)
 
-	image := v2alpha1.GetImage(fipsConfig.Image, globalConfig.Registry)
+	image := constants.GetImage(fipsConfig.Image, globalConfig.Registry)
 	fipsContainer.Image = image
 	if fipsConfig.Image.PullPolicy != nil {
 		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy

@@ -7,7 +7,6 @@ package v2alpha1
 
 import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -116,7 +115,7 @@ const (
 
 	defaultFIPSEnabled      bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
-	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
+	defaultFIPSImageTag     string = FIPSProxyLatestVersion
 	defaultFIPSLocalAddress string = "127.0.0.1"
 	defaultFIPSPort         int32  = 9803
 	defaultFIPSPortRange    int32  = 15

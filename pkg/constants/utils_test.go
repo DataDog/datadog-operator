@@ -1,9 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-present Datadog, Inc.
-
-package v2alpha1
+// Copyright 2024-present Datadog, Inc.
+package constants
 
 import (
 	"fmt"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -21,13 +21,13 @@ func Test_GetImage(t *testing.T) {
 	emptyRegistry := ""
 	tests := []struct {
 		name      string
-		imageSpec *AgentImageConfig
+		imageSpec *v2alpha1.AgentImageConfig
 		registry  *string
 		want      string
 	}{
 		{
 			name: "backward compatible",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
@@ -35,7 +35,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "nominal case",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "7",
 			},
@@ -44,7 +44,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "prioritize the full path",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
@@ -53,7 +53,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "default registry",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "latest",
 			},
@@ -62,7 +62,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "add jmx",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        defaulting.AgentLatestVersion,
 				JMXEnabled: true,
@@ -72,7 +72,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "cluster-agent",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "cluster-agent",
 				Tag:        defaulting.ClusterAgentLatestVersion,
 				JMXEnabled: false,
@@ -82,7 +82,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "do not duplicate jmx",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
@@ -92,7 +92,7 @@ func Test_GetImage(t *testing.T) {
 		},
 		{
 			name: "do not add jmx",
-			imageSpec: &AgentImageConfig{
+			imageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
 				JMXEnabled: true,
@@ -113,39 +113,39 @@ func TestServiceAccountNameOverride(t *testing.T) {
 	ddaName := "test-dda"
 	tests := []struct {
 		name string
-		dda  *DatadogAgent
-		want map[ComponentName]string
+		dda  *v2alpha1.DatadogAgent
+		want map[v2alpha1.ComponentName]string
 	}{
 		{
 			name: "custom serviceaccount for dca and clc",
-			dda: &DatadogAgent{
+			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: v1.ObjectMeta{
 					Name: ddaName,
 				},
-				Spec: DatadogAgentSpec{
-					Override: map[ComponentName]*DatadogAgentComponentOverride{
-						ClusterAgentComponentName: {
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							ServiceAccountName: &customServiceAccount,
 						},
-						ClusterChecksRunnerComponentName: {
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							ServiceAccountName: &customServiceAccount,
 						},
 					},
 				},
 			},
-			want: map[ComponentName]string{
-				ClusterAgentComponentName:        customServiceAccount,
-				NodeAgentComponentName:           fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
-				ClusterChecksRunnerComponentName: customServiceAccount,
+			want: map[v2alpha1.ComponentName]string{
+				v2alpha1.ClusterAgentComponentName:        customServiceAccount,
+				v2alpha1.NodeAgentComponentName:           fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
+				v2alpha1.ClusterChecksRunnerComponentName: customServiceAccount,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := map[ComponentName]string{}
-			res[NodeAgentComponentName] = GetAgentServiceAccount(tt.dda)
-			res[ClusterChecksRunnerComponentName] = GetClusterChecksRunnerServiceAccount(tt.dda)
-			res[ClusterAgentComponentName] = GetClusterAgentServiceAccount(tt.dda)
+			res := map[v2alpha1.ComponentName]string{}
+			res[v2alpha1.NodeAgentComponentName] = GetAgentServiceAccount(tt.dda)
+			res[v2alpha1.ClusterChecksRunnerComponentName] = GetClusterChecksRunnerServiceAccount(tt.dda)
+			res[v2alpha1.ClusterAgentComponentName] = GetClusterAgentServiceAccount(tt.dda)
 			for name, sa := range tt.want {
 				if res[name] != sa {
 					t.Errorf("Service Account Override error = %v, want %v", res[name], tt.want[name])
@@ -164,40 +164,40 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	ddaName := "test-dda"
 	tests := []struct {
 		name string
-		dda  *DatadogAgent
-		want map[ComponentName]map[string]interface{}
+		dda  *v2alpha1.DatadogAgent
+		want map[v2alpha1.ComponentName]map[string]interface{}
 	}{
 		{
 			name: "custom serviceaccount annotations for dda, dca and clc",
-			dda: &DatadogAgent{
+			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: v1.ObjectMeta{
 					Name: ddaName,
 				},
-				Spec: DatadogAgentSpec{
-					Override: map[ComponentName]*DatadogAgentComponentOverride{
-						ClusterAgentComponentName: {
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							ServiceAccountName:        &customServiceAccount,
 							ServiceAccountAnnotations: customServiceAccountAnnotations,
 						},
-						ClusterChecksRunnerComponentName: {
+						v2alpha1.ClusterChecksRunnerComponentName: {
 							ServiceAccountAnnotations: customServiceAccountAnnotations,
 						},
-						NodeAgentComponentName: {
+						v2alpha1.NodeAgentComponentName: {
 							ServiceAccountAnnotations: customServiceAccountAnnotations,
 						},
 					},
 				},
 			},
-			want: map[ComponentName]map[string]interface{}{
-				ClusterAgentComponentName: {
+			want: map[v2alpha1.ComponentName]map[string]interface{}{
+				v2alpha1.ClusterAgentComponentName: {
 					"name":        customServiceAccount,
 					"annotations": customServiceAccountAnnotations,
 				},
-				NodeAgentComponentName: {
+				v2alpha1.NodeAgentComponentName: {
 					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
 					"annotations": customServiceAccountAnnotations,
 				},
-				ClusterChecksRunnerComponentName: {
+				v2alpha1.ClusterChecksRunnerComponentName: {
 					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
 					"annotations": customServiceAccountAnnotations,
 				},
@@ -205,29 +205,29 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 		},
 		{
 			name: "custom serviceaccount annotations for dca",
-			dda: &DatadogAgent{
+			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: v1.ObjectMeta{
 					Name: ddaName,
 				},
-				Spec: DatadogAgentSpec{
-					Override: map[ComponentName]*DatadogAgentComponentOverride{
-						ClusterAgentComponentName: {
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
 							ServiceAccountName:        &customServiceAccount,
 							ServiceAccountAnnotations: customServiceAccountAnnotations,
 						},
 					},
 				},
 			},
-			want: map[ComponentName]map[string]interface{}{
-				NodeAgentComponentName: {
+			want: map[v2alpha1.ComponentName]map[string]interface{}{
+				v2alpha1.NodeAgentComponentName: {
 					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultAgentResourceSuffix),
 					"annotations": map[string]string{},
 				},
-				ClusterAgentComponentName: {
+				v2alpha1.ClusterAgentComponentName: {
 					"name":        customServiceAccount,
 					"annotations": customServiceAccountAnnotations,
 				},
-				ClusterChecksRunnerComponentName: {
+				v2alpha1.ClusterChecksRunnerComponentName: {
 					"name":        fmt.Sprintf("%s-%s", ddaName, DefaultClusterChecksRunnerResourceSuffix),
 					"annotations": map[string]string{},
 				},
@@ -236,16 +236,16 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := map[ComponentName]map[string]interface{}{
-				NodeAgentComponentName: {
+			res := map[v2alpha1.ComponentName]map[string]interface{}{
+				v2alpha1.NodeAgentComponentName: {
 					"name":        GetAgentServiceAccount(tt.dda),
 					"annotations": GetAgentServiceAccountAnnotations(tt.dda),
 				},
-				ClusterChecksRunnerComponentName: {
+				v2alpha1.ClusterChecksRunnerComponentName: {
 					"name":        GetClusterChecksRunnerServiceAccount(tt.dda),
 					"annotations": GetClusterChecksRunnerServiceAccountAnnotations(tt.dda),
 				},
-				ClusterAgentComponentName: {
+				v2alpha1.ClusterAgentComponentName: {
 					"name":        GetClusterAgentServiceAccount(tt.dda),
 					"annotations": GetClusterAgentServiceAccountAnnotations(tt.dda),
 				},

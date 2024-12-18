@@ -18,6 +18,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -28,7 +29,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -36,7 +37,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOp
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -88,16 +89,16 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 // GetAgentRoleName returns the name of the role for the Agent
 func GetAgentRoleName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 func agentImage() string {
@@ -124,9 +125,9 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+		LivenessProbe:  constants.GetDefaultLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultReadinessProbe(),
+		StartupProbe:   constants.GetDefaultStartupProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -168,9 +169,9 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+		LivenessProbe:  constants.GetDefaultLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultReadinessProbe(),
+		StartupProbe:   constants.GetDefaultStartupProbe(),
 	}
 }
 
@@ -184,7 +185,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
-		LivenessProbe: v2alpha1.GetDefaultTraceAgentProbe(),
+		LivenessProbe: constants.GetDefaultTraceAgentProbe(),
 	}
 }
 
@@ -271,8 +272,8 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
-		LivenessProbe:  v2alpha1.GetDefaultAgentDataPlaneLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultAgentDataPlaneReadinessProbe(),
+		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
 	}
 }
 
@@ -350,7 +351,7 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  v2alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  v2alpha1.DDLeaderElection,

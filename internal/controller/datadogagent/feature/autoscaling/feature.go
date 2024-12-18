@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/go-logr/logr"
@@ -63,7 +64,7 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 	admission := dda.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
