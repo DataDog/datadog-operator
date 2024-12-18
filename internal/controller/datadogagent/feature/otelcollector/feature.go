@@ -33,10 +33,17 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 }
 
 type otelCollectorFeature struct {
-	customConfig  *v2alpha1.CustomConfig
-	owner         metav1.Object
-	configMapName string
-	ports         []*corev1.ContainerPort
+	customConfig    *v2alpha1.CustomConfig
+	owner           metav1.Object
+	configMapName   string
+	ports           []*corev1.ContainerPort
+	coreAgentConfig coreAgentConfig
+}
+
+type coreAgentConfig struct {
+	extension_timeout *int
+	extension_url     *string
+	enabled           *bool
 }
 
 func (o otelCollectorFeature) ID() feature.IDType {
@@ -49,6 +56,12 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 		o.customConfig = dda.Spec.Features.OtelCollector.Conf
 	}
 	o.configMapName = v2alpha1.GetConfName(dda, o.customConfig, v2alpha1.DefaultOTelAgentConf)
+
+	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
+		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
+		o.coreAgentConfig.extension_timeout = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extension_url = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionURL
+	}
 
 	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
 		o.ports = []*corev1.ContainerPort{
@@ -158,6 +171,35 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
+	var enableEnvVar *corev1.EnvVar
+	if o.coreAgentConfig.enabled != nil {
+		if *o.coreAgentConfig.enabled {
+			// only need to set env var if true, as it will default to false.
+			enableEnvVar = &corev1.EnvVar{
+				Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
+			}
+			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
+		}
+	} else {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+			Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+			Value: "true",
+		})
+	}
+
+	if o.coreAgentConfig.extension_timeout != nil {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+			Name:  apicommon.DDOtelCollectorCoreConfigExtensionTimeout,
+			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
+		})
+	}
+	if o.coreAgentConfig.extension_url != nil {
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+			Name:  apicommon.DDOtelCollectorCoreConfigExtensionURL,
+			Value: *o.coreAgentConfig.extension_url,
+		})
+	}
 	return nil
 }
 

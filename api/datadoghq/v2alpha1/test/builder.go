@@ -395,6 +395,30 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuild
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigEnabled(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionTimeout(timeout int) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout = apiutils.NewIntPointer(timeout)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionURL(url string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionURL = apiutils.NewStringPointer(url)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{

@@ -144,6 +144,9 @@ spec:
 | features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
+| features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
+| features.otelCollector.coreConfig.extension_timeout | Extension URL provides the timout of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extension_url | Extension URL provides the URL of the ddflareextension to the core agent. |
 | features.otelCollector.enabled | Enables the OTel Agent. Default: true |
 | features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |

@@ -1337,6 +1337,23 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        coreConfig:
+                          description: OTelCollector Config Relevant to the Core agent
+                          properties:
+                            enabled:
+                              description: Enabled marks otelcollector as enabled in core agent.
+                              type: boolean
+                            extension_timeout:
+                              description: |-
+                                Extension URL provides the timout of the ddflareextension to
+                                the core agent.
+                              type: integer
+                            extension_url:
+                              description: |-
+                                Extension URL provides the URL of the ddflareextension to
+                                the core agent.
+                              type: string
+                          type: object
                         enabled:
                           description: |-
                             Enabled enables the OTel Agent.
@@ -8173,6 +8190,23 @@ spec:
                                       description: Name is the name of the ConfigMap.
                                       type: string
                                   type: object
+                              type: object
+                            coreConfig:
+                              description: OTelCollector Config Relevant to the Core agent
+                              properties:
+                                enabled:
+                                  description: Enabled marks otelcollector as enabled in core agent.
+                                  type: boolean
+                                extension_timeout:
+                                  description: |-
+                                    Extension URL provides the timout of the ddflareextension to
+                                    the core agent.
+                                  type: integer
+                                extension_url:
+                                  description: |-
+                                    Extension URL provides the URL of the ddflareextension to
+                                    the core agent.
+                                  type: string
                               type: object
                             enabled:
                               description: |-

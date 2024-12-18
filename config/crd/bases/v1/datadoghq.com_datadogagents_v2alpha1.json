@@ -1388,6 +1388,25 @@
                   },
                   "type": "object"
                 },
+                "coreConfig": {
+                  "additionalProperties": false,
+                  "description": "OTelCollector Config Relevant to the Core agent",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled marks otelcollector as enabled in core agent.",
+                      "type": "boolean"
+                    },
+                    "extension_timeout": {
+                      "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
+                      "type": "integer"
+                    },
+                    "extension_url": {
+                      "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
                 "enabled": {
                   "description": "Enabled enables the OTel Agent.\nDefault: true",
                   "type": "boolean"
@@ -8159,6 +8178,25 @@
                             }
                           },
                           "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "coreConfig": {
+                      "additionalProperties": false,
+                      "description": "OTelCollector Config Relevant to the Core agent",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled marks otelcollector as enabled in core agent.",
+                          "type": "boolean"
+                        },
+                        "extension_timeout": {
+                          "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
+                          "type": "integer"
+                        },
+                        "extension_url": {
+                          "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
+                          "type": "string"
                         }
                       },
                       "type": "object"

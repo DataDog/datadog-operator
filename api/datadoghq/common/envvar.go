@@ -178,6 +178,11 @@ const (
 	DDOTLPgRPCEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
 	DDOTLPHTTPEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
 
+	// otelcollector core agent configs
+	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
+	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
+	DDOtelCollectorCoreConfigExtensionTimeout = "DD_OTELCOLLECTOR_EXTENSION_TIMEOUT"
+
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
 	KubernetesEnvVar = "KUBERNETES"

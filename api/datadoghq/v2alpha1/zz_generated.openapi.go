@@ -18,6 +18,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig":                      schema_datadog_operator_api_datadoghq_v2alpha1_CustomConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus":                   schema_datadog_operator_api_datadoghq_v2alpha1_DaemonSetStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgent":                      schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgent(ref),
@@ -62,6 +63,40 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref
 							Description: "Enabled enables host benchmarks. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CoreConfig exposes the otel collector configs relevant to the core agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled marks otelcollector as enabled in core agent.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"extension_url": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Extension URL provides the URL of the ddflareextension to the core agent.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"extension_timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Extension URL provides the timout of the ddflareextension to the core agent.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -1395,11 +1430,17 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 							},
 						},
 					},
+					"coreConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OTelCollector Config Relevant to the Core agent",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ContainerPort"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig", "k8s.io/api/core/v1.ContainerPort"},
 	}
 }
 

@@ -25,12 +25,31 @@ type expectedPorts struct {
 	grpcPort int32
 }
 
+type expectedEnvVars struct {
+	enabled           expectedEnvVar
+	extension_timeout expectedEnvVar
+	extension_url     expectedEnvVar
+}
+
+type expectedEnvVar struct {
+	present bool
+	value   string
+}
+
 var (
 	defaultExpectedPorts = expectedPorts{
 		httpPort: 4318,
 		grpcPort: 4317,
 	}
 	defaultLocalObjectReferenceName = "-otel-agent-config"
+	defaultExpectedEnvVars          = expectedEnvVars{
+		enabled: expectedEnvVar{
+			present: true,
+			value:   "true",
+		},
+		extension_timeout: expectedEnvVar{},
+		extension_url:     expectedEnvVar{},
+	}
 )
 
 func Test_otelCollectorFeature_Configure(t *testing.T) {
@@ -60,7 +79,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
 		},
 		{
 			Name: "otel agent enabled with configMap",
@@ -70,7 +89,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map"),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars),
 		},
 		{
 			Name: "otel agent enabled without config",
@@ -79,7 +98,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
@@ -94,14 +113,92 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				httpPort: 5555,
 			},
 				defaultLocalObjectReferenceName,
+				defaultExpectedEnvVars,
 			),
 		},
+		// coreconfig
+		{
+			Name: "otel agent coreconfig enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorCoreConfigEnabled(true).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
+		},
+		{
+			Name: "otel agent coreconfig disabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorCoreConfigEnabled(false).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{}),
+		},
+		{
+			Name: "otel agent coreconfig extensionTimeout",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorCoreConfigEnabled(false).
+				WithOTelCollectorCoreConfigExtensionTimeout(13).
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				extension_timeout: expectedEnvVar{
+					present: true,
+					value:   "13",
+				},
+			}),
+		},
+		{
+			Name: "otel agent coreconfig extensionURL",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorCoreConfigEnabled(false).
+				WithOTelCollectorCoreConfigExtensionURL("https://localhost:1234").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				extension_url: expectedEnvVar{
+					present: true,
+					value:   "https://localhost:1234",
+				},
+			}),
+		},
+		{
+			Name: "otel agent coreconfig all env vars",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorCoreConfigEnabled(true).
+				WithOTelCollectorCoreConfigExtensionTimeout(13).
+				WithOTelCollectorCoreConfigExtensionURL("https://localhost:1234").
+				Build(),
+			WantConfigure:        true,
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				extension_url: expectedEnvVar{
+					present: true,
+					value:   "https://localhost:1234",
+				},
+				extension_timeout: expectedEnvVar{
+					present: true,
+					value:   "13",
+				},
+				enabled: expectedEnvVar{
+					present: true,
+					value:   "true",
+				},
+			}),
+		},
 	}
-
 	tests.Run(t, buildOtelCollectorFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string, expectedEnvVars expectedEnvVars) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -153,6 +250,38 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			ports := mgr.PortMgr.PortsByC[agentContainerName]
 			assert.Equal(t, wantPorts, ports)
+
+			// check env vars
+			wantEnvVars := []*corev1.EnvVar{}
+
+			if expectedEnvVars.enabled.present {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  apicommon.DDOtelCollectorCoreConfigEnabled,
+					Value: expectedEnvVars.enabled.value,
+				})
+			}
+
+			if expectedEnvVars.extension_timeout.present {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  apicommon.DDOtelCollectorCoreConfigExtensionTimeout,
+					Value: expectedEnvVars.extension_timeout.value,
+				})
+			}
+
+			if expectedEnvVars.extension_url.present {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  apicommon.DDOtelCollectorCoreConfigExtensionURL,
+					Value: expectedEnvVars.extension_url.value,
+				})
+			}
+
+			if len(wantEnvVars) == 0 {
+				wantEnvVars = nil
+			}
+
+			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+
 		},
 	)
 }

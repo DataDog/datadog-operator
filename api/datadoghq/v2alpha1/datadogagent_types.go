@@ -705,6 +705,28 @@ type OtelCollectorFeatureConfig struct {
 	// This limitation will be lifted once annotations support is removed.
 	// +optional
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// OTelCollector Config Relevant to the Core agent
+	// +optional
+	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// CoreConfig exposes the otel collector configs relevant to the core agent.
+// +k8s:openapi-gen=true
+type CoreConfig struct {
+	// Enabled marks otelcollector as enabled in core agent.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +optional
+	// Extension URL provides the URL of the ddflareextension to
+	// the core agent.
+	ExtensionURL *string `json:"extension_url,omitempty"`
+
+	// +optional
+	// Extension URL provides the timout of the ddflareextension to
+	// the core agent.
+	ExtensionTimeout *int `json:"extension_timeout,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
