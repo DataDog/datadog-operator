@@ -9,7 +9,7 @@ require (
 	github.com/DataDog/datadog-agent/test/new-e2e v0.60.0
 	github.com/DataDog/datadog-api-client-go/v2 v2.33.0
 	github.com/DataDog/datadog-operator v1.10.0
-	github.com/DataDog/test-infra-definitions v0.0.0-20241217152533-10486aec63a8
+	github.com/DataDog/test-infra-definitions v0.0.0-20241218082354-6459608ed9fa
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.18.3
 	github.com/pulumi/pulumi/sdk/v3 v3.142.0

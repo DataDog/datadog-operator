@@ -47,6 +47,9 @@ var (
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(defaultOperatorOpts...),
 	}
+
+	matchTags = []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
+	matchOpts = []client.MatchOpt[*aggregator.MetricSeries]{client.WithMatchingTags[*aggregator.MetricSeries](matchTags)}
 )
 
 type k8sSuite struct {
@@ -115,11 +118,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			s.Assert().NoError(err)
 			s.Assert().Contains(metricNames, "kubernetes.cpu.usage.total")
 
-			tags := []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
-			var opts []client.MatchOpt[*aggregator.MetricSeries]
-			opts = append(opts, client.WithMatchingTags[*aggregator.MetricSeries](tags))
-
-			metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total")
+			metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total", matchOpts...)
 			s.Assert().NoError(err)
 			for _, metric := range metrics {
 				for _, points := range metric.Points {
@@ -292,11 +291,7 @@ func verifyKSMCheck(s *k8sSuite) {
 	s.Assert().NoError(err)
 	s.Assert().Contains(metricNames, "kubernetes_state.container.running")
 
-	tags := []*regexp.Regexp{regexp.MustCompile("kube_container_name:.*")}
-	var opts []client.MatchOpt[*aggregator.MetricSeries]
-	opts = append(opts, client.WithMatchingTags[*aggregator.MetricSeries](tags))
-
-	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running", opts...)
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes_state.container.running", matchOpts...)
 	s.Assert().NoError(err)
 	s.Assert().NotEmptyf(metrics, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }

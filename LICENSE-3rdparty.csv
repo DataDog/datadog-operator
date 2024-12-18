@@ -22,6 +22,7 @@ core,github.com/DataDog/go-tuf,BSD-3-Clause
 core,github.com/DataDog/gostackparse,Apache-2.0
 core,github.com/DataDog/sketches-go/ddsketch,Apache-2.0
 core,github.com/DataDog/viper,MIT
+core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/Masterminds/semver,MIT
 core,github.com/Masterminds/semver/v3,MIT
 core,github.com/benbjohnson/clock,MIT
@@ -31,6 +32,7 @@ core,github.com/cespare/xxhash/v2,MIT
 core,github.com/cihub/seelog,BSD-3-Clause
 core,github.com/davecgh/go-spew/spew,ISC
 core,github.com/dustin/go-humanize,MIT
+core,github.com/ebitengine/purego,Apache-2.0
 core,github.com/emicklei/go-restful/v3,MIT
 core,github.com/evanphx/json-patch/v5,BSD-3-Clause
 core,github.com/fsnotify/fsnotify,BSD-3-Clause
