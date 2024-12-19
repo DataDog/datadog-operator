@@ -430,6 +430,17 @@
                   "description": "FailurePolicy determines how unrecognized and timeout errors are handled.",
                   "type": "string"
                 },
+                "kubernetesAdmissionEvents": {
+                  "additionalProperties": false,
+                  "description": "KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enable the Kubernetes Admission Events feature.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "mutateUnlabelled": {
                   "description": "MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled=\"true\"'.\nDefault: false",
                   "type": "boolean"
@@ -7102,6 +7113,17 @@
                     "failurePolicy": {
                       "description": "FailurePolicy determines how unrecognized and timeout errors are handled.",
                       "type": "string"
+                    },
+                    "kubernetesAdmissionEvents": {
+                      "additionalProperties": false,
+                      "description": "KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable the Kubernetes Admission Events feature.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     },
                     "mutateUnlabelled": {
                       "description": "MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled=\"true\"'.\nDefault: false",
