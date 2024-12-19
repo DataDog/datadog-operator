@@ -185,12 +185,11 @@ func IsEqualPodDisruptionBudgets(objA, objB client.Object) bool {
 
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
-	} else {
-		ax, okA := objA.(*policyv1beta1.PodDisruptionBudget)
-		bx, okB := objB.(*policyv1beta1.PodDisruptionBudget)
-		if okA && okB && ax != nil && bx != nil {
-			return apiequality.Semantic.DeepEqual(ax.Spec, bx.Spec)
-		}
+	}
+	ax, okA := objA.(*policyv1beta1.PodDisruptionBudget)
+	bx, okB := objB.(*policyv1beta1.PodDisruptionBudget)
+	if okA && okB && ax != nil && bx != nil {
+		return apiequality.Semantic.DeepEqual(ax.Spec, bx.Spec)
 	}
 
 	return false
