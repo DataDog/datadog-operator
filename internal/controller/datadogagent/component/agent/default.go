@@ -105,8 +105,9 @@ func agentImage() string {
 }
 
 func otelAgentImage() string {
-	// todo(mackjmr): make this dynamic once we have a non-dev image.
-	return "datadog/agent-dev:nightly-ot-beta-main"
+	// todo(mackjmr): make this dynamic once we have otel agent image which releases with regular agent.
+	return fmt.Sprintf("%s:%s", defaulting.AgentDevImageName, defaulting.OTelAgentNightlyTag)
+
 }
 
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
