@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -47,7 +46,7 @@ func Test_getPodDisruptionBudget(t *testing.T) {
 			Namespace: "some-namespace",
 		},
 	}
-	testpdb := GetClusterAgentPodDisruptionBudget(&dda, false).(*policyv1.PodDisruptionBudget)
+	testpdb := GetClusterAgentPodDisruptionBudget(&dda)
 	assert.Equal(t, "my-datadog-agent-cluster-agent-pdb", testpdb.Name)
 	assert.Equal(t, intstr.FromInt(pdbMinAvailableInstances), *testpdb.Spec.MinAvailable)
 	assert.Nil(t, testpdb.Spec.MaxUnavailable)

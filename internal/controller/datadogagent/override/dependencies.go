@@ -53,17 +53,15 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 
 func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceManagers, dda *v2alpha1.DatadogAgent, createPdb *bool, component v2alpha1.ComponentName) (errs []error) {
 	if createPdb != nil && *createPdb {
-		platformInfo := manager.Store().GetPlatformInfo()
-		useV1BetaPDB := platformInfo.UseV1Beta1PDB()
 		if component == v2alpha1.ClusterAgentComponentName {
-			pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda, useV1BetaPDB)
+			pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda)
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
 			}
 		} else if component == v2alpha1.ClusterChecksRunnerComponentName &&
 			(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners == nil ||
 				*dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda, useV1BetaPDB)
+			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda)
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
 			}

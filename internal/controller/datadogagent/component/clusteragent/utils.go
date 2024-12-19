@@ -13,11 +13,9 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
@@ -60,27 +58,13 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	return service
 }
 
-func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) client.Object {
+func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
 	// labels and annotations
 	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
-	if useV1BetaPDB {
-		return &policyv1beta1.PodDisruptionBudget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      GetClusterAgentPodDisruptionBudgetName(dda),
-				Namespace: dda.GetNamespace(),
-			},
-			Spec: policyv1beta1.PodDisruptionBudgetSpec{
-				MinAvailable: &minAvailableStr,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: matchLabels,
-				},
-			},
-		}
-	}
-	return &policyv1.PodDisruptionBudget{
+	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetClusterAgentPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
@@ -92,6 +76,7 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) cl
 			},
 		},
 	}
+	return pdb
 }
 
 // GetMetricsServerServiceName returns the external metrics provider service name
