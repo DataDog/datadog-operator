@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -75,12 +76,12 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), v2alpha1.DefaultHelmCheckConf)
 		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
 		f.valuesAsTags = helmCheck.ValuesAsTags
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
-		if v2alpha1.IsClusterChecksEnabled(dda) && v2alpha1.IsCCREnabled(dda) {
+		if constants.IsClusterChecksEnabled(dda) && constants.IsCCREnabled(dda) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 		}
 

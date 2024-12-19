@@ -9,6 +9,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -222,7 +223,7 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv2alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, constants.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:  "DD_LEADER_ELECTION",

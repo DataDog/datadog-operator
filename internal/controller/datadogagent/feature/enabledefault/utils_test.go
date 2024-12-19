@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +36,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := v2alpha1test.NewDatadogAgentBuilder().
+			dda := testutils.NewDatadogAgentBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					Name: &tt.overrideAgentName,
@@ -71,7 +71,7 @@ func Test_getDeploymentNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := v2alpha1test.NewDatadogAgentBuilder().
+			dda := testutils.NewDatadogAgentBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					Name: &tt.overrideClusterAgentName,

@@ -11,11 +11,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +40,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "dogstatsd udp hostport enabled",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -51,7 +51,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp host network",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					HostNetwork: apiutils.NewBoolPointer(true),
@@ -88,7 +88,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp host network custom host port",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -126,7 +126,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp custom host port",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdHostPortConfig(1234).BuildWithDefaults(),
 			WantConfigure: true,
@@ -160,7 +160,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp host port enabled no custom host port",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -194,7 +194,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp origin detection enabled",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
@@ -207,7 +207,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "uds disabled",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -218,7 +218,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "uds custom host filepath",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdUnixDomainSocketConfigPath(customPath).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -249,7 +249,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "uds origin detection",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -262,7 +262,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "mapper profiles",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdMapperProfiles(customMapperProfilesConf).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -279,7 +279,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "udp origin detection enabled, orchestrator tag cardinality",
-			DDA: v2alpha1test.NewDefaultDatadogAgentBuilder().
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithDogstatsdHostPortEnabled(true).
 				WithDogstatsdTagCardinality("orchestrator").BuildWithDefaults(),
 			WantConfigure: true,

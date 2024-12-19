@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -68,7 +69,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	// We need to apply the defaults to be able to delete the resources
 	// associated with those defaults.
 	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
-	datadoghqv2alpha1.DefaultDatadogAgent(dda)
+	defaults.DefaultDatadogAgent(dda)
 
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(dda)

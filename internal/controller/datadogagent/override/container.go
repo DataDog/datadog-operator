@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -227,8 +228,8 @@ func overrideReadinessProbe(readinessProbeOverride *corev1.Probe) *corev1.Probe 
 	// Add default httpGet probeHandler if probeHandler is not configured in readinessProbe override
 	if !hasProbeHandler(readinessProbeOverride) {
 		readinessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: v2alpha1.DefaultReadinessProbeHTTPPath,
-			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
+			Path: constants.DefaultReadinessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: constants.DefaultAgentHealthPort}}
 	}
 	return readinessProbeOverride
 }
@@ -237,8 +238,8 @@ func overrideLivenessProbe(livenessProbeOverride *corev1.Probe) *corev1.Probe {
 	// Add default httpGet probeHandler if probeHandler is not configured in livenessProbe override
 	if !hasProbeHandler(livenessProbeOverride) {
 		livenessProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: v2alpha1.DefaultLivenessProbeHTTPPath,
-			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
+			Path: constants.DefaultLivenessProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: constants.DefaultAgentHealthPort}}
 	}
 	return livenessProbeOverride
 }
@@ -247,8 +248,8 @@ func overrideStartupProbe(startupProbeOverride *corev1.Probe) *corev1.Probe {
 	// Add default httpGet probeHandler if probeHandler is not configured in startupProbe override
 	if !hasProbeHandler(startupProbeOverride) {
 		startupProbeOverride.HTTPGet = &corev1.HTTPGetAction{
-			Path: v2alpha1.DefaultStartupProbeHTTPPath,
-			Port: intstr.IntOrString{IntVal: v2alpha1.DefaultAgentHealthPort}}
+			Path: constants.DefaultStartupProbeHTTPPath,
+			Port: intstr.IntOrString{IntVal: constants.DefaultAgentHealthPort}}
 	}
 	return startupProbeOverride
 }

@@ -10,11 +10,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -392,7 +392,7 @@ type Settings struct {
 }
 
 func newAgent(set Settings) *v2alpha1.DatadogAgent {
-	return v2alpha1test.NewDatadogAgentBuilder().
+	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
@@ -400,7 +400,7 @@ func newAgent(set Settings) *v2alpha1.DatadogAgent {
 }
 
 func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
-	return v2alpha1test.NewDatadogAgentBuilder().
+	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).

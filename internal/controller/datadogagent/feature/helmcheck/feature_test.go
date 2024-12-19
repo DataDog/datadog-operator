@@ -18,7 +18,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -27,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 const resourcesName = "foo"
@@ -38,14 +38,14 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Helm check disabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithHelmCheckEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Helm check enabled",
-			DDA: v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
 				WithHelmCheckValuesAsTags(valuesAsTags).
@@ -56,7 +56,7 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Helm check enabled and runs on cluster checks runner",
-			DDA: v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
 				WithHelmCheckValuesAsTags(valuesAsTags).

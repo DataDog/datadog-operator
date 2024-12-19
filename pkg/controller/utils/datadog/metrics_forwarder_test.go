@@ -16,11 +16,11 @@ import (
 	"testing"
 
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/stretchr/testify/mock"
 	assert "github.com/stretchr/testify/require"
@@ -178,7 +178,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
@@ -197,7 +197,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
@@ -216,7 +216,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
 						APISecret: &v2alpha1.SecretConfig{
 							SecretName: "datadog-creds-api",
@@ -248,7 +248,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
@@ -276,7 +276,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
 						APIKey: apiutils.NewStringPointer(encAPIKey),
 					},
@@ -305,7 +305,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					os.Unsetenv(v2alpha1.DDAPIKey)
 					os.Unsetenv(v2alpha1.DDAppKey)
@@ -703,14 +703,14 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Get default baseURL",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", nil),
+				dda: testutils.NewDatadogAgent("foo", "bar", nil),
 			},
 			want: "https://api.datadoghq.com",
 		},
 		{
 			name: "Compute baseURL from site when passing Site",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 				}),
 			},
@@ -719,7 +719,7 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Compute baseURL from endpoint.URL when Site is not defined",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),
 					},
@@ -730,7 +730,7 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Test that DDUrl takes precedence over Site",
 			args: args{
-				dda: test.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
+				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 					Endpoint: &v2alpha1.Endpoint{
 						URL: apiutils.NewStringPointer("https://test.url.com"),

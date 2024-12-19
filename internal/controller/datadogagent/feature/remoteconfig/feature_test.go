@@ -11,11 +11,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "RC not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithRemoteConfigEnabled(false).
 				Build(),
 			WantConfigure: true,
@@ -34,7 +34,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "RC enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithRemoteConfigEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -43,7 +43,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "RC default (no datadogagent_default.go)",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         rcAgentNodeWantFunc(false),
