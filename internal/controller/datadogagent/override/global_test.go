@@ -12,10 +12,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -68,7 +68,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
@@ -93,7 +93,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
@@ -118,7 +118,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Checks tag cardinality set to orchestrator",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
@@ -132,7 +132,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Unified origin detection activated",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
@@ -146,7 +146,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Global environment variable configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithEnvVars([]corev1.EnvVar{
 					{
 						Name:  "envA",
@@ -178,7 +178,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
 					BuildWithDefaults(),
 			),
@@ -207,7 +207,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
 					BuildWithDefaults(),
 			),

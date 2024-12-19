@@ -8,13 +8,6 @@ package v2alpha1
 // This file tracks constants related to the DatadogAgent CRD
 
 const (
-	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.60.0"
-	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.6"
-)
-const (
-
 	// ClusterAgentReconcileConditionType ReconcileConditionType for Cluster Agent component
 	ClusterAgentReconcileConditionType = "ClusterAgentReconcile"
 	// AgentReconcileConditionType ReconcileConditionType for Agent component
