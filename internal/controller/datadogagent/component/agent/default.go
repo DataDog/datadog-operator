@@ -510,6 +510,7 @@ func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 
 func volumeMountsForOtelAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		common.GetVolumeMountForLogs(),
 		common.GetVolumeMountForConfig(),
 		common.GetVolumeMountForAuth(true),
 	}
