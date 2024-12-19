@@ -212,6 +212,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -332,6 +335,9 @@ func Test_defaultFeatures(t *testing.T) {
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -418,6 +424,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -553,6 +562,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -698,6 +710,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -837,6 +852,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -975,6 +993,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -1124,6 +1145,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -1262,6 +1286,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -1405,6 +1432,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -1541,6 +1571,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -1698,6 +1731,9 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
+					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
@@ -1751,6 +1787,149 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						CustomResources: []string{"datadoghq.com/v1alpha1/datadogmetrics"},
+					},
+					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Validation: &AdmissionControllerValidationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
+						},
+						Mutation: &AdmissionControllerMutationConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
+						},
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+						CWSInstrumentation: &CWSInstrumentationConfig{
+							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
+						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
+					},
+					PrometheusScrape: &PrometheusScrapeFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
+					},
+					HelmCheck: &HelmCheckFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
+					},
+				},
+			},
+		},
+
+		{
+			name: "OTel Collector is enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LogCollection: &LogCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
+					},
+					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
+					},
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+					},
+					OOMKill: &OOMKillFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
+					},
+					TCPQueueLength: &TCPQueueLengthFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
+					},
+					EBPFCheck: &EBPFCheckFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
+					},
+					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+						SingleStepInstrumentation: &SingleStepInstrumentation{
+							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
+							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+					},
+					ASM: &ASMFeatureConfig{
+						Threats: &ASMThreatsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
+						},
+						SCA: &ASMSCAConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
+						},
+						IAST: &ASMIASTConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
+						},
+					},
+					CSPM: &CSPMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
+					},
+					CWS: &CWSFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
+					},
+					NPM: &NPMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
+					},
+					USM: &USMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							HostPortConfig: nil,
+							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
@@ -1859,6 +2038,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{
@@ -2001,6 +2183,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+					},
+					OtelCollector: &OtelCollectorFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
 					ASM: &ASMFeatureConfig{
 						Threats: &ASMThreatsConfig{

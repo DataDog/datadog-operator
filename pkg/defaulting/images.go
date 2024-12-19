@@ -30,7 +30,10 @@ const (
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
 	DefaultImageRegistry = GCRContainerRegistry // TODO: this is also defined elsewhere and not used; consolidate
 	// JMXTagSuffix prefix tag for agent JMX images
-	JMXTagSuffix = "-jmx"
+	JMXTagSuffix      = "-jmx"
+	AgentDevImageName = "datadog/agent-dev"
+	// Nightly dev image tag for otel agent
+	OTelAgentNightlyTag = "nightly-ot-beta-main"
 
 	agentImageName        = "agent"
 	clusterAgentImageName = "cluster-agent"

@@ -47,7 +47,6 @@ type SetupOptions struct {
 	V2APIEnabled               bool
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
-	OtelAgentEnabled           bool
 	DatadogDashboardEnabled    bool
 }
 
@@ -160,7 +159,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
 			IntrospectionEnabled:       options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
-			OtelAgentEnabled:           options.OtelAgentEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }

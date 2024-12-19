@@ -62,6 +62,10 @@ const (
 	DDSystemProbeExternal                  = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                    = "DD_SYSPROBE_SOCKET"
 	DDTags                                 = "DD_TAGS"
+	// otelcollector core agent configs
+	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
+	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
+	DDOtelCollectorCoreConfigExtensionTimeout = "DD_OTELCOLLECTOR_EXTENSION_TIMEOUT"
 
 	DockerHost = "DOCKER_HOST"
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
