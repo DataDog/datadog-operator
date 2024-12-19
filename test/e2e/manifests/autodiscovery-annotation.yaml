@@ -4,11 +4,13 @@ metadata:
   name: nginx-deployment
   labels:
     app: nginx
+  namespace: e2e-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: nginx
+      e2e: autodiscovery
   template:
     metadata:
       annotations:
@@ -24,7 +26,7 @@ spec:
           ad.datadoghq.com/tolerate-unready: "true"
       labels:
         app: nginx
-        agent.datadoghq.com/e2e-test: datadog-agent-autodiscovery-annotated
+        e2e: autodiscovery
     spec:
       containers:
       - name: nginx
