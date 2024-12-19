@@ -12,8 +12,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -92,12 +94,26 @@ func GetClusterChecksRunnerPodDisruptionBudgetName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
 }
 
-func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
+func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) client.Object {
 	maxUnavailableStr := intstr.FromInt(pdbMaxUnavailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterChecksRunnerResourceSuffix}
-	pdb := &policyv1.PodDisruptionBudget{
+	if useV1BetaPDB {
+		return &policyv1beta1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      GetClusterChecksRunnerPodDisruptionBudgetName(dda),
+				Namespace: dda.GetNamespace(),
+			},
+			Spec: policyv1beta1.PodDisruptionBudgetSpec{
+				MaxUnavailable: &maxUnavailableStr,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: matchLabels,
+				},
+			},
+		}
+	}
+	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetClusterChecksRunnerPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
@@ -109,7 +125,6 @@ func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodD
 			},
 		},
 	}
-	return pdb
 }
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
