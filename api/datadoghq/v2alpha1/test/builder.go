@@ -7,9 +7,7 @@ package test
 
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -265,7 +263,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *D
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = apiutils.NewStringPointer("fargate")
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = "agent"
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = defaulting.AgentLatestVersion
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = v2alpha1.AgentLatestVersion
 	}
 	return builder
 }
@@ -801,8 +799,8 @@ func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *D
 
 func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
-		APIKey: utils.NewStringPointer(apiKey),
-		AppKey: utils.NewStringPointer(appKey),
+		APIKey: apiutils.NewStringPointer(apiKey),
+		AppKey: apiutils.NewStringPointer(appKey),
 	}
 	return builder
 }
