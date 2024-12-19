@@ -65,27 +65,21 @@ func (platformInfo *PlatformInfo) UseV1Beta1PDB() bool {
 	preferredVersion := platformInfo.apiPreferredVersions["PodDisruptionBudget"]
 
 	// If policy isn't v1beta1 version, we default to v1.
-	if preferredVersion == "policy/v1beta1" {
-		return true
-	} else {
-		return false
-	}
+	return preferredVersion == "policy/v1beta1"
 }
 
 func (platformInfo *PlatformInfo) CreatePDBObject() client.Object {
 	if platformInfo.UseV1Beta1PDB() {
 		return &policyv1beta1.PodDisruptionBudget{}
-	} else {
-		return &policyv1.PodDisruptionBudget{}
 	}
+	return &policyv1.PodDisruptionBudget{}
 }
 
 func (platformInfo *PlatformInfo) CreatePDBObjectList() client.ObjectList {
 	if platformInfo.UseV1Beta1PDB() {
 		return &policyv1beta1.PodDisruptionBudgetList{}
-	} else {
-		return &policyv1.PodDisruptionBudgetList{}
 	}
+	return &policyv1.PodDisruptionBudgetList{}
 }
 
 func (platformInfo *PlatformInfo) GetAgentResourcesKind(withCiliumResources bool) []ObjectKind {
