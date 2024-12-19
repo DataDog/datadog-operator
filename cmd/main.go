@@ -123,7 +123,6 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
-	otelAgentEnabled                       bool
 	datadogDashboardEnabled                bool
 
 	// Secret Backend options
@@ -157,7 +156,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
-	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 
 	// ExtendedDaemonset configuration
@@ -301,7 +299,6 @@ func run(opts *options) error {
 		V2APIEnabled:               true,
 		IntrospectionEnabled:       opts.introspectionEnabled,
 		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-		OtelAgentEnabled:           opts.otelAgentEnabled,
 		DatadogDashboardEnabled:    opts.datadogDashboardEnabled,
 	}
 
