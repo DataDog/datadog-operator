@@ -1954,6 +1954,9 @@ func Test_defaultFeatures(t *testing.T) {
 						CWSInstrumentation: &CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
+						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
+						},
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
