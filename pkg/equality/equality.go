@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -181,9 +182,16 @@ func IsEqualServiceAccounts(objA, objB client.Object) bool {
 func IsEqualPodDisruptionBudgets(objA, objB client.Object) bool {
 	a, okA := objA.(*policyv1.PodDisruptionBudget)
 	b, okB := objB.(*policyv1.PodDisruptionBudget)
+
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
 	}
+	ax, okA := objA.(*policyv1beta1.PodDisruptionBudget)
+	bx, okB := objB.(*policyv1beta1.PodDisruptionBudget)
+	if okA && okB && ax != nil && bx != nil {
+		return apiequality.Semantic.DeepEqual(ax.Spec, bx.Spec)
+	}
+
 	return false
 }
 
