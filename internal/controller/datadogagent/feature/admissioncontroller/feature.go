@@ -49,6 +49,8 @@ type admissionControllerFeature struct {
 
 	cwsInstrumentationEnabled bool
 	cwsInstrumentationMode    string
+
+	kubernetesAdmissionEvents *KubernetesAdmissionEventConfig
 }
 
 type ValidationConfig struct {
@@ -68,6 +70,10 @@ type AgentSidecarInjectionConfig struct {
 	imageTag                         string
 	selectors                        []*v2alpha1.Selector
 	profiles                         []*v2alpha1.Profile
+}
+
+type KubernetesAdmissionEventConfig struct {
+	enabled bool
 }
 
 func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
@@ -139,6 +145,10 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
 			f.cwsInstrumentationEnabled = true
 			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
+		}
+
+		if ac.KubernetesAdmissionEvents != nil && apiutils.BoolValue(ac.KubernetesAdmissionEvents.Enabled) {
+			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
 		}
 
 		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(dda)
@@ -355,6 +365,13 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerCWSInstrumentationMode,
 			Value: f.cwsInstrumentationMode,
+		})
+	}
+
+	if f.kubernetesAdmissionEvents != nil {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  DDAdmissionControllerKubernetesAdmissionEventsEnabled,
+			Value: apiutils.BoolToString(&f.kubernetesAdmissionEvents.enabled),
 		})
 	}
 
