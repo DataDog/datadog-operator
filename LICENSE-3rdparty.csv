@@ -15,6 +15,10 @@ core,github.com/DataDog/datadog-agent/pkg/util/uuid,Apache-2.0
 core,github.com/DataDog/datadog-api-client-go/v2,Apache-2.0
 core,github.com/DataDog/datadog-go/v5/statsd,MIT
 core,github.com/DataDog/datadog-operator,Apache-2.0
+core,github.com/DataDog/datadog-operator/api/datadoghq/common,Unknown
+core,github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1,Unknown
+core,github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1,Unknown
+core,github.com/DataDog/datadog-operator/api/utils,Unknown
 core,github.com/DataDog/extendeddaemonset/api/v1alpha1,Apache-2.0
 core,github.com/DataDog/go-libddwaf/v3,Apache-2.0
 core,github.com/DataDog/go-sqllexer,MIT
