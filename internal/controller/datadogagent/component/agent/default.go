@@ -215,7 +215,7 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 			"otel-agent",
 			"--config=" + v2alpha1.OtelCustomConfigVolumePath,
 			"--core-config=" + v2alpha1.AgentCustomConfigVolumePath,
-			"--sync-delay=10s",
+			"--sync-delay=30s",
 		},
 		Env:          []corev1.EnvVar{},
 		VolumeMounts: volumeMountsForOtelAgent(),
