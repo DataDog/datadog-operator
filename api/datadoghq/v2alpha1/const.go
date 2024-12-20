@@ -102,6 +102,8 @@ const (
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
 	DefaultDogstatsdPortName = "dogstatsdport"
+	// DefaultOTelAgentConf default otel agent ConfigMap name
+	DefaultOTelAgentConf string = "otel-agent-config"
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
 	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
