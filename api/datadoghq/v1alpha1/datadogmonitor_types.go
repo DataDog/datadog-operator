@@ -67,6 +67,10 @@ const (
 	DatadogMonitorTypeAudit DatadogMonitorType = "audit alert"
 	// DatadogMonitorTypeComposite is the composite alert monitor type
 	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
+	// DatadogMonitorTypeCiPipeline is the ci-pipeline alert monitor type
+	DatadogMonitorTypeCiPipeline DatadogMonitorType = "ci-pipelines alert"
+	// DatadogMonitorTypeCiTests is the ci-tests alert monitor type
+	DatadogMonitorTypeCiTests DatadogMonitorType = "ci-tests alert"
 )
 
 // DatadogMonitorOptionsNotificationPreset toggles the display of additional content sent in the monitor notification.

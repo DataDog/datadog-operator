@@ -56,6 +56,8 @@ var supportedMonitorTypes = map[string]bool{
 	string(datadogV1.MONITORTYPE_SLO_ALERT):             true,
 	string(datadogV1.MONITORTYPE_EVENT_V2_ALERT):        true,
 	string(datadogV1.MONITORTYPE_AUDIT_ALERT):           true,
+	string(datadogV1.MONITORTYPE_CI_PIPELINES_ALERT):    true,
+	string(datadogV1.MONITORTYPE_CI_TESTS_ALERT):        true,
 }
 
 const requiredTag = "generated:kubernetes"
