@@ -22,6 +22,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: datadog-operator
+        control-plane: controller-manager
       annotations:
         ad.datadoghq.com/manager.check_names: '["openmetrics"]'
         ad.datadoghq.com/manager.init_configs: '[{}]'
