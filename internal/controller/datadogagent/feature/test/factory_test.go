@@ -214,7 +214,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, otel annotation false, otel collector feature enabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				WithOTelCollectorEnabled(true).
 				BuildWithDefaults(),
@@ -231,7 +231,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, otel annotation true, otel collector feature disabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
 				WithOTelCollectorEnabled(false).
 				BuildWithDefaults(),
@@ -248,7 +248,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, otel annotation true, otel collector feature enabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
 				WithOTelCollectorEnabled(true).
 				BuildWithDefaults(),

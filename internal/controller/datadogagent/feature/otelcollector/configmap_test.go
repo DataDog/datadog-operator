@@ -20,7 +20,7 @@ func Test_buildOtelCollectorConfigMap(t *testing.T) {
 	// check config map
 	configMapWant := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "-otel-agent-config",
+			Name: "-otel-agent-config",
 		},
 		Data: map[string]string{
 			"otel-config.yaml": defaultconfig.DefaultOtelCollectorConfig,
@@ -31,7 +31,7 @@ func Test_buildOtelCollectorConfigMap(t *testing.T) {
 	assert.True(t, ok)
 
 	otelCollectorFeature.owner = &metav1.ObjectMeta{
-		Name:      "-otel-agent-config",
+		Name: "-otel-agent-config",
 	}
 	otelCollectorFeature.configMapName = "-otel-agent-config"
 	otelCollectorFeature.customConfig = &v2alpha1.CustomConfig{}
