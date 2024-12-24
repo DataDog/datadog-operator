@@ -105,6 +105,12 @@ func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
+func otelAgentImage() string {
+	// todo(mackjmr): make this dynamic once we have otel agent image which releases with regular agent.
+	return fmt.Sprintf("%s:%s", defaulting.AgentDevImageName, defaulting.OTelAgentNightlyTag)
+
+}
+
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
@@ -202,25 +208,30 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func otelAgentContainer(dda metav1.Object) corev1.Container {
+func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: agentImage(),
+		Image: otelAgentImage(),
 		Command: []string{
-			"/otel-agent",
-			fmt.Sprintf("--config=%s", v2alpha1.OtelCustomConfigVolumePath),
+			"otel-agent",
+			"--config=" + v2alpha1.OtelCustomConfigVolumePath,
+			"--core-config=" + v2alpha1.AgentCustomConfigVolumePath,
+			"--sync-delay=30s",
 		},
-		Env:          envVarsForOtelAgent(dda),
+		Env:          []corev1.EnvVar{},
 		VolumeMounts: volumeMountsForOtelAgent(),
+		// todo(mackjmr): remove once support for annotations is removed.
+		// the otel-agent feature adds these ports if none are supplied by
+		// the user.
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "grpc",
+				Name:          "otel-grpc",
 				ContainerPort: 4317,
 				HostPort:      4317,
 				Protocol:      corev1.ProtocolTCP,
 			},
 			{
-				Name:          "http",
+				Name:          "otel-http",
 				ContainerPort: 4318,
 				HostPort:      4318,
 				Protocol:      corev1.ProtocolTCP,
@@ -398,14 +409,6 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvVars(dda)...)
 }
 
-func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		// TODO: add additional env vars here
-	}
-
-	return append(envs, commonEnvVars(dda)...)
-}
-
 func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		common.GetVolumeMountForLogs(),
@@ -508,13 +511,9 @@ func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 
 func volumeMountsForOtelAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		// TODO: add/remove volume mounts
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
-		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForAuth(true),
 	}
 }
 
