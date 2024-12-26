@@ -2,6 +2,11 @@ module github.com/DataDog/datadog-operator/test/e2e
 
 go 1.23.0
 
+replace (
+	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.62.0-devel.0.20241226210318-5f2091bf9c50
+	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.62.0-devel.0.20241226210318-5f2091bf9c50
+)
+
 require (
 	github.com/DataDog/datadog-agent/test/fakeintake v0.62.0-devel.0.20241226210318-5f2091bf9c50
 	github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241226210318-5f2091bf9c50

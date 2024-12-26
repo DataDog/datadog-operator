@@ -19,8 +19,10 @@ github.com/DataDog/datadog-agent/pkg/util/pointer v0.59.0 h1:K/3aHtAsvlAIbw0/3ah
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.59.0/go.mod h1:t1DlnUEMltkvwPLc7zCtP1u5cBDu+30daR2VhQO5bvA=
 github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.0 h1:Fvo/bU9Xa/bSC9YwdkGRqOsDhOX5H2GEWgKUu3UyZaI=
 github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.0/go.mod h1:krOxbYZc4KKE7bdEDu10lLSQBjdeSFS/XDSclsaSf1Y=
-github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241226201853-eb4b9aff7c27 h1:9JL42Aw/zZUAQZkE2PQ6PSK/U1o5NWvIRloTaH0FO8c=
-github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241226201853-eb4b9aff7c27/go.mod h1:nUsWITGelMKeObSoAxGGnMRnK8SRUO0Labjyfkc3GM0=
+github.com/DataDog/datadog-agent/test/fakeintake v0.62.0-devel.0.20241226210318-5f2091bf9c50 h1:VOQUn9V8GshMPKcbkFMP3BuRYPXEHrwWviw/vmjvRB4=
+github.com/DataDog/datadog-agent/test/fakeintake v0.62.0-devel.0.20241226210318-5f2091bf9c50/go.mod h1:xEkjP+tAPxFEtu6zI9kfPQEDMyFKPayelSyS6KgrNyE=
+github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241226210318-5f2091bf9c50 h1:a1MLNcyxOy0ob8o4vFqNIEZjFGKNlmSJ0eoYEP1B1ic=
+github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241226210318-5f2091bf9c50/go.mod h1:nUsWITGelMKeObSoAxGGnMRnK8SRUO0Labjyfkc3GM0=
 github.com/DataDog/datadog-api-client-go/v2 v2.33.0 h1:OI6kDnJeQmkjfGzxmP0XUQUxMD4tp6oAPXnnJ4VpgUM=
 github.com/DataDog/datadog-api-client-go/v2 v2.33.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
 github.com/DataDog/datadog-operator v1.10.0 h1:P7D/IPKXGftQU1h4CAKEetwCyOXEYAULaPEigf/sHOI=
