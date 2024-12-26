@@ -9,11 +9,16 @@
 package provisioners
 
 import (
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"fmt"
+
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
+	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
+
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/test-infra-definitions/common/config"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
@@ -27,6 +32,7 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"path/filepath"
 )
@@ -36,13 +42,10 @@ const (
 	defaultProvisionerName = "kind"
 )
 
-type K8sEnv struct {
-	environments.Kubernetes
-}
-
+// KubernetesProvisionerParams contains all the parameters needed to create a Kubernetes environment
 type KubernetesProvisionerParams struct {
-	name string
-
+	name               string
+	testName           string
 	operatorOptions    []operatorparams.Option
 	ddaOptions         []agentwithoperatorparams.Option
 	k8sVersion         string
@@ -50,29 +53,41 @@ type KubernetesProvisionerParams struct {
 
 	fakeintakeOptions []fakeintake.Option
 	extraConfigParams runner.ConfigMap
-	yamlWorkloadPaths []YAMLWorkload
+	yamlWorkloads     []YAMLWorkload
+	workloadAppFuncs  []func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error)
+	local             bool
 }
 
 func newKubernetesProvisionerParams() *KubernetesProvisionerParams {
 	return &KubernetesProvisionerParams{
 		name:               defaultProvisionerName,
+		testName:           "",
 		ddaOptions:         []agentwithoperatorparams.Option{},
 		operatorOptions:    []operatorparams.Option{},
 		k8sVersion:         common.GetEnv("K8S_VERSION", "1.26"),
 		kustomizeResources: nil,
 		fakeintakeOptions:  []fakeintake.Option{},
 		extraConfigParams:  runner.ConfigMap{},
-		yamlWorkloadPaths:  []YAMLWorkload{},
+		yamlWorkloads:      []YAMLWorkload{},
+		workloadAppFuncs:   []func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error){},
 	}
 }
 
-// KubernetesProvisionerOption is a function that modifies the ProvisionerParams
+// KubernetesProvisionerOption is a function that modifies the KubernetesProvisionerParams
 type KubernetesProvisionerOption func(params *KubernetesProvisionerParams) error
 
 // WithName sets the name of the provisioner
 func WithName(name string) KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
 		params.name = name
+		return nil
+	}
+}
+
+// WithTestName sets the name of the test
+func WithTestName(name string) KubernetesProvisionerOption {
+	return func(params *KubernetesProvisionerParams) error {
+		params.testName = name
 		return nil
 	}
 }
@@ -141,6 +156,15 @@ func WithoutFakeIntake() KubernetesProvisionerOption {
 	}
 }
 
+// WithLocal uses the localKindRunFunc to create a local kind environment
+func WithLocal(local bool) KubernetesProvisionerOption {
+	return func(params *KubernetesProvisionerParams) error {
+		params.local = local
+		return nil
+	}
+}
+
+// YAMLWorkload defines the parameters for a Kubernetes resource's YAML file
 type YAMLWorkload struct {
 	Name string
 	Path string
@@ -149,35 +173,77 @@ type YAMLWorkload struct {
 // WithYAMLWorkload adds a workload app to the environment for given YAML file path
 func WithYAMLWorkload(yamlWorkload YAMLWorkload) KubernetesProvisionerOption {
 	return func(params *KubernetesProvisionerParams) error {
-		params.yamlWorkloadPaths = append(params.yamlWorkloadPaths, yamlWorkload)
+		params.yamlWorkloads = append(params.yamlWorkloads, yamlWorkload)
 		return nil
 	}
 }
 
-// KubernetesProvisioner creates a new local Kubernetes w/operator provisioner
+// WithWorkloadApp adds a workload app to the environment
+func WithWorkloadApp(appFunc func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error)) KubernetesProvisionerOption {
+	return func(params *KubernetesProvisionerParams) error {
+		params.workloadAppFuncs = append(params.workloadAppFuncs, appFunc)
+		return nil
+	}
+}
+
+// KubernetesProvisioner generic Kubernetes provisioner wrapper that creates a new provisioner
 // Inspired by https://github.com/DataDog/datadog-agent/blob/main/test/new-e2e/pkg/environments/local/kubernetes/kind.go
-func KubernetesProvisioner(kindRunFunc func(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error, opts ...KubernetesProvisionerOption) e2e.TypedProvisioner[environments.Kubernetes] {
+func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
+	var awsK8sOpts []awskubernetes.ProvisionerOption
+	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
+
 	params := newKubernetesProvisionerParams()
 	_ = optional.ApplyOptions(params, opts)
 
-	provisionerName := provisionerBaseID + params.name
+	if !params.local {
+		awsK8sOpts = newAWSK8sProvisionerOpts(params)
+		provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
+		return provisioner
+	}
 
-	provisioner := e2e.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+	provisionerName := "local-" + params.name
+
+	provisioner = provisioners.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 		// and it's easy to forget about it, leading to hard to debug issues.
 		params := newKubernetesProvisionerParams()
 		_ = optional.ApplyOptions(params, opts)
 
-		return kindRunFunc(ctx, env, params)
+		return localKindRunFunc(ctx, env, params)
 
 	}, params.extraConfigParams)
 
 	return provisioner
 }
 
-func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
+// newAWSK8sProvisionerOpts Translates the generic KubernetesProvisionerParams into a list of awskubernetes.ProvisionerOption for the AWS Kind provisioner
+func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernetes.ProvisionerOption {
+	provisionerName := provisionerBaseID + params.name
+
+	extraConfig := params.extraConfigParams
+	extraConfig.Merge(runner.ConfigMap{"ddinfra:kubernetesVersion": auto.ConfigValue{Value: params.k8sVersion}})
+
+	newOpts := []awskubernetes.ProvisionerOption{
+		awskubernetes.WithName(provisionerName),
+		awskubernetes.WithOperator(),
+		awskubernetes.WithOperatorDDAOptions(params.ddaOptions...),
+		awskubernetes.WithOperatorOptions(params.operatorOptions...),
+		awskubernetes.WithExtraConfigParams(extraConfig),
+		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
+		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
+	}
+
+	for _, yamlWorkload := range params.yamlWorkloads {
+		newOpts = append(newOpts, awskubernetes.WithWorkloadApp(YAMLWorkloadAppFunc(yamlWorkload)))
+	}
+
+	return newOpts
+}
+
+// localKindRunFunc is the Pulumi run function that runs the local Kind provisioner
+func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *KubernetesProvisionerParams) error {
 	localEnv, err := local.NewEnvironment(ctx)
 	if err != nil {
 		return err
@@ -229,24 +295,9 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 	}
 
 	// Install kustomizations
-	kustomizeDirPath, err := filepath.Abs(NewMgrKustomizeDirPath)
-	if err != nil {
-		return err
-	}
+	kustomizeAppFunc := KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)
 
-	err = UpdateKustomization(kustomizeDirPath, params.kustomizeResources)
-	if err != nil {
-		return err
-	}
-	kustomizeOpts := []pulumi.ResourceOption{
-		pulumi.DependsOn([]pulumi.Resource{ns}),
-		pulumi.Provider(kindKubeProvider),
-	}
-
-	e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
-		kustomize.DirectoryArgs{
-			Directory: pulumi.String(kustomizeDirPath),
-		}, kustomizeOpts...)
+	e2eKustomize, err := kustomizeAppFunc(&localEnv, kindKubeProvider)
 	if err != nil {
 		return err
 	}
@@ -266,7 +317,7 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 	}
 
 	// Setup DDA options
-	if params.ddaOptions != nil && operatorComp != nil {
+	if params.ddaOptions != nil && params.operatorOptions != nil {
 		ddaResourceOpts := []pulumi.ResourceOption{
 			pulumi.DependsOn([]pulumi.Resource{e2eKustomize, operatorComp}),
 		}
@@ -286,7 +337,7 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		env.Agent = nil
 	}
 
-	for _, workload := range params.yamlWorkloadPaths {
+	for _, workload := range params.yamlWorkloads {
 		_, err = yaml.NewConfigFile(ctx, workload.Name, &yaml.ConfigFileArgs{
 			File: workload.Path,
 		}, pulumi.Provider(kindKubeProvider))
@@ -294,5 +345,64 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 			return err
 		}
 	}
+
+	for _, appFunc := range params.workloadAppFuncs {
+		_, err := appFunc(&localEnv, kindKubeProvider)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// KustomizeWorkloadAppFunc Installs the operator e2e kustomize directory and any extra kustomize resources
+func KustomizeWorkloadAppFunc(name string, extraKustomizeResources []string) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+		k8sComponent := &kubeComp.Workload{}
+		if err := e.Ctx().RegisterComponentResource("dd:apps", fmt.Sprintf("kustomize-%s", name), k8sComponent, pulumi.DeleteBeforeReplace(true)); err != nil {
+			return nil, err
+		}
+
+		// Install kustomizations
+		kustomizeDirPath, err := filepath.Abs(NewMgrKustomizeDirPath)
+		if err != nil {
+			return nil, err
+		}
+
+		err = UpdateKustomization(kustomizeDirPath, extraKustomizeResources)
+		if err != nil {
+			return nil, err
+		}
+		kustomizeOpts := []pulumi.ResourceOption{
+			pulumi.Provider(kubeProvider),
+			pulumi.Parent(k8sComponent),
+		}
+
+		_, err = kustomize.NewDirectory(e.Ctx(), "e2e-manager",
+			kustomize.DirectoryArgs{
+				Directory: pulumi.String(kustomizeDirPath),
+			}, kustomizeOpts...)
+		if err != nil {
+			return nil, err
+		}
+		return k8sComponent, nil
+	}
+}
+
+// YAMLWorkloadAppFunc Applies a Kubernetes resource yaml file
+func YAMLWorkloadAppFunc(yamlWorkload YAMLWorkload) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
+		k8sComponent := &kubeComp.Workload{}
+		if err := e.Ctx().RegisterComponentResource("dd:apps", "k8s-apply", k8sComponent); err != nil {
+			return nil, err
+		}
+		_, err := yaml.NewConfigFile(e.Ctx(), yamlWorkload.Name, &yaml.ConfigFileArgs{
+			File: yamlWorkload.Path,
+		}, pulumi.Provider(kubeProvider))
+		if err != nil {
+			return nil, err
+		}
+		return k8sComponent, nil
+	}
 }

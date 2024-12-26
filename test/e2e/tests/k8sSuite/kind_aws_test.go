@@ -6,15 +6,13 @@
 //go:build e2e
 // +build e2e
 
-package e2e
+package k8ssuite
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
-	"github.com/DataDog/datadog-operator/test/new-e2e/common"
-	"github.com/DataDog/datadog-operator/test/new-e2e/provisioners"
+	"github.com/DataDog/datadog-operator/test/e2e/common"
+	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"testing"
 )
 
@@ -22,25 +20,24 @@ type awsKindSuite struct {
 	k8sSuite
 }
 
-// not working yet
+func (s *awsKindSuite) SetupSuite() {
+	s.local = false
+}
+
 func TestAWSKindSuite(t *testing.T) {
-	operatorOptions := make([]operatorparams.Option, 0)
-	operatorOptions = append(operatorOptions, defaultOperatorOpts...)
+	operatorOptions := []operatorparams.Option{
+		operatorparams.WithNamespace(common.NamespaceName),
+		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+		operatorparams.WithHelmValues("installCRDs: false"),
+	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
+		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
-		provisioners.WithExtraConfigParams(runner.ConfigMap{
-			"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
-			"ddagent:deploy":            auto.ConfigValue{Value: "false"},
-			"ddtestworkload:deploy":     auto.ConfigValue{Value: "false"},
-			"dddogstatsd:deploy":        auto.ConfigValue{Value: "false"},
-			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-		}),
+		provisioners.WithLocal(false),
 	}
 
-	e2e.Run(t, &awsKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.AWSKindRunFunc, provisionerOptions...)), e2e.WithSkipDeleteOnFailure(), e2e.WithDevMode())
+	e2e.Run(t, &awsKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)), e2e.WithDevMode(), e2e.WithSkipDeleteOnFailure())
 }

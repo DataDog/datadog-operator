@@ -3,10 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
-package e2e
+package updatersuite
 
 import (
 	"context"
@@ -21,7 +18,7 @@ import (
 
 var KeepStacks = flag.Bool("keep-stacks", false, "Do not destroy the Pulumi stacks at the end of the tests")
 
-func TestMain(m *testing.M) {
+func main(m *testing.M) {
 	flag.Parse()
 	code := m.Run()
 	if runner.GetProfile().AllowDevMode() && *KeepStacks {

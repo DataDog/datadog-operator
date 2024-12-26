@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 )
 
 var (
@@ -21,17 +22,14 @@ var (
 	ImgPullPassword   = GetEnv("IMAGE_PULL_PASSWORD", "")
 	OperatorImageName = GetEnv("IMG", "")
 
-	KubeConfigPath string
-
-	tmpDir         string
 	DdaMinimalPath = filepath.Join(ManifestsPath, "datadog-agent-minimum.yaml")
+	ManifestsPath  = filepath.Join(ProjectRootPath, "test/e2e/manifests")
 
-	timeout int64 = 60
+	timeout         int64 = 60
+	ProjectRootPath       = projectRoot()
 )
 
 const (
-	ManifestsPath = "../../manifests"
-
 	NodeAgentSelector          = "agent.datadoghq.com/component=agent"
 	ClusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
 	ClusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
@@ -79,4 +77,12 @@ func ParseCollectorJson(collectorOutput string) map[string]interface{} {
 		return map[string]interface{}{}
 	}
 	return jsonObject
+}
+
+func projectRoot() string {
+	_, b, _, ok := runtime.Caller(0)
+	if ok {
+		return filepath.Join(filepath.Dir(b), "../../..")
+	}
+	return ""
 }

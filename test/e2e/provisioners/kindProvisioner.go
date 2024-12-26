@@ -10,8 +10,8 @@ package provisioners
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/test-infra-definitions/common/utils"
@@ -29,8 +29,8 @@ import (
 )
 
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
-func KindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Provisioner {
-	return e2e.NewTypedPulumiProvisioner[environments.Kubernetes]("kind-operator", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+func KindProvisioner(k8sVersion string, extraKustomizeResources []string) provisioners.Provisioner {
+	return provisioners.NewTypedPulumiProvisioner[environments.Kubernetes]("kind-operator", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// Provision AWS environment
 		awsEnv, err := resAws.NewEnvironment(ctx)
 		if err != nil {

@@ -1,39 +1,48 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
+//go:build e2e
+// +build e2e
+
 package utils
 
 import (
+	"context"
 	"fmt"
-	"github.com/DataDog/datadog-operator/test/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
-	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeClient "k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 var timeout int64 = 60
 
-func VerifyOperator(t *testing.T, kubectlOptions *k8s.KubectlOptions) {
-	VerifyNumPodsForSelector(t, kubectlOptions, 1, "app.kubernetes.io/name=datadog-operator")
+func VerifyOperator(t *testing.T, namespace string, k8sClient kubeClient.Interface) {
+	VerifyNumPodsForSelector(t, namespace, k8sClient, 1, "app.kubernetes.io/name=datadog-operator")
 }
 
-func VerifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, numPods int, selector string) {
+func VerifyNumPodsForSelector(t *testing.T, namespace string, k8sClient kubeClient.Interface, numPods int, selector string) {
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
-	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, metav1.ListOptions{
-		LabelSelector:  selector,
-		FieldSelector:  "status.phase=Running",
-		TimeoutSeconds: &timeout,
-	}, numPods, 9, 15*time.Second)
+	podsList, err := k8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: selector,
+		FieldSelector: "status.phase=Running",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, numPods, len(podsList.Items))
 }
 
-func VerifyAgentPods(t *testing.T, kubectlOptions *k8s.KubectlOptions, selector string) {
-	k8s.WaitUntilAllNodesReady(t, kubectlOptions, 9, 15*time.Second)
-	nodes := k8s.GetNodes(t, kubectlOptions)
-	VerifyNumPodsForSelector(t, kubectlOptions, len(nodes), selector)
+func VerifyAgentPods(t *testing.T, namespace string, k8sClient kubeClient.Interface, selector string) {
+	nodesList, err := k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	require.NoError(t, err)
+	VerifyNumPodsForSelector(t, namespace, k8sClient, len(nodesList.Items), selector)
 }
 
 func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
@@ -89,24 +98,18 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
 }
 
-func ContextConfig(kubeConfig string) (cleanupFunc func(), err error) {
+func ContextConfig(kubeConfig string) (cleanupFunc func(), kubeConfigPath string, err error) {
 	tmpDir := "/tmp"
-	KubeConfigPath := filepath.Join(tmpDir, ".kubeconfig")
+	kubeConfigPath = filepath.Join(tmpDir, ".kubeconfig")
 
-	kcFile, err := os.Create(KubeConfigPath)
+	kcFile, err := os.Create(kubeConfigPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer kcFile.Close()
 
 	_, err = kcFile.WriteString(kubeConfig)
 	return func() {
-		_ = os.Remove(KubeConfigPath)
-	}, nil
-}
-
-func DeleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
-	if !*e2e.KeepStacks {
-		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
-	}
+		_ = os.Remove(kubeConfigPath)
+	}, kubeConfigPath, nil
 }

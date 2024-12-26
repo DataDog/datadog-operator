@@ -6,7 +6,7 @@
 //go:build e2e
 // +build e2e
 
-package e2e
+package k8ssuite
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
@@ -20,6 +20,10 @@ type localKindSuite struct {
 	k8sSuite
 }
 
+func (s *localKindSuite) SetupSuite() {
+	s.local = true
+}
+
 func TestLocalKindSuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
@@ -31,7 +35,8 @@ func TestLocalKindSuite(t *testing.T) {
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
+		provisioners.WithLocal(true),
 	}
 
-	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)))
+	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)))
 }

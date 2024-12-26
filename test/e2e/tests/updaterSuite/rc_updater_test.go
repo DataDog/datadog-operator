@@ -3,10 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
-package e2e
+package updatersuite
 
 import (
 	"fmt"
@@ -14,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	updater "github.com/DataDog/datadog-operator/test/e2e/tests/updaterSuite/rc-updater"
-	utils "github.com/DataDog/datadog-operator/test/e2e/tests/utils"
+	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 	"path/filepath"
 	"testing"
 	"time"
@@ -54,10 +51,10 @@ func TestUpdaterSuite(t *testing.T) {
 func (u *updaterSuite) SetupSuite() {
 	u.BaseSuite.SetupSuite()
 	u.apiClient = api.NewClient()
-	cleanUpContext, err := utils.ContextConfig(u.Env().KubernetesCluster.ClusterOutput.KubeConfig)
+	cleanUpContext, kubeConfigPath, err := utils.ContextConfig(u.Env().KubernetesCluster.ClusterOutput.KubeConfig)
 	u.Assert().NoError(err, "Error retrieving E2E kubeconfig.")
 	u.cleanUpContext = cleanUpContext
-	u.kubectlOptions = k8s.NewKubectlOptions("", common.KubeConfigPath, common.NamespaceName)
+	u.kubectlOptions = k8s.NewKubectlOptions("", kubeConfigPath, common.NamespaceName)
 	ddaManifest := filepath.Join(common.ManifestsPath, "datadog-agent-rc-updater.yaml")
 	ddaConfigPath, err := common.GetAbsPath(ddaManifest)
 	u.Assert().NoError(err, "Error retrieving dda config.")
@@ -66,7 +63,7 @@ func (u *updaterSuite) SetupSuite() {
 }
 
 func (u *updaterSuite) TearDownSuite() {
-	utils.DeleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
+	deleteDda(u.T(), u.kubectlOptions, u.ddaConfigPath)
 	u.cleanUpContext()
 	if u.configID != "" {
 		u.Client().DeleteConfig(u.configID)
@@ -84,13 +81,13 @@ func (u *updaterSuite) Client() *api.Client {
 }
 
 func (u *updaterSuite) TestOperatorDeployed() {
-	utils.VerifyOperator(u.T(), u.kubectlOptions)
+	utils.VerifyOperator(u.T(), common.NamespaceName, u.Env().KubernetesCluster.KubernetesClient.K8sClient)
 
 }
 
 func (u *updaterSuite) TestAgentReady() {
 	k8s.KubectlApply(u.T(), u.kubectlOptions, u.ddaConfigPath)
-	utils.VerifyAgentPods(u.T(), u.kubectlOptions, common.NodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
+	utils.VerifyAgentPods(u.T(), common.NamespaceName, u.Env().KubernetesCluster.KubernetesClient.K8sClient, common.NodeAgentSelector+",agent.datadoghq.com/e2e-test=datadog-agent-rc")
 }
 
 func (u *updaterSuite) TestEnableFeatures() {
@@ -126,4 +123,10 @@ func (u *updaterSuite) TestFeaturesEnabled() {
 	u.EventuallyWithTf(func(c *assert.CollectT) {
 		updater.CheckFeaturesState(u, c, u.Clustername(), true)
 	}, 20*time.Minute, 30*time.Second, "Checking if features were enabled timed out")
+}
+
+func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
+	if !*KeepStacks {
+		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
+	}
 }
