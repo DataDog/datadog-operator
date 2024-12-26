@@ -42,6 +42,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"
@@ -63,7 +64,6 @@ type ReconcilerOptions struct {
 	OperatorMetricsEnabled     bool
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
-	OtelAgentEnabled           bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -107,7 +107,6 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 	return &feature.Options{
 		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
 		Logger:                   logger,
-		OtelAgentEnabled:         opts.OtelAgentEnabled,
 	}
 }
 

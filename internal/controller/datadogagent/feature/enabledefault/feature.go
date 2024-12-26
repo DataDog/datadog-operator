@@ -53,7 +53,6 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		dF.logger = options.Logger
-		dF.otelAgentEnabled = options.OtelAgentEnabled
 	}
 
 	return dF
@@ -69,7 +68,6 @@ type defaultFeature struct {
 	clusterChecksRunner     clusterChecksRunnerConfig
 	logger                  logr.Logger
 	disableNonResourceRules bool
-	otelAgentEnabled        bool
 	adpEnabled              bool
 
 	customConfigAnnotationKey   string
@@ -134,10 +132,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	f.clusterAgent.serviceAccountAnnotations = constants.GetClusterAgentServiceAccountAnnotations(dda)
 	f.agent.serviceAccountAnnotations = constants.GetAgentServiceAccountAnnotations(dda)
 	f.clusterChecksRunner.serviceAccountAnnotations = constants.GetClusterChecksRunnerServiceAccountAnnotations(dda)
-
-	if dda.ObjectMeta.Annotations != nil {
-		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
-	}
 
 	if dda.ObjectMeta.Annotations != nil {
 		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
@@ -217,7 +211,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	// feature.
 	//
 	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
-	if f.otelAgentEnabled {
+	if dda.ObjectMeta.Annotations != nil && featureutils.HasOtelAgentAnnotation(dda) {
 		agentContainers = append(agentContainers, apicommon.OtelAgent)
 	}
 

@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -371,6 +372,74 @@ func (builder *DatadogAgentBuilder) initProcessDiscovery() {
 func (builder *DatadogAgentBuilder) WithProcessDiscoveryEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initProcessDiscovery()
 	builder.datadogAgent.Spec.Features.ProcessDiscovery.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// OTel Agent
+func (builder *DatadogAgentBuilder) initOtelCollector() {
+	if builder.datadogAgent.Spec.Features.OtelCollector == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector = &v2alpha1.OtelCollectorFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOtelCollector()
+	builder.datadogAgent.Spec.Features.OtelCollector.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData =
+		apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigEnabled(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionTimeout(timeout int) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout = apiutils.NewIntPointer(timeout)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigExtensionURL(url string) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
+		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}
+	}
+	builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig.ExtensionURL = apiutils.NewStringPointer(url)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Ports = []*corev1.ContainerPort{
+		{
+			Name:          "otel-http",
+			ContainerPort: httpPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+		{
+			Name:          "otel-grpc",
+			ContainerPort: grpcPort,
+			Protocol:      corev1.ProtocolTCP,
+		},
+	}
 	return builder
 }
 

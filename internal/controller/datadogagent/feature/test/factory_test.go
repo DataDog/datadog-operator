@@ -14,6 +14,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
 )
 
 func TestBuilder(t *testing.T) {
@@ -200,9 +201,57 @@ func TestBuilder(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				BuildWithDefaults(),
-			featureOptions: feature.Options{
-				OtelAgentEnabled: true,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
+		},
+		{
+			name: "Default DDA, otel annotation false, otel collector feature enabled",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
+				WithOTelCollectorEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Default DDA, otel annotation true, otel collector feature disabled",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
+				WithOTelCollectorEnabled(false).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Default DDA, otel annotation true, otel collector feature enabled",
+			dda: v2alpha1test.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
+				WithOTelCollectorEnabled(true).
+				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
