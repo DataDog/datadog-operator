@@ -1065,6 +1065,21 @@
               },
               "type": "object"
             },
+            "gpu": {
+              "additionalProperties": false,
+              "description": "GPU monitoring",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables GPU monitoring.\nDefault: false",
+                  "type": "boolean"
+                },
+                "requiredRuntimeClassName": {
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf left empty, the runtime class will not be set.\nDefault: nvidia",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
             "helmCheck": {
               "additionalProperties": false,
               "description": "HelmCheck configuration.",
@@ -7867,6 +7882,21 @@
                     "wpaController": {
                       "description": "WPAController enables the informer and controller of the Watermark Pod Autoscaler.\nNOTE: The Watermark Pod Autoscaler controller needs to be installed.\nSee also: https://github.com/DataDog/watermarkpodautoscaler.\nDefault: false",
                       "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "gpu": {
+                  "additionalProperties": false,
+                  "description": "GPU monitoring",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables GPU monitoring.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "requiredRuntimeClassName": {
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf left empty, the runtime class will not be set.\nDefault: nvidia",
+                      "type": "string"
                     }
                   },
                   "type": "object"

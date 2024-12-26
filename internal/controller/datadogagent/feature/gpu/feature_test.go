@@ -1,0 +1,148 @@
+package gpu
+
+import (
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+)
+
+func Test_GPUMonitoringFeature_Configure(t *testing.T) {
+	ddaGPUMonitoringDisabled := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				GPUMonitoring: &v2alpha1.GPUMonitoringFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(false),
+				},
+			},
+		},
+	}
+	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
+	ddaGPUMonitoringEnabled.Spec.Features.GPUMonitoring.Enabled = apiutils.NewBoolPointer(true)
+
+	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		// check security context capabilities
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommon.SystemProbeContainerName]
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+			"System Probe security context capabilities \ndiff = %s",
+			cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+		)
+
+		// check volume mounts
+		wantCoreAgentVolMounts := []corev1.VolumeMount{
+			{
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      v2alpha1.NVIDIADevicesVolumeName,
+				MountPath: v2alpha1.NVIDIADevicesMountPath,
+				ReadOnly:  true,
+			},
+		}
+
+		wantSystemProbeVolMounts := []corev1.VolumeMount{
+			{
+				Name:      v2alpha1.ProcdirVolumeName,
+				MountPath: v2alpha1.ProcdirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				ReadOnly:  false,
+			},
+			{
+				Name:      v2alpha1.NVIDIADevicesVolumeName,
+				MountPath: v2alpha1.NVIDIADevicesMountPath,
+				ReadOnly:  true,
+			},
+		}
+
+		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
+
+		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantSystemProbeVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantSystemProbeVolMounts))
+
+		// check volumes
+		wantVolumes := []corev1.Volume{
+			{
+				Name: v2alpha1.ProcdirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: v2alpha1.ProcdirHostPath,
+					},
+				},
+			},
+			{
+				Name: v2alpha1.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: v2alpha1.NVIDIADevicesVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: v2alpha1.DevNullPath,
+					},
+				},
+			},
+		}
+
+		volumes := mgr.VolumeMgr.Volumes
+		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+
+		// check env vars
+		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  v2alpha1.DDSystemProbeSocket,
+				Value: v2alpha1.DefaultSystemProbeSocketPath,
+			},
+			{
+				Name:  DDEnableGPUMonitoringEnvVar,
+				Value: "true",
+			},
+			{
+				Name:  NVIDIAVisibleDevicesEnvVar,
+				Value: "all",
+			},
+		}
+		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+	}
+
+	tests := test.FeatureTestSuite{
+		{
+			Name:          "gpu monitoring not enabled",
+			DDA:           ddaGPUMonitoringDisabled.DeepCopy(),
+			WantConfigure: false,
+		},
+		{
+			Name:          "gpu monitoring enabled",
+			DDA:           ddaGPUMonitoringEnabled,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(GPUMonitoringAgentNodeWantFunc),
+		},
+	}
+
+	tests.Run(t, buildFeature)
+}

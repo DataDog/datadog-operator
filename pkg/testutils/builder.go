@@ -949,3 +949,18 @@ func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *Da
 	builder.datadogAgent.Spec.Global.FIPS = &fipsConfig
 	return builder
 }
+
+
+// GPU
+
+func (builder *DatadogAgentBuilder) initGPUMonitoring() {
+	if builder.datadogAgent.Spec.Features.GPUMonitoring == nil {
+		builder.datadogAgent.Spec.Features.GPUMonitoring = &v2alpha1.GPUMonitoringFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initGPUMonitoring()
+	builder.datadogAgent.Spec.Features.GPUMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}

@@ -1019,6 +1019,21 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    gpu:
+                      description: GPU monitoring
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables GPU monitoring.
+                            Default: false
+                          type: boolean
+                        requiredRuntimeClassName:
+                          description: |-
+                            PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                            If left empty, the runtime class will not be set.
+                            Default: nvidia
+                          type: string
+                      type: object
                     helmCheck:
                       description: HelmCheck configuration.
                       properties:
@@ -7882,6 +7897,21 @@ spec:
                                 See also: https://github.com/DataDog/watermarkpodautoscaler.
                                 Default: false
                               type: boolean
+                          type: object
+                        gpu:
+                          description: GPU monitoring
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables GPU monitoring.
+                                Default: false
+                              type: boolean
+                            requiredRuntimeClassName:
+                              description: |-
+                                PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                                If left empty, the runtime class will not be set.
+                                Default: nvidia
+                              type: string
                           type: object
                         helmCheck:
                           description: HelmCheck configuration.

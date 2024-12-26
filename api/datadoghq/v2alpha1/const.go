@@ -78,6 +78,9 @@ const (
 	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
 	EndpointsChecksConfigProvider           = "endpointschecks"
 	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
+
+	// DefaultGPUMonitoringRuntimeClass default runtime class for GPU pods
+	DefaultGPUMonitoringRuntimeClass = "nvidia"
 )
 
 // Labels
@@ -201,6 +204,10 @@ const (
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
 	FIPSProxyCustomConfigMapName    = "%s-fips-config"
 	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
+
+	NVIDIADevicesMountPath  = "/var/run/nvidia-container-devices/all"
+	NVIDIADevicesVolumeName = "nvidia-devices"
+	DevNullPath             = "/dev/null" // used to mount the NVIDIADevicesHostPath to /dev/null in the container, it's just used as a "signal" to the nvidia runtime to use the nvidia devices
 )
 
 // Field paths
