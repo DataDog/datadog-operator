@@ -36,6 +36,8 @@ const (
 
 	defaultEBPFCheckEnabled bool = false
 
+	defaultGPUMonitoringEnabled bool = false
+
 	defaultServiceDiscoveryEnabled bool = false
 
 	defaultAPMEnabled                 bool   = true
@@ -263,6 +265,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+
+	// GPU monitoring feature
+	if ddaSpec.Features.GPUMonitoring == nil {
+		ddaSpec.Features.GPUMonitoring = &GPUMonitoringFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.GPUMonitoring.Enabled, defaultGPUMonitoringEnabled)
 
 	// APM Feature
 	// APM is enabled by default
