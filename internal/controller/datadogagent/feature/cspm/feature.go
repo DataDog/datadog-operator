@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -71,7 +72,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 		if cspmConfig.CheckInterval != nil {
 			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)
@@ -88,7 +89,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
-		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
+		f.configMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
 
 		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true

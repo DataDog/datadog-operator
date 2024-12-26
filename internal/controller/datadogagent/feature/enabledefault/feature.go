@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -52,7 +53,6 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		dF.logger = options.Logger
-		dF.otelAgentEnabled = options.OtelAgentEnabled
 	}
 
 	return dF
@@ -68,7 +68,6 @@ type defaultFeature struct {
 	clusterChecksRunner     clusterChecksRunnerConfig
 	logger                  logr.Logger
 	disableNonResourceRules bool
-	otelAgentEnabled        bool
 	adpEnabled              bool
 
 	customConfigAnnotationKey   string
@@ -126,17 +125,13 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	trueValue := true
 	f.owner = dda
 
-	f.clusterAgent.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
-	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
-	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+	f.clusterAgent.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.agent.serviceAccountName = constants.GetAgentServiceAccount(dda)
+	f.clusterChecksRunner.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 
-	f.clusterAgent.serviceAccountAnnotations = v2alpha1.GetClusterAgentServiceAccountAnnotations(dda)
-	f.agent.serviceAccountAnnotations = v2alpha1.GetAgentServiceAccountAnnotations(dda)
-	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
-
-	if dda.ObjectMeta.Annotations != nil {
-		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
-	}
+	f.clusterAgent.serviceAccountAnnotations = constants.GetClusterAgentServiceAccountAnnotations(dda)
+	f.agent.serviceAccountAnnotations = constants.GetAgentServiceAccountAnnotations(dda)
+	f.clusterChecksRunner.serviceAccountAnnotations = constants.GetClusterChecksRunnerServiceAccountAnnotations(dda)
 
 	if dda.ObjectMeta.Annotations != nil {
 		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
@@ -216,7 +211,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	// feature.
 	//
 	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
-	if f.otelAgentEnabled {
+	if dda.ObjectMeta.Annotations != nil && featureutils.HasOtelAgentAnnotation(dda) {
 		agentContainers = append(agentContainers, apicommon.OtelAgent)
 	}
 

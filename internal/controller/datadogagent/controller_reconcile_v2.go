@@ -12,6 +12,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -87,7 +88,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 
 	// Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
-	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
+	defaults.DefaultDatadogAgent(instanceCopy)
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 

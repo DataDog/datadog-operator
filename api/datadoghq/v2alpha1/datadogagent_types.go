@@ -44,6 +44,8 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
+	// OtelCollector configuration.
+	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -682,6 +684,51 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
+// OtelCollectorFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+type OtelCollectorFeatureConfig struct {
+	// Enabled enables the OTel Agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports for the otel-agent.
+	// Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317
+	// or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
+	// If not, this will lead to a port conflict.
+	// This limitation will be lifted once annotations support is removed.
+	// +optional
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// OTelCollector Config Relevant to the Core agent
+	// +optional
+	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// CoreConfig exposes the otel collector configs relevant to the core agent.
+// +k8s:openapi-gen=true
+type CoreConfig struct {
+	// Enabled marks otelcollector as enabled in core agent.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +optional
+	// Extension URL provides the URL of the ddflareextension to
+	// the core agent.
+	ExtensionURL *string `json:"extension_url,omitempty"`
+
+	// +optional
+	// Extension URL provides the timout of the ddflareextension to
+	// the core agent.
+	ExtensionTimeout *int `json:"extension_timeout,omitempty"`
+}
+
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
 // The Admission Controller runs in the Cluster Agent.
 type AdmissionControllerFeatureConfig struct {
@@ -728,6 +775,10 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
+	// +optional
+	KubernetesAdmissionEvents *KubernetesAdmissionEventsConfig `json:"kubernetesAdmissionEvents,omitempty"`
 
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
@@ -807,6 +858,13 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type KubernetesAdmissionEventsConfig struct {
+	// Enable the Kubernetes Admission Events feature.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
