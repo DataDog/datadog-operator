@@ -1782,11 +1782,16 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						CustomResources: []string{"datadoghq.com/v1alpha1/datadogmetrics"},
 					},
 					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
+					},
 					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
 					},
@@ -1820,7 +1825,6 @@ func Test_defaultFeatures(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "OTel Collector is enabled",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
@@ -1841,7 +1845,7 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
-					ProcessDiscovery: v2alpha1.ProcessDiscoveryFeatureConfig{
+					ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 					},
 					OOMKill: &v2alpha1.OOMKillFeatureConfig{
@@ -2235,7 +2239,9 @@ func Test_defaultFeatures(t *testing.T) {
 							HostPortConfig: nil,
 							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
-					}}},
+					},
+					},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
