@@ -226,7 +226,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	// OTelCollector Feature
 	if ddaSpec.Features.OtelCollector == nil {
-		ddaSpec.Features.OtelCollector = &OtelCollectorFeatureConfig{}
+		ddaSpec.Features.OtelCollector = &v2alpha1.OtelCollectorFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.Enabled, defaultOtelCollectorEnabled)
 

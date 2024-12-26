@@ -6,7 +6,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -14,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -57,14 +57,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// disabled
 		{
 			Name: "otel agent disabled without config",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "otel agent disabled with config",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(false).
 				WithOTelCollectorConfig().
 				Build(),
@@ -73,7 +73,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// enabled
 		{
 			Name: "otel agent enabled with config",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfig().
 				Build(),
@@ -83,7 +83,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled with configMap",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfigMap().
 				Build(),
@@ -93,7 +93,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled without config",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				Build(),
 			WantConfigure:        true,
@@ -102,7 +102,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorPorts(4444, 5555).
 				Build(),
@@ -119,7 +119,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// coreconfig
 		{
 			Name: "otel agent coreconfig enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(true).
 				Build(),
@@ -129,7 +129,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig disabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				Build(),
@@ -139,7 +139,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				WithOTelCollectorCoreConfigExtensionTimeout(13).
@@ -155,7 +155,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig extensionURL",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				WithOTelCollectorCoreConfigExtensionURL("https://localhost:1234").
@@ -171,7 +171,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig all env vars",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(true).
 				WithOTelCollectorCoreConfigExtensionTimeout(13).

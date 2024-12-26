@@ -213,11 +213,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -336,11 +336,11 @@ func Test_defaultFeatures(t *testing.T) {
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -426,11 +426,11 @@ func Test_defaultFeatures(t *testing.T) {
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(valueFalse),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -564,11 +564,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -711,11 +711,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -853,11 +853,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -995,11 +995,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1146,11 +1146,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1288,11 +1288,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1433,11 +1433,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1573,11 +1573,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1732,11 +1732,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -1823,141 +1823,141 @@ func Test_defaultFeatures(t *testing.T) {
 
 		{
 			name: "OTel Collector is enabled",
-			ddaSpec: &DatadogAgentSpec{
-				Features: &DatadogFeatures{
-					OtelCollector: &OtelCollectorFeatureConfig{
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 					},
 				},
 			},
-			want: &DatadogAgentSpec{
-				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
+			want: &v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					LogCollection: &v2alpha1.LogCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
 					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
+					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
 					},
-					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+					LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
-					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
+					ProcessDiscovery: v2alpha1.ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 					},
-					OOMKill: &OOMKillFeatureConfig{
+					OOMKill: &v2alpha1.OOMKillFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
 					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
+					TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
 					},
-					EBPFCheck: &EBPFCheckFeatureConfig{
+					EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultEBPFCheckEnabled),
 					},
-					ServiceDiscovery: &ServiceDiscoveryFeatureConfig{
+					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
-					APM: &APMFeatureConfig{
+					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						HostPortConfig: &HostPortConfig{
+						HostPortConfig: &v2alpha1.HostPortConfig{
 							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
 							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
 						},
-						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
-						SingleStepInstrumentation: &SingleStepInstrumentation{
+						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
-							LanguageDetection: &LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
-						SCA: &ASMSCAConfig{
+						SCA: &v2alpha1.ASMSCAConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMSCAEnabled),
 						},
-						IAST: &ASMIASTConfig{
+						IAST: &v2alpha1.ASMIASTConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMIASTEnabled),
 						},
 					},
-					CSPM: &CSPMFeatureConfig{
+					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
 					},
-					CWS: &CWSFeatureConfig{
+					CWS: &v2alpha1.CWSFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
 					},
-					NPM: &NPMFeatureConfig{
+					NPM: &v2alpha1.NPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
 					},
-					USM: &USMFeatureConfig{
+					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
 					},
-					Dogstatsd: &DogstatsdFeatureConfig{
+					Dogstatsd: &v2alpha1.DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
-						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
-						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+						HostPortConfig:         &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
-						GRPC: &OTLPGRPCConfig{
+					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+						GRPC: &v2alpha1.OTLPGRPCConfig{
 							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
 							HostPortConfig: nil,
 							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
 						},
-						HTTP: &OTLPHTTPConfig{
+						HTTP: &v2alpha1.OTLPHTTPConfig{
 							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
 							HostPortConfig: nil,
 							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
 					}}},
-					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
-					EventCollection: &EventCollectionFeatureConfig{
+					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
-					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+					OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
 						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
+					ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
 					},
-					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+					KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
 					},
-					ClusterChecks: &ClusterChecksFeatureConfig{
+					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
+					AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-						Validation: &AdmissionControllerValidationConfig{
+						Validation: &v2alpha1.AdmissionControllerValidationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerValidationEnabled),
 						},
-						Mutation: &AdmissionControllerMutationConfig{
+						Mutation: &v2alpha1.AdmissionControllerMutationConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerMutationEnabled),
 						},
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
-						CWSInstrumentation: &CWSInstrumentationConfig{
+						CWSInstrumentation: &v2alpha1.CWSInstrumentationConfig{
 							Enabled: apiutils.NewBoolPointer(DefaultAdmissionControllerCWSInstrumentationEnabled),
 						},
-						KubernetesAdmissionEvents: &KubernetesAdmissionEventsConfig{
+						KubernetesAdmissionEvents: &v2alpha1.KubernetesAdmissionEventsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerKubernetesAdmissionEventsEnabled),
 						},
 					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
+					PrometheusScrape: &v2alpha1.PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
 					},
-					HelmCheck: &HelmCheckFeatureConfig{
+					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
 				},
@@ -2035,11 +2035,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
@@ -2180,11 +2180,11 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
 					},
-					OtelCollector: &OtelCollectorFeatureConfig{
+					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
 					},
-					ASM: &ASMFeatureConfig{
-						Threats: &ASMThreatsConfig{
+					ASM: &v2alpha1.ASMFeatureConfig{
+						Threats: &v2alpha1.ASMThreatsConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAdmissionASMThreatsEnabled),
 						},
 						SCA: &v2alpha1.ASMSCAConfig{
