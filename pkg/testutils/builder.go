@@ -3,14 +3,14 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package test
+package testutils
 
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
-	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +39,7 @@ func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 // NewDefaultDatadogAgentBuilder created DatadogAgent and applies defaults
 func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{}
-	v2alpha1.DefaultDatadogAgent(dda)
+	defaults.DefaultDatadogAgent(dda)
 
 	return &DatadogAgentBuilder{
 		datadogAgent: *dda,
@@ -63,7 +63,7 @@ func (builder *DatadogAgentBuilder) Build() *v2alpha1.DatadogAgent {
 
 // BuildWithDefaults applies defaults to current properties and returns resulting DatadogAgent
 func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
-	v2alpha1.DefaultDatadogAgent(&builder.datadogAgent)
+	defaults.DefaultDatadogAgent(&builder.datadogAgent)
 	return &builder.datadogAgent
 }
 
@@ -870,8 +870,8 @@ func (builder *DatadogAgentBuilder) WithSingleContainerStrategy(enabled bool) *D
 
 func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
-		APIKey: utils.NewStringPointer(apiKey),
-		AppKey: utils.NewStringPointer(appKey),
+		APIKey: apiutils.NewStringPointer(apiKey),
+		AppKey: apiutils.NewStringPointer(appKey),
 	}
 	return builder
 }

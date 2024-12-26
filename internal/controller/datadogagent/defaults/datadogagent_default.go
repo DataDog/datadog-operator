@@ -3,9 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package defaults
 
 import (
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -42,7 +43,7 @@ const (
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
 	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = DogstatsdAPMSocketHostPath + "/" + APMSocketName
+	defaultAPMSocketHostPath          string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
@@ -61,7 +62,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = DogstatsdAPMSocketHostPath + "/" + DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -113,7 +114,7 @@ const (
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 
-	defaultContainerStrategy = OptimizedContainerStrategy
+	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
 	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
@@ -128,16 +129,16 @@ const (
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
-func DefaultDatadogAgent(dda *DatadogAgent) {
+func DefaultDatadogAgent(dda *v2alpha1.DatadogAgent) {
 	defaultGlobalConfig(&dda.Spec)
 
 	defaultFeaturesConfig(&dda.Spec)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
-func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
+func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global == nil {
-		ddaSpec.Global = &GlobalConfig{}
+		ddaSpec.Global = &v2alpha1.GlobalConfig{}
 	}
 
 	if ddaSpec.Global.Site == nil {
@@ -147,15 +148,15 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry)
 		}
 	}
 
@@ -169,13 +170,13 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.FIPS == nil {
-		ddaSpec.Global.FIPS = &FIPSConfig{}
+		ddaSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
 
 	if *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {
-			ddaSpec.Global.FIPS.Image = &AgentImageConfig{}
+			ddaSpec.Global.FIPS.Image = &v2alpha1.AgentImageConfig{}
 		}
 		if ddaSpec.Global.FIPS.Image.Name == "" {
 			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName
@@ -194,14 +195,14 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
 // Note: many default values are set in the Datadog Agent code and are not set here.
-func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
+func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Features == nil {
-		ddaSpec.Features = &DatadogFeatures{}
+		ddaSpec.Features = &v2alpha1.DatadogFeatures{}
 	}
 
 	// LogsCollection Feature
 	if ddaSpec.Features.LogCollection == nil {
-		ddaSpec.Features.LogCollection = &LogCollectionFeatureConfig{}
+		ddaSpec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LogCollection.Enabled, defaultLogCollectionEnabled)
 
@@ -214,67 +215,67 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, DefaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, v2alpha1.DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature
 	if ddaSpec.Features.LiveContainerCollection == nil {
-		ddaSpec.Features.LiveContainerCollection = &LiveContainerCollectionFeatureConfig{}
+		ddaSpec.Features.LiveContainerCollection = &v2alpha1.LiveContainerCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LiveContainerCollection.Enabled, defaultLiveContainerCollectionEnabled)
 
 	// OTelCollector Feature
 	if ddaSpec.Features.OtelCollector == nil {
-		ddaSpec.Features.OtelCollector = &OtelCollectorFeatureConfig{}
+		ddaSpec.Features.OtelCollector = &v2alpha1.OtelCollectorFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.Enabled, defaultOtelCollectorEnabled)
 
 	// LiveProcessCollection Feature
 	if ddaSpec.Features.LiveProcessCollection == nil {
-		ddaSpec.Features.LiveProcessCollection = &LiveProcessCollectionFeatureConfig{}
+		ddaSpec.Features.LiveProcessCollection = &v2alpha1.LiveProcessCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LiveProcessCollection.Enabled, defaultLiveProcessCollectionEnabled)
 
 	// ProcessDiscovery Feature
 	if ddaSpec.Features.ProcessDiscovery == nil {
-		ddaSpec.Features.ProcessDiscovery = &ProcessDiscoveryFeatureConfig{}
+		ddaSpec.Features.ProcessDiscovery = &v2alpha1.ProcessDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ProcessDiscovery.Enabled, defaultProcessDiscoveryEnabled)
 
 	// OOMKill Feature
 	if ddaSpec.Features.OOMKill == nil {
-		ddaSpec.Features.OOMKill = &OOMKillFeatureConfig{}
+		ddaSpec.Features.OOMKill = &v2alpha1.OOMKillFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OOMKill.Enabled, defaultOOMKillEnabled)
 
 	// TCPQueueLength Feature
 	if ddaSpec.Features.TCPQueueLength == nil {
-		ddaSpec.Features.TCPQueueLength = &TCPQueueLengthFeatureConfig{}
+		ddaSpec.Features.TCPQueueLength = &v2alpha1.TCPQueueLengthFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.TCPQueueLength.Enabled, defaultTCPQueueLengthEnabled)
 
 	// EBPFCheck Feature
 	if ddaSpec.Features.EBPFCheck == nil {
-		ddaSpec.Features.EBPFCheck = &EBPFCheckFeatureConfig{}
+		ddaSpec.Features.EBPFCheck = &v2alpha1.EBPFCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
 
 	if ddaSpec.Features.ServiceDiscovery == nil {
-		ddaSpec.Features.ServiceDiscovery = &ServiceDiscoveryFeatureConfig{}
+		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// APM Feature
 	// APM is enabled by default
 	if ddaSpec.Features.APM == nil {
-		ddaSpec.Features.APM = &APMFeatureConfig{}
+		ddaSpec.Features.APM = &v2alpha1.APMFeatureConfig{}
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.Enabled, defaultAPMEnabled)
 
 	if *ddaSpec.Features.APM.Enabled {
 		if ddaSpec.Features.APM.HostPortConfig == nil {
-			ddaSpec.Features.APM.HostPortConfig = &HostPortConfig{}
+			ddaSpec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.HostPortConfig.Enabled, defaultAPMHostPortEnabled)
@@ -282,7 +283,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.APM.HostPortConfig.Port, defaultAPMHostPort)
 
 		if ddaSpec.Features.APM.UnixDomainSocketConfig == nil {
-			ddaSpec.Features.APM.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
+			ddaSpec.Features.APM.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
@@ -290,11 +291,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketHostPath)
 
 		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
-			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
+			ddaSpec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{}
 		}
 
 		if ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection == nil {
-			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &LanguageDetectionConfig{}
+			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &v2alpha1.LanguageDetectionConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
@@ -303,49 +304,49 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// ASM Features
 	if ddaSpec.Features.ASM == nil {
-		ddaSpec.Features.ASM = &ASMFeatureConfig{}
+		ddaSpec.Features.ASM = &v2alpha1.ASMFeatureConfig{}
 	}
 
 	if ddaSpec.Features.ASM.Threats == nil {
-		ddaSpec.Features.ASM.Threats = &ASMThreatsConfig{}
+		ddaSpec.Features.ASM.Threats = &v2alpha1.ASMThreatsConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.Threats.Enabled, defaultAdmissionASMThreatsEnabled)
 
 	if ddaSpec.Features.ASM.SCA == nil {
-		ddaSpec.Features.ASM.SCA = &ASMSCAConfig{}
+		ddaSpec.Features.ASM.SCA = &v2alpha1.ASMSCAConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.SCA.Enabled, defaultAdmissionASMSCAEnabled)
 
 	if ddaSpec.Features.ASM.IAST == nil {
-		ddaSpec.Features.ASM.IAST = &ASMIASTConfig{}
+		ddaSpec.Features.ASM.IAST = &v2alpha1.ASMIASTConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ASM.IAST.Enabled, defaultAdmissionASMIASTEnabled)
 
 	// CSPM (Cloud Security Posture Management) Feature
 	if ddaSpec.Features.CSPM == nil {
-		ddaSpec.Features.CSPM = &CSPMFeatureConfig{}
+		ddaSpec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.Enabled, defaultCSPMEnabled)
 
 	if *ddaSpec.Features.CSPM.Enabled {
 		if ddaSpec.Features.CSPM.HostBenchmarks == nil {
-			ddaSpec.Features.CSPM.HostBenchmarks = &CSPMHostBenchmarksConfig{}
+			ddaSpec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{}
 		}
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CSPM.HostBenchmarks.Enabled, defaultCSPMHostBenchmarksEnabled)
 	}
 
 	// CWS (Cloud Workload Security) Feature
 	if ddaSpec.Features.CWS == nil {
-		ddaSpec.Features.CWS = &CWSFeatureConfig{}
+		ddaSpec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Enabled, defaultCWSEnabled)
 
 	if *ddaSpec.Features.CWS.Enabled {
 		if ddaSpec.Features.CWS.Network == nil {
-			ddaSpec.Features.CWS.Network = &CWSNetworkConfig{}
+			ddaSpec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{}
 		}
 		if ddaSpec.Features.CWS.SecurityProfiles == nil {
-			ddaSpec.Features.CWS.SecurityProfiles = &CWSSecurityProfilesConfig{}
+			ddaSpec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
@@ -355,7 +356,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// NPM (Network Performance Monitoring) Feature
 	if ddaSpec.Features.NPM == nil {
-		ddaSpec.Features.NPM = &NPMFeatureConfig{}
+		ddaSpec.Features.NPM = &v2alpha1.NPMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.Enabled, defaultNPMEnabled)
 
@@ -366,28 +367,28 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// USM (Universal Service Monitoring) Feature
 	if ddaSpec.Features.USM == nil {
-		ddaSpec.Features.USM = &USMFeatureConfig{}
+		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.USM.Enabled, defaultUSMEnabled)
 
 	// Dogstatsd Feature
 	if ddaSpec.Features.Dogstatsd == nil {
-		ddaSpec.Features.Dogstatsd = &DogstatsdFeatureConfig{}
+		ddaSpec.Features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.OriginDetectionEnabled, defaultDogstatsdOriginDetectionEnabled)
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
-		ddaSpec.Features.Dogstatsd.HostPortConfig = &HostPortConfig{
+		ddaSpec.Features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{
 			Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled),
 		}
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, DefaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, v2alpha1.DefaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {
-		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
+		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{}
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
@@ -397,18 +398,18 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// OTLP ingest feature
 	if ddaSpec.Features.OTLP == nil {
-		ddaSpec.Features.OTLP = &OTLPFeatureConfig{}
+		ddaSpec.Features.OTLP = &v2alpha1.OTLPFeatureConfig{}
 	}
 
 	if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC == nil {
-		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC = &OTLPGRPCConfig{}
+		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{}
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
 
 	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled) {
 		if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig == nil {
-			ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &HostPortConfig{}
+			ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &v2alpha1.HostPortConfig{}
 		}
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig.Enabled, defaultOTLPGRPCHostPortEnabled)
 	}
@@ -416,14 +417,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Endpoint, defaultOTLPGRPCEndpoint)
 
 	if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP == nil {
-		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP = &OTLPHTTPConfig{}
+		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP = &v2alpha1.OTLPHTTPConfig{}
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
 
 	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled) {
 		if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig == nil {
-			ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &HostPortConfig{}
+			ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &v2alpha1.HostPortConfig{}
 		}
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig.Enabled, defaultOTLPHTTPHostPortEnabled)
 	}
@@ -432,7 +433,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// RemoteConfiguration feature
 	if ddaSpec.Features.RemoteConfiguration == nil {
-		ddaSpec.Features.RemoteConfiguration = &RemoteConfigurationFeatureConfig{}
+		ddaSpec.Features.RemoteConfiguration = &v2alpha1.RemoteConfigurationFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.RemoteConfiguration.Enabled, defaultRemoteConfigurationEnabled)
 
@@ -440,11 +441,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// EventCollection Feature
 	if ddaSpec.Features.EventCollection == nil {
-		ddaSpec.Features.EventCollection = &EventCollectionFeatureConfig{}
+		ddaSpec.Features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EventCollection.CollectKubernetesEvents, defaultCollectKubernetesEvents)
 	if apiutils.BoolValue(ddaSpec.Features.EventCollection.UnbundleEvents) && ddaSpec.Features.EventCollection.CollectedEventTypes == nil {
-		ddaSpec.Features.EventCollection.CollectedEventTypes = []EventTypes{
+		ddaSpec.Features.EventCollection.CollectedEventTypes = []v2alpha1.EventTypes{
 			{
 				Kind:    "Pod",
 				Reasons: []string{"Failed", "BackOff", "Unhealthy", "FailedScheduling", "FailedMount", "FailedAttachVolume"},
@@ -462,7 +463,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// OrchestratorExplorer check Feature
 	if ddaSpec.Features.OrchestratorExplorer == nil {
-		ddaSpec.Features.OrchestratorExplorer = &OrchestratorExplorerFeatureConfig{}
+		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.Enabled, defaultOrchestratorExplorerEnabled)
 
@@ -472,13 +473,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// KubeStateMetricsCore check Feature
 	if ddaSpec.Features.KubeStateMetricsCore == nil {
-		ddaSpec.Features.KubeStateMetricsCore = &KubeStateMetricsCoreFeatureConfig{}
+		ddaSpec.Features.KubeStateMetricsCore = &v2alpha1.KubeStateMetricsCoreFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.KubeStateMetricsCore.Enabled, defaultKubeStateMetricsCoreEnabled)
 
 	// AdmissionController Feature
 	if ddaSpec.Features.AdmissionController == nil {
-		ddaSpec.Features.AdmissionController = &AdmissionControllerFeatureConfig{}
+		ddaSpec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 
@@ -490,13 +491,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// AdmissionControllerValidation Feature
 	if ddaSpec.Features.AdmissionController.Validation == nil {
-		ddaSpec.Features.AdmissionController.Validation = &AdmissionControllerValidationConfig{}
+		ddaSpec.Features.AdmissionController.Validation = &v2alpha1.AdmissionControllerValidationConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Validation.Enabled, defaultAdmissionControllerValidationEnabled)
 
 	// AdmissionControllerMutation Feature
 	if ddaSpec.Features.AdmissionController.Mutation == nil {
-		ddaSpec.Features.AdmissionController.Mutation = &AdmissionControllerMutationConfig{}
+		ddaSpec.Features.AdmissionController.Mutation = &v2alpha1.AdmissionControllerMutationConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Mutation.Enabled, defaultAdmissionControllerMutationEnabled)
 
@@ -507,13 +508,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// K8s Admission Events in AdmissonController Feature
 	if ddaSpec.Features.AdmissionController.KubernetesAdmissionEvents == nil {
-		ddaSpec.Features.AdmissionController.KubernetesAdmissionEvents = &KubernetesAdmissionEventsConfig{}
+		ddaSpec.Features.AdmissionController.KubernetesAdmissionEvents = &v2alpha1.KubernetesAdmissionEventsConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.KubernetesAdmissionEvents.Enabled, defaultAdmissionControllerKubernetesAdmissionEventsEnabled)
 
 	// CWS Instrumentation in AdmissionController Feature
 	if ddaSpec.Features.AdmissionController.CWSInstrumentation == nil {
-		ddaSpec.Features.AdmissionController.CWSInstrumentation = &CWSInstrumentationConfig{}
+		ddaSpec.Features.AdmissionController.CWSInstrumentation = &v2alpha1.CWSInstrumentationConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.CWSInstrumentation.Enabled, DefaultAdmissionControllerCWSInstrumentationEnabled)
 
@@ -523,7 +524,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// ExternalMetricsServer Feature
 	if ddaSpec.Features.ExternalMetricsServer == nil {
-		ddaSpec.Features.ExternalMetricsServer = &ExternalMetricsServerFeatureConfig{}
+		ddaSpec.Features.ExternalMetricsServer = &v2alpha1.ExternalMetricsServerFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.Enabled, defaultExternalMetricsServerEnabled)
 
@@ -535,7 +536,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// ClusterChecks Feature
 	if ddaSpec.Features.ClusterChecks == nil {
-		ddaSpec.Features.ClusterChecks = &ClusterChecksFeatureConfig{}
+		ddaSpec.Features.ClusterChecks = &v2alpha1.ClusterChecksFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ClusterChecks.Enabled, defaultClusterChecksEnabled)
 
@@ -545,7 +546,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// PrometheusScrape Feature
 	if ddaSpec.Features.PrometheusScrape == nil {
-		ddaSpec.Features.PrometheusScrape = &PrometheusScrapeFeatureConfig{}
+		ddaSpec.Features.PrometheusScrape = &v2alpha1.PrometheusScrapeFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.PrometheusScrape.Enabled, defaultPrometheusScrapeEnabled)
 
@@ -556,7 +557,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// Helm Check Feature
 	if ddaSpec.Features.HelmCheck == nil {
-		ddaSpec.Features.HelmCheck = &HelmCheckFeatureConfig{}
+		ddaSpec.Features.HelmCheck = &v2alpha1.HelmCheckFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.Enabled, defaultHelmCheckEnabled)
 

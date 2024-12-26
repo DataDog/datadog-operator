@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -29,7 +30,7 @@ const (
 
 // GetClusterAgentService returns the Cluster-Agent service
 func GetClusterAgentService(dda metav1.Object) *corev1.Service {
-	labels := object.GetDefaultLabels(dda, v2alpha1.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
+	labels := object.GetDefaultLabels(dda, constants.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
 	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
@@ -43,7 +44,7 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
@@ -65,7 +66,7 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) cl
 	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix}
 	if useV1BetaPDB {
 		return &policyv1beta1.PodDisruptionBudget{
 			ObjectMeta: metav1.ObjectMeta{

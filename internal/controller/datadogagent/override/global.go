@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -115,7 +116,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 						dda,
 						*config.Site,
 						ddURL,
-						v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+						constants.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
 						dnsSelectorEndpoints,
 						componentName,
 					),
@@ -356,11 +357,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		var componentSaName string
 		switch componentName {
 		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = v2alpha1.GetClusterAgentServiceAccount(dda)
+			componentSaName = constants.GetClusterAgentServiceAccount(dda)
 		case v2alpha1.NodeAgentComponentName:
-			componentSaName = v2alpha1.GetAgentServiceAccount(dda)
+			componentSaName = constants.GetAgentServiceAccount(dda)
 		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda)
 		}
 
 		agentName := dda.GetName()
