@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"strings"
 	"testing"
 )
 
@@ -39,7 +40,7 @@ func TestLocalKindSuite(t *testing.T) {
 	}
 
 	e2eOpts := []e2e.SuiteOption{
-		e2e.WithStackName(fmt.Sprintf("operator-localkind-%s", common.K8sVersion)),
+		e2e.WithStackName(fmt.Sprintf("operator-localkind-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
 	}
 
