@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // These constants are only used within pkg/config
@@ -105,7 +106,7 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 			Namespaces: agentNamespaces,
 
 			Label: labels.SelectorFromSet(map[string]string{
-				common.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
+				common.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 			}),
 
 			Transform: func(obj interface{}) (interface{}, error) {

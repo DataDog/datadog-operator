@@ -12,14 +12,17 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
@@ -29,12 +32,12 @@ const (
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
 func GetClusterChecksRunnerName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, v2alpha1.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
@@ -89,15 +92,29 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 }
 
 func GetClusterChecksRunnerPodDisruptionBudgetName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
-func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
+func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) client.Object {
 	maxUnavailableStr := intstr.FromInt(pdbMaxUnavailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterChecksRunnerResourceSuffix}
-	pdb := &policyv1.PodDisruptionBudget{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix}
+	if useV1BetaPDB {
+		return &policyv1beta1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      GetClusterChecksRunnerPodDisruptionBudgetName(dda),
+				Namespace: dda.GetNamespace(),
+			},
+			Spec: policyv1beta1.PodDisruptionBudgetSpec{
+				MaxUnavailable: &maxUnavailableStr,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: matchLabels,
+				},
+			},
+		}
+	}
+	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetClusterChecksRunnerPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
@@ -109,12 +126,11 @@ func GetClusterChecksRunnerPodDisruptionBudget(dda metav1.Object) *policyv1.PodD
 			},
 		},
 	}
-	return pdb
 }
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 func clusterChecksRunnerImage() string {
@@ -145,9 +161,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Args: []string{
 					"agent run",
 				},
-				LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-				ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-				StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+				LivenessProbe:  constants.GetDefaultLivenessProbe(),
+				ReadinessProbe: constants.GetDefaultReadinessProbe(),
+				StartupProbe:   constants.GetDefaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
@@ -176,7 +192,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  v2alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  v2alpha1.KubernetesEnvVar,
@@ -251,7 +267,7 @@ func DefaultAffinity() *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

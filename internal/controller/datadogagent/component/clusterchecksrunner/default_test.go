@@ -10,6 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/stretchr/testify/assert"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -32,7 +33,7 @@ func Test_getPodDisruptionBudget(t *testing.T) {
 			Namespace: "some-namespace",
 		},
 	}
-	testpdb := GetClusterChecksRunnerPodDisruptionBudget(&dda)
+	testpdb := GetClusterChecksRunnerPodDisruptionBudget(&dda, false).(*policyv1.PodDisruptionBudget)
 	assert.Equal(t, "my-datadog-agent-cluster-checks-runner-pdb", testpdb.Name)
 	assert.Equal(t, intstr.FromInt(pdbMaxUnavailableInstances), *testpdb.Spec.MaxUnavailable)
 	assert.Nil(t, testpdb.Spec.MinAvailable)

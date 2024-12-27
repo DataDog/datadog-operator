@@ -49,6 +49,7 @@ spec:
 | features.admissionController.cwsInstrumentation.mode | Defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
+| features.admissionController.kubernetesAdmissionEvents.enabled | Enable the Kubernetes Admission Events feature. Default: false |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.mutation.enabled | Enables the Admission Controller mutation webhook. Default: true |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
@@ -141,6 +142,14 @@ spec:
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
+| features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
+| features.otelCollector.coreConfig.extension_timeout | Extension URL provides the timout of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extension_url | Extension URL provides the URL of the ddflareextension to the core agent. |
+| features.otelCollector.enabled | Enables the OTel Agent. Default: true |
+| features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
 | features.otlp.receiver.protocols.grpc.endpoint | For OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
 | features.otlp.receiver.protocols.grpc.hostPortConfig.enabled | Enables host port configuration |

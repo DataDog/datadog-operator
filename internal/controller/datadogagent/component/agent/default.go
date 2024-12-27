@@ -18,6 +18,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -28,7 +29,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *appsv1.DaemonSet {
-	daemonset := NewDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, agentComponent, daemonset.GetLabels())
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -36,7 +37,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOp
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, agentComponent feature.RequiredComponent) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, v2alpha1.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, constants.DefaultAgentResourceSuffix, GetAgentName(dda), common.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, agentComponent, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -88,20 +89,26 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 // GetAgentRoleName returns the name of the role for the Agent
 func GetAgentRoleName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultAgentResourceSuffix)
 }
 
 func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultAgentImageName, defaulting.AgentLatestVersion)
+}
+
+func otelAgentImage() string {
+	// todo(mackjmr): make this dynamic once we have otel agent image which releases with regular agent.
+	return fmt.Sprintf("%s:%s", defaulting.AgentDevImageName, defaulting.OTelAgentNightlyTag)
+
 }
 
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
@@ -124,9 +131,9 @@ func agentSingleContainer(dda metav1.Object) []corev1.Container {
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+		LivenessProbe:  constants.GetDefaultLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultReadinessProbe(),
+		StartupProbe:   constants.GetDefaultStartupProbe(),
 	}
 
 	containers := []corev1.Container{
@@ -168,9 +175,9 @@ func coreAgentContainer(dda metav1.Object) corev1.Container {
 		Command:        []string{"agent", "run"},
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
-		LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-		StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+		LivenessProbe:  constants.GetDefaultLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultReadinessProbe(),
+		StartupProbe:   constants.GetDefaultStartupProbe(),
 	}
 }
 
@@ -184,7 +191,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
-		LivenessProbe: v2alpha1.GetDefaultTraceAgentProbe(),
+		LivenessProbe: constants.GetDefaultTraceAgentProbe(),
 	}
 }
 
@@ -201,25 +208,30 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func otelAgentContainer(dda metav1.Object) corev1.Container {
+func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: agentImage(),
+		Image: otelAgentImage(),
 		Command: []string{
-			"/otel-agent",
-			fmt.Sprintf("--config=%s", v2alpha1.OtelCustomConfigVolumePath),
+			"otel-agent",
+			"--config=" + v2alpha1.OtelCustomConfigVolumePath,
+			"--core-config=" + v2alpha1.AgentCustomConfigVolumePath,
+			"--sync-delay=30s",
 		},
-		Env:          envVarsForOtelAgent(dda),
+		Env:          []corev1.EnvVar{},
 		VolumeMounts: volumeMountsForOtelAgent(),
+		// todo(mackjmr): remove once support for annotations is removed.
+		// the otel-agent feature adds these ports if none are supplied by
+		// the user.
 		Ports: []corev1.ContainerPort{
 			{
-				Name:          "grpc",
+				Name:          "otel-grpc",
 				ContainerPort: 4317,
 				HostPort:      4317,
 				Protocol:      corev1.ProtocolTCP,
 			},
 			{
-				Name:          "http",
+				Name:          "otel-http",
 				ContainerPort: 4318,
 				HostPort:      4318,
 				Protocol:      corev1.ProtocolTCP,
@@ -271,8 +283,8 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
-		LivenessProbe:  v2alpha1.GetDefaultAgentDataPlaneLivenessProbe(),
-		ReadinessProbe: v2alpha1.GetDefaultAgentDataPlaneReadinessProbe(),
+		LivenessProbe:  constants.GetDefaultAgentDataPlaneLivenessProbe(),
+		ReadinessProbe: constants.GetDefaultAgentDataPlaneReadinessProbe(),
 	}
 }
 
@@ -350,7 +362,7 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  v2alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
 			Name:  v2alpha1.DDLeaderElection,
@@ -392,14 +404,6 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 			Name:  "HOST_ROOT",
 			Value: v2alpha1.HostRootMountPath,
 		},
-	}
-
-	return append(envs, commonEnvVars(dda)...)
-}
-
-func envVarsForOtelAgent(dda metav1.Object) []corev1.EnvVar {
-	envs := []corev1.EnvVar{
-		// TODO: add additional env vars here
 	}
 
 	return append(envs, commonEnvVars(dda)...)
@@ -507,13 +511,9 @@ func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 
 func volumeMountsForOtelAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
-		// TODO: add/remove volume mounts
 		common.GetVolumeMountForLogs(),
-		common.GetVolumeMountForAuth(true),
 		common.GetVolumeMountForConfig(),
-		common.GetVolumeMountForDogstatsdSocket(false),
-		common.GetVolumeMountForRuntimeSocket(true),
-		common.GetVolumeMountForProc(),
+		common.GetVolumeMountForAuth(true),
 	}
 }
 

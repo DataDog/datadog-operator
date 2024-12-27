@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
@@ -120,7 +121,7 @@ const (
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 	}
 }
 
