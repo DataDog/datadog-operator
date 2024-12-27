@@ -3,16 +3,22 @@ module github.com/DataDog/datadog-operator/test/e2e
 go 1.23.0
 
 replace (
-	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-devel.0.20241227161138-ebe3db6f6c5c
-	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev =>  github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev v0.63.0-devel.0.20241227161138-ebe3db6f6c5c
-	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-devel.0.20241227161138-ebe3db6f6c5c
+	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.60.1
+	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.60.1
+	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev v0.60.1
 )
 
 require (
 	github.com/DataDog/datadog-agent/test/fakeintake v0.60.1
-	github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20241227161138-ebe3db6f6c5c
+	github.com/DataDog/datadog-agent/test/new-e2e v0.60.1
 	github.com/DataDog/datadog-api-client-go/v2 v2.33.0
 	github.com/DataDog/datadog-operator v1.10.0
+	// Are you bumping github.com/DataDog/test-infra-definitions ?
+	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
+	// `TEST_INFRA_DEFINITIONS_BUILDIMAGES` matches the commit sha in the module version
+	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
+	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
+	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
 	github.com/DataDog/test-infra-definitions v0.0.0-20241224112147-36860d3c29b4
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0

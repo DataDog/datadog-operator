@@ -33,6 +33,8 @@ github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241227002302-42c
 github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241227002302-42c23d74802f/go.mod h1:nUsWITGelMKeObSoAxGGnMRnK8SRUO0Labjyfkc3GM0=
 github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20241227161138-ebe3db6f6c5c h1:82iimn023QZWl0eaw6z9wOpgLCx663ArZDWNc1abRH4=
 github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20241227161138-ebe3db6f6c5c/go.mod h1:FCHUhMazeYD7cW5r/YXw6Zjeul+LlzL18YD9D9utT9g=
+github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20241227180618-1cc7604f4b6b h1:TXLJ36xblbLf/01RDUkW7m90ydO6rxxk1ci4925RoxM=
+github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20241227180618-1cc7604f4b6b/go.mod h1:FCHUhMazeYD7cW5r/YXw6Zjeul+LlzL18YD9D9utT9g=
 github.com/DataDog/datadog-api-client-go/v2 v2.33.0 h1:OI6kDnJeQmkjfGzxmP0XUQUxMD4tp6oAPXnnJ4VpgUM=
 github.com/DataDog/datadog-api-client-go/v2 v2.33.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
 github.com/DataDog/datadog-operator v1.10.0 h1:P7D/IPKXGftQU1h4CAKEetwCyOXEYAULaPEigf/sHOI=
