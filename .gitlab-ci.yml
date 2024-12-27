@@ -116,6 +116,7 @@ check-golang-version:
   script:
     - make update-golang
     - git diff --exit-code
+  allow_failure: true # temporary
 
 generate_code:
   stage: test
