@@ -1558,7 +1558,6 @@ github.com/DataDog/datadog-agent/comp/netflow/payload v0.55.2 h1:nx+kwdpALsELnCd
 github.com/DataDog/datadog-agent/comp/netflow/payload v0.55.2/go.mod h1:pmDq9TIRmgjt3eVMqYwLGrMSKb3OSC+VJ/Wrvm8vcJ4=
 github.com/DataDog/datadog-agent/comp/netflow/payload v0.56.0-rc.3/go.mod h1:tGfkn7BY1zg9IV4THutQxW+m28h6lqytDGb9gKOdrLo=
 github.com/DataDog/datadog-agent/comp/netflow/payload v0.59.0/go.mod h1:tGfkn7BY1zg9IV4THutQxW+m28h6lqytDGb9gKOdrLo=
-github.com/DataDog/datadog-agent/comp/netflow/payload v0.60.1 h1:gXN/z0DOUStshf7BkHxcfwBNaj4/6pL4bVKZtQUYBvo=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.60.0 h1:JL7CaM/F/u5plGK8UVoHWCYoNdBgrRIgF36hYqzn8f0=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.60.0/go.mod h1:3Q/cJ5hXitB2yPKwQmhEYRe8XnEctJDpXmibeBvkt5Y=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.60.1 h1:lhZlnhZTWA9f8gYn6PtsQdhZpOb5MnJmGPlMewHVCfQ=
@@ -1610,7 +1609,6 @@ github.com/DataDog/datadog-agent/pkg/obfuscate v0.60.1 h1:JG543fsoWMXeLLERyWZpkY
 github.com/DataDog/datadog-agent/pkg/obfuscate v0.60.1/go.mod h1:SPipm2vo4V7llYTcslf2oUZnvMfoZ3VIp4GAk2YlLUI=
 github.com/DataDog/datadog-agent/pkg/proto v0.56.0-rc.3/go.mod h1:gHkSUTn6H6UEZQHY3XWBIGNjfI3Tdi0IxlrxIFBWDwU=
 github.com/DataDog/datadog-agent/pkg/proto v0.59.0/go.mod h1:weaq7HP9vUa7YAMcvMs7bhT7pmHk3sq7XRBQOcaSUak=
-github.com/DataDog/datadog-agent/pkg/proto v0.60.1 h1:TPmwa8/mNDTB6dvjzc3ezjCOLAVAlGIJxIxNLohHzOM=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.43.1/go.mod h1:VVMDDibJxYEkwcLdZBT2g8EHKpbMT4JdOhRbQ9GdjbM=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.48.1/go.mod h1:Vc+snp0Bey4MrrJyiV2tVxxJb6BmLomPvN1RgAvjGaQ=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.52.0/go.mod h1:JhAilx32dkIgoDkFXquCTfaWDsAOfe+vfBaxbiZoPI0=
@@ -1666,7 +1664,6 @@ github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2 h1:4F3dVaRMQdYXE/BENy
 github.com/DataDog/datadog-agent/pkg/util/optional v0.55.2/go.mod h1:wa1JIWnzo9EvOBwzDOeff8HeqgOq9JQANRb99/nKg3A=
 github.com/DataDog/datadog-agent/pkg/util/optional v0.59.0/go.mod h1:xWT/KJdJg2/0pZyAKZ6XmIiE5sM+AyUo4qvKuPHQ17U=
 github.com/DataDog/datadog-agent/pkg/util/optional v0.59.1/go.mod h1:xWT/KJdJg2/0pZyAKZ6XmIiE5sM+AyUo4qvKuPHQ17U=
-github.com/DataDog/datadog-agent/pkg/util/optional v0.60.1 h1:zgemc5Cq4hwziR9kYyQ2jFkXIbrtmBF6rmXtePu+MUg=
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.52.0 h1:0K9SXUCZhbwQ8CZ13iR+ddCX/iMu53o6Dm21ntzCnkE=
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.52.0/go.mod h1:HgJEYNmnFTKIuBhWxYe1coqmzoJXMxQTfK+4wIG5G1Q=
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.53.0-rc.3 h1:SFRsbBkRcKVCZk7w27kijRTlTztTIbtFninQzL9zfnI=
@@ -1678,9 +1675,9 @@ github.com/DataDog/datadog-agent/pkg/util/pointer v0.56.2/go.mod h1:t1DlnUEMltkv
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.60.0 h1:wl0FTEDFZ8lhoUzRn7smR38gY2ai5yDiqb3StlKEj64=
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.60.0/go.mod h1:t1DlnUEMltkvwPLc7zCtP1u5cBDu+30daR2VhQO5bvA=
 github.com/DataDog/datadog-agent/pkg/util/pointer v0.60.1 h1:bIFFpq2zTOW2/859+WTeudVf+g66vBJWpXIO8RYz+bw=
+github.com/DataDog/datadog-agent/pkg/util/pointer v0.60.1/go.mod h1:t1DlnUEMltkvwPLc7zCtP1u5cBDu+30daR2VhQO5bvA=
 github.com/DataDog/datadog-agent/pkg/util/scrubber v0.56.2/go.mod h1:krOxbYZc4KKE7bdEDu10lLSQBjdeSFS/XDSclsaSf1Y=
 github.com/DataDog/datadog-agent/pkg/util/scrubber v0.59.0/go.mod h1:krOxbYZc4KKE7bdEDu10lLSQBjdeSFS/XDSclsaSf1Y=
-github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.1 h1:exNwxh+62f/gQODllXF/FnuwYNkdhScptfBq9PgCjrM=
 github.com/DataDog/datadog-agent/pkg/util/system v0.59.0 h1:9fpWOSJyuBHdpzQkUYFoyC57Bv+umHeMMSQmwmm900k=
 github.com/DataDog/datadog-agent/pkg/util/system v0.59.0/go.mod h1:rdBzS773XYudLd/IH2mUzz3+kJ2N2PcFWEdRGEGYlP0=
 github.com/DataDog/datadog-agent/pkg/util/system/socket v0.59.0 h1:8l2FgdcIUNPyI4J+w5OaY3k2byB11HqZ/mcg2AcJSSI=
@@ -1716,7 +1713,6 @@ github.com/DataDog/datadog-agent/pkg/version v0.60.1/go.mod h1:rcA7LtIB5WLpxsems
 github.com/DataDog/datadog-agent/test/fakeintake v0.55.2 h1:XlJYOS1piruhwkS7cpbAPQGVkRomhLc0thGz6jWx87U=
 github.com/DataDog/datadog-agent/test/fakeintake v0.55.2/go.mod h1:jEs+SEx5OtkK5vZGgor5GvHbnSpETrYLFOSH8cOYybs=
 github.com/DataDog/datadog-agent/test/fakeintake v0.56.0-rc.3/go.mod h1:zX5qhvZ0ZXaZp7SGE55ktil+W68cdM/ZHEq8zX/WDuY=
-github.com/DataDog/datadog-agent/test/fakeintake v0.60.1 h1:dbxF3Uii1Nd5Ek6lqRwRs+XaxBnRf6m9e8RAIJU0tlA=
 github.com/DataDog/datadog-agent/test/new-e2e v0.60.1/go.mod h1:8puVWee8nsU2pRvqzU1dBBF/MM6MXYEZXTaLF3/7eGk=
 github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241219170545-087648a13f11 h1:zyQN9vek9x0igX1U8DBTwYsRZEBsRRTQTtEoXN67XRg=
 github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241219170545-087648a13f11/go.mod h1:15c6t0yc6I6dMZVjAzDZFHcGzu4D8toa90vkkynyBs8=
@@ -1780,6 +1776,8 @@ github.com/IBM/sarama v1.40.0/go.mod h1:6pBloAs1WanL/vsq5qFTyTGulJUntZHhMLOUYEIs
 github.com/JohnCGriffin/overflow v0.0.0-20211019200055-46fa312c352c/go.mod h1:X0CRv0ky0k6m906ixxpzmDRLvX58TFUKS2eePweuyxk=
 github.com/KimMachineGun/automemlimit v0.6.1/go.mod h1:T7xYht7B8r6AG/AqFcUdc7fzd2bIdBKmepfP2S1svPY=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
+github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
+github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=
 github.com/Masterminds/goutils v1.1.1/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
 github.com/Masterminds/sprig/v3 v3.2.1 h1:n6EPaDyLSvCEa3frruQvAiHuNp2dhBlMSmkEr+HuzGc=
@@ -2220,6 +2218,8 @@ github.com/certifi/gocertifi v0.0.0-20200922220541-2c3bb06c6054/go.mod h1:sGbDF6
 github.com/cespare/xxhash v1.1.0 h1:a6HrQnmkObjyL+Gs60czilIUGqrzKutQD6XZog3p+ko=
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.2.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
+github.com/chai2010/gettext-go v1.0.2 h1:1Lwwip6Q2QGsAdl/ZKPCwTe9fe0CjlUbqj5bFNSjIRk=
+github.com/chai2010/gettext-go v1.0.2/go.mod h1:y+wnP2cHYaVj19NZhYKAwEMH2CI1gNHeQQ+5AjwawxA=
 github.com/charmbracelet/bubbles v0.16.1/go.mod h1:2QCp9LFlEsBQMvIYERr7Ww2H2bA7xen1idUDIzm/+Xc=
 github.com/charmbracelet/bubbletea v0.24.2/go.mod h1:XdrNrV4J8GiyshTtx3DNuYkR1FDaJmO3l2nejekbsgg=
 github.com/charmbracelet/glamour v0.6.0 h1:wi8fse3Y7nfcabbbDuwolqTqMQPMnVPeZhDM273bISc=
@@ -2641,11 +2641,14 @@ github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLi
 github.com/evanphx/json-patch v4.11.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.12.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.5.0/go.mod h1:G79N1coSVB93tBe7j6PhzjmR3/2VvlbKOFpnXhI9Bw4=
+github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d h1:105gxyaGwCFad8crR9dcMQWvV9Hvulu6hwUh4tWPJnM=
+github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d/go.mod h1:ZZMPRZwes7CROmyNKgQzC3XPs6L/G2EJLHddWejkmf4=
 github.com/fatih/camelcase v1.0.0 h1:hxNvNX/xYBp0ovncs8WyWZrOrpBNub/JfaMvbURyft8=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fatih/color v1.13.0/go.mod h1:kLAiJbzzSOZDVNGyDpeOxJ47H46qBXwg5ILebYFFOfk=
 github.com/fatih/color v1.15.0/go.mod h1:0h5ZqXfHYED7Bhv2ZJamyIOUej9KtShiJESRwBDUSsw=
+github.com/fatih/color v1.16.0/go.mod h1:fL2Sau1YI5c0pdGEVCbKQbLXB6edEj1ZgiY4NijnWvE=
 github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
 github.com/felixge/httpsnoop v1.0.1/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/felixge/httpsnoop v1.0.3 h1:s/nj+GCswXYzN5v2DpNMuMQYe+0DDwt5WVCU6CWBdXk=
@@ -4653,6 +4656,7 @@ go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.10.0/go.mod h
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.3.0/go.mod h1:QNX1aly8ehqqX1LEa6YniTU7VY9I6R3X/oPxhGdTceE=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.6.1/go.mod h1:DAKwdo06hFLc0U88O10x4xnb5sc7dDRDqRuiN+io8JE=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.7.0/go.mod h1:aFXT9Ng2seM9eizF+LfKiyPBGy8xIZKwhusC1gIu3hA=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.28.0/go.mod h1:Y5+XiUG4Emn1hTfciPzGPJaSI+RpDts6BnCIir0SLqk=
 go.opentelemetry.io/otel/exporters/prometheus v0.49.0 h1:Er5I1g/YhfYv9Affk9nJLfH/+qCCVVg1f2R9AbJfqDQ=
 go.opentelemetry.io/otel/exporters/prometheus v0.49.0/go.mod h1:KfQ1wpjf3zsHjzP149P4LyAwWRupc6c7t1ZJ9eXpKQM=
 go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.27.0 h1:/jlt1Y8gXWiHG9FBx6cJaIC5hYx5Fe64nC8w5Cylt/0=
@@ -4723,6 +4727,8 @@ go.opentelemetry.io/proto/otlp v1.2.0/go.mod h1:gGpR8txAl5M03pDhMC79G6SdqNV26naR
 go.pennock.tech/tabular v1.1.3 h1:JYN3TdVkTjOWdZz2FwKcW7f69vRhPl4NAQqJ8RZAsmY=
 go.pennock.tech/tabular v1.1.3/go.mod h1:UzyxF5itNqTCS1ZGXfwDwbFgYj/lS+e67Fid68QOYZ0=
 go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5/go.mod h1:nmDLcffg48OtT/PSW0Hg7FvpRQsQh5OSqIylirxKC7o=
+go.starlark.net v0.0.0-20230525235612-a134d8f9ddca h1:VdD38733bfYv5tUZwEIskMM93VanwNIi5bIKnDrJdEY=
+go.starlark.net v0.0.0-20230525235612-a134d8f9ddca/go.mod h1:jxU+3+j+71eXOW14274+SmmuW82qJzl6iZSeqEtTGds=
 go.starlark.net v0.0.0-20231101134539-556fd59b42f6 h1:+eC0F/k4aBLC4szgOcjd7bDTEnpxADJyWJE0yowgM3E=
 go.starlark.net v0.0.0-20231101134539-556fd59b42f6/go.mod h1:LcLNIzVOMp4oV+uusnpk+VU+SzXaJakUuBjoCSWH5dM=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
@@ -5869,6 +5875,7 @@ gotest.tools/gotestsum v1.8.2/go.mod h1:6JHCiN6TEjA7Kaz23q1bH0e2Dc3YJjDUZ0DmctFZ
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.0.3/go.mod h1:Z7Lb0S5l+klDB31fvDQX8ss/FlKDxtlFlw3Oa8Ymbl8=
 gotest.tools/v3 v3.3.0/go.mod h1:Mcr9QNxkg0uMvy/YElmo4SpXgJKWgQvYrT7Kw5RzJ1A=
+gotest.tools/v3 v3.5.0/go.mod h1:isy3WKz7GK6uNw/sbHzfKBLvlvXwUyV06n6brMxxopU=
 honnef.co/go/tools v0.0.0-20180728063816-88497007e858/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190106161140-3f1c8253044a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190418001031-e561f6794a2a/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=

@@ -1,6 +1,8 @@
 module github.com/DataDog/datadog-operator
 
-go 1.23.0
+go 1.23
+
+toolchain go1.23.0
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.33.0
@@ -51,15 +53,14 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/DataDog/appsec-internal-go v1.7.0 // indirect
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.59.0-rc.5 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.60.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/backoff v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/cache v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/grpc v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/http v0.59.0-rc.5 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/log v0.59.0-rc.5 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/uuid v0.59.0-rc.5 // indirect
-	github.com/DataDog/datadog-agent/test/new-e2e v0.62.0-devel.0.20241227002302-42c23d74802f // indirect
 	github.com/DataDog/datadog-go/v5 v5.6.0 // indirect
 	github.com/DataDog/go-libddwaf/v3 v3.3.0 // indirect
 	github.com/DataDog/go-sqllexer v0.0.15 // indirect
