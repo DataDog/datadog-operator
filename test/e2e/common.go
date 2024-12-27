@@ -120,6 +120,7 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
+		FieldSelector: "status.phase=Running",
 	}, numPods, 9, 15*time.Second)
 }
 
