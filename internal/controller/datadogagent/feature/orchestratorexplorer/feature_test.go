@@ -11,13 +11,13 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -33,19 +33,19 @@ instances:
 
 var expectedOrchestratorEnvsV2 = []*corev1.EnvVar{
 	{
-		Name:  apicommon.DDOrchestratorExplorerEnabled,
+		Name:  DDOrchestratorExplorerEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
 		Value: "true",
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerExtraTags,
+		Name:  DDOrchestratorExplorerExtraTags,
 		Value: `["a:z","b:y","c:x"]`,
 	},
 	{
-		Name:  apicommon.DDOrchestratorExplorerDDUrl,
+		Name:  DDOrchestratorExplorerDDUrl,
 		Value: "https://foo.bar",
 	},
 }
@@ -54,14 +54,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "orchestrator explorer not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "orchestrator explorer enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -75,7 +75,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "orchestrator explorer enabled and runs on cluster checks runner",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -92,7 +92,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "orchestrator explorer enabled on version requiring process agent",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).

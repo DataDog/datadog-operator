@@ -25,6 +25,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
@@ -455,7 +456,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				},
@@ -474,9 +475,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				ReadinessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -489,9 +490,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LivenessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -504,9 +505,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				StartupProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},

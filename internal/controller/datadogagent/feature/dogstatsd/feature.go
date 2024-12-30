@@ -21,6 +21,7 @@ import (
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func init() {
@@ -80,7 +81,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.TagCardinality != nil {
 		f.tagCardinality = *dogstatsd.TagCardinality
 	}
-	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
+	f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
@@ -88,7 +89,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dda.Spec.Global.LocalService != nil {
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 
@@ -150,7 +151,7 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 	// Cluster Checks Runner.
 	if f.adpEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdEnabled,
+			Name:  v2alpha1.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	}
@@ -174,7 +175,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdEnabled,
+			Name:  v2alpha1.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	} else {
@@ -205,11 +206,11 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		}
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			// defaults to 8125 in datadog-agent code
-			Name:  apicommon.DDDogstatsdPort,
+			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(dsdPortEnvVarValue),
 		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdNonLocalTraffic,
+			Name:  DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		})
 	}
@@ -226,18 +227,18 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdSocket,
+			Name:  DDDogstatsdSocket,
 			Value: filepath.Join(v2alpha1.DogstatsdSocketLocalPath, sockName),
 		})
 	}
 
 	if f.originDetectionEnabled {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdOriginDetection,
+			Name:  DDDogstatsdOriginDetection,
 			Value: "true",
 		})
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogstatsdOriginDetectionClient,
+			Name:  DDDogstatsdOriginDetectionClient,
 			Value: "true",
 		})
 		if f.udsEnabled {
@@ -247,7 +248,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
 		if f.tagCardinality != "" {
 			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDDogstatsdTagCardinality,
+				Name:  DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,
 			})
 		}
@@ -258,7 +259,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
 			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDDogstatsdMapperProfiles,
+				Name:  DDDogstatsdMapperProfiles,
 				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
 			})
 			// ignore configmap if configdata is set
@@ -270,7 +271,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			cmSelector.Name = f.mapperProfiles.ConfigMap.Name
 			cmSelector.Key = f.mapperProfiles.ConfigMap.Items[0].Key
 			managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-				Name:      apicommon.DDDogstatsdMapperProfiles,
+				Name:      DDDogstatsdMapperProfiles,
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})
 		}

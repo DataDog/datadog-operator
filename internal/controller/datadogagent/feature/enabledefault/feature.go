@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -52,7 +53,6 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 
 	if options != nil {
 		dF.logger = options.Logger
-		dF.otelAgentEnabled = options.OtelAgentEnabled
 	}
 
 	return dF
@@ -68,7 +68,6 @@ type defaultFeature struct {
 	clusterChecksRunner     clusterChecksRunnerConfig
 	logger                  logr.Logger
 	disableNonResourceRules bool
-	otelAgentEnabled        bool
 	adpEnabled              bool
 
 	customConfigAnnotationKey   string
@@ -126,17 +125,13 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	trueValue := true
 	f.owner = dda
 
-	f.clusterAgent.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
-	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
-	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+	f.clusterAgent.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.agent.serviceAccountName = constants.GetAgentServiceAccount(dda)
+	f.clusterChecksRunner.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 
-	f.clusterAgent.serviceAccountAnnotations = v2alpha1.GetClusterAgentServiceAccountAnnotations(dda)
-	f.agent.serviceAccountAnnotations = v2alpha1.GetAgentServiceAccountAnnotations(dda)
-	f.clusterChecksRunner.serviceAccountAnnotations = v2alpha1.GetClusterChecksRunnerServiceAccountAnnotations(dda)
-
-	if dda.ObjectMeta.Annotations != nil {
-		f.otelAgentEnabled = f.otelAgentEnabled || featureutils.HasOtelAgentAnnotation(dda)
-	}
+	f.clusterAgent.serviceAccountAnnotations = constants.GetClusterAgentServiceAccountAnnotations(dda)
+	f.agent.serviceAccountAnnotations = constants.GetAgentServiceAccountAnnotations(dda)
+	f.clusterChecksRunner.serviceAccountAnnotations = constants.GetClusterChecksRunnerServiceAccountAnnotations(dda)
 
 	if dda.ObjectMeta.Annotations != nil {
 		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
@@ -216,7 +211,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	// feature.
 	//
 	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
-	if f.otelAgentEnabled {
+	if dda.ObjectMeta.Annotations != nil && featureutils.HasOtelAgentAnnotation(dda) {
 		agentContainers = append(agentContainers, apicommon.OtelAgent)
 	}
 
@@ -405,7 +400,7 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDClusterAgentServiceAccountName,
+		Name:  DDClusterAgentServiceAccountName,
 		Value: f.clusterAgent.serviceAccountName,
 	})
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -457,17 +452,17 @@ func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateM
 
 func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
 	if f.dcaTokenInfo.token.SecretName != "" {
-		tokenEnvVar := common.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
+		tokenEnvVar := common.BuildEnvVarFromSource(DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
 		managers.EnvVar().AddEnvVar(tokenEnvVar)
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := common.BuildEnvVarFromSource(apicommon.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 
@@ -477,7 +472,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubernetesResourcesLabelsAsTags,
+				Name:  v2alpha1.DDKubernetesResourcesLabelsAsTags,
 				Value: string(kubernetesResourceLabelsAsTags),
 			})
 		}
@@ -489,7 +484,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubernetesResourcesAnnotationsAsTags,
+				Name:  v2alpha1.DDKubernetesResourcesAnnotationsAsTags,
 				Value: string(kubernetesResourceAnnotationsAsTags),
 			})
 		}
@@ -512,7 +507,7 @@ func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
 
 func getInstallInfoValue() string {
 	toolVersion := "unknown"
-	if envVar := os.Getenv(apicommon.InstallInfoToolVersion); envVar != "" {
+	if envVar := os.Getenv(InstallInfoToolVersion); envVar != "" {
 		toolVersion = envVar
 	}
 

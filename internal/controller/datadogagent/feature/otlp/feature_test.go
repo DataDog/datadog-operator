@@ -10,11 +10,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -40,11 +40,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -80,11 +80,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -120,11 +120,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -158,11 +158,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -198,11 +198,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -240,11 +240,11 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "0.0.0.0:4318",
 					},
 				},
@@ -277,7 +277,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 				},
@@ -303,7 +303,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Name:  DDOTLPgRPCEndpoint,
 						Value: "0.0.0.0:4317",
 					},
 				},
@@ -330,7 +330,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpected(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "somehostname:4318",
 					},
 				},
@@ -358,7 +358,7 @@ func TestOTLPFeature(t *testing.T) {
 			Agent: testExpectedSingleContainer(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
-						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Name:  DDOTLPHTTPEndpoint,
 						Value: "somehostname:4318",
 					},
 				},
@@ -392,7 +392,7 @@ type Settings struct {
 }
 
 func newAgent(set Settings) *v2alpha1.DatadogAgent {
-	return v2alpha1test.NewDatadogAgentBuilder().
+	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
@@ -400,7 +400,7 @@ func newAgent(set Settings) *v2alpha1.DatadogAgent {
 }
 
 func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
-	return v2alpha1test.NewDatadogAgentBuilder().
+	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).

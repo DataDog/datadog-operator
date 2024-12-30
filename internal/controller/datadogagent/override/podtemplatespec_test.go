@@ -588,7 +588,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager.EnvVarMgr.AddEnvVarToContainer(
 					apicommon.ClusterAgentContainerName,
 					&v1.EnvVar{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "info",
 					},
 				)
@@ -606,7 +606,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				envSet := false
 
 				for _, env := range manager.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName] {
-					if env.Name == apicommon.DDLogLevel && env.Value == "trace" {
+					if env.Name == v2alpha1.DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
 					}

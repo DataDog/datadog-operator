@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -33,19 +34,19 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
 		if cont.Name != string(apicommon.SystemProbeContainerName) {
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSEnabled,
+				Name:  v2alpha1.DDFIPSEnabled,
 				Value: "true",
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSPortRangeStart,
+				Name:  v2alpha1.DDFIPSPortRangeStart,
 				Value: strconv.Itoa(int(*fipsConfig.Port)),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSUseHTTPS,
+				Name:  v2alpha1.DDFIPSUseHTTPS,
 				Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  apicommon.DDFIPSLocalAddress,
+				Name:  v2alpha1.DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			})
 		}
@@ -54,7 +55,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	// Configure FIPS container
 	fipsContainer := getFIPSProxyContainer(fipsConfig)
 
-	image := v2alpha1.GetImage(fipsConfig.Image, globalConfig.Registry)
+	image := constants.GetImage(fipsConfig.Image, globalConfig.Registry)
 	fipsContainer.Image = image
 	if fipsConfig.Image.PullPolicy != nil {
 		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
@@ -135,7 +136,7 @@ func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
 		Ports:           getFIPSPorts(fipsConfig),
 		Env: []corev1.EnvVar{
 			{
-				Name:  apicommon.DDFIPSLocalAddress,
+				Name:  v2alpha1.DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			},
 		},

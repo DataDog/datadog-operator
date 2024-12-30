@@ -43,23 +43,23 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// check env vars
 		sysProbeWantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSystemProbeNPMEnabled,
+				Name:  DDSystemProbeNPMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeEnabled,
+				Name:  v2alpha1.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 			{
-				Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+				Name:  DDSystemProbeCollectDNSStatsEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeConntrackEnabled,
+				Name:  DDSystemProbeConntrackEnabled,
 				Value: "false",
 			},
 		}
@@ -167,25 +167,25 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// check env vars
 		sysProbeWantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSystemProbeNPMEnabled,
+				Name:  DDSystemProbeNPMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeEnabled,
+				Name:  v2alpha1.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}
 		npmFeatureEnvVar := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSystemProbeConntrackEnabled,
+				Name:  DDSystemProbeConntrackEnabled,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+				Name:  DDSystemProbeCollectDNSStatsEnabled,
 				Value: "false",
 			},
 		}
@@ -194,7 +194,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(sysProbeWantEnvVarsNPM, sysProbeWantEnvVarsNPM), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVarsNPM))
 
 		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
-			Name:  apicommon.DDSystemProbeExternal,
+			Name:  v2alpha1.DDSystemProbeExternal,
 			Value: "true",
 		})
 

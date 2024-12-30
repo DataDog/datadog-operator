@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -39,14 +39,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Prometheus scrape not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Prometheus scrape enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -54,11 +54,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 					}
@@ -69,11 +69,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 					}
@@ -83,7 +83,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Prometheus scrape service endpoints enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeServiceEndpoints(true).
 				Build(),
@@ -92,11 +92,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "true",
 						},
 					}
@@ -107,11 +107,11 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "true",
 						},
 					}
@@ -121,7 +121,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Prometheus scrape additional configs",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeAdditionalConfigs(yamlConfigs).
 				Build(),
@@ -130,15 +130,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeChecks,
+							Name:  DDPrometheusScrapeChecks,
 							Value: jsonConfigs,
 						},
 					}
@@ -149,15 +149,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeChecks,
+							Name:  DDPrometheusScrapeChecks,
 							Value: jsonConfigs,
 						},
 					}
@@ -167,7 +167,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "version specified",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeVersion(1).
 				Build(),
@@ -176,15 +176,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeVersion,
+							Name:  DDPrometheusScrapeVersion,
 							Value: "1",
 						},
 					}
@@ -195,15 +195,15 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := []*corev1.EnvVar{
 						{
-							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Name:  DDPrometheusScrapeEnabled,
 							Value: "true",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Name:  DDPrometheusScrapeServiceEndpoints,
 							Value: "false",
 						},
 						{
-							Name:  apicommon.DDPrometheusScrapeVersion,
+							Name:  DDPrometheusScrapeVersion,
 							Value: "1",
 						},
 					}

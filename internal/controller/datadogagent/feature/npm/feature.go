@@ -132,38 +132,38 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	}
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeNPMEnabled,
+		Name:  DDSystemProbeNPMEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, enableEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeEnabled,
+		Name:  v2alpha1.DDSystemProbeEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeEnableEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
+		Name:  v2alpha1.DDSystemProbeSocket,
 		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, socketEnvVar)
 
 	collectDNSStatsEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+		Name:  DDSystemProbeCollectDNSStatsEnabled,
 		Value: apiutils.BoolToString(&f.collectDNSStats),
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, collectDNSStatsEnvVar)
 
 	connTrackEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeConntrackEnabled,
+		Name:  DDSystemProbeConntrackEnabled,
 		Value: apiutils.BoolToString(&f.enableConntrack),
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, connTrackEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeExternal,
+		Name:  v2alpha1.DDSystemProbeExternal,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, sysProbeExternalEnvVar)

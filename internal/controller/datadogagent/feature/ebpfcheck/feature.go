@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package ebpfcheck
 
 import (
@@ -76,7 +81,7 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDEnableEBPFCheckEnvVar,
+		Name:  DDEnableEBPFCheckEnvVar,
 		Value: "true",
 	}
 
@@ -84,7 +89,7 @@ func (f *ebpfCheckFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocket,
+		Name:  v2alpha1.DDSystemProbeSocket,
 		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 

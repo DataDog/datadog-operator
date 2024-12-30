@@ -111,37 +111,37 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 
 			securityWant := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSocket,
+					Name:  DDRuntimeSecurityConfigSocket,
 					Value: "/var/run/sysprobe/runtime-security.sock",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDHostRootEnvVar,
+					Name:  v2alpha1.DDHostRootEnvVar,
 					Value: v2alpha1.HostRootMountPath,
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+					Name:  DDRuntimeSecurityConfigPoliciesDir,
 					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			}
 			sysProbeWant := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSocket,
+					Name:  DDRuntimeSecurityConfigSocket,
 					Value: "/var/run/sysprobe/runtime-security.sock",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
 			}
@@ -149,15 +149,15 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				sysProbeWant = append(
 					sysProbeWant,
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigNetworkEnabled,
+						Name:  DDRuntimeSecurityConfigNetworkEnabled,
 						Value: "true",
 					},
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+						Name:  DDRuntimeSecurityConfigActivityDumpEnabled,
 						Value: "true",
 					},
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
+						Name:  DDRuntimeSecurityConfigRemoteConfigurationEnabled,
 						Value: "true",
 					},
 				)
@@ -165,7 +165,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			sysProbeWant = append(
 				sysProbeWant,
 				&corev1.EnvVar{
-					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+					Name:  DDRuntimeSecurityConfigPoliciesDir,
 					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			)

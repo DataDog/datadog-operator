@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package servicediscovery
 
 import (
@@ -95,11 +100,11 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDServiceDiscoveryEnabled,
+				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}

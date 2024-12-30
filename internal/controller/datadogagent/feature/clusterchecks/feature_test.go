@@ -15,11 +15,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks not enabled and runners not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(false).
 				WithClusterChecksUseCLCEnabled(false).
 				Build(),
@@ -50,7 +50,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks not enabled and runners enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(false).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
@@ -59,7 +59,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
 				Build(),
@@ -69,7 +69,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners not enabled with single container strategy",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
 				WithSingleContainerStrategy(true).
@@ -80,7 +80,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
@@ -91,7 +91,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners enabled with single container strategy",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				WithSingleContainerStrategy(true).
@@ -126,19 +126,19 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 				},
 			},
 		},
-		v2alpha1test.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentBuilder().
 			WithClusterChecksEnabled(false).
 			WithClusterChecksUseCLCEnabled(false).
 			Build(),
-		v2alpha1test.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentBuilder().
 			WithClusterChecksEnabled(false).
 			WithClusterChecksUseCLCEnabled(true).
 			Build(),
-		v2alpha1test.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentBuilder().
 			WithClusterChecksEnabled(true).
 			WithClusterChecksUseCLCEnabled(false).
 			Build(),
-		v2alpha1test.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentBuilder().
 			WithClusterChecksEnabled(true).
 			WithClusterChecksUseCLCEnabled(true).
 			Build(),
@@ -166,15 +166,15 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
 	expectedClusterAgentEnvs := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDClusterChecksEnabled,
+			Name:  DDClusterChecksEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDExtraConfigProviders,
+			Name:  DDExtraConfigProviders,
 			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
 		},
 		{
-			Name:  apicommon.DDExtraListeners,
+			Name:  DDExtraListeners,
 			Value: v2alpha1.KubeServicesAndEndpointsListeners,
 		},
 	}
@@ -201,12 +201,12 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 			clusterRunnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
 			expectedClusterRunnerEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDClusterChecksEnabled,
+					Name:  DDClusterChecksEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDExtraConfigProviders,
-					Value: apicommon.ClusterChecksConfigProvider,
+					Name:  DDExtraConfigProviders,
+					Value: ClusterChecksConfigProvider,
 				},
 			}
 
@@ -227,7 +227,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDExtraConfigProviders,
+					Name:  DDExtraConfigProviders,
 					Value: v2alpha1.EndpointsChecksConfigProvider,
 				},
 			}
@@ -249,7 +249,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDExtraConfigProviders,
+					Name:  DDExtraConfigProviders,
 					Value: v2alpha1.ClusterAndEndpointsConfigProviders,
 				},
 			}

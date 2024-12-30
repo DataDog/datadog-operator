@@ -16,10 +16,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
 type InstallInfoData struct {
@@ -52,7 +52,7 @@ func Test_getInstallInfoValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(apicommon.InstallInfoToolVersion, tt.toolVersionEnvVarValue)
+			t.Setenv(InstallInfoToolVersion, tt.toolVersionEnvVarValue)
 			installInfo := InstallInfoData{}
 
 			test := getInstallInfoValue()
@@ -71,7 +71,7 @@ func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Manage Cluster Agent service account name env variable",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("datadog").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),
@@ -88,7 +88,7 @@ func defaultFeatureManageClusterAgentWantFunc(t testing.TB, mgrInterface feature
 	dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
 
 	want := &corev1.EnvVar{
-		Name:  apicommon.DDClusterAgentServiceAccountName,
+		Name:  DDClusterAgentServiceAccountName,
 		Value: "datadog-cluster-agent",
 	}
 	wantJSON, err := json.Marshal(want)
