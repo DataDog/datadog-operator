@@ -18,16 +18,3 @@ spec:
       containerCollectAll: true
     liveContainerCollection:
       enabled: true
-  override: # todo: remove this override when https://github.com/DataDog/test-infra-definitions/pull/1327 is merged
-    nodeAgent:
-      image:
-        pullSecrets:
-          - name: registry-credentials
-    clusterAgent:
-      image:
-        pullSecrets:
-          - name: registry-credentials
-    clusterChecksRunner:
-      image:
-        pullSecrets:
-          - name: registry-credentials
