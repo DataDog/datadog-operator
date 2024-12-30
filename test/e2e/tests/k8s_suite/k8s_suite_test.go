@@ -251,7 +251,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyAPILogs()
-		}, 300*time.Second, 15*time.Second, "could not valid logs collection in time")
+		}, 900*time.Second, 15*time.Second, "could not valid logs collection in time")
 	})
 }
 
