@@ -24,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/test-infra-definitions/common/utils"
-	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
@@ -108,7 +107,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 		// Create kind cluster
 		kindClusterName := strings.ReplaceAll(ctx.Stack(), ".", "-")
 
-		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", k8sVersion), nil)
+		err = ctx.Log.Info(fmt.Sprintf("Creating kind cluster with K8s version: %s", strings.ReplaceAll(k8sVersion, ".", "-")), nil)
 		if err != nil {
 			return err
 		}
@@ -118,7 +117,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, awsEnv.CommonNamer().ResourceName("kind"), kindClusterName, k8sVersion, utils.PulumiDependsOn(installEcrCredsHelperCmd))
+		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, kindClusterName, k8sVersion, utils.PulumiDependsOn(installEcrCredsHelperCmd))
 		if err != nil {
 			return err
 		}
@@ -141,7 +140,10 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		updateKustomization(kustomizeDirPath, extraKustomizeResources)
+		err = updateKustomization(kustomizeDirPath, extraKustomizeResources)
+		if err != nil {
+			return err
+		}
 
 		e2eKustomize, err := kustomize.NewDirectory(ctx, "e2e-manager",
 			kustomize.DirectoryArgs{
@@ -156,7 +158,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 
 		// Create imagePullSecret to pull E2E operator image from ECR
 		if imgPullPassword != "" {
-			_, err = agent.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
+			_, err = utils.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
 			if err != nil {
 				return err
 			}
@@ -243,6 +245,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -265,6 +268,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -290,6 +294,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: clusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(t, err)
 
@@ -319,6 +324,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: clusterCheckRunnerSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -348,6 +354,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-logs",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -447,6 +454,7 @@ func verifyKSMCheck(s *kindSuite, c *assert.CollectT) {
 
 	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
 
+	assert.NoError(c, err)
 	assert.True(c, len(resp.Series) > 0, fmt.Sprintf("expected metric series to not be empty: %s", err))
 }
 
@@ -454,6 +462,7 @@ func verifyHTTPCheck(s *kindSuite, c *assert.CollectT) {
 	metricQuery := fmt.Sprintf("exclude_null(avg:network.http.can_connect{kube_cluster_name:%s})", s.Env().Kind.ClusterName)
 
 	resp, _, err := s.datadogClient.metricsApi.QueryMetrics(s.datadogClient.ctx, time.Now().AddDate(0, 0, -1).Unix(), time.Now().Unix(), metricQuery)
+	assert.NoError(c, err)
 	assert.EqualValues(c, *resp.Status, "ok")
 	for _, series := range resp.Series {
 		for _, point := range series.Pointlist {
