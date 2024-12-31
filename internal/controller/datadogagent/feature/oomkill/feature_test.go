@@ -51,31 +51,31 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.ModulesVolumeName,
-				MountPath: apicommon.ModulesVolumePath,
+				Name:      v2alpha1.ModulesVolumeName,
+				MountPath: v2alpha1.ModulesVolumePath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.SrcVolumeName,
-				MountPath: apicommon.SrcVolumePath,
+				Name:      v2alpha1.SrcVolumeName,
+				MountPath: v2alpha1.SrcVolumePath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.DebugfsVolumeName,
-				MountPath: apicommon.DebugfsPath,
+				Name:      v2alpha1.DebugfsVolumeName,
+				MountPath: v2alpha1.DebugfsPath,
 				ReadOnly:  false,
 			},
 			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
+				Name:      v2alpha1.SystemProbeSocketVolumeName,
+				MountPath: v2alpha1.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
 		}
@@ -89,31 +89,31 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: apicommon.ModulesVolumeName,
+				Name: v2alpha1.ModulesVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.ModulesVolumePath,
+						Path: v2alpha1.ModulesVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.SrcVolumeName,
+				Name: v2alpha1.SrcVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.SrcVolumePath,
+						Path: v2alpha1.SrcVolumePath,
 					},
 				},
 			},
 			{
-				Name: apicommon.DebugfsVolumeName,
+				Name: v2alpha1.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.DebugfsPath,
+						Path: v2alpha1.DebugfsPath,
 					},
 				},
 			},
 			{
-				Name: apicommon.SystemProbeSocketVolumeName,
+				Name: v2alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -126,15 +126,15 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDEnableOOMKillEnvVar,
+				Name:  DDEnableOOMKillEnvVar,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeEnabled,
+				Name:  v2alpha1.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocket,
+				Name:  v2alpha1.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}

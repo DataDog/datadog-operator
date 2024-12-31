@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -71,7 +72,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 		if cspmConfig.CheckInterval != nil {
 			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)
@@ -88,7 +89,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
-		f.configMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
+		f.configMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultCSPMConf)
 
 		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
@@ -199,14 +200,14 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceConfigEnabled,
+		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, enabledEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceConfigCheckInterval,
+			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, intervalEnvVar)
@@ -291,53 +292,53 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(v2alpha1.PasswdVolumeName, v2alpha1.PasswdHostPath, v2alpha1.PasswdMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+	hostRootVol, hostRootVolMount := volume.GetVolumes(v2alpha1.HostRootVolumeName, v2alpha1.HostRootHostPath, v2alpha1.HostRootMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(v2alpha1.GroupVolumeName, v2alpha1.GroupHostPath, v2alpha1.GroupMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&groupVol)
 
 	// env vars
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceConfigEnabled,
+		Name:  DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SecurityAgentContainerName}, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDHostRootEnvVar,
-		Value: apicommon.HostRootMountPath,
+		Name:  v2alpha1.DDHostRootEnvVar,
+		Value: v2alpha1.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceConfigCheckInterval,
+			Name:  DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, intervalEnvVar)
 	}
 
 	hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+		Name:  DDComplianceHostBenchmarksEnabled,
 		Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)

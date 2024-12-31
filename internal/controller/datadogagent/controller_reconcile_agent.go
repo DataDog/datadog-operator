@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -92,7 +93,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
-			eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+			eds.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
 		for _, componentOverride := range componentOverrides {
@@ -167,7 +168,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
-		daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+		daemonset.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
 	for _, componentOverride := range componentOverrides {
@@ -347,7 +348,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 		ctx,
 		agentPods,
 		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
+			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 		}),
 		client.InNamespace(ddaNamespace),
 	)
@@ -394,7 +395,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
 	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
 	matchLabels := client.MatchingLabels{
-		apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 

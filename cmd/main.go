@@ -24,6 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -93,6 +94,7 @@ const (
 type options struct {
 	// Observability options
 	metricsAddr      string
+	secureMetrics    bool
 	profilingEnabled bool
 	logLevel         *zapcore.Level
 	logEncoder       string
@@ -123,7 +125,6 @@ type options struct {
 	introspectionEnabled                   bool
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
-	otelAgentEnabled                       bool
 	datadogDashboardEnabled                bool
 	datadogGenericCREnabled                bool
 
@@ -135,6 +136,7 @@ type options struct {
 func (opts *options) Parse() {
 	// Observability flags
 	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&opts.secureMetrics, "metrics-secure", false, "If true, the metrics endpoint is served securely via HTTPS. Use false to use HTTP instead.")
 	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
 	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -158,7 +160,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.introspectionEnabled, "introspectionEnabled", false, "Enable introspection (beta)")
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
-	flag.BoolVar(&opts.otelAgentEnabled, "otelAgentEnabled", false, "Enable the OTel agent container (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericCREnabled, "datadogGenericCREnabled", false, "Enable the DatadogGenericCR controller")
 
@@ -232,14 +233,23 @@ func run(opts *options) error {
 	renewDeadline := opts.leaderElectionLeaseDuration / 2
 	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
+	metricsServerOptions := metricsserver.Options{
+		BindAddress:   opts.metricsAddr,
+		SecureServing: opts.secureMetrics,
+		ExtraHandlers: debug.GetExtraMetricHandlers(),
+	}
+
+	if opts.secureMetrics {
+		// FilterProvider is used to protect the metrics endpoint with authn/authz.
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "datadog-operator"
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress:   opts.metricsAddr,
-			ExtraHandlers: debug.GetExtraMetricHandlers(),
-		}, HealthProbeBindAddress: ":8081",
+		Scheme:                     scheme,
+		Metrics:                    metricsServerOptions,
+		HealthProbeBindAddress:     ":8081",
 		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
@@ -303,7 +313,6 @@ func run(opts *options) error {
 		V2APIEnabled:               true,
 		IntrospectionEnabled:       opts.introspectionEnabled,
 		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-		OtelAgentEnabled:           opts.otelAgentEnabled,
 		DatadogDashboardEnabled:    opts.datadogDashboardEnabled,
 		DatadogGenericCREnabled:    opts.datadogGenericCREnabled,
 	}

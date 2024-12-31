@@ -19,23 +19,24 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentPodDisruptionBudgetName return the Cluster-Agent PodDisruptionBudget name based on the DatadogAgent name
 func GetClusterAgentPodDisruptionBudgetName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s-pdb", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
 func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
@@ -46,17 +47,17 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 
 // GetClusterAgentRbacResourcesName return the Cluster-Agent RBAC resource name
 func GetClusterAgentRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // getDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
 func getDefaultServiceAccountName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterAgentResourceSuffix)
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
 func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := common.NewDeployment(dda, v2alpha1.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
+	deployment := common.NewDeployment(dda, constants.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
@@ -126,9 +127,9 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				},
 				Env:            envVars,
 				VolumeMounts:   volumeMounts,
-				LivenessProbe:  v2alpha1.GetDefaultLivenessProbe(),
-				ReadinessProbe: v2alpha1.GetDefaultReadinessProbe(),
-				StartupProbe:   v2alpha1.GetDefaultStartupProbe(),
+				LivenessProbe:  constants.GetDefaultLivenessProbe(),
+				ReadinessProbe: constants.GetDefaultReadinessProbe(),
+				StartupProbe:   constants.GetDefaultStartupProbe(),
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
@@ -151,7 +152,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
-			Name: apicommon.DDPodName,
+			Name: v2alpha1.DDPodName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
@@ -159,36 +160,36 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Name:  v2alpha1.DDClusterAgentKubeServiceName,
 			Value: GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  apicommon.DDKubeResourcesNamespace,
+			Name:  v2alpha1.DDKubeResourcesNamespace,
 			Value: utils.GetDatadogAgentResourceNamespace(dda),
 		},
 		{
-			Name:  apicommon.DDLeaderElection,
+			Name:  v2alpha1.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDHealthPort,
-			Value: strconv.Itoa(int(v2alpha1.DefaultAgentHealthPort)),
+			Name:  v2alpha1.DDHealthPort,
+			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallId,
+			Name:  v2alpha1.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallTime,
+			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  apicommon.DDAPMInstrumentationInstallType,
+			Name:  v2alpha1.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 		{
-			Name:  apicommon.DDAuthTokenFilePath,
-			Value: filepath.Join(apicommon.AuthVolumePath, "token"),
+			Name:  v2alpha1.DDAuthTokenFilePath,
+			Value: filepath.Join(v2alpha1.AuthVolumePath, "token"),
 		},
 	}
 
@@ -207,7 +208,7 @@ func DefaultAffinity() *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

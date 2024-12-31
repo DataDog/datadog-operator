@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -24,14 +25,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "log collection not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(false).
 				BuildWithDefaults(),
 			WantConfigure: false,
 		},
 		{
 			Name: "log collection enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -44,7 +45,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "container collect all enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionCollectAll(true).
 				BuildWithDefaults(),
@@ -58,7 +59,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "container collect using files disabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionCollectAll(true).
 				WithLogCollectionLogCollectionUsingFiles(false).
@@ -73,7 +74,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "open files limit set to custom value",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionOpenFilesLimit(250).
 				BuildWithDefaults(),
@@ -82,7 +83,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					wantEnvVars := createEnvVars("true", "false", "true")
 					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-						Name:  apicommon.DDLogsConfigOpenFilesLimit,
+						Name:  DDLogsConfigOpenFilesLimit,
 						Value: "250",
 					})
 					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
@@ -91,7 +92,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "custom volumes",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionPaths("/custom/pod/logs", "/custom/container/logs", "/custom/symlink", "/custom/temp/storage").
 				BuildWithDefaults(),
@@ -171,7 +172,7 @@ func getWantVolumes() []*corev1.Volume {
 			Name: pointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DefaultLogTempStoragePath,
+					Path: v2alpha1.DefaultLogTempStoragePath,
 				},
 			},
 		},
@@ -232,15 +233,15 @@ func getWantVolumeMounts() []*corev1.VolumeMount {
 func createEnvVars(logsEnabled, collectAllEnabled, collectUsingFilesEnabled string) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDLogsEnabled,
+			Name:  v2alpha1.DDLogsEnabled,
 			Value: logsEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsConfigContainerCollectAll,
+			Name:  DDLogsConfigContainerCollectAll,
 			Value: collectAllEnabled,
 		},
 		{
-			Name:  apicommon.DDLogsContainerCollectUsingFiles,
+			Name:  DDLogsContainerCollectUsingFiles,
 			Value: collectUsingFilesEnabled,
 		},
 	}

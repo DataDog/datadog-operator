@@ -19,7 +19,7 @@ import (
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 const prefix = "https://api."
@@ -137,11 +137,11 @@ func setupAuth(logger logr.Logger, creds config.Creds) (context.Context, error) 
 	)
 
 	apiURL := ""
-	if os.Getenv(apicommon.DDddURL) != "" {
-		apiURL = os.Getenv(apicommon.DDddURL)
-	} else if os.Getenv(apicommon.DDURL) != "" {
-		apiURL = os.Getenv(apicommon.DDURL)
-	} else if site := os.Getenv(apicommon.DDSite); site != "" {
+	if os.Getenv(v2alpha1.DDddURL) != "" {
+		apiURL = os.Getenv(v2alpha1.DDddURL)
+	} else if os.Getenv(v2alpha1.DDURL) != "" {
+		apiURL = os.Getenv(v2alpha1.DDURL)
+	} else if site := os.Getenv(v2alpha1.DDSite); site != "" {
 		apiURL = prefix + strings.TrimSpace(site)
 	}
 

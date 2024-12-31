@@ -3,13 +3,14 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package constants
 
 import (
 	"fmt"
 
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +18,7 @@ import (
 )
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
-func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) string {
+func GetConfName(owner metav1.Object, conf *v2alpha1.CustomConfig, defaultName string) string {
 	// `configData` and `configMap` can't be set together.
 	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
 	if conf != nil && conf.ConfigMap != nil {
@@ -27,61 +28,61 @@ func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) st
 }
 
 // GetClusterAgentServiceAccount return the cluster-agent serviceAccountName
-func GetClusterAgentServiceAccount(dda *DatadogAgent) string {
+func GetClusterAgentServiceAccount(dda *v2alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultClusterAgentResourceSuffix)
-	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName != nil {
-		return *dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName
+	if dda.Spec.Override[v2alpha1.ClusterAgentComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName
 	}
 	return saDefault
 }
 
 // GetAgentServiceAccount returns the agent service account name
-func GetAgentServiceAccount(dda *DatadogAgent) string {
+func GetAgentServiceAccount(dda *v2alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultAgentResourceSuffix)
-	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountName != nil {
-		return *dda.Spec.Override[NodeAgentComponentName].ServiceAccountName
+	if dda.Spec.Override[v2alpha1.NodeAgentComponentName] != nil && dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountName
 	}
 	return saDefault
 }
 
 // GetClusterChecksRunnerServiceAccount return the cluster-checks-runner service account name
-func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
+func GetClusterChecksRunnerServiceAccount(dda *v2alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultClusterChecksRunnerResourceSuffix)
-	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName != nil {
-		return *dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName
+	if dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName
 	}
 	return saDefault
 }
 
 // GetClusterAgentServiceAccountAnnotations returns the annotations for the cluster-agent service account.
-func GetClusterAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+func GetClusterAgentServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
 	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[ClusterAgentComponentName].ServiceAccountAnnotations
+	if dda.Spec.Override[v2alpha1.ClusterAgentComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountAnnotations
 	}
 	return defaultAnnotations
 }
 
 // GetAgentServiceAccountAnnotations returns the annotations for the agent service account.
-func GetAgentServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+func GetAgentServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
 	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[NodeAgentComponentName].ServiceAccountAnnotations
+	if dda.Spec.Override[v2alpha1.NodeAgentComponentName] != nil && dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountAnnotations
 	}
 	return defaultAnnotations
 }
 
 // GetClusterChecksRunnerServiceAccountAnnotations returns the annotations for the cluster-checks-runner service account.
-func GetClusterChecksRunnerServiceAccountAnnotations(dda *DatadogAgent) map[string]string {
+func GetClusterChecksRunnerServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
 	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountAnnotations
+	if dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountAnnotations != nil {
+		return dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountAnnotations
 	}
 	return defaultAnnotations
 }
 
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
-func IsHostNetworkEnabled(dda *DatadogAgent, component ComponentName) bool {
+func IsHostNetworkEnabled(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) bool {
 	if dda.Spec.Override != nil {
 		if c, ok := dda.Spec.Override[component]; ok {
 			return apiutils.BoolValue(c.HostNetwork)
@@ -91,17 +92,17 @@ func IsHostNetworkEnabled(dda *DatadogAgent, component ComponentName) bool {
 }
 
 // IsClusterChecksEnabled returns whether the DDA should use cluster checks
-func IsClusterChecksEnabled(dda *DatadogAgent) bool {
+func IsClusterChecksEnabled(dda *v2alpha1.DatadogAgent) bool {
 	return dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
 }
 
 // IsCCREnabled returns whether the DDA should use Cluster Checks Runners
-func IsCCREnabled(dda *DatadogAgent) bool {
+func IsCCREnabled(dda *v2alpha1.DatadogAgent) bool {
 	return dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 }
 
 // GetLocalAgentServiceName returns the name used for the local agent service
-func GetLocalAgentServiceName(dda *DatadogAgent) string {
+func GetLocalAgentServiceName(dda *v2alpha1.DatadogAgent) string {
 	if dda.Spec.Global.LocalService != nil && dda.Spec.Global.LocalService.NameOverride != nil {
 		return *dda.Spec.Global.LocalService.NameOverride
 	}
@@ -109,12 +110,12 @@ func GetLocalAgentServiceName(dda *DatadogAgent) string {
 }
 
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
-func IsNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
+func IsNetworkPolicyEnabled(dda *v2alpha1.DatadogAgent) (bool, v2alpha1.NetworkPolicyFlavor) {
 	if dda.Spec.Global != nil && dda.Spec.Global.NetworkPolicy != nil && apiutils.BoolValue(dda.Spec.Global.NetworkPolicy.Create) {
 		if dda.Spec.Global.NetworkPolicy.Flavor != "" {
 			return true, dda.Spec.Global.NetworkPolicy.Flavor
 		}
-		return true, NetworkPolicyFlavorKubernetes
+		return true, v2alpha1.NetworkPolicyFlavorKubernetes
 	}
 	return false, ""
 }
@@ -225,7 +226,7 @@ func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
 }
 
 // GetImage builds the image string based on ImageConfig and the registry configuration.
-func GetImage(imageSpec *AgentImageConfig, registry *string) string {
+func GetImage(imageSpec *v2alpha1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
 		return imageSpec.Name
 	}

@@ -15,11 +15,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -61,7 +61,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Register operator types with the runtime scheme.
-	s := testutils.TestScheme()
+	s := agenttestutils.TestScheme()
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -83,7 +83,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
@@ -110,7 +110,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithSingleContainerStrategy(false).
 						Build()
 					_ = c.Create(context.TODO(), dda)
@@ -138,7 +138,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithSingleContainerStrategy(true).
 						Build()
 					_ = c.Create(context.TODO(), dda)
@@ -164,7 +164,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithSingleContainerStrategy(false).
 						Build()
@@ -193,7 +193,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithSingleContainerStrategy(true).
 						Build()
@@ -220,7 +220,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithCWSEnabled(true).
 						WithSingleContainerStrategy(false).
@@ -252,7 +252,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithCWSEnabled(true).
 						WithSingleContainerStrategy(true).
@@ -285,7 +285,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithOOMKillEnabled(true).
 						WithSingleContainerStrategy(false).
@@ -316,7 +316,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithAPMEnabled(true).
 						WithOOMKillEnabled(true).
 						WithSingleContainerStrategy(true).
@@ -350,7 +350,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 					fipsConfig := v2alpha1.FIPSConfig{
 						Enabled: apiutils.NewBoolPointer(true),
 					}
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithFIPS(fipsConfig).
 						Build()
 					_ = c.Create(context.TODO(), dda)
@@ -379,7 +379,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
 						}).
@@ -448,7 +448,7 @@ func Test_Introspection(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Register operator types with the runtime scheme.
-	s := testutils.TestScheme()
+	s := agenttestutils.TestScheme()
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -470,7 +470,7 @@ func Test_Introspection(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 							Affinity: &corev1.Affinity{
 								PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -581,7 +581,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 
 func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{apicommon.MD5AgentDeploymentProviderLabelKey}); err != nil {
+	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{v2alpha1.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
 	}
 
