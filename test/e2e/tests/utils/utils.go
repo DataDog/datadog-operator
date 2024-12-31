@@ -47,6 +47,8 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	checksJson := common.ParseCollectorJson(collectorOutput)
 	if checksJson != nil {
 		runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+		assert.Implements(c, checksJson["runnerStats"], map[string]interface{}{}, nil)
+		assert.Implements(c, checksJson["runnerStats"].(map[string]interface{})["Checks"], map[string]interface{}{}, nil)
 		if check, found := runningChecks[checkName].(map[string]interface{}); found {
 			for _, instance := range check {
 				assert.EqualValues(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
