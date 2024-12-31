@@ -22,8 +22,7 @@ var (
 	DdaMinimalPath = filepath.Join(ManifestsPath, "datadog-agent-minimum.yaml")
 	ManifestsPath  = filepath.Join(ProjectRootPath, "test/e2e/manifests/new_manifests")
 
-	timeout         int64 = 60
-	ProjectRootPath       = projectRoot()
+	ProjectRootPath = projectRoot()
 )
 
 const (

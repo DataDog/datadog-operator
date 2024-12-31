@@ -21,10 +21,10 @@ require (
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
 	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions v0.0.0-20241224112147-36860d3c29b4
+	github.com/DataDog/test-infra-definitions v0.0.0-20241230161929-658f6c49e27c
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0
-	github.com/pulumi/pulumi/sdk/v3 v3.142.0
+	github.com/pulumi/pulumi/sdk/v3 v3.144.1
 	github.com/stretchr/testify v1.10.0
 	k8s.io/apimachinery v0.31.4
 	k8s.io/client-go v0.31.3
@@ -192,12 +192,12 @@ require (
 	github.com/pulumi/esc v0.10.0 // indirect
 	github.com/pulumi/pulumi-aws/sdk/v6 v6.65.0 // indirect
 	github.com/pulumi/pulumi-awsx/sdk/v2 v2.19.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/v2 v2.73.1 // indirect
+	github.com/pulumi/pulumi-azure-native-sdk/v2 v2.79.0 // indirect
 	github.com/pulumi/pulumi-command/sdk v1.0.1 // indirect
-	github.com/pulumi/pulumi-docker/sdk/v4 v4.5.7 // indirect
+	github.com/pulumi/pulumi-docker/sdk/v4 v4.5.8 // indirect
 	github.com/pulumi/pulumi-eks/sdk/v3 v3.4.0 // indirect
 	github.com/pulumi/pulumi-gcp/sdk/v7 v7.38.0 // indirect
-	github.com/pulumi/pulumi-random/sdk/v4 v4.16.7 // indirect
+	github.com/pulumi/pulumi-random/sdk/v4 v4.16.8 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
 	github.com/pulumiverse/pulumi-time/sdk v0.1.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
