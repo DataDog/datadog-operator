@@ -46,10 +46,13 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 	checksJson := common.ParseCollectorJson(collectorOutput)
 	if checksJson != nil {
-		runningChecks = checksJson["runnerStats"].(map[string]interface{})["Checks"].(map[string]interface{})
+		runnerStats := checksJson["runnerStats"]
+		assert.NotNil(c, runnerStats)
 
-		assert.Implements(c, checksJson["runnerStats"], map[string]interface{}{}, nil)
-		assert.Implements(c, checksJson["runnerStats"].(map[string]interface{})["Checks"], map[string]interface{}{}, nil)
+		checks := runnerStats.((map[string]interface{}))["Checks"]
+		assert.NotNil(c, checks)
+
+		runningChecks = checks.(map[string]interface{})
 
 		if check, found := runningChecks[checkName].(map[string]interface{}); found {
 			for _, instance := range check {
