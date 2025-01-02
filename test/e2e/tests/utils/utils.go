@@ -46,13 +46,13 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 
 	checksJson := common.ParseCollectorJson(collectorOutput)
 	if checksJson != nil {
-		runnerStats := checksJson["runnerStats"]
+		runnerStats, ok := checksJson["runnerStats"].(map[string]interface{})
+		assert.True(c, ok)
 		assert.NotNil(c, runnerStats)
 
-		checks := runnerStats.((map[string]interface{}))["Checks"]
-		assert.NotNil(c, checks)
-
-		runningChecks = checks.(map[string]interface{})
+		runningChecks, ok = runnerStats["Checks"].(map[string]interface{})
+		assert.True(c, ok)
+		assert.NotNil(c, runningChecks)
 
 		if check, found := runningChecks[checkName].(map[string]interface{}); found {
 			for _, instance := range check {
@@ -82,15 +82,21 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 
 	tailedIntegrations := 0
 	if logsJson != nil {
-		agentLogs = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		agentLogs, ok := logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		assert.True(c, ok)
+		assert.Greater(c, len(agentLogs), 0)
 		for _, log := range agentLogs {
 			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
-				message, exists := integration["messages"].([]interface{})[0].(string)
-				if exists && len(message) > 0 {
-					num, _ := strconv.Atoi(string(message[0]))
-					if num > 0 && strings.Contains(message, "files tailed") {
-						tailedIntegrations++
-					}
+				messages, exists := integration["messages"].([]interface{})
+				assert.True(c, exists)
+				assert.Greater(c, len(messages), 0)
+
+				message, ok := messages[0].(string)
+				assert.True(c, ok)
+				assert.Greater(c, len(message), 0)
+				num, _ := strconv.Atoi(string(message[0]))
+				if num > 0 && strings.Contains(message, "files tailed") {
+					tailedIntegrations++
 				}
 			} else {
 				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
