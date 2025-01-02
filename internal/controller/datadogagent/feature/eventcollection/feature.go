@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -69,12 +70,12 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = v2alpha1.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
+				f.configMapName = constants.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
 			} else {
@@ -143,22 +144,22 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Env vars
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDCollectKubernetesEvents,
+		Name:  DDCollectKubernetesEvents,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLeaderElection,
+		Name:  v2alpha1.DDLeaderElection,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLeaderLeaseName,
+		Name:  DDLeaderLeaseName,
 		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDClusterAgentTokenName,
+		Name:  v2alpha1.DDClusterAgentTokenName,
 		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 
@@ -167,7 +168,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 		vol := volume.GetBasicVolume(f.configMapName, kubernetesAPIServerCheckConfigVolumeName)
 		volMount := corev1.VolumeMount{
 			Name:      kubernetesAPIServerCheckConfigVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, kubeAPIServerConfigFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, kubeAPIServerConfigFolderName),
 			ReadOnly:  true,
 		}
 
@@ -200,22 +201,22 @@ func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, _ string) error {
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDCollectKubernetesEvents,
+		Name:  DDCollectKubernetesEvents,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLeaderElection,
+		Name:  v2alpha1.DDLeaderElection,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLeaderLeaseName,
+		Name:  DDLeaderLeaseName,
 		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDClusterAgentTokenName,
+		Name:  v2alpha1.DDClusterAgentTokenName,
 		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 

@@ -49,9 +49,12 @@ spec:
 | features.admissionController.cwsInstrumentation.mode | Defines the behavior of the CWS Instrumentation endpoint, and can be either "init_container" or "remote_copy". Default: "remote_copy" |
 | features.admissionController.enabled | Enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
+| features.admissionController.kubernetesAdmissionEvents.enabled | Enable the Kubernetes Admission Events feature. Default: false |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
+| features.admissionController.mutation.enabled | Enables the Admission Controller mutation webhook. Default: true |
 | features.admissionController.registry | Defines an image registry for the admission controller. |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
+| features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enables Application Performance Monitoring. Default: true |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
@@ -139,6 +142,14 @@ spec:
 | features.orchestratorExplorer.enabled | Enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otelCollector.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
+| features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
+| features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
+| features.otelCollector.coreConfig.extension_timeout | Extension URL provides the timout of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extension_url | Extension URL provides the URL of the ddflareextension to the core agent. |
+| features.otelCollector.enabled | Enables the OTel Agent. Default: true |
+| features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
 | features.otlp.receiver.protocols.grpc.endpoint | For OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
 | features.otlp.receiver.protocols.grpc.hostPortConfig.enabled | Enables host port configuration |
@@ -346,6 +357,22 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | [key].containers.[key].securityContext.windowsOptions.hostProcess | HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true. |
 | [key].containers.[key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
+| [key].containers.[key].startupProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| [key].containers.[key].startupProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| [key].containers.[key].startupProbe.grpc.port | Port number of the gRPC service. Number must be in the range 1 to 65535. |
+| [key].containers.[key].startupProbe.grpc.service | Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).  If this is not specified, the default behavior is defined by gRPC. |
+| [key].containers.[key].startupProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| [key].containers.[key].startupProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| [key].containers.[key].startupProbe.httpGet.path | Path to access on the HTTP server. |
+| [key].containers.[key].startupProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| [key].containers.[key].startupProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| [key].containers.[key].startupProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| [key].containers.[key].startupProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| [key].containers.[key].startupProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| [key].containers.[key].startupProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| [key].containers.[key].startupProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| [key].containers.[key].startupProbe.terminationGracePeriodSeconds | Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset. |
+| [key].containers.[key].startupProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | [key].containers.[key].volumeMounts `[]object` | Specify additional volume mounts in the container. |
 | [key].createPodDisruptionBudget | Set CreatePodDisruptionBudget to true to create a PodDisruptionBudget for this component. Not applicable for the Node Agent. A Cluster Agent PDB is set with 1 minimum available pod, and a Cluster Checks Runner PDB is set with 1 maximum unavailable pod. |
 | [key].createRbac | Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component |
@@ -378,6 +405,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].nodeSelector `map[string]string` | A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | [key].priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default. |
 | [key].replicas | Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment |
+| [key].runtimeClassName | If specified, indicates the pod's RuntimeClass kubelet should use to run the pod. If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase. If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled. |
 | [key].securityContext.appArmorProfile.localhostProfile | localhostProfile indicates a profile loaded on the node that should be used. The profile must be preconfigured on the node to work. Must match the loaded name of the profile. Must be set if and only if type is "Localhost". |
 | [key].securityContext.appArmorProfile.type | type indicates which kind of AppArmor profile will be applied. Valid options are:   Localhost - a profile pre-loaded on the node.   RuntimeDefault - the container runtime's default profile.   Unconfined - no AppArmor enforcement. |
 | [key].securityContext.fsGroup | A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:  1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows. |

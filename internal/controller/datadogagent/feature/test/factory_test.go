@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -14,6 +14,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
 )
 
 func TestBuilder(t *testing.T) {
@@ -29,7 +30,7 @@ func TestBuilder(t *testing.T) {
 			// This test relies on the fact that by default Live Container feature is enabled
 			// in the default settings which enables process agent.
 			name: "Default DDA, Core and Process agent enabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
@@ -44,7 +45,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA with single container strategy, 1 single container",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -60,7 +61,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM enabled, 3 agents",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -76,7 +77,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM enabled with single container strategy, 1 single container",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
@@ -93,7 +94,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM, NPM enabled, 4 agents",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
 				BuildWithDefaults(),
@@ -110,7 +111,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM, NPM enabled with single container strategy, 4 agents",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
@@ -128,7 +129,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM, NPM, CSPM enabled, 5 agents",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
 				WithCSPMEnabled(true).
@@ -146,7 +147,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "APM, NPM, CSPM enabled with single container strategy, 5 agents",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithSingleContainerStrategy(true).
 				WithAPMEnabled(true).
 				WithNPMEnabled(true).
@@ -165,7 +166,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, default feature Option, otel-agent-enabled annotation true",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -181,7 +182,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, default feature Option, otel-agent-enabled annotation false",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -197,12 +198,60 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, no otel annotation, Operator option enabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				BuildWithDefaults(),
-			featureOptions: feature.Options{
-				OtelAgentEnabled: true,
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
 			},
+		},
+		{
+			name: "Default DDA, otel annotation false, otel collector feature enabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
+				WithOTelCollectorEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Default DDA, otel annotation true, otel collector feature disabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
+				WithOTelCollectorEnabled(false).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            true,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Default DDA, otel annotation true, otel collector feature enabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
+				WithOTelCollectorEnabled(true).
+				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
@@ -216,7 +265,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, default feature Option, adp-enabled annotation true",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/adp-enabled": "true"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -232,7 +281,7 @@ func TestBuilder(t *testing.T) {
 		},
 		{
 			name: "Default DDA, default feature Option, adp-enabled annotation false",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithAnnotations(map[string]string{"agent.datadoghq.com/adp-enabled": "false"}).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{

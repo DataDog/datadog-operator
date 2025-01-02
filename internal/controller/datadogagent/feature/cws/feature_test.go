@@ -111,37 +111,37 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 
 			securityWant := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSocket,
+					Name:  DDRuntimeSecurityConfigSocket,
 					Value: "/var/run/sysprobe/runtime-security.sock",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDHostRootEnvVar,
-					Value: apicommon.HostRootMountPath,
+					Name:  v2alpha1.DDHostRootEnvVar,
+					Value: v2alpha1.HostRootMountPath,
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+					Name:  DDRuntimeSecurityConfigPoliciesDir,
 					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			}
 			sysProbeWant := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+					Name:  DDRuntimeSecurityConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSocket,
+					Name:  DDRuntimeSecurityConfigSocket,
 					Value: "/var/run/sysprobe/runtime-security.sock",
 				},
 				{
-					Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+					Name:  DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
 			}
@@ -149,15 +149,15 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				sysProbeWant = append(
 					sysProbeWant,
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigNetworkEnabled,
+						Name:  DDRuntimeSecurityConfigNetworkEnabled,
 						Value: "true",
 					},
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+						Name:  DDRuntimeSecurityConfigActivityDumpEnabled,
 						Value: "true",
 					},
 					&corev1.EnvVar{
-						Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
+						Name:  DDRuntimeSecurityConfigRemoteConfigurationEnabled,
 						Value: "true",
 					},
 				)
@@ -165,7 +165,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			sysProbeWant = append(
 				sysProbeWant,
 				&corev1.EnvVar{
-					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+					Name:  DDRuntimeSecurityConfigPoliciesDir,
 					Value: securityAgentRuntimePoliciesDirVolumePath,
 				},
 			)
@@ -178,13 +178,13 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{
 				{
-					Name:      apicommon.SystemProbeSocketVolumeName,
-					MountPath: apicommon.SystemProbeSocketVolumePath,
+					Name:      v2alpha1.SystemProbeSocketVolumeName,
+					MountPath: v2alpha1.SystemProbeSocketVolumePath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.HostRootVolumeName,
-					MountPath: apicommon.HostRootMountPath,
+					Name:      v2alpha1.HostRootVolumeName,
+					MountPath: v2alpha1.HostRootMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -195,8 +195,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			}
 			sysprobeWantVolumeMount := []corev1.VolumeMount{
 				{
-					Name:      apicommon.DebugfsVolumeName,
-					MountPath: apicommon.DebugfsPath,
+					Name:      v2alpha1.DebugfsVolumeName,
+					MountPath: v2alpha1.DebugfsPath,
 					ReadOnly:  false,
 				},
 				{
@@ -210,28 +210,28 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.SystemProbeSocketVolumeName,
-					MountPath: apicommon.SystemProbeSocketVolumePath,
+					Name:      v2alpha1.SystemProbeSocketVolumeName,
+					MountPath: v2alpha1.SystemProbeSocketVolumePath,
 					ReadOnly:  false,
 				},
 				{
-					Name:      apicommon.ProcdirVolumeName,
-					MountPath: apicommon.ProcdirMountPath,
+					Name:      v2alpha1.ProcdirVolumeName,
+					MountPath: v2alpha1.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.PasswdVolumeName,
-					MountPath: apicommon.PasswdMountPath,
+					Name:      v2alpha1.PasswdVolumeName,
+					MountPath: v2alpha1.PasswdMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.GroupVolumeName,
-					MountPath: apicommon.GroupMountPath,
+					Name:      v2alpha1.GroupVolumeName,
+					MountPath: v2alpha1.GroupMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
-					MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
+					Name:      v2alpha1.SystemProbeOSReleaseDirVolumeName,
+					MountPath: v2alpha1.SystemProbeOSReleaseDirMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -249,10 +249,10 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: apicommon.DebugfsVolumeName,
+					Name: v2alpha1.DebugfsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DebugfsPath,
+							Path: v2alpha1.DebugfsPath,
 						},
 					},
 				},
@@ -273,48 +273,48 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				},
 				{
-					Name: apicommon.SystemProbeSocketVolumeName,
+					Name: v2alpha1.SystemProbeSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
 				{
-					Name: apicommon.ProcdirVolumeName,
+					Name: v2alpha1.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.ProcdirHostPath,
+							Path: v2alpha1.ProcdirHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.PasswdVolumeName,
+					Name: v2alpha1.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.PasswdHostPath,
+							Path: v2alpha1.PasswdHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.GroupVolumeName,
+					Name: v2alpha1.GroupVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.GroupHostPath,
+							Path: v2alpha1.GroupHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.SystemProbeOSReleaseDirVolumeName,
+					Name: v2alpha1.SystemProbeOSReleaseDirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+							Path: v2alpha1.SystemProbeOSReleaseDirVolumePath,
 						},
 					},
 				},
 				{
-					Name: apicommon.HostRootVolumeName,
+					Name: v2alpha1.HostRootVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.HostRootHostPath,
+							Path: v2alpha1.HostRootHostPath,
 						},
 					},
 				},
@@ -355,8 +355,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
-				apicommon.SystemProbeAppArmorAnnotationKey:                         apicommon.SystemProbeAppArmorAnnotationValue,
+				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
+				v2alpha1.SystemProbeAppArmorAnnotationKey:                         v2alpha1.SystemProbeAppArmorAnnotationValue,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

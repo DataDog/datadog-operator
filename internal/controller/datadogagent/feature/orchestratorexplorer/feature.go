@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -112,19 +113,19 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
+		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
-		if v2alpha1.IsClusterChecksEnabled(dda) {
-			if v2alpha1.IsCCREnabled(dda) {
+		if constants.IsClusterChecksEnabled(dda) {
+			if constants.IsCCREnabled(dda) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
@@ -198,7 +199,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 		volMount = corev1.VolumeMount{
 			Name:      orchestratorExplorerVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, orchestratorExplorerFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, orchestratorExplorerFolderName),
 			ReadOnly:  true,
 		}
 	}

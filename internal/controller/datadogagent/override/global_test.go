@@ -9,12 +9,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -67,21 +68,21 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -92,21 +93,21 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -117,11 +118,11 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Checks tag cardinality set to orchestrator",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDChecksTagCardinality,
+				Name:  v2alpha1.DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
 			wantVolumeMounts: emptyVolumeMounts,
@@ -131,11 +132,11 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Unified origin detection activated",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDOriginDetectionUnified,
+				Name:  v2alpha1.DDOriginDetectionUnified,
 				Value: "true",
 			}),
 			wantVolumeMounts: emptyVolumeMounts,
@@ -145,7 +146,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Global environment variable configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithEnvVars([]corev1.EnvVar{
 					{
 						Name:  "envA",
@@ -177,21 +178,21 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
 					BuildWithDefaults(),
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -206,21 +207,21 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
 					BuildWithDefaults(),
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -283,11 +284,11 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDSite,
+			Name:  v2alpha1.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: "info",
 		},
 	}
@@ -298,7 +299,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 func getExpectedVolumes() []*corev1.Volume {
 	return []*corev1.Volume{
 		{
-			Name: apicommon.KubeletCAVolumeName,
+			Name: v2alpha1.KubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
@@ -306,7 +307,7 @@ func getExpectedVolumes() []*corev1.Volume {
 			},
 		},
 		{
-			Name: apicommon.CriSocketVolumeName,
+			Name: v2alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
@@ -319,12 +320,12 @@ func getExpectedVolumes() []*corev1.Volume {
 func getExpectedVolumeMounts() []*corev1.VolumeMount {
 	return []*corev1.VolumeMount{
 		{
-			Name:      apicommon.KubeletCAVolumeName,
+			Name:      v2alpha1.KubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
 		},
 		{
-			Name:      apicommon.CriSocketVolumeName,
+			Name:      v2alpha1.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
 		},
@@ -369,7 +370,7 @@ func assertSecretBackendGlobalPerms(t testing.TB, resourcesManager feature.Resou
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
@@ -428,7 +429,7 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}

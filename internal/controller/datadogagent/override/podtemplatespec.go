@@ -18,9 +18,25 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
+
+func getAgentContainersMap() map[apicommon.AgentContainerName]string {
+	return map[apicommon.AgentContainerName]string{
+		apicommon.UnprivilegedSingleAgentContainerName: "",
+		apicommon.CoreAgentContainerName:               "",
+		apicommon.TraceAgentContainerName:              "",
+		apicommon.ProcessAgentContainerName:            "",
+		apicommon.SecurityAgentContainerName:           "",
+		apicommon.SystemProbeContainerName:             "",
+		apicommon.OtelAgent:                            "",
+		apicommon.AgentDataPlaneContainerName:          "",
+		apicommon.ClusterAgentContainerName:            "",
+		// apicommon.ClusterChecksRunnersContainerName:    "", // Is the same value as CoreAgentContainerName
+	}
+}
 
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
 func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentComponentOverride, componentName v2alpha1.ComponentName, ddaName string) {
@@ -36,10 +52,13 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	}
 
 	if override.Image != nil {
+		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
-			if override.Image.PullPolicy != nil {
-				manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
+			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
+				manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
+				if override.Image.PullPolicy != nil {
+					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
+				}
 			}
 		}
 
@@ -74,7 +93,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraConfd != nil {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, apicommon.ConfdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, v2alpha1.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -91,7 +110,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraChecksd != nil {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, apicommon.ChecksdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, v2alpha1.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -120,6 +139,10 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 
 	if override.PriorityClassName != nil {
 		manager.PodTemplateSpec().Spec.PriorityClassName = *override.PriorityClassName
+	}
+
+	if override.RuntimeClassName != nil {
+		manager.PodTemplateSpec().Spec.RuntimeClassName = override.RuntimeClassName
 	}
 
 	if override.Affinity != nil {
@@ -182,7 +205,7 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		case v2alpha1.ClusterAgentComponentName:
 			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
-			volumeName := apicommon.ClusterAgentCustomConfigVolumeName
+			volumeName := v2alpha1.ClusterAgentCustomConfigVolumeName
 			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 
@@ -223,7 +246,7 @@ func overrideImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) st
 		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
 	}
 
-	return v2alpha1.GetImage(&overrideImgCopy, &registry)
+	return constants.GetImage(&overrideImgCopy, &registry)
 }
 
 func mergeAffinities(affinity1 *v1.Affinity, affinity2 *v1.Affinity) *v1.Affinity {

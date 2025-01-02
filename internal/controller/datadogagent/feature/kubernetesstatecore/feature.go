@@ -16,6 +16,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -83,13 +84,13 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
 			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
@@ -119,7 +120,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.configConfigMapName = v2alpha1.GetConfName(dda, f.customConfig, v2alpha1.DefaultKubeStateMetricsCoreConf)
+		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultKubeStateMetricsCoreConf)
 	}
 
 	return output
@@ -182,7 +183,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		vol = volume.GetBasicVolume(f.configConfigMapName, ksmCoreVolumeName)
 		volMount = corev1.VolumeMount{
 			Name:      ksmCoreVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, ksmCoreCheckFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}
 	}
@@ -193,12 +194,12 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	managers.Volume().AddVolume(&vol)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDKubeStateMetricsCoreEnabled,
+		Name:  DDKubeStateMetricsCoreEnabled,
 		Value: "true",
 	})
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
+		Name:  DDKubeStateMetricsCoreConfigMap,
 		Value: f.configConfigMapName,
 	})
 
@@ -211,7 +212,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
-		Name:  apicommon.DDIgnoreAutoConf,
+		Name:  DDIgnoreAutoConf,
 		Value: "kubernetes_state",
 	}
 
@@ -223,7 +224,7 @@ func (f *ksmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
-		Name:  apicommon.DDIgnoreAutoConf,
+		Name:  DDIgnoreAutoConf,
 		Value: "kubernetes_state",
 	}
 

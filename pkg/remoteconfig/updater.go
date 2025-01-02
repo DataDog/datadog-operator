@@ -28,7 +28,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
 	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -130,8 +129,8 @@ func (r *RemoteConfigUpdater) Setup(creds config.Creds) error {
 		return errors.New("error obtaining API key")
 	}
 
-	site := os.Getenv(common.DDSite) // TODO support DD_URL as well
-	clusterName := os.Getenv(common.DDClusterName)
+	site := os.Getenv(v2alpha1.DDSite) // TODO support DD_URL as well
+	clusterName := os.Getenv(v2alpha1.DDClusterName)
 	directorRoot := os.Getenv("DD_REMOTE_CONFIGURATION_DIRECTOR_ROOT")
 	configRoot := os.Getenv("DD_REMOTE_CONFIGURATION_CONFIG_ROOT")
 	endpoint := os.Getenv("DD_REMOTE_CONFIGURATION_RC_DD_URL")

@@ -144,29 +144,29 @@ func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // It should do nothing if the feature doesn't need to configure it.
 func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMEnabled,
+		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	})
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMContainerImageEnabled,
+		Name:  DDSBOMContainerImageEnabled,
 		Value: apiutils.BoolToString(&f.containerImageEnabled),
 	})
 	if len(f.containerImageAnalyzers) > 0 {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSBOMContainerImageAnalyzers,
+			Name:  DDSBOMContainerImageAnalyzers,
 			Value: strings.Join(f.containerImageAnalyzers, " "),
 		})
 	}
 	if f.containerImageUncompressedLayersSupport {
 		if f.containerImageOverlayFSDirectScan {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
+				Name:  DDSBOMContainerOverlayFSDirectScan,
 				Value: "true",
 			})
 		} else {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDSBOMContainerUseMount,
+				Name:  DDSBOMContainerUseMount,
 				Value: "true",
 			})
 
@@ -175,7 +175,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 				apicommon.CoreAgentContainerName,
 			)
 
-			managers.Annotation().AddAnnotation(apicommon.AgentAppArmorAnnotationKey, apicommon.AgentAppArmorAnnotationValue)
+			managers.Annotation().AddAnnotation(v2alpha1.AgentAppArmorAnnotationKey, v2alpha1.AgentAppArmorAnnotationValue)
 		}
 
 		volMgr := managers.Volume()
@@ -187,26 +187,26 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	}
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMHostEnabled,
+		Name:  DDSBOMHostEnabled,
 		Value: apiutils.BoolToString(&f.hostEnabled),
 	})
 	if len(f.hostAnalyzers) > 0 {
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSBOMHostAnalyzers,
+			Name:  DDSBOMHostAnalyzers,
 			Value: strings.Join(f.hostAnalyzers, " "),
 		})
 	}
 
 	if f.hostEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDHostRootEnvVar,
+			Name:  v2alpha1.DDHostRootEnvVar,
 			Value: "/host",
 		})
 
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true)
+		osReleaseVol, osReleaseVolMount := volume.GetVolumes(v2alpha1.SystemProbeOSReleaseDirVolumeName, v2alpha1.SystemProbeOSReleaseDirVolumePath, v2alpha1.SystemProbeOSReleaseDirMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&osReleaseVol)
 

@@ -25,6 +25,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
@@ -408,7 +409,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathSpecNodeName,
+					FieldPath: v2alpha1.FieldPathSpecNodeName,
 				},
 			},
 			TLSVerify:  apiutils.NewBoolPointer(true),
@@ -455,7 +456,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				},
@@ -474,9 +475,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				ReadinessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -489,9 +490,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LivenessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -500,6 +501,21 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 					PeriodSeconds:       30,
 					SuccessThreshold:    1,
 					FailureThreshold:    5,
+				},
+				StartupProbe: &v1.Probe{
+					ProbeHandler: v1.ProbeHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Path: constants.DefaultLivenessProbeHTTPPath,
+							Port: intstr.IntOrString{
+								IntVal: constants.DefaultAgentHealthPort,
+							},
+						},
+					},
+					InitialDelaySeconds: 15,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       15,
+					SuccessThreshold:    1,
+					FailureThreshold:    6,
 				},
 				SecurityContext: &v1.SecurityContext{
 					RunAsUser: apiutils.NewInt64Pointer(12345),

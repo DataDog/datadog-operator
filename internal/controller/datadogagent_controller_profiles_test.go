@@ -252,7 +252,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Name: "two",
 											ValueFrom: &v1.EnvVarSource{
 												FieldRef: &v1.ObjectFieldSelector{
-													FieldPath: apicommon.FieldPathStatusPodIP,
+													FieldPath: v2alpha1.FieldPathStatusPodIP,
 												},
 											},
 										},
@@ -329,7 +329,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						Name: "two",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: apicommon.FieldPathStatusPodIP,
+								FieldPath: v2alpha1.FieldPathStatusPodIP,
 							},
 						},
 					},
