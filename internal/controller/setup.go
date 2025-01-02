@@ -33,6 +33,7 @@ const (
 	sloControllerName       = "DatadogSLO"
 	profileControllerName   = "DatadogAgentProfile"
 	dashboardControllerName = "DatadogDashboard"
+	genericCRControllerName = "DatadogGenericCR"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -48,6 +49,7 @@ type SetupOptions struct {
 	IntrospectionEnabled       bool
 	DatadogAgentProfileEnabled bool
 	DatadogDashboardEnabled    bool
+	DatadogGenericCREnabled    bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -73,6 +75,7 @@ var controllerStarters = map[string]starterFunc{
 	sloControllerName:       startDatadogSLO,
 	profileControllerName:   startDatadogAgentProfiles,
 	dashboardControllerName: startDatadogDashboard,
+	genericCRControllerName: startDatadogGenericCR,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -201,6 +204,26 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogGenericCR(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+	if !options.DatadogGenericCREnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", genericCRControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogGenericClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	return (&DatadogGenericCRReconciler{
+		Client:   mgr.GetClient(),
+		DDClient: ddClient,
+		Log:      ctrl.Log.WithName("controllers").WithName(genericCRControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(genericCRControllerName),
 	}).SetupWithManager(mgr)
 }
 
