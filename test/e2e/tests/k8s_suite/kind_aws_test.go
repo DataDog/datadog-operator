@@ -3,24 +3,23 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
-package e2e
+package k8ssuite
 
 import (
+	"fmt"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"strings"
 	"testing"
 )
 
-type localKindSuite struct {
+type awsKindSuite struct {
 	k8sSuite
 }
 
-func TestLocalKindSuite(t *testing.T) {
+func TestAWSKindSuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
@@ -28,10 +27,15 @@ func TestLocalKindSuite(t *testing.T) {
 	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
-		provisioners.WithK8sVersion(common.K8sVersion),
+		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
 	}
 
-	e2e.Run(t, &localKindSuite{}, e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisioners.LocalKindRunFunc, provisionerOptions...)))
+	e2eOpts := []e2e.SuiteOption{
+		e2e.WithStackName(fmt.Sprintf("operator-awskind-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
+		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
+	}
+
+	e2e.Run(t, &awsKindSuite{}, e2eOpts...)
 }

@@ -3,27 +3,28 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
 package provisioners
 
 import (
 	"fmt"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	e2ecommon "github.com/DataDog/datadog-operator/test/e2e/common"
 	"os"
+	"path/filepath"
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/resid"
 	"sigs.k8s.io/yaml"
 )
 
+var (
+	NewMgrKustomizeDirPath = filepath.Join(e2ecommon.ProjectRootPath, "config", "new-e2e")
+)
+
 const (
-	MgrKustomizeDirPath    = "../../../../config/e2e"
-	NewMgrKustomizeDirPath = "../../../../config/new-e2e"
-	DefaultMgrImageName    = "gcr.io/datadoghq/operator"
-	DefaultMgrImgTag       = "latest"
-	DefaultMgrFileName     = "e2e-manager.yaml"
-	UserData               = `#!/bin/bash
+	DefaultMgrImageName = "gcr.io/datadoghq/operator"
+	DefaultMgrImgTag    = "latest"
+	DefaultMgrFileName  = "e2e-manager.yaml"
+	UserData            = `#!/bin/bash
 echo "User Data"
 echo "Installing kubectl"
 snap install kubectl --classic
