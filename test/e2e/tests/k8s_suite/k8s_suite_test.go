@@ -8,6 +8,7 @@ package k8ssuite
 import (
 	"context"
 	"fmt"
+
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
@@ -128,7 +129,7 @@ func (s *k8sSuite) TestGenericK8s() {
 
 	})
 
-	s.T().Run("KSM check works (cluster check runner)", func(t *testing.T) {
+	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
 		assert.NoError(s.T(), err)
 
