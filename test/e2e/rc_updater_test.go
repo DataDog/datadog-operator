@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	updater "github.com/DataDog/datadog-operator/e2e/rc-updater"
-	"github.com/DataDog/datadog-operator/e2e/rc-updater/api"
+	updater "github.com/DataDog/datadog-operator/test/e2e/rc-updater"
+	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

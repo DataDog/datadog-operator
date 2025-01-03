@@ -3,13 +3,13 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/name: datadog-operator
-  name: system
+  name: e2e-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: manager
-  namespace: system
+  namespace: e2e-operator
   labels:
     app.kubernetes.io/name: datadog-operator
     control-plane: controller-manager
@@ -24,39 +24,39 @@ spec:
         app.kubernetes.io/name: datadog-operator
     spec:
       containers:
-      - command:
-        - /manager
-        args:
-        - --enable-leader-election
-        - --pprof
-        image: controller:latest
-        imagePullPolicy: IfNotPresent
-        name: manager
-        env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: WATCH_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        resources:
-          limits:
-            cpu: 100m
-            memory: 250Mi
-          requests:
-            cpu: 100m
-            memory: 250Mi
-        ports:
-          - name: metrics
-            containerPort: 8080
-            protocol: TCP
-        livenessProbe:
-          httpGet:
-            path: /healthz/
-            port: 8081
-          periodSeconds: 10
+        - command:
+            - /manager
+          args:
+            - --enable-leader-election
+            - --pprof
+          image: controller:latest
+          imagePullPolicy: IfNotPresent
+          name: manager
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            limits:
+              cpu: 100m
+              memory: 250Mi
+            requests:
+              cpu: 100m
+              memory: 250Mi
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/
+              port: 8081
+            periodSeconds: 10
       imagePullSecrets:
         - name: registry-credentials
       terminationGracePeriodSeconds: 10

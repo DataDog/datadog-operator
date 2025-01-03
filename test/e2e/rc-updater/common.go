@@ -9,7 +9,7 @@ package updater
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/e2e/rc-updater/api"
+	"github.com/DataDog/datadog-operator/test/e2e/rc-updater/api"
 	"github.com/stretchr/testify/assert"
 )
 
