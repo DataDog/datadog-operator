@@ -56,6 +56,10 @@ spec:
                   type: string
                 type:
                   description: Type is the type of the API object
+                  enum:
+                    - notebook
+                    - synthetics_api_test
+                    - synthetics_browser_test
                   type: string
               required:
                 - jsonSpec
