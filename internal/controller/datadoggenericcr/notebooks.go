@@ -7,9 +7,43 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 )
+
+type NotebookHandler struct{}
+
+func (h *NotebookHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+	if err != nil {
+		logger.Error(err, "error creating notebook")
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
+		return err
+	}
+	logger.Info("created a new notebook", "notebook Id", createdNotebook.Data.GetId())
+	status.Id = notebookInt64ToString(createdNotebook.Data.GetId())
+	createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
+	status.Created = &createdTime
+	status.LastForceSyncTime = &createdTime
+	status.Creator = *createdNotebook.Data.GetAttributes().Author.Handle
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+	return nil
+}
+
+func (h *NotebookHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+	return err
+}
+func (h *NotebookHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
+	return err
+}
+func (h *NotebookHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
+}
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
 	notebookID, err := notebookStringToInt64(notebookStringID)

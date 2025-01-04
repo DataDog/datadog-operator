@@ -20,17 +20,17 @@ func Test_executeHandler(t *testing.T) {
 	mockReconciler := &Reconciler{}
 	instance := &v1alpha1.DatadogGenericCR{
 		Spec: v1alpha1.DatadogGenericCRSpec{
-			Type: mockSubresource,
+			Type: v1alpha1.Notebook,
 		},
 	}
 
 	// Valid operation and subresource case
-	err := executeHandler(operationGet, mockReconciler, instance)
+	err := apiGet(mockReconciler, instance)
 	assert.NoError(t, err)
 
 	// Valid operation and invalid subresource case
-	instance.Spec.Type = "unsupportedType"
-	err = executeHandler(operationGet, mockReconciler, instance)
+	instance.Spec.Type = v1alpha1.Notebook
+	err = apiGet(mockReconciler, instance)
 	assert.EqualError(t, err, "unsupported type: unsupportedType")
 }
 
@@ -45,12 +45,12 @@ func Test_executeCreateHandler(t *testing.T) {
 	status := &v1alpha1.DatadogGenericCRStatus{}
 
 	// Valid subresource case
-	err := executeCreateHandler(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+	err := apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
 	assert.NoError(t, err)
 
 	// Invalid subresource case
 	instance.Spec.Type = "unsupportedType"
-	err = executeCreateHandler(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
+	err = apiCreateAndUpdateStatus(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
 	assert.EqualError(t, err, "unsupported type: unsupportedType")
 }
 

@@ -15,13 +15,14 @@ const (
 	Notebook              SupportedResourcesType = "notebook"
 	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
+	// Update DatadogGenericCRSpec.Type kubebuilder directive with new literals
 )
 
 // DatadogGenericCRSpec defines the desired state of DatadogGenericCR
 // +k8s:openapi-gen=true
 type DatadogGenericCRSpec struct {
 	// Type is the type of the API object
-	// TODO: Add validation for the type (enum)
+	// +kubebuilder:validation:Enum=notebook;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
 	JsonSpec string `json:"jsonSpec"`
