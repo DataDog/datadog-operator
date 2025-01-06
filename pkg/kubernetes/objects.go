@@ -9,7 +9,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +42,7 @@ func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 	case ServiceAccountsKind:
 		return &corev1.ServiceAccount{}
 	case PodDisruptionBudgetsKind:
-		return &policyv1.PodDisruptionBudget{}
+		return platformInfo.CreatePDBObject()
 	case NetworkPoliciesKind:
 		return &networkingv1.NetworkPolicy{}
 	case CiliumNetworkPoliciesKind:

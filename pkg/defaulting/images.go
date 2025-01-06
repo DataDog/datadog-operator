@@ -16,9 +16,9 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.59.0"
+	AgentLatestVersion = "7.60.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.59.0"
+	ClusterAgentLatestVersion = "7.60.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.6"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -30,7 +30,10 @@ const (
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
 	DefaultImageRegistry = GCRContainerRegistry // TODO: this is also defined elsewhere and not used; consolidate
 	// JMXTagSuffix prefix tag for agent JMX images
-	JMXTagSuffix = "-jmx"
+	JMXTagSuffix      = "-jmx"
+	AgentDevImageName = "datadog/agent-dev"
+	// Nightly dev image tag for otel agent
+	OTelAgentNightlyTag = "nightly-ot-beta-main"
 
 	agentImageName        = "agent"
 	clusterAgentImageName = "cluster-agent"

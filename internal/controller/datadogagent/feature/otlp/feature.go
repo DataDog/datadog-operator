@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -111,7 +112,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	if dda.Spec.Global.LocalService != nil {
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -128,7 +129,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 	}
 	if f.grpcEnabled || f.httpEnabled {
-		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -370,7 +371,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPgRPCEndpoint,
+			Name:  DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlpgrpcPort)
@@ -395,7 +396,7 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPHTTPEndpoint,
+			Name:  DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.UnprivilegedSingleAgentContainerName, otlphttpPort)
@@ -430,7 +431,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPgRPCEndpoint,
+			Name:  DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlpgrpcPort)
@@ -458,7 +459,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			}
 		}
 		envVar := &corev1.EnvVar{
-			Name:  apicommon.DDOTLPHTTPEndpoint,
+			Name:  DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)

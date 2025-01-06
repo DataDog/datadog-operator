@@ -92,11 +92,11 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDComplianceConfigEnabled,
+					Name:  DDComplianceConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDComplianceConfigCheckInterval,
+					Name:  DDComplianceConfigCheckInterval,
 					Value: "1200000000000",
 				},
 			}
@@ -134,7 +134,7 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
@@ -150,19 +150,19 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDComplianceConfigEnabled,
+					Name:  DDComplianceConfigEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDHostRootEnvVar,
-					Value: apicommon.HostRootMountPath,
+					Name:  v2alpha1.DDHostRootEnvVar,
+					Value: v2alpha1.HostRootMountPath,
 				},
 				{
-					Name:  apicommon.DDComplianceConfigCheckInterval,
+					Name:  DDComplianceConfigCheckInterval,
 					Value: "1200000000000",
 				},
 				{
-					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+					Name:  DDComplianceHostBenchmarksEnabled,
 					Value: "true",
 				},
 			}
@@ -178,28 +178,28 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.CgroupsVolumeName,
-					MountPath: apicommon.CgroupsMountPath,
+					Name:      v2alpha1.CgroupsVolumeName,
+					MountPath: v2alpha1.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.PasswdVolumeName,
-					MountPath: apicommon.PasswdMountPath,
+					Name:      v2alpha1.PasswdVolumeName,
+					MountPath: v2alpha1.PasswdMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.ProcdirVolumeName,
-					MountPath: apicommon.ProcdirMountPath,
+					Name:      v2alpha1.ProcdirVolumeName,
+					MountPath: v2alpha1.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.HostRootVolumeName,
-					MountPath: apicommon.HostRootMountPath,
+					Name:      v2alpha1.HostRootVolumeName,
+					MountPath: v2alpha1.HostRootMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.GroupVolumeName,
-					MountPath: apicommon.GroupMountPath,
+					Name:      v2alpha1.GroupVolumeName,
+					MountPath: v2alpha1.GroupMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -227,42 +227,42 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 					},
 				},
 				{
-					Name: apicommon.CgroupsVolumeName,
+					Name: v2alpha1.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.CgroupsHostPath,
+							Path: v2alpha1.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.PasswdVolumeName,
+					Name: v2alpha1.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.PasswdHostPath,
+							Path: v2alpha1.PasswdHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.ProcdirVolumeName,
+					Name: v2alpha1.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.ProcdirHostPath,
+							Path: v2alpha1.ProcdirHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.HostRootVolumeName,
+					Name: v2alpha1.HostRootVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.HostRootHostPath,
+							Path: v2alpha1.HostRootHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.GroupVolumeName,
+					Name: v2alpha1.GroupVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.GroupHostPath,
+							Path: v2alpha1.GroupHostPath,
 						},
 					},
 				},
@@ -275,7 +275,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

@@ -12,12 +12,12 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +72,7 @@ defaults
 	}{
 		{
 			name: "FIPS enabled",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 				}).
@@ -101,7 +101,7 @@ defaults
 		},
 		{
 			name: "FIPS custom image",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					Image: &v2alpha1.AgentImageConfig{
@@ -135,7 +135,7 @@ defaults
 		},
 		{
 			name: "FIPS custom port",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					Port:    apiutils.NewInt32Pointer(2),
@@ -165,7 +165,7 @@ defaults
 		},
 		{
 			name: "FIPS custom config - config map",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
@@ -206,7 +206,7 @@ defaults
 		},
 		{
 			name: "FIPS custom config - config data",
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
@@ -262,19 +262,19 @@ defaults
 func getExpectedComponentContainerEnvVars(port int) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDFIPSEnabled,
+			Name:  v2alpha1.DDFIPSEnabled,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDFIPSPortRangeStart,
+			Name:  v2alpha1.DDFIPSPortRangeStart,
 			Value: strconv.Itoa(port),
 		},
 		{
-			Name:  apicommon.DDFIPSUseHTTPS,
+			Name:  v2alpha1.DDFIPSUseHTTPS,
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDFIPSLocalAddress,
+			Name:  v2alpha1.DDFIPSLocalAddress,
 			Value: "127.0.0.1",
 		},
 	}
@@ -283,16 +283,16 @@ func getExpectedComponentContainerEnvVars(port int) []*corev1.EnvVar {
 func getExpectedFIPSVolume(customConfig bool) []*corev1.Volume {
 	vol := []*corev1.Volume{
 		{
-			Name: apicommon.FIPSProxyCustomConfigVolumeName,
+			Name: v2alpha1.FIPSProxyCustomConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: fmt.Sprintf(apicommon.FIPSProxyCustomConfigMapName, ""),
+						Name: fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, ""),
 					},
 					Items: []corev1.KeyToPath{
 						{
-							Key:  apicommon.FIPSProxyCustomConfigFileName,
-							Path: apicommon.FIPSProxyCustomConfigFileName,
+							Key:  v2alpha1.FIPSProxyCustomConfigFileName,
+							Path: v2alpha1.FIPSProxyCustomConfigFileName,
 						},
 					},
 				},
@@ -315,9 +315,9 @@ func getExpectedFIPSVolumeMounts() []*corev1.VolumeMount {
 
 func getFIPSVolumeMount() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.FIPSProxyCustomConfigVolumeName,
-		MountPath: apicommon.FIPSProxyCustomConfigMountPath,
-		SubPath:   apicommon.FIPSProxyCustomConfigFileName,
+		Name:      v2alpha1.FIPSProxyCustomConfigVolumeName,
+		MountPath: v2alpha1.FIPSProxyCustomConfigMountPath,
+		SubPath:   v2alpha1.FIPSProxyCustomConfigFileName,
 		ReadOnly:  true,
 	}
 }
@@ -325,7 +325,7 @@ func getFIPSVolumeMount() corev1.VolumeMount {
 func checkFIPSContainerEnvVars(t testing.TB, mgr *fake.PodTemplateManagers) {
 	fipsEnvVars := mgr.PodTemplateSpec().Spec.Containers[3].Env
 	expectedEnvVars := corev1.EnvVar{
-		Name:  apicommon.DDFIPSLocalAddress,
+		Name:  v2alpha1.DDFIPSLocalAddress,
 		Value: "127.0.0.1",
 	}
 	assert.Contains(t, fipsEnvVars, expectedEnvVars)

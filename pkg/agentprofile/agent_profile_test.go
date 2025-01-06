@@ -350,6 +350,7 @@ func TestOverrideFromProfile(t *testing.T) {
 					},
 				},
 				PriorityClassName: apiutils.NewStringPointer("foo"),
+				RuntimeClassName:  apiutils.NewStringPointer("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{
@@ -718,6 +719,7 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
 				PriorityClassName: apiutils.NewStringPointer("foo"),
+				RuntimeClassName:  apiutils.NewStringPointer("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{

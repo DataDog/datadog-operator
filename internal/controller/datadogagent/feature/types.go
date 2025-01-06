@@ -150,8 +150,6 @@ type Options struct {
 	SupportExtendedDaemonset bool
 
 	Logger logr.Logger
-
-	OtelAgentEnabled bool
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

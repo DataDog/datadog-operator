@@ -9,11 +9,13 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -46,7 +48,7 @@ func Test_getPodDisruptionBudget(t *testing.T) {
 			Namespace: "some-namespace",
 		},
 	}
-	testpdb := GetClusterAgentPodDisruptionBudget(&dda)
+	testpdb := GetClusterAgentPodDisruptionBudget(&dda, false).(*policyv1.PodDisruptionBudget)
 	assert.Equal(t, "my-datadog-agent-cluster-agent-pdb", testpdb.Name)
 	assert.Equal(t, intstr.FromInt(pdbMinAvailableInstances), *testpdb.Spec.MinAvailable)
 	assert.Nil(t, testpdb.Spec.MaxUnavailable)
@@ -221,7 +223,7 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv2alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, constants.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:  "DD_LEADER_ELECTION",

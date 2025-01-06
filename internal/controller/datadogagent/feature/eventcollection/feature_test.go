@@ -12,13 +12,13 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -28,14 +28,14 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Event Collection not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithEventCollectionKubernetesEvents(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Event Collection enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),
@@ -44,7 +44,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Unbundle event enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				WithEventCollectionUnbundleEvents(true, []v2alpha1.EventTypes{
@@ -73,19 +73,19 @@ func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 
 	want := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDCollectKubernetesEvents,
+			Name:  DDCollectKubernetesEvents,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDLeaderElection,
+			Name:  v2alpha1.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  apicommon.DDLeaderLeaseName,
+			Name:  DDLeaderLeaseName,
 			Value: "ddaDCA-leader-election",
 		},
 		{
-			Name:  apicommon.DDClusterAgentTokenName,
+			Name:  v2alpha1.DDClusterAgentTokenName,
 			Value: "ddaDCA-token",
 		},
 	}

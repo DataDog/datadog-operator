@@ -80,7 +80,7 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
@@ -93,7 +93,7 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessConfigRunInCoreAgent,
+		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -110,17 +110,17 @@ func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManag
 func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, agentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, agentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDContainerCollectionEnabled,
+		Name:  v2alpha1.DDContainerCollectionEnabled,
 		Value: "true",
 	})
 

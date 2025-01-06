@@ -11,13 +11,13 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -36,14 +36,14 @@ func Test_ksmFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "ksm-core not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "ksm-core not enabled with single agent container",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(false).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -51,7 +51,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -60,7 +60,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled with single agent container",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -70,7 +70,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled, custom config",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				Build(),
@@ -80,7 +80,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled, custom config with single agent container",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				WithSingleContainerStrategy(true).
@@ -102,11 +102,11 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 
 			want := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeStateMetricsCoreEnabled,
+					Name:  DDKubeStateMetricsCoreEnabled,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
+					Name:  DDKubeStateMetricsCoreConfigMap,
 					Value: "-kube-state-metrics-core-config",
 				},
 			}
@@ -119,7 +119,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
 				assert.NoError(t, err)
 				wantAnnotations := map[string]string{
-					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+					fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
 				}
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
@@ -142,7 +142,7 @@ func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, ag
 
 	want := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDIgnoreAutoConf,
+			Name:  DDIgnoreAutoConf,
 			Value: "kubernetes_state",
 		},
 	}

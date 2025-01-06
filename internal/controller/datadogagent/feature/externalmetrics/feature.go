@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	"github.com/go-logr/logr"
@@ -89,8 +90,8 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			creds := em.Endpoint.Credentials
 			if creds != nil {
 				f.keySecret = make(map[string]secret)
-				if !v2alpha1.CheckAPIKeySufficiency(creds, apicommon.DDExternalMetricsProviderAPIKey) ||
-					!v2alpha1.CheckAppKeySufficiency(creds, apicommon.DDExternalMetricsProviderAppKey) {
+				if !v2alpha1.CheckAPIKeySufficiency(creds, DDExternalMetricsProviderAPIKey) ||
+					!v2alpha1.CheckAppKeySufficiency(creds, DDExternalMetricsProviderAppKey) {
 					// for one of api or app keys, neither secrets nor external metrics key env vars
 					// are defined, so store key data to create secret later
 					for keyType, keyData := range v2alpha1.GetKeysFromCredentials(creds) {
@@ -122,9 +123,9 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			}
 		}
 
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
-		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -154,7 +155,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	}
 	selector := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      f.owner.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 	}
 	serviceName := componentdca.GetMetricsServerServiceName(f.owner)
 	if err := managers.ServiceManager().AddService(serviceName, ns, selector, emPorts, nil); err != nil {
@@ -261,25 +262,25 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 // It should do nothing if the feature doesn't need to configure it.
 func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDExternalMetricsProviderEnabled,
+		Name:  DDExternalMetricsProviderEnabled,
 		Value: "true",
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDExternalMetricsProviderPort,
+		Name:  DDExternalMetricsProviderPort,
 		Value: strconv.FormatInt(int64(f.port), 10),
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
+		Name:  DDExternalMetricsProviderUseDatadogMetric,
 		Value: apiutils.BoolToString(&f.useDDM),
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDExternalMetricsProviderWPAController,
+		Name:  DDExternalMetricsProviderWPAController,
 		Value: apiutils.BoolToString(&f.useWPA),
 	})
 
 	if f.url != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDExternalMetricsProviderEndpoint,
+			Name:  DDExternalMetricsProviderEndpoint,
 			Value: f.url,
 		})
 	}
@@ -291,13 +292,13 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 			// api key from existing secret
 			if s.name != "" {
 				apiKeyEnvVar = common.BuildEnvVarFromSource(
-					apicommon.DDExternalMetricsProviderAPIKey,
+					DDExternalMetricsProviderAPIKey,
 					common.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
 				// api key from secret created by operator
 				apiKeyEnvVar = common.BuildEnvVarFromSource(
-					apicommon.DDExternalMetricsProviderAPIKey,
+					DDExternalMetricsProviderAPIKey,
 					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), v2alpha1.DefaultAPIKeyKey),
 				)
 			}
@@ -309,13 +310,13 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 			// app key from existing secret
 			if s.name != "" {
 				appKeyEnvVar = common.BuildEnvVarFromSource(
-					apicommon.DDExternalMetricsProviderAppKey,
+					DDExternalMetricsProviderAppKey,
 					common.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
 				// api key from secret created by operator
 				appKeyEnvVar = common.BuildEnvVarFromSource(
-					apicommon.DDExternalMetricsProviderAppKey,
+					DDExternalMetricsProviderAppKey,
 					common.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), v2alpha1.DefaultAPPKeyKey),
 				)
 			}
