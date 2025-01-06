@@ -135,7 +135,7 @@ func getEnv(key, fallback string) string {
 }
 
 func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
-	if !*keepStacks {
+	if !*KeepStacks {
 		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
 	}
 }
