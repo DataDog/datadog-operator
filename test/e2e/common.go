@@ -3,6 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build e2e
+// +build e2e
+
 package e2e
 
 import (
@@ -120,6 +123,7 @@ func verifyNumPodsForSelector(t *testing.T, kubectlOptions *k8s.KubectlOptions, 
 	t.Log("Waiting for number of pods created", "number", numPods, "selector", selector)
 	k8s.WaitUntilNumPodsCreated(t, kubectlOptions, v1.ListOptions{
 		LabelSelector: selector,
+		FieldSelector: "status.phase=Running",
 	}, numPods, 9, 15*time.Second)
 }
 
@@ -131,7 +135,7 @@ func getEnv(key, fallback string) string {
 }
 
 func deleteDda(t *testing.T, kubectlOptions *k8s.KubectlOptions, ddaPath string) {
-	if !*keepStacks {
+	if !*KeepStacks {
 		k8s.KubectlDelete(t, kubectlOptions, ddaPath)
 	}
 }
