@@ -172,6 +172,25 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
 	}
 
+	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
+	// core agent when secrets backend is used.
+	agentIpcPortEnvVar := &corev1.EnvVar{
+		Name:  v2alpha1.DDAgentIpcPort,
+		Value: "5009",
+	}
+	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
+		Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+		Value: "60",
+	}
+	// don't set env var if it was already set by user.
+	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
+		return current, nil
+	}
+	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent} {
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
+	}
+
 	var enableEnvVar *corev1.EnvVar
 	if o.coreAgentConfig.enabled != nil {
 		if *o.coreAgentConfig.enabled {
@@ -201,6 +220,7 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 			Value: *o.coreAgentConfig.extension_url,
 		})
 	}
+
 	return nil
 }
 
