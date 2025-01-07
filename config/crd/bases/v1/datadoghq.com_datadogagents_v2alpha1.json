@@ -1407,11 +1407,11 @@
                       "description": "Enabled marks otelcollector as enabled in core agent.",
                       "type": "boolean"
                     },
-                    "extension_timeout": {
+                    "extensionTimeout": {
                       "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
                       "type": "integer"
                     },
-                    "extension_url": {
+                    "extensionURL": {
                       "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
                       "type": "string"
                     }
@@ -1457,7 +1457,8 @@
                     ],
                     "type": "object"
                   },
-                  "type": "array"
+                  "type": "array",
+                  "x-kubernetes-list-type": "atomic"
                 }
               },
               "type": "object"
@@ -8212,11 +8213,11 @@
                           "description": "Enabled marks otelcollector as enabled in core agent.",
                           "type": "boolean"
                         },
-                        "extension_timeout": {
+                        "extensionTimeout": {
                           "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
                           "type": "integer"
                         },
-                        "extension_url": {
+                        "extensionURL": {
                           "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
                           "type": "string"
                         }
@@ -8262,7 +8263,8 @@
                         ],
                         "type": "object"
                       },
-                      "type": "array"
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     }
                   },
                   "type": "object"
