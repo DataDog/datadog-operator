@@ -704,6 +704,7 @@ type OtelCollectorFeatureConfig struct {
 	// If not, this will lead to a port conflict.
 	// This limitation will be lifted once annotations support is removed.
 	// +optional
+	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 
 	// OTelCollector Config Relevant to the Core agent
@@ -718,15 +719,15 @@ type CoreConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// +optional
 	// Extension URL provides the URL of the ddflareextension to
 	// the core agent.
-	ExtensionURL *string `json:"extension_url,omitempty"`
-
 	// +optional
+	ExtensionURL *string `json:"extensionURL,omitempty"`
+
 	// Extension URL provides the timout of the ddflareextension to
 	// the core agent.
-	ExtensionTimeout *int `json:"extension_timeout,omitempty"`
+	// +optional
+	ExtensionTimeout *int `json:"extensionTimeout,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
