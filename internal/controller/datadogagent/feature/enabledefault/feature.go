@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
 	"github.com/go-logr/logr"
@@ -146,7 +147,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 			if creds.APIKey != nil || creds.AppKey != nil {
 				f.credentialsInfo.secretCreation.createSecret = true
-				f.credentialsInfo.secretCreation.name = v2alpha1.GetDefaultCredentialsSecretName(dda)
+				f.credentialsInfo.secretCreation.name = secrets.GetDefaultCredentialsSecretName(dda)
 			}
 
 			if creds.APIKey != nil {
@@ -169,7 +170,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		}
 
 		// DCA Token management
-		f.dcaTokenInfo.token.SecretName = v2alpha1.GetDefaultDCATokenSecretName(dda)
+		f.dcaTokenInfo.token.SecretName = secrets.GetDefaultDCATokenSecretName(dda)
 		f.dcaTokenInfo.token.SecretKey = v2alpha1.DefaultTokenKey
 		if dda.Spec.Global.ClusterAgentToken != nil {
 			// User specifies token
