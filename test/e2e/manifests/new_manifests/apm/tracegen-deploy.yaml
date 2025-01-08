@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tracegen-tribrid
+  namespace: e2e-operator
   labels:
     app: tracegen-tribrid
 spec:
@@ -38,8 +39,9 @@ spec:
         image: ghcr.io/datadog/apps-tracegen:main
         env:
         # Kubernetes service of the node Agent - enabled by default with the APM feature
+        # The service is created by the Datadog Operator following convention: <datadog-agent-name>-agent
         - name: DD_AGENT_HOST
-          value: "datadog-agent"
+          value: "datadog-agent-apm-agent"
         - name: DD_SERVICE
           value: "e2e-test-apm-agent-service"
         - name: DD_ENV

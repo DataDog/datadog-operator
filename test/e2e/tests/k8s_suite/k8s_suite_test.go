@@ -315,13 +315,12 @@ func (s *k8sSuite) verifyAPILogs() {
 }
 
 func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {
-	_, err := s.Env().FakeIntake.Client().GetTraces()
-	assert.NoError(c, err)
+	traces, err := s.Env().FakeIntake.Client().GetTraces()
+	s.Assert().NoError(err)
+	s.Assert().NotEmptyf(traces, fmt.Sprintf("Expected fake intake-ingested traces to not be empty: %s", err))
 
-	// for _, trace := range traces {
-	// 	tags := lo.MapToSlice(trace.Tags, func(k string, v string) string {
-	// 		return k + ":" + v
-	// 	})
+	// TODO: implement finer trace verification by checking tags
+	// https://github.com/DataDog/datadog-agent/blob/271a3aa2b5ec9c00c3d845a048c652e4b21e6659/test/new-e2e/tests/containers/k8s_test.go#L1451
 
 }
 
