@@ -313,7 +313,6 @@ func run(opts *options) error {
 		V2APIEnabled:                  true,
 		IntrospectionEnabled:          opts.introspectionEnabled,
 		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
-		OtelAgentEnabled:              opts.otelAgentEnabled,
 		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
 		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 	}
