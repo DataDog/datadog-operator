@@ -32,7 +32,8 @@ type DatadogGenericResourceReconciler struct {
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=update
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=get;list;watch;create;update;patch;delete
+
 func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
 }
