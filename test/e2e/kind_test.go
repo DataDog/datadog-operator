@@ -257,9 +257,6 @@ func (s *kindSuite) TestKindRun() {
 			}
 		}, 300*time.Second, 30*time.Second, "could not validate http check on agent pod")
 
-		// cleanup nginx deployment
-		k8s.KubectlDelete(t, kubectlOptions, nginxConfigPath)
-
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyHTTPCheck(s, c)
 		}, 300*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
