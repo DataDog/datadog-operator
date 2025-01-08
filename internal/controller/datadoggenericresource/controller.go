@@ -68,7 +68,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	logger.Info("Reconciling Datadog Generic Custom Resource")
 	now := metav1.NewTime(time.Now())
 
-	instance := &v1alpha1.DatadogGenericCR{}
+	instance := &v1alpha1.DatadogGenericResource{}
 	var result ctrl.Result
 	var err error
 
@@ -87,7 +87,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	status := instance.Status.DeepCopy()
 	statusSpecHash := instance.Status.CurrentHash
 
-	if err = v1alpha1.IsValidDatadogGenericCR(&instance.Spec); err != nil {
+	if err = v1alpha1.IsValidDatadogGenericResource(&instance.Spec); err != nil {
 		logger.Error(err, "invalid DatadogGenericCR")
 		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericCR", err)
 		return r.updateStatusIfNeeded(logger, instance, status, result)
@@ -148,11 +148,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
 
-func (r *Reconciler) get(instance *v1alpha1.DatadogGenericCR) error {
+func (r *Reconciler) get(instance *v1alpha1.DatadogGenericResource) error {
 	return apiGet(r, instance)
 }
 
-func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	err := apiUpdate(r, instance)
 	if err != nil {
 		logger.Error(err, "error updating generic CR", "generic CR Id", instance.Status.Id)
@@ -173,7 +173,7 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	return nil
 }
 
-func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	logger.V(1).Info("Custom resource Id is not set; creating custom resource in Datadog")
 
 	err := apiCreateAndUpdateStatus(r, logger, instance, status, now, hash)
@@ -190,12 +190,12 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	return nil
 }
 
-func updateErrStatus(status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
+func updateErrStatus(status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, syncStatus v1alpha1.DatadogSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, result ctrl.Result) (ctrl.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, result ctrl.Result) (ctrl.Result, error) {
 	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
 		instance.Status = *status
 		if err := r.client.Status().Update(context.TODO(), instance); err != nil {

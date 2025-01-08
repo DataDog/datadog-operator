@@ -39,7 +39,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericCR{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
 
 	type args struct {
 		request              reconcile.Request
@@ -73,7 +73,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 			},
 			wantResult: reconcile.Result{Requeue: true},
 			wantFunc: func(c client.Client) error {
-				obj := &datadoghqv1alpha1.DatadogGenericCR{}
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
 					return err
 				}
@@ -90,7 +90,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
-					_ = c.Update(context.TODO(), &datadoghqv1alpha1.DatadogGenericCR{
+					_ = c.Update(context.TODO(), &datadoghqv1alpha1.DatadogGenericResource{
 						TypeMeta: metav1.TypeMeta{
 							Kind:       "DatadogGenericCR",
 							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -99,7 +99,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 							Namespace: resourcesNamespace,
 							Name:      resourcesName,
 						},
-						Spec: datadoghqv1alpha1.DatadogGenericCRSpec{
+						Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
 							Type:     mockSubresource,
 							JsonSpec: "{\"bar\": \"baz\"}",
 						},
@@ -109,7 +109,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 			},
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
-				obj := &datadoghqv1alpha1.DatadogGenericCR{}
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
 					return err
 				}
@@ -136,7 +136,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    true,
 			wantFunc: func(c client.Client) error {
-				obj := &datadoghqv1alpha1.DatadogGenericCR{}
+				obj := &datadoghqv1alpha1.DatadogGenericResource{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
 					return err
 				}
@@ -162,7 +162,7 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 
 			// Set up
 			r := &Reconciler{
-				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericCR{}).Build(),
+				client:                  fake.NewClientBuilder().WithScheme(s).WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 				datadogSyntheticsClient: synthClient,
 				datadogNotebooksClient:  nbClient,
 				datadogAuth:             testAuth,
@@ -223,8 +223,8 @@ func newRequest(ns, name string) reconcile.Request {
 	}
 }
 
-func mockGenericCR() *datadoghqv1alpha1.DatadogGenericCR {
-	return &datadoghqv1alpha1.DatadogGenericCR{
+func mockGenericCR() *datadoghqv1alpha1.DatadogGenericResource {
+	return &datadoghqv1alpha1.DatadogGenericResource{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogGenericCR",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
@@ -233,7 +233,7 @@ func mockGenericCR() *datadoghqv1alpha1.DatadogGenericCR {
 			Namespace: resourcesNamespace,
 			Name:      resourcesName,
 		},
-		Spec: datadoghqv1alpha1.DatadogGenericCRSpec{
+		Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
 			Type:     mockSubresource,
 			JsonSpec: "{\"foo\": \"bar\"}",
 		},

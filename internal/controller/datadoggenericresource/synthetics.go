@@ -32,7 +32,7 @@ func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, 
 }
 
 // Browser test: create
-func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsBrowserTest, error) {
+func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
 	test, _, err := client.CreateSyntheticsBrowserTest(auth, *browserTestBody)
@@ -43,7 +43,7 @@ func createSyntheticBrowserTest(auth context.Context, client *datadogV1.Syntheti
 }
 
 // Browser test: update
-func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsBrowserTest, error) {
+func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
 	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
 	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.Id, *browserTestBody)
@@ -54,7 +54,7 @@ func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.Synthet
 }
 
 // API test: create
-func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsAPITest, error) {
+func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
 	test, _, err := client.CreateSyntheticsAPITest(auth, *apiTestBody)
@@ -65,7 +65,7 @@ func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 }
 
 // API test: update
-func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.SyntheticsAPITest, error) {
+func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
 	apiTestBody := &datadogV1.SyntheticsAPITest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
 	testUpdated, _, err := client.UpdateAPITest(auth, instance.Status.Id, *apiTestBody)

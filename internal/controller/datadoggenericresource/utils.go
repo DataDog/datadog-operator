@@ -29,55 +29,55 @@ type apiHandlerKey struct {
 }
 
 // Delete, Get and Update operations share the same signature
-type apiHandlerFunc func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error
+type apiHandlerFunc func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error
 
 var apiHandlers = map[apiHandlerKey]apiHandlerFunc{
-	{v1alpha1.SyntheticsBrowserTest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 		return err
 	},
-	{v1alpha1.SyntheticsBrowserTest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		return err
 	},
-	{v1alpha1.SyntheticsBrowserTest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsBrowserTest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 	},
-	{v1alpha1.SyntheticsAPITest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsAPITest, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 		return err
 	},
-	{v1alpha1.SyntheticsAPITest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsAPITest, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		return err
 	},
-	{v1alpha1.SyntheticsAPITest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.SyntheticsAPITest, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
 	},
-	{v1alpha1.Notebook, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.Notebook, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := getNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 		return err
 	},
-	{v1alpha1.Notebook, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.Notebook, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		_, err := updateNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		return err
 	},
-	{v1alpha1.Notebook, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{v1alpha1.Notebook, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return deleteNotebook(r.datadogAuth, r.datadogNotebooksClient, instance.Status.Id)
 	},
-	{mockSubresource, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{mockSubresource, operationGet}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return nil
 	},
-	{mockSubresource, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{mockSubresource, operationUpdate}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return nil
 	},
-	{mockSubresource, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+	{mockSubresource, operationDelete}: func(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 		return nil
 	},
 }
 
 // Common handler executor (delete, get and update)
-func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	key := apiHandlerKey{resourceType: instance.Spec.Type, op: operation}
 	if handler, found := apiHandlers[key]; found {
 		return handler(r, instance)
@@ -86,10 +86,10 @@ func executeHandler(operation operation, r *Reconciler, instance *v1alpha1.Datad
 }
 
 // Create is handled separately due to the dynamic signature and need to extract/update status based on the returned struct
-type createHandlerFunc func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error
+type createHandlerFunc func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error
 
 var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
-	v1alpha1.SyntheticsBrowserTest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	v1alpha1.SyntheticsBrowserTest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 		createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating browser test")
@@ -99,7 +99,7 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 		additionalProperties := createdTest.AdditionalProperties
 		return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 	},
-	v1alpha1.SyntheticsAPITest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	v1alpha1.SyntheticsAPITest: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 		createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating API test")
@@ -109,7 +109,7 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 		additionalProperties := createdTest.AdditionalProperties
 		return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 	},
-	v1alpha1.Notebook: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	v1alpha1.Notebook: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 		createdNotebook, err := createNotebook(r.datadogAuth, r.datadogNotebooksClient, instance)
 		if err != nil {
 			logger.Error(err, "error creating notebook")
@@ -126,7 +126,7 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 		status.CurrentHash = hash
 		return nil
 	},
-	mockSubresource: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+	mockSubresource: func(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 		status.Id = "mock-id"
 		status.Created = &now
 		status.LastForceSyncTime = &now
@@ -137,7 +137,7 @@ var createHandlers = map[v1alpha1.SupportedResourcesType]createHandlerFunc{
 	},
 }
 
-func executeCreateHandler(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+func executeCreateHandler(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	if handler, found := createHandlers[instance.Spec.Type]; found {
 		return handler(r, logger, instance, status, now, hash)
 	}
@@ -162,27 +162,27 @@ func translateClientError(err error, msg string) error {
 	return fmt.Errorf(msg+": %w", err)
 }
 
-func unsupportedInstanceType(instance *v1alpha1.DatadogGenericCR) error {
+func unsupportedInstanceType(instance *v1alpha1.DatadogGenericResource) error {
 	return fmt.Errorf("unsupported type: %s", instance.Spec.Type)
 }
 
-func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+func apiDelete(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return executeHandler(operationDelete, r, instance)
 }
 
-func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+func apiGet(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return executeHandler(operationGet, r, instance)
 }
 
-func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericCR) error {
+func apiUpdate(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
 	return executeHandler(operationUpdate, r, instance)
 }
 
-func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericCR, status *v1alpha1.DatadogGenericCRStatus, now metav1.Time, hash string) error {
+func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	return executeCreateHandler(r, logger, instance, status, now, hash)
 }
 
-func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]interface{}, status *v1alpha1.DatadogGenericCRStatus, logger logr.Logger, hash string) error {
+func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]interface{}, status *v1alpha1.DatadogGenericResourceStatus, logger logr.Logger, hash string) error {
 	// All synthetic test types share this method
 	status.Id = createdTest.GetPublicId()
 

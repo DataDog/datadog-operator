@@ -18,8 +18,8 @@ import (
 
 func Test_executeHandler(t *testing.T) {
 	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericCR{
-		Spec: v1alpha1.DatadogGenericCRSpec{
+	instance := &v1alpha1.DatadogGenericResource{
+		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
 		},
 	}
@@ -37,12 +37,12 @@ func Test_executeHandler(t *testing.T) {
 func Test_executeCreateHandler(t *testing.T) {
 	mockReconciler := &Reconciler{}
 	logger := &logr.Logger{}
-	instance := &v1alpha1.DatadogGenericCR{
-		Spec: v1alpha1.DatadogGenericCRSpec{
+	instance := &v1alpha1.DatadogGenericResource{
+		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
 		},
 	}
-	status := &v1alpha1.DatadogGenericCRStatus{}
+	status := &v1alpha1.DatadogGenericResourceStatus{}
 
 	// Valid subresource case
 	err := executeCreateHandler(mockReconciler, *logger, instance, status, metav1.Now(), "test-hash")
@@ -56,8 +56,8 @@ func Test_executeCreateHandler(t *testing.T) {
 
 func Test_apiGet(t *testing.T) {
 	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericCR{
-		Spec: v1alpha1.DatadogGenericCRSpec{
+	instance := &v1alpha1.DatadogGenericResource{
+		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
 		},
 	}
@@ -68,8 +68,8 @@ func Test_apiGet(t *testing.T) {
 
 func Test_apiUpdate(t *testing.T) {
 	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericCR{
-		Spec: v1alpha1.DatadogGenericCRSpec{
+	instance := &v1alpha1.DatadogGenericResource{
+		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
 		},
 	}
@@ -80,8 +80,8 @@ func Test_apiUpdate(t *testing.T) {
 
 func Test_apiDelete(t *testing.T) {
 	mockReconciler := &Reconciler{}
-	instance := &v1alpha1.DatadogGenericCR{
-		Spec: v1alpha1.DatadogGenericCRSpec{
+	instance := &v1alpha1.DatadogGenericResource{
+		Spec: v1alpha1.DatadogGenericResourceSpec{
 			Type: mockSubresource,
 		},
 	}
@@ -152,7 +152,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 	tests := []struct {
 		name                 string
 		additionalProperties map[string]interface{}
-		expectedStatus       v1alpha1.DatadogGenericCRStatus
+		expectedStatus       v1alpha1.DatadogGenericResourceStatus
 	}{
 		{
 			name: "valid properties",
@@ -162,7 +162,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "test-id",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
@@ -178,7 +178,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "test-id",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
@@ -195,7 +195,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 					"handle": "test-handle",
 				},
 			},
-			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "test-id",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
@@ -209,7 +209,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 			additionalProperties: map[string]interface{}{
 				"created_at": "2024-01-01T00:00:00Z",
 			},
-			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "test-id",
 				Creator:           "",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
@@ -224,7 +224,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				"created_at": "2024-01-01T00:00:00Z",
 				"created_by": map[string]interface{}{},
 			},
-			expectedStatus: v1alpha1.DatadogGenericCRStatus{
+			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
 				Id:                "test-id",
 				Creator:           "",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
@@ -237,7 +237,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status := &v1alpha1.DatadogGenericCRStatus{}
+			status := &v1alpha1.DatadogGenericResourceStatus{}
 			syntheticTest := &datadogV1.SyntheticsAPITest{}
 			syntheticTest.SetPublicId("test-id")
 			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, mockLogger, hash)

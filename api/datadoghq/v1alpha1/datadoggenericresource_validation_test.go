@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_IsValidDatadogGenericCR(t *testing.T) {
+func Test_IsValidDatadogGenericResource(t *testing.T) {
 	tests := []struct {
 		name    string
-		spec    *DatadogGenericCRSpec
+		spec    *DatadogGenericResourceSpec
 		wantErr string
 	}{
 		{
 			name: "supported resource type and non empty json spec",
-			spec: &DatadogGenericCRSpec{
+			spec: &DatadogGenericResourceSpec{
 				Type: SyntheticsBrowserTest,
 				// N.B. This is a valid JSON string but not valid for the API (not a model payload).
 				// This is just for testing purposes.
@@ -29,7 +29,7 @@ func Test_IsValidDatadogGenericCR(t *testing.T) {
 		},
 		{
 			name: "unsupported resource type",
-			spec: &DatadogGenericCRSpec{
+			spec: &DatadogGenericResourceSpec{
 				Type:     "foo",
 				JsonSpec: "{\"foo\": \"bar\"}",
 			},
@@ -37,7 +37,7 @@ func Test_IsValidDatadogGenericCR(t *testing.T) {
 		},
 		{
 			name: "empty json spec",
-			spec: &DatadogGenericCRSpec{
+			spec: &DatadogGenericResourceSpec{
 				Type:     Notebook,
 				JsonSpec: "",
 			},
@@ -46,7 +46,7 @@ func Test_IsValidDatadogGenericCR(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := IsValidDatadogGenericCR(test.spec)
+			err := IsValidDatadogGenericResource(test.spec)
 			if test.wantErr != "" {
 				assert.EqualError(t, err, test.wantErr)
 			} else {

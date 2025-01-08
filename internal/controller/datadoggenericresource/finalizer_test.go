@@ -36,13 +36,13 @@ var (
 
 func Test_handleFinalizer(t *testing.T) {
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericCR{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogGenericResource{})
 	metaNow := metav1.NewTime(time.Now())
 
 	r := &Reconciler{
 		client: fake.NewClientBuilder().
 			WithRuntimeObjects(
-				&datadoghqv1alpha1.DatadogGenericCR{
+				&datadoghqv1alpha1.DatadogGenericResource{
 					TypeMeta: metav1.TypeMeta{
 						Kind: genericCRKind,
 					},
@@ -55,7 +55,7 @@ func Test_handleFinalizer(t *testing.T) {
 				// - deletion timestamp (added by running kubectl delete)
 				// - finalizer (added by the reconciler at creation time (see first test case))
 				// Ref: https://github.com/kubernetes-sigs/controller-runtime/commit/7a66d580c0c53504f5b509b45e9300cc18a1cc30#diff-20ecedbf30721c01c33fb67d911da11c277e29990497a600d20cb0ec7215affdR683-R686
-				&datadoghqv1alpha1.DatadogGenericCR{
+				&datadoghqv1alpha1.DatadogGenericResource{
 					TypeMeta: metav1.TypeMeta{
 						Kind: genericCRKind,
 					},
@@ -70,7 +70,7 @@ func Test_handleFinalizer(t *testing.T) {
 					// },
 				},
 			).
-			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericCR{}).Build(),
+			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 		scheme:   s,
 		log:      testLogger,
 		recorder: testMgr.GetEventRecorderFor(genericCRKind),
@@ -95,7 +95,7 @@ func Test_handleFinalizer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
 			reqLogger := testLogger.WithValues("test:", test.testName)
-			testGcr := &datadoghqv1alpha1.DatadogGenericCR{}
+			testGcr := &datadoghqv1alpha1.DatadogGenericResource{}
 			err := r.client.Get(context.TODO(), client.ObjectKey{Name: test.resourceName, Namespace: testNamespace}, testGcr)
 
 			_, err = r.handleFinalizer(reqLogger, testGcr)

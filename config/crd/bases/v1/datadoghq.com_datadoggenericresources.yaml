@@ -4,16 +4,16 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
-  name: datadoggenericcrs.datadoghq.com
+  name: datadoggenericresources.datadoghq.com
 spec:
   group: datadoghq.com
   names:
-    kind: DatadogGenericCR
-    listKind: DatadogGenericCRList
-    plural: datadoggenericcrs
+    kind: DatadogGenericResource
+    listKind: DatadogGenericResourceList
+    plural: datadoggenericresources
     shortNames:
-      - ddgcr
-    singular: datadoggenericcr
+      - ddgr
+    singular: datadoggenericresource
   scope: Namespaced
   versions:
     - additionalPrinterColumns:
@@ -29,7 +29,7 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: DatadogGenericCR is the Schema for the datadoggenericcrs API
+          description: DatadogGenericResource is the Schema for the datadoggenericcrs API
           properties:
             apiVersion:
               description: |-
@@ -49,7 +49,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: DatadogGenericCRSpec defines the desired state of DatadogGenericCR
+              description: DatadogGenericResourceSpec defines the desired state of DatadogGenericCR
               properties:
                 jsonSpec:
                   description: JsonSpec is the specification of the API object
@@ -66,7 +66,7 @@ spec:
                 - type
               type: object
             status:
-              description: DatadogGenericCRStatus defines the observed state of DatadogGenericCR
+              description: DatadogGenericResourceStatus defines the observed state of DatadogGenericCR
               properties:
                 conditions:
                   description: Conditions represents the latest available observations of the state of a DatadogGenericCR.

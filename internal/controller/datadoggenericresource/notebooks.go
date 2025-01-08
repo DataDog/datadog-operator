@@ -34,7 +34,7 @@ func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebo
 	return nil
 }
 
-func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.NotebookResponse, error) {
+func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookCreateData := &datadogV1.NotebookCreateRequest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookCreateData)
 	notebook, _, err := client.CreateNotebook(auth, *notebookCreateData)
@@ -44,7 +44,7 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 	return notebook, nil
 }
 
-func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericCR) (datadogV1.NotebookResponse, error) {
+func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData)
 	notebookID, err := notebookStringToInt64(instance.Status.Id)

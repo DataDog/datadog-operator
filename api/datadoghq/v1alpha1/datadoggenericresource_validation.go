@@ -19,7 +19,7 @@ var allowedCustomResourcesEnumMap = map[SupportedResourcesType]string{
 	"mock_resource": "",
 }
 
-func IsValidDatadogGenericCR(spec *DatadogGenericCRSpec) error {
+func IsValidDatadogGenericResource(spec *DatadogGenericResourceSpec) error {
 	var errs []error
 	if _, ok := allowedCustomResourcesEnumMap[spec.Type]; !ok {
 		errs = append(errs, fmt.Errorf("spec.Type must be a supported resource type"))

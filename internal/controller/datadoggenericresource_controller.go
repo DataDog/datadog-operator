@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadoggenericcr"
+	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/go-logr/logr"
 )
@@ -27,7 +27,7 @@ type DatadogGenericCRReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
-	internal *datadoggenericcr.Reconciler
+	internal *ddgr.Reconciler
 }
 
 //+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs,verbs=get;list;watch;create;update;patch;delete
@@ -41,10 +41,10 @@ func (r *DatadogGenericCRReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DatadogGenericCRReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = datadoggenericcr.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
+	r.internal = ddgr.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.DatadogGenericCR{}).
+		For(&v1alpha1.DatadogGenericResource{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{})
 
 	err := builder.Complete(r)
