@@ -260,6 +260,9 @@ func (s *kindSuite) TestKindRun() {
 			}
 		}, 300*time.Second, 30*time.Second, "could not validate http check on agent pod")
 
+		// cleanup nginx deployment
+		k8s.KubectlDelete(t, kubectlOptions, nginxConfigPath)
+
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyHTTPCheck(s, c)
 		}, 300*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
@@ -375,49 +378,7 @@ func (s *kindSuite) TestKindRun() {
 
 	})
 
-	s.T().Run("APM (hostPort, local service, UDP) works", func(t *testing.T) {
-		var apmAgentSelector = ",agent.datadoghq.com/e2e-test=datadog-agent-apm"
-		// Update DDA
-		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "apm", "datadog-agent-apm.yaml"))
-		assert.NoError(t, err)
-		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
-		// Ensure agent pods are running
-		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+apmAgentSelector)
-
-		// Deploy trace generator
-		traceGenConfigPath, err := getAbsPath(filepath.Join(manifestsPath, "apm", "tracegen-deploy.yaml"))
-		assert.NoError(t, err)
-		k8s.KubectlApply(t, kubectlOptions, traceGenConfigPath)
-
-		// Verify traces collection on agent pod
-		s.EventuallyWithTf(func(c *assert.CollectT) {
-			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
-				LabelSelector: nodeAgentSelector + apmAgentSelector,
-			})
-			assert.NoError(c, err)
-
-			// This works because we have a single Agent pod (so located on same node as tracegen)
-			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
-			for _, pod := range agentPods {
-				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
-
-				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "apm agent", "-j")
-				assert.NoError(c, err)
-
-				verifyAgentTraces(c, output)
-			}
-		}, 180*time.Second, 30*time.Second, "could not validate traces on agent pod") // 3 minutes could be reduced even further
-		// Cleanup trace generator
-		k8s.KubectlDelete(t, kubectlOptions, traceGenConfigPath)
-
-		// Verify traces collection with API client
-		// 4 queries within a minute to ensure traces are collected from the last 15 minutes
-		s.EventuallyWithTf(func(c *assert.CollectT) {
-			verifyAPISpans(s, c)
-		}, 60*time.Second, 15*time.Second, "could not validate traces with api client")
-	})
-
-	s.T().Run("APM (hostPort, local service, UDP) works", func(t *testing.T) {
+	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
 		var apmAgentSelector = ",agent.datadoghq.com/e2e-test=datadog-agent-apm"
 		// Update DDA
 		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "apm", "datadog-agent-apm.yaml"))
