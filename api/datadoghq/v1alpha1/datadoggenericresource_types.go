@@ -17,7 +17,7 @@ const (
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
 )
 
-// DatadogGenericResourceSpec defines the desired state of DatadogGenericCR
+// DatadogGenericResourceSpec defines the desired state of DatadogGenericResource
 // +k8s:openapi-gen=true
 type DatadogGenericResourceSpec struct {
 	// Type is the type of the API object
@@ -27,10 +27,10 @@ type DatadogGenericResourceSpec struct {
 	JsonSpec string `json:"jsonSpec"`
 }
 
-// DatadogGenericResourceStatus defines the observed state of DatadogGenericCR
+// DatadogGenericResourceStatus defines the observed state of DatadogGenericResource
 // +k8s:openapi-gen=true
 type DatadogGenericResourceStatus struct {
-	// Conditions represents the latest available observations of the state of a DatadogGenericCR.
+	// Conditions represents the latest available observations of the state of a DatadogGenericResource.
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
@@ -42,7 +42,7 @@ type DatadogGenericResourceStatus struct {
 	Created *metav1.Time `json:"created,omitempty"`
 	// SyncStatus shows the health of syncing the object state to Datadog.
 	SyncStatus DatadogSyncStatus `json:"syncStatus,omitempty"`
-	// CurrentHash tracks the hash of the current DatadogGenericCRSpec to know
+	// CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know
 	// if the JsonSpec has changed and needs an update.
 	CurrentHash string `json:"currentHash,omitempty"`
 	// LastForceSyncTime is the last time the API object was last force synced with the custom resource
@@ -64,7 +64,7 @@ const (
 	DatadogSyncStatusGetError DatadogSyncStatus = "error getting object"
 )
 
-// DatadogGenericResource is the Schema for the datadoggenericcrs API
+// DatadogGenericResource is the Schema for the DatadogGenericResources API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadoggenericresources,scope=Namespaced,shortName=ddgr
@@ -81,14 +81,14 @@ type DatadogGenericResource struct {
 	Status DatadogGenericResourceStatus `json:"status,omitempty"`
 }
 
-// DatadogGenericCRList contains a list of DatadogGenericCR
+// DatadogGenericResourceList contains a list of DatadogGenericResource
 // +kubebuilder:object:root=true
-type DatadogGenericCRList struct {
+type DatadogGenericResourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DatadogGenericResource `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&DatadogGenericResource{}, &DatadogGenericCRList{})
+	SchemeBuilder.Register(&DatadogGenericResource{}, &DatadogGenericResourceList{})
 }

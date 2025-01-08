@@ -1,7 +1,7 @@
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogGenericCR
+kind: DatadogGenericResource
 metadata:
-  name: datadoggenericcr-notebook-sample
+  name: datadoggenericresource-notebook-sample
 spec:
   type: notebook
   jsonSpec: |-

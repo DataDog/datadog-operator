@@ -630,7 +630,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericResource is the Schema for the datadoggenericcrs API",
+				Description: "DatadogGenericResource is the Schema for the DatadogGenericResources API",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -677,7 +677,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(r
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericResourceSpec defines the desired state of DatadogGenericCR",
+				Description: "DatadogGenericResourceSpec defines the desired state of DatadogGenericResource",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -707,7 +707,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogGenericResourceStatus defines the observed state of DatadogGenericCR",
+				Description: "DatadogGenericResourceStatus defines the observed state of DatadogGenericResource",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"conditions": {
@@ -720,7 +720,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Conditions represents the latest available observations of the state of a DatadogGenericCR.",
+							Description: "Conditions represents the latest available observations of the state of a DatadogGenericResource.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -761,7 +761,7 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus
 					},
 					"currentHash": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CurrentHash tracks the hash of the current DatadogGenericCRSpec to know if the JsonSpec has changed and needs an update.",
+							Description: "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know if the JsonSpec has changed and needs an update.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

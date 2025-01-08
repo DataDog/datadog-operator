@@ -1,31 +1,27 @@
-# permissions for end users to edit datadoggenericcrs.
+# permissions for end users to edit datadoggenericresources.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: datadog-genericcr-editor-role
+    app.kubernetes.io/instance: datadog-genericresource-viewer-role
     app.kubernetes.io/component: rbac
     app.kubernetes.io/created-by: datadog-operator
     app.kubernetes.io/part-of: datadog-operator
     app.kubernetes.io/managed-by: kustomize
-  name: datadoggenericcr-editor-role
+  name: datadoggenericresource-viewer-role
 rules:
 - apiGroups:
   - datadoghq.com
   resources:
-  - datadoggenericcrs
+  - datadoggenericresources
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - datadoghq.com
   resources:
-  - datadoggenericcrs/status
+  - datadoggenericresources/status
   verbs:
   - get

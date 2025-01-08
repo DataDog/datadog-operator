@@ -29,7 +29,7 @@ spec:
       name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: DatadogGenericResource is the Schema for the datadoggenericcrs API
+          description: DatadogGenericResource is the Schema for the DatadogGenericResources API
           properties:
             apiVersion:
               description: |-
@@ -49,7 +49,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: DatadogGenericResourceSpec defines the desired state of DatadogGenericCR
+              description: DatadogGenericResourceSpec defines the desired state of DatadogGenericResource
               properties:
                 jsonSpec:
                   description: JsonSpec is the specification of the API object
@@ -66,10 +66,10 @@ spec:
                 - type
               type: object
             status:
-              description: DatadogGenericResourceStatus defines the observed state of DatadogGenericCR
+              description: DatadogGenericResourceStatus defines the observed state of DatadogGenericResource
               properties:
                 conditions:
-                  description: Conditions represents the latest available observations of the state of a DatadogGenericCR.
+                  description: Conditions represents the latest available observations of the state of a DatadogGenericResource.
                   items:
                     description: Condition contains details for one aspect of the current state of this API Resource.
                     properties:
@@ -136,7 +136,7 @@ spec:
                   type: string
                 currentHash:
                   description: |-
-                    CurrentHash tracks the hash of the current DatadogGenericCRSpec to know
+                    CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know
                     if the JsonSpec has changed and needs an update.
                   type: string
                 id:

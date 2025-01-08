@@ -65,9 +65,6 @@ func Test_handleFinalizer(t *testing.T) {
 						Finalizers:        []string{datadogGenericCRFinalizer},
 						DeletionTimestamp: &metaNow,
 					},
-					// Spec: datadoghqv1alpha1.DatadogGenericCRSpec{
-					// 	Type: "mock_resource",
-					// },
 				},
 			).
 			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),

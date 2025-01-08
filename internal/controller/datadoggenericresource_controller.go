@@ -30,11 +30,9 @@ type DatadogGenericCRReconciler struct {
 	internal *ddgr.Reconciler
 }
 
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericcrs/finalizers,verbs=update
-
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.4/pkg/reconcile
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=update
 func (r *DatadogGenericCRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
 }

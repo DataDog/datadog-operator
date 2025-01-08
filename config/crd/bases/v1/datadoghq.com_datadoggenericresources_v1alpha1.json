@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "DatadogGenericResource is the Schema for the datadoggenericcrs API",
+  "description": "DatadogGenericResource is the Schema for the DatadogGenericResources API",
   "properties": {
     "apiVersion": {
       "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -15,7 +15,7 @@
     },
     "spec": {
       "additionalProperties": false,
-      "description": "DatadogGenericResourceSpec defines the desired state of DatadogGenericCR",
+      "description": "DatadogGenericResourceSpec defines the desired state of DatadogGenericResource",
       "properties": {
         "jsonSpec": {
           "description": "JsonSpec is the specification of the API object",
@@ -39,10 +39,10 @@
     },
     "status": {
       "additionalProperties": false,
-      "description": "DatadogGenericResourceStatus defines the observed state of DatadogGenericCR",
+      "description": "DatadogGenericResourceStatus defines the observed state of DatadogGenericResource",
       "properties": {
         "conditions": {
-          "description": "Conditions represents the latest available observations of the state of a DatadogGenericCR.",
+          "description": "Conditions represents the latest available observations of the state of a DatadogGenericResource.",
           "items": {
             "additionalProperties": false,
             "description": "Condition contains details for one aspect of the current state of this API Resource.",
@@ -111,7 +111,7 @@
           "type": "string"
         },
         "currentHash": {
-          "description": "CurrentHash tracks the hash of the current DatadogGenericCRSpec to know\nif the JsonSpec has changed and needs an update.",
+          "description": "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know\nif the JsonSpec has changed and needs an update.",
           "type": "string"
         },
         "id": {
