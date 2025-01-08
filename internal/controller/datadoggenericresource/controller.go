@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	defaultRequeuePeriod    = 60 * time.Second
-	defaultErrRequeuePeriod = 5 * time.Second
-	defaultForceSyncPeriod  = 60 * time.Minute
-	datadogGenericCRKind    = "DatadogGenericCustomResource"
+	defaultRequeuePeriod       = 60 * time.Second
+	defaultErrRequeuePeriod    = 5 * time.Second
+	defaultForceSyncPeriod     = 60 * time.Minute
+	datadogGenericResourceKind = "DatadogGenericResource"
 )
 
 type Reconciler struct {
@@ -64,8 +64,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadoggenericcr", req.NamespacedName)
-	logger.Info("Reconciling Datadog Generic Custom Resource")
+	logger := r.log.WithValues("datadoggenericresource", req.NamespacedName)
+	logger.Info("Reconciling Datadog Generic Resource")
 	now := metav1.NewTime(time.Now())
 
 	instance := &v1alpha1.DatadogGenericResource{}
@@ -88,8 +88,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	statusSpecHash := instance.Status.CurrentHash
 
 	if err = v1alpha1.IsValidDatadogGenericResource(&instance.Spec); err != nil {
-		logger.Error(err, "invalid DatadogGenericCR")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericCR", err)
+		logger.Error(err, "invalid DatadogGenericResource")
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusValidateError, "ValidatingGenericResource", err)
 		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
@@ -97,7 +97,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	if err != nil {
 		logger.Error(err, "error generating hash")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "GeneratingGenericCRSpecHash", err)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "GeneratingGenericResourceSpecHash", err)
 		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
@@ -108,11 +108,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		shouldCreate = true
 	} else {
 		if instanceSpecHash != statusSpecHash {
-			logger.Info("DatadogGenericCR manifest has changed")
+			logger.Info("DatadogGenericResource manifest has changed")
 			shouldUpdate = true
 		} else if instance.Status.LastForceSyncTime == nil || ((defaultForceSyncPeriod - now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0) {
 			// Periodically force a sync with the API to ensure parity
-			// Get GenericCR to make sure it exists before trying any updates. If it doesn't, set shouldCreate
+			// Make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			err = r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting custom resource", "custom resource Id", instance.Status.Id, "resource type", instance.Spec.Type)
@@ -155,8 +155,8 @@ func (r *Reconciler) get(instance *v1alpha1.DatadogGenericResource) error {
 func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
 	err := apiUpdate(r, instance)
 	if err != nil {
-		logger.Error(err, "error updating generic CR", "generic CR Id", instance.Status.Id)
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericCR", err)
+		logger.Error(err, "error updating generic resource", "generic resource Id", instance.Status.Id)
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusUpdateError, "UpdatingGenericResource", err)
 		return err
 	}
 
@@ -164,17 +164,17 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericCR", "DatadogGenericCR Update")
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingGenericResource", "DatadogGenericResource Update")
 	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
 	status.CurrentHash = hash
 	status.LastForceSyncTime = &now
 
-	logger.Info("Updated Datadog Generic CR", "Generic CR Id", instance.Status.Id)
+	logger.Info("Updated Datadog Generic Resource", "Generic Resource Id", instance.Status.Id)
 	return nil
 }
 
 func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	logger.V(1).Info("Custom resource Id is not set; creating custom resource in Datadog")
+	logger.V(1).Info("Generic resource Id is not set; creating resource in Datadog")
 
 	err := apiCreateAndUpdateStatus(r, logger, instance, status, now, hash)
 	if err != nil {
@@ -184,8 +184,8 @@ func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogGeneri
 	r.recordEvent(instance, event)
 
 	// Set condition and status
-	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericCR", "DatadogGenericCR Created")
-	logger.Info("created a new DatadogGenericCR", "generic CR Id", status.Id)
+	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingGenericResource", "DatadogGenericResource Created")
+	logger.Info("created a new DatadogGenericResource", "generic resource Id", status.Id)
 
 	return nil
 }
@@ -200,10 +200,10 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1
 		instance.Status = *status
 		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
 			if apierrors.IsConflict(err) {
-				logger.Error(err, "unable to update DatadogGenericCR status due to update conflict")
+				logger.Error(err, "unable to update DatadogGenericResource status due to update conflict")
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
-			logger.Error(err, "unable to update DatadogGenericCR status")
+			logger.Error(err, "unable to update DatadogGenericResource status")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
 		}
 	}
@@ -212,10 +212,10 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1
 
 // buildEventInfo creates a new EventInfo instance.
 func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInfo {
-	return utils.BuildEventInfo(name, ns, datadogGenericCRKind, eventType)
+	return utils.BuildEventInfo(name, ns, datadogGenericResourceKind, eventType)
 }
 
 // recordEvent wraps the manager event recorder
-func (r *Reconciler) recordEvent(genericcr runtime.Object, info utils.EventInfo) {
-	r.recorder.Event(genericcr, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
+func (r *Reconciler) recordEvent(genericresource runtime.Object, info utils.EventInfo) {
+	r.recorder.Event(genericresource, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 }

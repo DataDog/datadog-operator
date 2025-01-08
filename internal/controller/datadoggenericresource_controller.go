@@ -20,8 +20,8 @@ import (
 	"github.com/go-logr/logr"
 )
 
-// DatadogGenericCRReconciler reconciles a DatadogGenericCR object
-type DatadogGenericCRReconciler struct {
+// DatadogGenericResourceReconciler reconciles a DatadogGenericResource object
+type DatadogGenericResourceReconciler struct {
 	Client   client.Client
 	DDClient datadogclient.DatadogGenericClient
 	Log      logr.Logger
@@ -33,12 +33,12 @@ type DatadogGenericCRReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadoggenericresources/finalizers,verbs=update
-func (r *DatadogGenericCRReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *DatadogGenericResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.internal.Reconcile(ctx, req)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *DatadogGenericCRReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *DatadogGenericResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = ddgr.NewReconciler(r.Client, r.DDClient, r.Scheme, r.Log, r.Recorder)
 
 	builder := ctrl.NewControllerManagedBy(mgr).

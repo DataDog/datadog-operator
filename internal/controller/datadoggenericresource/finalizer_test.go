@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	genericCRKind = "DatadogGenericResource"
-	testNamespace = "foo"
+	genericResourceKind = "DatadogGenericResource"
+	testNamespace       = "foo"
 )
 
 var (
@@ -44,10 +44,10 @@ func Test_handleFinalizer(t *testing.T) {
 			WithRuntimeObjects(
 				&datadoghqv1alpha1.DatadogGenericResource{
 					TypeMeta: metav1.TypeMeta{
-						Kind: genericCRKind,
+						Kind: genericResourceKind,
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "genericcr-create",
+						Name:      "genericresource-create",
 						Namespace: testNamespace,
 					},
 				},
@@ -57,10 +57,10 @@ func Test_handleFinalizer(t *testing.T) {
 				// Ref: https://github.com/kubernetes-sigs/controller-runtime/commit/7a66d580c0c53504f5b509b45e9300cc18a1cc30#diff-20ecedbf30721c01c33fb67d911da11c277e29990497a600d20cb0ec7215affdR683-R686
 				&datadoghqv1alpha1.DatadogGenericResource{
 					TypeMeta: metav1.TypeMeta{
-						Kind: genericCRKind,
+						Kind: genericResourceKind,
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:              "genericcr-delete",
+						Name:              "genericresource-delete",
 						Namespace:         testNamespace,
 						Finalizers:        []string{datadogGenericResourceFinalizer},
 						DeletionTimestamp: &metaNow,
@@ -70,7 +70,7 @@ func Test_handleFinalizer(t *testing.T) {
 			WithStatusSubresource(&datadoghqv1alpha1.DatadogGenericResource{}).Build(),
 		scheme:   s,
 		log:      testLogger,
-		recorder: testMgr.GetEventRecorderFor(genericCRKind),
+		recorder: testMgr.GetEventRecorderFor(genericResourceKind),
 	}
 
 	tests := []struct {
@@ -80,12 +80,12 @@ func Test_handleFinalizer(t *testing.T) {
 	}{
 		{
 			testName:             "a new DatadogGenericResource object gets a finalizer added successfully",
-			resourceName:         "genericcr-create",
+			resourceName:         "genericresource-create",
 			finalizerShouldExist: true,
 		},
 		{
 			testName:             "a DatadogGenericResource object (with the finalizer) has a deletion timestamp",
-			resourceName:         "genericcr-delete",
+			resourceName:         "genericresource-delete",
 			finalizerShouldExist: false,
 		},
 	}

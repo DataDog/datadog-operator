@@ -32,9 +32,9 @@ const (
 	resourcesNamespace = "bar"
 )
 
-func TestReconcileGenericCR_Reconcile(t *testing.T) {
+func TestReconcileGenericResource_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericCR_Reconcile"})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileGenericResource_Reconcile"})
 
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -57,18 +57,18 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 		wantFunc   func(c client.Client) error
 	}{
 		{
-			name: "DatadogGenericCR not created",
+			name: "DatadogGenericResource not created",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 			},
 			wantResult: reconcile.Result{},
 		},
 		{
-			name: "DatadogGenericCR created, add finalizer",
+			name: "DatadogGenericResource created, add finalizer",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), mockGenericCR())
+					_ = c.Create(context.TODO(), mockGenericResource())
 				},
 			},
 			wantResult: reconcile.Result{Requeue: true},
@@ -77,22 +77,22 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, obj); err != nil {
 					return err
 				}
-				assert.Contains(t, obj.GetFinalizers(), "finalizer.datadoghq.com/genericcr")
+				assert.Contains(t, obj.GetFinalizers(), "finalizer.datadoghq.com/genericresource")
 				return nil
 			},
 		},
 		{
-			name: "DatadogGenericCR exists, needs update",
+			name: "DatadogGenericResource exists, needs update",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), mockGenericCR())
+					_ = c.Create(context.TODO(), mockGenericResource())
 				},
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
 					_ = c.Update(context.TODO(), &datadoghqv1alpha1.DatadogGenericResource{
 						TypeMeta: metav1.TypeMeta{
-							Kind:       "DatadogGenericCR",
+							Kind:       "DatadogGenericResource",
 							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 						},
 						ObjectMeta: metav1.ObjectMeta{
@@ -120,16 +120,16 @@ func TestReconcileGenericCR_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogGenericCR exists, needs delete",
+			name: "DatadogGenericResource exists, needs delete",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				firstAction: func(c client.Client) {
-					err := c.Create(context.TODO(), mockGenericCR())
+					err := c.Create(context.TODO(), mockGenericResource())
 					assert.NoError(t, err)
 				},
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
-					err := c.Delete(context.TODO(), mockGenericCR())
+					err := c.Delete(context.TODO(), mockGenericResource())
 					assert.NoError(t, err)
 				},
 			},
@@ -223,10 +223,10 @@ func newRequest(ns, name string) reconcile.Request {
 	}
 }
 
-func mockGenericCR() *datadoghqv1alpha1.DatadogGenericResource {
+func mockGenericResource() *datadoghqv1alpha1.DatadogGenericResource {
 	return &datadoghqv1alpha1.DatadogGenericResource{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "DatadogGenericCR",
+			Kind:       "DatadogGenericResource",
 			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 		},
 		ObjectMeta: metav1.ObjectMeta{
