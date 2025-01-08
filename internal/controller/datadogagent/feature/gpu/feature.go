@@ -22,6 +22,9 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type gpuMonitoringFeature struct {
+	// podRuntimeClassName is the value to set in the runtimeClassName
+	// configuration of the agent pod. If this is empty, the runtimeClassName
+	// will not be changed.
 	podRuntimeClassName string
 }
 
@@ -42,8 +45,11 @@ func (f *gpuMonitoringFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	}
 
 	if dda.Spec.Features.GPUMonitoring.PodRuntimeClassName == nil {
+		// Configuration option not set, so revert to the default
 		f.podRuntimeClassName = v2alpha1.DefaultGPUMonitoringRuntimeClass
 	} else {
+		// Configuration option set, use the value. Note that here the value might be an empty
+		// string, which tells us to not change the runtime class.
 		f.podRuntimeClassName = *dda.Spec.Features.GPUMonitoring.PodRuntimeClassName
 	}
 
@@ -122,7 +128,7 @@ func (f *gpuMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// env variable. This is usually configured with the options
 	//   accept-nvidia-visible-devices-envvar-when-unprivileged = true
 	//   accept-nvidia-visible-devices-as-volume-mounts = true
-	// in the NVIDIA conatiner runtime config. In this case, we need to mount the
+	// in the NVIDIA container runtime config. In this case, we need to mount the
 	// /var/run/nvidia-container-devices/all directory into the container, so that
 	// the nvidia-container-runtime can see that we want to use all GPUs.
 	devicesVol, devicesMount := volume.GetVolumes(v2alpha1.NVIDIADevicesVolumeName, v2alpha1.DevNullPath, v2alpha1.NVIDIADevicesMountPath, true)
@@ -134,8 +140,11 @@ func (f *gpuMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		managers.PodTemplateSpec().Spec.RuntimeClassName = &f.podRuntimeClassName
 	}
 
-	// Note: we don't need to mount the NVML library, as it's mounted automatically
-	// by the nvidia-container-runtime.
+	// Note: we don't need to mount the NVML library, as it's mounted
+	// automatically by the nvidia-container-runtime. However, if needed, we
+	// could add a config option for that and mount that in the agent and
+	// system-probe folders, and then set the correct configuration option so
+	// that the binaries can find the library.
 
 	return nil
 }
