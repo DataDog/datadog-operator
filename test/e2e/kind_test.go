@@ -405,32 +405,6 @@ func verifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
 }
 
-func verifyAgentTraces(c *assert.CollectT, collectorOutput string) {
-	apmAgentJson := parseCollectorJson(collectorOutput)
-	// The order of services in the Agent JSON output is not guaranteed.
-	// We use a map to assert that we have received traces for all expected services.
-	expectedServices := map[string]bool{
-		"e2e-test-apm-hostip":        true,
-		"e2e-test-apm-socket":        true,
-		"e2e-test-apm-agent-service": true,
-	}
-	// Track found services
-	foundServices := map[string]bool{}
-
-	if apmAgentJson != nil {
-		apmStats := apmAgentJson["apmStats"].(map[string]interface{})["receiver"].([]interface{})
-		for _, service := range apmStats {
-			serviceName := service.(map[string]interface{})["Service"].(string)
-			tracesReceived := service.(map[string]interface{})["TracesReceived"].(float64)
-			// Ensure we received at least one trace for the service
-			assert.Greater(c, tracesReceived, float64(0), "Expected traces to be received for service %s", serviceName)
-			// Mark the service as found
-			foundServices[serviceName] = true
-		}
-	}
-	assert.Equal(c, expectedServices, foundServices, "The found services do not match the expected services")
-}
-
 func verifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 	var runningChecks map[string]interface{}
 
