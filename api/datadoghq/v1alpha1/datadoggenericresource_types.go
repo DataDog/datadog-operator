@@ -11,6 +11,7 @@ import (
 
 type SupportedResourcesType string
 
+// When adding a new type, make sure to update the kubebuilder validation enum marker
 const (
 	Notebook              SupportedResourcesType = "notebook"
 	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
