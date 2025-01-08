@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package datadoggenericcr
+package datadoggenericresource
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	genericCRKind = "DatadogGenericCR"
+	genericCRKind = "DatadogGenericResource"
 	testNamespace = "foo"
 )
 
@@ -62,7 +62,7 @@ func Test_handleFinalizer(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "genericcr-delete",
 						Namespace:         testNamespace,
-						Finalizers:        []string{datadogGenericCRFinalizer},
+						Finalizers:        []string{datadogGenericResourceFinalizer},
 						DeletionTimestamp: &metaNow,
 					},
 				},
@@ -79,12 +79,12 @@ func Test_handleFinalizer(t *testing.T) {
 		finalizerShouldExist bool
 	}{
 		{
-			testName:             "a new DatadogGenericCR object gets a finalizer added successfully",
+			testName:             "a new DatadogGenericResource object gets a finalizer added successfully",
 			resourceName:         "genericcr-create",
 			finalizerShouldExist: true,
 		},
 		{
-			testName:             "a DatadogGenericCR object (with the finalizer) has a deletion timestamp",
+			testName:             "a DatadogGenericResource object (with the finalizer) has a deletion timestamp",
 			resourceName:         "genericcr-delete",
 			finalizerShouldExist: false,
 		},
@@ -99,9 +99,9 @@ func Test_handleFinalizer(t *testing.T) {
 
 			assert.NoError(t, err)
 			if test.finalizerShouldExist {
-				assert.Contains(t, testGcr.GetFinalizers(), datadogGenericCRFinalizer)
+				assert.Contains(t, testGcr.GetFinalizers(), datadogGenericResourceFinalizer)
 			} else {
-				assert.NotContains(t, testGcr.GetFinalizers(), datadogGenericCRFinalizer)
+				assert.NotContains(t, testGcr.GetFinalizers(), datadogGenericResourceFinalizer)
 			}
 		})
 	}

@@ -7,6 +7,6 @@ resources:
 - datadoghq_v1alpha1_datadogslo.yaml
 - datadoghq_v1alpha1_datadogpodautoscaler.yaml
 - datadoghq_v1alpha1_datadogdashboard.yaml
-- datadoghq_v1alpha1_datadoggenericcr.yaml
+- datadoghq_v1alpha1_datadoggenericresource.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
