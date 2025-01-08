@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
+
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
@@ -25,7 +27,6 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV2"
 	"github.com/DataDog/test-infra-definitions/common/utils"
-	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
@@ -84,17 +85,14 @@ func TestKindSuite(t *testing.T) {
 	e2eParams := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-kind-%s", k8sVersion)),
 		e2e.WithProvisioner(kindProvisioner(k8sVersion, nil)),
-		// Un-comment to keep the VM running after the test
-		// TODO: should be commented on main
-		e2e.WithDevMode(),
 	}
 
 	e2e.Run[kindEnv](t, &kindSuite{}, e2eParams...)
 }
 
 // kindProvisioner Pulumi E2E provisioner to deploy the Operator binary with kustomize and deploy DDA manifest
-func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Provisioner {
-	return e2e.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
+func kindProvisioner(k8sVersion string, extraKustomizeResources []string) provisioners.Provisioner {
+	return provisioners.NewTypedPulumiProvisioner[kindEnv]("kind-operator", func(ctx *pulumi.Context, env *kindEnv) error {
 		// Provision AWS environment
 		awsEnv, err := resAws.NewEnvironment(ctx)
 		if err != nil {
@@ -123,7 +121,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 			return err
 		}
 
-		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, awsEnv.CommonNamer().ResourceName("kind"), kindClusterName, k8sVersion, utils.PulumiDependsOn(installEcrCredsHelperCmd))
+		kindCluster, err := localKubernetes.NewKindCluster(&awsEnv, vm, awsEnv.CommonNamer().ResourceName("kind"), k8sVersion, utils.PulumiDependsOn(installEcrCredsHelperCmd))
 		if err != nil {
 			return err
 		}
@@ -161,7 +159,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) e2e.Pr
 
 		// Create imagePullSecret to pull E2E operator image from ECR
 		if imgPullPassword != "" {
-			_, err = agent.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
+			_, err = utils.NewImagePullSecret(&awsEnv, namespaceName, pulumi.Provider(kindKubeProvider))
 			if err != nil {
 				return err
 			}
@@ -248,6 +246,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -259,18 +258,18 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "http_check")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate http check on agent pod")
+		}, 300*time.Second, 30*time.Second, "could not validate http check on agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyHTTPCheck(s, c)
-		}, 600*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
-		// TODO: remove nginx deployment to clean environment
+		}, 300*time.Second, 30*time.Second, "could not validate http.can_connect check with api client")
 	})
 
 	s.T().Run("Kubelet check works", func(t *testing.T) {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -282,7 +281,7 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubelet")
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate kubelet check on agent pod")
+		}, 300*time.Second, 30*time.Second, "could not validate kubelet check on agent pod")
 
 		metricQuery := fmt.Sprintf("exclude_null(avg:kubernetes.cpu.usage.total{kube_cluster_name:%s, container_id:*})", s.Env().Kind.ClusterName)
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -296,6 +295,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			clusterAgentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: clusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(t, err)
 
@@ -306,11 +306,11 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
+		}, 300*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
-		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
+		}, 300*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
 	})
 
 	s.T().Run("KSM Check Works (cluster check runner)", func(t *testing.T) {
@@ -325,6 +325,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			ccrPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: clusterCheckRunnerSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-ccr-enabled",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -335,11 +336,11 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyCheck(c, output, "kubernetes_state_core")
 			}
-		}, 1200*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
+		}, 300*time.Second, 30*time.Second, "could not validate kubernetes_state_core check on cluster check runners pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyKSMCheck(s, c)
-		}, 600*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
+		}, 300*time.Second, 30*time.Second, "could not validate kubernetes_state_core check with api client")
 	})
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
@@ -354,6 +355,7 @@ func (s *kindSuite) TestKindRun() {
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
 				LabelSelector: nodeAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-logs",
+				FieldSelector: "status.phase=Running",
 			})
 			assert.NoError(c, err)
 
@@ -365,12 +367,54 @@ func (s *kindSuite) TestKindRun() {
 
 				verifyAgentPodLogs(c, output)
 			}
-		}, 900*time.Second, 30*time.Second, "could not validate log check on agent pod")
+		}, 300*time.Second, 30*time.Second, "could not validate log check on agent pod")
 
 		s.EventuallyWithTf(func(c *assert.CollectT) {
 			verifyAPILogs(s, c)
-		}, 600*time.Second, 30*time.Second, "could not valid logs collection with api client")
+		}, 300*time.Second, 30*time.Second, "could not valid logs collection with api client")
 
+	})
+
+	s.T().Run("APM (hostPort, local service, UDP) works", func(t *testing.T) {
+		var apmAgentSelector = ",agent.datadoghq.com/e2e-test=datadog-agent-apm"
+		// Update DDA
+		ddaConfigPath, err = getAbsPath(filepath.Join(manifestsPath, "apm", "datadog-agent-apm.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, ddaConfigPath)
+		// Ensure agent pods are running
+		verifyAgentPods(t, kubectlOptions, nodeAgentSelector+apmAgentSelector)
+
+		// Deploy trace generator
+		traceGenConfigPath, err := getAbsPath(filepath.Join(manifestsPath, "apm", "tracegen-deploy.yaml"))
+		assert.NoError(t, err)
+		k8s.KubectlApply(t, kubectlOptions, traceGenConfigPath)
+
+		// Verify traces collection on agent pod
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			agentPods, err := k8s.ListPodsE(t, kubectlOptions, v1.ListOptions{
+				LabelSelector: nodeAgentSelector + apmAgentSelector,
+			})
+			assert.NoError(c, err)
+
+			// This works because we have a single Agent pod (so located on same node as tracegen)
+			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
+			for _, pod := range agentPods {
+				k8s.WaitUntilPodAvailable(t, kubectlOptions, pod.Name, 9, 15*time.Second)
+
+				output, err := k8s.RunKubectlAndGetOutputE(t, kubectlOptions, "exec", "-it", pod.Name, "--", "agent", "status", "apm agent", "-j")
+				assert.NoError(c, err)
+
+				verifyAgentTraces(c, output)
+			}
+		}, 180*time.Second, 30*time.Second, "could not validate traces on agent pod") // 3 minutes could be reduced even further
+		// Cleanup trace generator
+		k8s.KubectlDelete(t, kubectlOptions, traceGenConfigPath)
+
+		// Verify traces collection with API client
+		// 4 queries within a minute to ensure traces are collected from the last 15 minutes
+		s.EventuallyWithTf(func(c *assert.CollectT) {
+			verifyAPISpans(s, c)
+		}, 60*time.Second, 15*time.Second, "could not validate traces with api client")
 	})
 
 	s.T().Run("APM (hostPort, local service, UDP) works", func(t *testing.T) {
