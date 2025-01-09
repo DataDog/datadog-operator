@@ -666,7 +666,7 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -674,6 +674,10 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
 		LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
+		Injector:           &v2alpha1.InjectorConfig{},
+	}
+	if injectorImageTag != "" {
+		builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation.Injector.ImageTag = injectorImageTag
 	}
 	return builder
 }

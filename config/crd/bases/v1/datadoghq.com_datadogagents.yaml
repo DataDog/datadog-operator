@@ -527,6 +527,15 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            injector:
+                              description: Injector configures the APM Injector.
+                              properties:
+                                imageTag:
+                                  description: |-
+                                    Set the image version to use for the APM Injector.
+                                    (Requires Cluster Agent 7.57.0+)
+                                  type: string
+                              type: object
                             languageDetection:
                               description: |-
                                 LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
@@ -7391,6 +7400,15 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                injector:
+                                  description: Injector configures the APM Injector.
+                                  properties:
+                                    imageTag:
+                                      description: |-
+                                        Set the image version to use for the APM Injector.
+                                        (Requires Cluster Agent 7.57.0+)
+                                      type: string
+                                  type: object
                                 languageDetection:
                                   description: |-
                                     LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
