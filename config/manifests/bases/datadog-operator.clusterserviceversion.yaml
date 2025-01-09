@@ -21,6 +21,11 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - description: DatadogAgent Deployment with Datadog Operator.
+      displayName: Datadog Agent
+      kind: DatadogAgent
+      name: datadogagents.datadoghq.com
+      version: v1alpha1
     - description: DatadogAgentProfile is the Schema for the datadogagentprofiles
         API
       displayName: Datadog Agent Profile
@@ -32,10 +37,10 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v2alpha1
-    - description: DatadogAgent Deployment with Datadog Operator.
-      displayName: Datadog Agent
-      kind: DatadogAgent
-      name: datadogagents.datadoghq.com
+    - description: DatadogDashboard is the Schema for the datadogdashboards API
+      displayName: Datadog Dashboard
+      kind: DatadogDashboard
+      name: datadogdashboards.datadoghq.com
       version: v1alpha1
     - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
