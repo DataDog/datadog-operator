@@ -3,9 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
 package e2e
 
 import (
@@ -65,7 +62,7 @@ alias kx="kubectl exec"
 )
 
 var (
-	namespaceName   = "system"
+	namespaceName   = "e2e-operator"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
