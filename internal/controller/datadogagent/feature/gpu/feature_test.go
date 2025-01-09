@@ -155,20 +155,26 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			Name:          "gpu monitoring enabled",
 			DDA:           ddaGPUMonitoringEnabled,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) { GPUMonitoringAgentNodeWantFunc(t, mgrInterface, v2alpha1.DefaultGPUMonitoringRuntimeClass) }),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, v2alpha1.DefaultGPUMonitoringRuntimeClass)
+			}),
 		},
 		{
 			Name:          "gpu monitoring enabled, alternative runtime class",
 			DDA:           ddaGPUMonitoringEnabledAlternativeRuntimeClass,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) { GPUMonitoringAgentNodeWantFunc(t, mgrInterface, alternativeRuntimeClass) }),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, alternativeRuntimeClass)
+			}),
 		},
 
 		{
 			Name:          "gpu monitoring enabled, no runtime class",
 			DDA:           ddaGPUMonitoringEnabledANoRuntimeClass,
 			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) { GPUMonitoringAgentNodeWantFunc(t, mgrInterface, "") }),
+			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, "")
+			}),
 		},
 	}
 

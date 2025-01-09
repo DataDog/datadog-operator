@@ -950,7 +950,6 @@ func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *Da
 	return builder
 }
 
-
 // GPU
 
 func (builder *DatadogAgentBuilder) initGPUMonitoring() {

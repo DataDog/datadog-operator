@@ -508,7 +508,7 @@ type GPUMonitoringFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
-	// If left empty, the runtime class will not be set.
+	// If left empty, the runtime class is not set.
 	// Default: nvidia
 	// +optional
 	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
