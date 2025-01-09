@@ -3,17 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build e2e
-// +build e2e
-
 package e2e
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"testing"
 	"time"
 
@@ -56,24 +51,19 @@ alias kl="kubectl logs"
 alias kx="kubectl exec"
 ' >> /home/ubuntu/.bashrc
 `
-	defaultMgrImageName        = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag           = "latest"
-	defaultMgrFileName         = "e2e-manager.yaml"
-	nodeAgentSelector          = "agent.datadoghq.com/component=agent"
-	clusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
-	clusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
+	defaultMgrImageName = "gcr.io/datadoghq/operator"
+	defaultMgrImgTag    = "latest"
+	nodeAgentSelector   = "agent.datadoghq.com/component=agent"
 )
 
 var (
-	namespaceName   = "system"
+	namespaceName   = "e2e-operator"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
 	kubeConfigPath string
-	kubectlOptions *k8s.KubectlOptions
 
-	tmpDir         string
-	ddaMinimalPath = filepath.Join(manifestsPath, "datadog-agent-minimum.yaml")
+	tmpDir string
 )
 
 // getAbsPath Return absolute path for given path
@@ -210,24 +200,4 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 	}
 
 	return nil
-}
-
-func parseCollectorJson(collectorOutput string) map[string]interface{} {
-	var jsonString string
-	var jsonObject map[string]interface{}
-
-	re := regexp.MustCompile(`(\{.*\})`)
-	match := re.FindStringSubmatch(collectorOutput)
-	if len(match) > 0 {
-		jsonString = match[0]
-	} else {
-		return map[string]interface{}{}
-	}
-
-	// Parse collector JSON
-	err := json.Unmarshal([]byte(jsonString), &jsonObject)
-	if err != nil {
-		return map[string]interface{}{}
-	}
-	return jsonObject
 }

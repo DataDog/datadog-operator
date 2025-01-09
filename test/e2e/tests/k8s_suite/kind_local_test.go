@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"os"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,9 @@ func (s *localKindSuite) SetupSuite() {
 }
 
 func TestLocalKindSuite(t *testing.T) {
+	if strings.ToLower(os.Getenv("GITLAB_CI")) == "true" {
+		t.Skip("Skipping LocalKindSuite test in CI")
+	}
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
