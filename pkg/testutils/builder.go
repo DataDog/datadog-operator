@@ -674,10 +674,9 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		DisabledNamespaces: disabledNamespaces,
 		LibVersions:        libVersion,
 		LanguageDetection:  &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(languageDetectionEnabled)},
-		Injector:           &v2alpha1.InjectorConfig{},
-	}
-	if injectorImageTag != "" {
-		builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation.Injector.ImageTag = injectorImageTag
+		Injector: &v2alpha1.InjectorConfig{
+			ImageTag: injectorImageTag,
+		},
 	}
 	return builder
 }
