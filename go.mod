@@ -45,7 +45,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
-	golang.org/x/text v0.18.0
+	golang.org/x/text v0.21.0
 	k8s.io/kubectl v0.31.1
 )
 
@@ -179,11 +179,11 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.21.0 // indirect
-	golang.org/x/net v0.29.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/tools v0.25.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect

@@ -1352,12 +1352,12 @@ spec:
                             enabled:
                               description: Enabled marks otelcollector as enabled in core agent.
                               type: boolean
-                            extension_timeout:
+                            extensionTimeout:
                               description: |-
                                 Extension URL provides the timout of the ddflareextension to
                                 the core agent.
                               type: integer
-                            extension_url:
+                            extensionURL:
                               description: |-
                                 Extension URL provides the URL of the ddflareextension to
                                 the core agent.
@@ -1411,6 +1411,7 @@ spec:
                               - containerPort
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     otlp:
                       description: OTLP ingest configuration
@@ -8215,12 +8216,12 @@ spec:
                                 enabled:
                                   description: Enabled marks otelcollector as enabled in core agent.
                                   type: boolean
-                                extension_timeout:
+                                extensionTimeout:
                                   description: |-
                                     Extension URL provides the timout of the ddflareextension to
                                     the core agent.
                                   type: integer
-                                extension_url:
+                                extensionURL:
                                   description: |-
                                     Extension URL provides the URL of the ddflareextension to
                                     the core agent.
@@ -8274,6 +8275,7 @@ spec:
                                   - containerPort
                                 type: object
                               type: array
+                              x-kubernetes-list-type: atomic
                           type: object
                         otlp:
                           description: OTLP ingest configuration
