@@ -105,6 +105,7 @@ core,github.com/tinylib/msgp/msgp,MIT
 core,github.com/x448/float16,MIT
 core,github.com/zorkian/go-datadog-api,BSD-3-Clause
 core,go.etcd.io/bbolt,MIT
+core,go.opentelemetry.io/auto/sdk,Apache-2.0
 core,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0
 core,go.opentelemetry.io/otel,Apache-2.0
 core,go.opentelemetry.io/otel/exporters/otlp/otlptrace,Apache-2.0
