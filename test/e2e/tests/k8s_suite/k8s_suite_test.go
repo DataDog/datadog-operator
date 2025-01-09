@@ -201,7 +201,8 @@ func (s *k8sSuite) TestGenericK8s() {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
 
 			// check agent pods for http check
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery"})
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
+				FieldSelector: "status.phase=Running"})
 			assert.NoError(c, err)
 
 			for _, pod := range agentPods.Items {
@@ -255,8 +256,18 @@ func (s *k8sSuite) TestGenericK8s() {
 	})
 
 	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
-		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 
+		// Cleanup to avoid potential lingering DatadogAgent
+		// Avoid race with the new Agent not being able to bind to the hostPort
+		withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
+			provisioners.WithTestName("e2e-operator-apm"),
+			provisioners.WithoutDDA(),
+			provisioners.WithLocal(s.local),
+		}
+		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
+		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
+
+		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
 		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
 		assert.NoError(s.T(), err)
 
@@ -268,7 +279,7 @@ func (s *k8sSuite) TestGenericK8s() {
 		}
 		ddaOpts = append(ddaOpts, defaultDDAOpts...)
 
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
+		ddaProvisionerOptions := []provisioners.KubernetesProvisionerOption{
 			provisioners.WithTestName("e2e-operator-apm"),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{
@@ -277,10 +288,10 @@ func (s *k8sSuite) TestGenericK8s() {
 			}),
 			provisioners.WithLocal(s.local),
 		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
 
-		// Deploy trace generator
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		// Deploy APM DatadogAgent and tracegen
+		s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))
 
 		// Verify traces collection on agent pod
 		s.EventuallyWithTf(func(c *assert.CollectT) {
@@ -289,7 +300,7 @@ func (s *k8sSuite) TestGenericK8s() {
 
 			// Verify agent pods are running
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+apmAgentSelector)
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + apmAgentSelector})
+			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + apmAgentSelector, FieldSelector: "status.phase=Running"})
 			assert.NoError(c, err)
 
 			// This works because we have a single Agent pod (so located on same node as tracegen)
@@ -302,7 +313,7 @@ func (s *k8sSuite) TestGenericK8s() {
 				utils.VerifyAgentTraces(c, output)
 			}
 
-			// Verify traces collection with API client
+			// Verify traces collection ingestion by fakeintake
 			s.verifyAPITraces(c)
 		}, 600*time.Second, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
 	})
@@ -316,12 +327,8 @@ func (s *k8sSuite) verifyAPILogs() {
 
 func (s *k8sSuite) verifyAPITraces(c *assert.CollectT) {
 	traces, err := s.Env().FakeIntake.Client().GetTraces()
-	s.Assert().NoError(err)
-	s.Assert().NotEmptyf(traces, fmt.Sprintf("Expected fake intake-ingested traces to not be empty: %s", err))
-
-	// TODO: implement finer trace verification by checking tags
-	// https://github.com/DataDog/datadog-agent/blob/271a3aa2b5ec9c00c3d845a048c652e4b21e6659/test/new-e2e/tests/containers/k8s_test.go#L1451
-
+	assert.NoError(c, err)
+	assert.NotEmptyf(c, traces, fmt.Sprintf("Expected fake intake-ingested traces to not be empty: %s", err))
 }
 
 func (s *k8sSuite) verifyKSMCheck(c *assert.CollectT) {

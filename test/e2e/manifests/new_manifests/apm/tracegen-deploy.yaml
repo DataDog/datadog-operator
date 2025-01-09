@@ -55,8 +55,8 @@ spec:
             cpu: "10m"
       - name: tracegen-udp
         image: ghcr.io/datadog/apps-tracegen:main
-        # Socket of the trace-agent
         env:
+        # Socket of the trace-agent
         - name: DD_TRACE_AGENT_URL
           value: "unix:///var/run/datadog/apm.socket"
         - name: DD_SERVICE
@@ -72,9 +72,8 @@ spec:
             cpu: "10m"
         volumeMounts:
         - name: apmsocketpath
-          mountPath: /var/run/datadog/apm.socket
+          mountPath: /var/run/datadog
       volumes:
       - name: apmsocketpath
         hostPath:
-          path: /var/run/datadog/apm.socket
-          type: Socket
+          path: /var/run/datadog/
