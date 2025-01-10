@@ -108,14 +108,33 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
 }
 
+// isInternalTrafficPolicySupported checks if the internalTrafficPolicy field is supported in the current Kubernetes version.
+// This is accomplished by checking if the Kubernetes minor version is >= 22.
+func isInternalTrafficPolicySupported() bool {
+	k8sVersion := common.K8sVersion
+	splits := strings.Split(k8sVersion, ".")
+	// Avoid panics by checking if the version is in the expected format (X.Y)
+	if len(splits) < 2 {
+		return false
+	}
+	minorVersion, err := strconv.Atoi(splits[1])
+	if err != nil {
+		return false
+	}
+	return minorVersion >= 22
+}
+
 func VerifyAgentTraces(c *assert.CollectT, collectorOutput string) {
 	apmAgentJson := common.ParseCollectorJson(collectorOutput)
 	// The order of services in the Agent JSON output is not guaranteed.
 	// We use a map to assert that we have received traces for all expected services.
 	expectedServices := map[string]bool{
-		"e2e-test-apm-hostip":        true,
-		"e2e-test-apm-socket":        true,
-		"e2e-test-apm-agent-service": true,
+		"e2e-test-apm-hostip": true,
+		"e2e-test-apm-socket": true,
+	}
+	// On Kubernetes >= 1.22, the node Agent k8s service is created since internalTrafficPolicy is supported.
+	if isInternalTrafficPolicySupported() {
+		expectedServices["e2e-test-apm-agent-service"] = true
 	}
 	// Track found services
 	foundServices := map[string]bool{}
