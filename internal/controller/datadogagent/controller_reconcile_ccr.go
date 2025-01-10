@@ -65,7 +65,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			if ccrEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				datadog.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
 					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -88,8 +88,8 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 }
 
 func updateStatusV2WithClusterChecksRunner(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.ClusterChecksRunner = datadoghqv2alpha1.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
+	newStatus.ClusterChecksRunner = datadog.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
+	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
 }
 
 func (r *Reconciler) cleanupV2ClusterChecksRunner(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -120,7 +120,7 @@ func (r *Reconciler) cleanupV2ClusterChecksRunner(logger logr.Logger, dda *datad
 
 func deleteStatusWithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.ClusterChecksRunner = nil
-	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
+	datadog.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
 }
 
 // cleanupOldCCRDeployments deletes CCR deployments when a CCR Deployment's name is changed using clusterChecksRunner name override

@@ -63,7 +63,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			if dcaEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				datadog.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
 					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -88,13 +88,13 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 }
 
 func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.ClusterAgent = datadoghqv2alpha1.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
+	newStatus.ClusterAgent = datadog.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
+	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
 func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.ClusterAgent = nil
-	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterAgentReconcileConditionType)
+	datadog.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterAgentReconcileConditionType)
 }
 
 func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {

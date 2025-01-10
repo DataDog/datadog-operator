@@ -9,6 +9,8 @@ import (
 	"context"
 	"time"
 
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -20,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -107,7 +108,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				datadog.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
 					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -182,7 +183,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+			datadog.UpdateDatadogAgentStatusConditions(
 				newStatus,
 				metav1.NewTime(time.Now()),
 				datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -203,15 +204,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 }
 
 func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+	newStatus.AgentList = datadog.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
+	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+	newStatus.AgentList = datadog.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
+	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
@@ -242,7 +243,7 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 
 func deleteStatusWithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.Agent = nil
-	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
+	datadog.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
 }
 
 // removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
