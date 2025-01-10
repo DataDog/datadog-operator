@@ -11,12 +11,13 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/components"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
