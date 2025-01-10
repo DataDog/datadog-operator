@@ -210,8 +210,6 @@ integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
-	cd test/e2e && go get github.com/DataDog/datadog-agent/test/new-e2e@6af755473d1f4949e642637ae78c719213e67052
-	cd $(ROOT)
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
 		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 -v -timeout 0s -coverprofile cover_e2e.out; \
 	else \

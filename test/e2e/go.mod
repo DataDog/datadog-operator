@@ -10,13 +10,17 @@ replace (
 )
 
 require (
+	github.com/DataDog/datadog-agent/test/fakeintake v0.60.1
+	github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-devel.0.20250107181052-84f907cc7707
+	github.com/DataDog/datadog-api-client-go/v2 v2.33.0
+	github.com/DataDog/datadog-operator v1.10.0
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
 	// `TEST_INFRA_DEFINITIONS_BUILDIMAGES` matches the commit sha in the module version
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
 	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions v0.0.0-20250107163430-4372e330fe39
+	github.com/DataDog/test-infra-definitions v0.0.0-20250103120737-f61405297d57
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0
 	github.com/pulumi/pulumi/sdk/v3 v3.144.1
@@ -45,7 +49,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/proto v0.60.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/option v0.59.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.59.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.59.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.60.1 // indirect
 	github.com/DataDog/extendeddaemonset v0.10.0-rc.4 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
@@ -203,7 +207,7 @@ require (
 	github.com/pulumi/pulumi-azure-native-sdk/v2 v2.80.0 // indirect
 	github.com/pulumi/pulumi-command/sdk v1.0.1 // indirect
 	github.com/pulumi/pulumi-docker/sdk/v4 v4.5.8 // indirect
-	github.com/pulumi/pulumi-eks/sdk/v3 v3.7.0 // indirect
+	github.com/pulumi/pulumi-eks/sdk/v3 v3.6.0 // indirect
 	github.com/pulumi/pulumi-gcp/sdk/v7 v7.38.0 // indirect
 	github.com/pulumi/pulumi-random/sdk/v4 v4.16.8 // indirect
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.11.1 // indirect
@@ -222,7 +226,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
-	github.com/tinylib/msgp v1.2.5 // indirect
+	github.com/tinylib/msgp v1.2.4 // indirect
 	github.com/twinj/uuid v0.0.0-20151029044442-89173bcdda19 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
@@ -232,11 +236,10 @@ require (
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	github.com/zclconf/go-cty v1.15.1 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.56.0 // indirect
-	go.opentelemetry.io/otel v1.33.0 // indirect
-	go.opentelemetry.io/otel/metric v1.33.0 // indirect
-	go.opentelemetry.io/otel/trace v1.33.0 // indirect
+	go.opentelemetry.io/otel v1.32.0 // indirect
+	go.opentelemetry.io/otel/metric v1.32.0 // indirect
+	go.opentelemetry.io/otel/trace v1.32.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
