@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -108,7 +109,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadog.UpdateDatadogAgentStatusConditions(
+				condition.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
 					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -183,7 +184,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			datadog.UpdateDatadogAgentStatusConditions(
+			condition.UpdateDatadogAgentStatusConditions(
 				newStatus,
 				metav1.NewTime(time.Now()),
 				datadoghqv2alpha1.OverrideReconcileConflictConditionType,
@@ -204,15 +205,15 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 }
 
 func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadog.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
-	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+	newStatus.AgentList = condition.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadog.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
-	datadog.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+	newStatus.AgentList = condition.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
@@ -243,7 +244,7 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 
 func deleteStatusWithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.Agent = nil
-	datadog.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
+	condition.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
 }
 
 // removeStaleStatus removes a DaemonSet's status from a DatadogAgent's

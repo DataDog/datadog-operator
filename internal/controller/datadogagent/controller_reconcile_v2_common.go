@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -218,8 +219,8 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
-			newStatus.AgentList = datadog.UpdateDaemonSetStatus(currentDaemonset, newStatus.AgentList, &now)
-			newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+			newStatus.AgentList = condition.UpdateDaemonSetStatus(currentDaemonset, newStatus.AgentList, &now)
+			newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
 			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil
@@ -317,8 +318,8 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
-			newStatus.AgentList = datadog.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.AgentList, &now)
-			newStatus.Agent = datadog.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+			newStatus.AgentList = condition.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.AgentList, &now)
+			newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 
 			// Stop reconcile loop since EDS hasn't changed
 			return reconcile.Result{}, nil
