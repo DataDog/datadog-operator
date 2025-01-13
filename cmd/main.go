@@ -126,6 +126,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
+	datadogGenericResourceEnabled          bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -160,6 +161,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
+	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -302,16 +304,17 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:              opts.supportCilium,
-		Creds:                      creds,
-		DatadogAgentEnabled:        opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:          opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
-		V2APIEnabled:               true,
-		IntrospectionEnabled:       opts.introspectionEnabled,
-		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:    opts.datadogDashboardEnabled,
+		SupportCilium:                 opts.supportCilium,
+		Creds:                         creds,
+		DatadogAgentEnabled:           opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:             opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
+		V2APIEnabled:                  true,
+		IntrospectionEnabled:          opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 	}
 
 	if err = controller.SetupControllers(setupLog, mgr, options); err != nil {
