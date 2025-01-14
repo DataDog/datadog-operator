@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -148,7 +149,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	} else {
 		// Update the status to make it the ClusterAgentReconcileConditionType successful
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// Start with an "empty" profile and provider
@@ -199,7 +200,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, errors.NewAggregate(errs), now)
 	} else {
 		// Update the status to set AgentReconcileConditionType to successful
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
@@ -207,7 +208,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	} else {
 		// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
 	// ------------------------------
@@ -252,9 +253,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
@@ -291,11 +292,11 @@ func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alp
 func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
-			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+			condition.UpdateDatadogAgentStatusConditions(
 				newStatus,
 				forwarderCondition.LastUpdateTime,
 				forwarderCondition.ConditionType,
-				datadoghqv2alpha1.GetMetav1ConditionStatus(forwarderCondition.Status),
+				condition.GetMetav1ConditionStatus(forwarderCondition.Status),
 				forwarderCondition.Reason,
 				forwarderCondition.Message,
 				true,

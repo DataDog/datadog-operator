@@ -3,39 +3,41 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package condition
 
 import (
 	"testing"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 	type args struct {
-		status    *DatadogAgentStatus
+		status    *v2alpha1.DatadogAgentStatus
 		condition string
 	}
 	tests := []struct {
 		name           string
 		args           args
-		expectedStatus *DatadogAgentStatus
+		expectedStatus *v2alpha1.DatadogAgentStatus
 	}{
 		{
 			name: "empty status",
 			args: args{
-				status:    &DatadogAgentStatus{},
+				status:    &v2alpha1.DatadogAgentStatus{},
 				condition: "fooType",
 			},
-			expectedStatus: &DatadogAgentStatus{},
+			expectedStatus: &v2alpha1.DatadogAgentStatus{},
 		},
 		{
 			name: "not present status",
 			args: args{
-				status: &DatadogAgentStatus{
+				status: &v2alpha1.DatadogAgentStatus{
 					Conditions: []v1.Condition{
 						{
 							Type: "barType",
@@ -44,7 +46,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 				},
 				condition: "fooType",
 			},
-			expectedStatus: &DatadogAgentStatus{
+			expectedStatus: &v2alpha1.DatadogAgentStatus{
 				Conditions: []v1.Condition{
 					{
 						Type: "barType",
@@ -55,7 +57,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 		{
 			name: "status present at the end",
 			args: args{
-				status: &DatadogAgentStatus{
+				status: &v2alpha1.DatadogAgentStatus{
 					Conditions: []v1.Condition{
 						{
 							Type: "barType",
@@ -67,7 +69,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 				},
 				condition: "fooType",
 			},
-			expectedStatus: &DatadogAgentStatus{
+			expectedStatus: &v2alpha1.DatadogAgentStatus{
 				Conditions: []v1.Condition{
 					{
 						Type: "barType",
@@ -78,7 +80,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 		{
 			name: "status present at the begining",
 			args: args{
-				status: &DatadogAgentStatus{
+				status: &v2alpha1.DatadogAgentStatus{
 					Conditions: []v1.Condition{
 						{
 							Type: "fooType",
@@ -90,7 +92,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 				},
 				condition: "fooType",
 			},
-			expectedStatus: &DatadogAgentStatus{
+			expectedStatus: &v2alpha1.DatadogAgentStatus{
 				Conditions: []v1.Condition{
 					{
 						Type: "barType",
