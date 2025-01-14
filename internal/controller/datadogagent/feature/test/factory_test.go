@@ -165,57 +165,8 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA, default feature Option, otel-agent-enabled annotation true",
+			name: "Default DDA, otel collector feature enabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, default feature Option, otel-agent-enabled annotation false",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            false,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, no otel annotation, Operator option enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            false,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, otel annotation false, otel collector feature enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				WithOTelCollectorEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -230,9 +181,8 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA, otel annotation true, otel collector feature disabled",
+			name: "Default DDA, otel collector feature disabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
 				WithOTelCollectorEnabled(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
@@ -242,24 +192,7 @@ func TestBuilder(t *testing.T) {
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, otel annotation true, otel collector feature enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
-				WithOTelCollectorEnabled(true).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
+				common.OtelAgent:                            false,
 				common.AgentDataPlaneContainerName:          false,
 			},
 		},
