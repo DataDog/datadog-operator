@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package condition
 
 import (
 	"fmt"
@@ -13,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // DatadogAgentState type representing the deployment state of the different Agent components.
@@ -31,28 +33,19 @@ const (
 	DatadogAgentStateFailed DatadogAgentState = "Failed"
 )
 
-// UpdateDatadogAgentStatusConditionsFailure used to update the failure StatusConditions
-func UpdateDatadogAgentStatusConditionsFailure(status *DatadogAgentStatus, now metav1.Time, conditionType, reason, message string, err error) {
-	if err != nil {
-		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionTrue, reason, fmt.Sprintf("msg:%s, err:%v", message, err), true)
-	} else {
-		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionFalse, reason, message, true)
-	}
-}
-
 // UpdateDatadogAgentStatusConditions used to update a specific string in conditions
-func UpdateDatadogAgentStatusConditions(status *DatadogAgentStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
+func UpdateDatadogAgentStatusConditions(status *v2alpha1.DatadogAgentStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
 	idConditionComplete := getIndexForConditionType(status, t)
 	if idConditionComplete >= 0 {
-		UpdateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, t, conditionStatus, reason, message)
+		updateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, conditionStatus, reason, message)
 	} else if conditionStatus == metav1.ConditionTrue || writeFalseIfNotExist {
 		// Only add if the condition is True
-		status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(t, conditionStatus, now, reason, message))
+		status.Conditions = append(status.Conditions, newDatadogAgentStatusCondition(t, conditionStatus, now, reason, message))
 	}
 }
 
-// UpdateDatadogAgentStatusCondition used to update a specific string
-func UpdateDatadogAgentStatusCondition(condition *metav1.Condition, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string) *metav1.Condition {
+// updateDatadogAgentStatusCondition used to update a specific string
+func updateDatadogAgentStatusCondition(condition *metav1.Condition, now metav1.Time, conditionStatus metav1.ConditionStatus, reason, message string) *metav1.Condition {
 	if condition.Status != conditionStatus {
 		condition.LastTransitionTime = now
 		condition.Status = conditionStatus
@@ -63,26 +56,16 @@ func UpdateDatadogAgentStatusCondition(condition *metav1.Condition, now metav1.T
 	return condition
 }
 
-// SetDatadogAgentStatusCondition use to set a condition
-func SetDatadogAgentStatusCondition(status *DatadogAgentStatus, condition *metav1.Condition) {
-	idConditionComplete := getIndexForConditionType(status, condition.Type)
-	if idConditionComplete >= 0 {
-		status.Conditions[idConditionComplete] = *condition
-	} else {
-		status.Conditions = append(status.Conditions, *condition)
-	}
-}
-
 // DeleteDatadogAgentStatusCondition is used to delete a condition
-func DeleteDatadogAgentStatusCondition(status *DatadogAgentStatus, conditionType string) {
+func DeleteDatadogAgentStatusCondition(status *v2alpha1.DatadogAgentStatus, conditionType string) {
 	idConditionComplete := getIndexForConditionType(status, conditionType)
 	if idConditionComplete >= 0 {
 		status.Conditions = append(status.Conditions[:idConditionComplete], status.Conditions[idConditionComplete+1:]...)
 	}
 }
 
-// NewDatadogAgentStatusCondition returns new metav1.Condition instance
-func NewDatadogAgentStatusCondition(conditionType string, conditionStatus metav1.ConditionStatus, now metav1.Time, reason, message string) metav1.Condition {
+// newDatadogAgentStatusCondition returns new metav1.Condition instance
+func newDatadogAgentStatusCondition(conditionType string, conditionStatus metav1.ConditionStatus, now metav1.Time, reason, message string) metav1.Condition {
 	return metav1.Condition{
 		Type:               conditionType,
 		Status:             conditionStatus,
@@ -100,7 +83,7 @@ func GetMetav1ConditionStatus(status bool) metav1.ConditionStatus {
 	return metav1.ConditionFalse
 }
 
-func getIndexForConditionType(status *DatadogAgentStatus, t string) int {
+func getIndexForConditionType(status *v2alpha1.DatadogAgentStatus, t string) int {
 	idCondition := -1
 	if status == nil {
 		return idCondition
@@ -117,9 +100,9 @@ func getIndexForConditionType(status *DatadogAgentStatus, t string) int {
 }
 
 // UpdateDeploymentStatus updates a deployment's DeploymentStatus
-func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus, updateTime *metav1.Time) *DeploymentStatus {
+func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *v2alpha1.DeploymentStatus, updateTime *metav1.Time) *v2alpha1.DeploymentStatus {
 	if depStatus == nil {
-		depStatus = &DeploymentStatus{}
+		depStatus = &v2alpha1.DeploymentStatus{}
 	}
 	if dep == nil {
 		depStatus.State = string(DatadogAgentStateFailed)
@@ -127,7 +110,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus,
 		return depStatus
 	}
 
-	if hash, ok := dep.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := dep.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
 		depStatus.CurrentHash = hash
 	}
 	if updateTime != nil {
@@ -165,19 +148,19 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus,
 }
 
 // UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
-func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
+func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*v2alpha1.DaemonSetStatus, updateTime *metav1.Time) []*v2alpha1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = []*DaemonSetStatus{}
+		dsStatus = []*v2alpha1.DaemonSetStatus{}
 	}
 	if ds == nil {
-		dsStatus = append(dsStatus, &DaemonSetStatus{
+		dsStatus = append(dsStatus, &v2alpha1.DaemonSetStatus{
 			State:  string(DatadogAgentStateFailed),
 			Status: string(DatadogAgentStateFailed),
 		})
 		return dsStatus
 	}
 
-	newStatus := DaemonSetStatus{
+	newStatus := v2alpha1.DaemonSetStatus{
 		Desired:       ds.Status.DesiredNumberScheduled,
 		Current:       ds.Status.CurrentNumberScheduled,
 		Ready:         ds.Status.NumberReady,
@@ -189,7 +172,7 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, up
 	if updateTime != nil {
 		newStatus.LastUpdate = updateTime
 	}
-	if hash, ok := ds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := ds.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
 		newStatus.CurrentHash = hash
 	}
 
@@ -222,12 +205,12 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, up
 }
 
 // UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
-func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
+func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*v2alpha1.DaemonSetStatus, updateTime *metav1.Time) []*v2alpha1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = []*DaemonSetStatus{}
+		dsStatus = []*v2alpha1.DaemonSetStatus{}
 	}
 
-	newStatus := DaemonSetStatus{
+	newStatus := v2alpha1.DaemonSetStatus{
 		Desired:       eds.Status.Desired,
 		Current:       eds.Status.Current,
 		Ready:         eds.Status.Ready,
@@ -239,7 +222,7 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	if updateTime != nil {
 		newStatus.LastUpdate = updateTime
 	}
-	if hash, ok := eds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := eds.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
 		newStatus.CurrentHash = hash
 	}
 
@@ -274,8 +257,8 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 }
 
 // UpdateCombinedDaemonSetStatus combines the status of multiple DaemonSetStatus
-func UpdateCombinedDaemonSetStatus(dsStatus []*DaemonSetStatus) *DaemonSetStatus {
-	combinedStatus := DaemonSetStatus{}
+func UpdateCombinedDaemonSetStatus(dsStatus []*v2alpha1.DaemonSetStatus) *v2alpha1.DaemonSetStatus {
+	combinedStatus := v2alpha1.DaemonSetStatus{}
 	if len(dsStatus) == 0 {
 		return &combinedStatus
 	}
@@ -328,13 +311,3 @@ func assignNumeralState(state string) int {
 		return 0
 	}
 }
-
-// DatadogForwarderConditionType type use to represent a Datadog Metrics Forwarder condition.
-type DatadogForwarderConditionType string
-
-const (
-	// DatadogMetricsActive forwarding metrics and events to Datadog is active.
-	DatadogMetricsActive DatadogForwarderConditionType = "ActiveDatadogMetrics"
-	// DatadogMetricsError cannot forward deployment metrics and events to Datadog.
-	DatadogMetricsError DatadogForwarderConditionType = "DatadogMetricsError"
-)

@@ -6,9 +6,7 @@ toolchain go1.22.7
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
-	// TODO: pin to an EDS released version once there is a release that includes the api module
-	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
 	k8s.io/api v0.31.1
