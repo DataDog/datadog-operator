@@ -37,8 +37,6 @@ github.com/DataDog/datadog-api-client-go/v2 v2.27.0 h1:AGZj41frjnjMufQHQbJH2fzmi
 github.com/DataDog/datadog-api-client-go/v2 v2.27.0/go.mod h1:QKOu6vscsh87fMY1lHfLEmNSunyXImj8BUaUWJXOehc=
 github.com/DataDog/datadog-go/v5 v5.5.0 h1:G5KHeB8pWBNXT4Jtw0zAkhdxEAWSpWH00geHI6LDrKU=
 github.com/DataDog/datadog-go/v5 v5.5.0/go.mod h1:K9kcYBlxkcPP8tvvjZZKs/m1edNAUFzBbdpTUKfCsuw=
-github.com/DataDog/datadog-operator/api v0.0.0-20250113195927-3d36de7daa54 h1:+gHG2hc5W3w1/9iw470oZB8bsaPcLyfBtz+Fe6m2oCY=
-github.com/DataDog/datadog-operator/api v0.0.0-20250113195927-3d36de7daa54/go.mod h1:QG0NosKjpnGlWsa4WRHV1DXoRq8Adc39ahWaITlDfhU=
 github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1 h1:K9SD6kTk58j3vG99mExuVIFh994JSpPALQRr2MPszXQ=
 github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1/go.mod h1:CLkfm3awFwTY5aBDm8esFwiocXIoNxY28eK6zZ5u9t0=
 github.com/DataDog/go-libddwaf/v3 v3.3.0 h1:jS72fuQpFgJZEdEJDmHJCPAgNTEMZoz1EUvimPUOiJ4=

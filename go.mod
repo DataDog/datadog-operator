@@ -43,7 +43,6 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
-	github.com/DataDog/datadog-operator/api v0.0.0-20250113195927-3d36de7daa54
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
@@ -87,6 +86,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
