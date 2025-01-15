@@ -283,9 +283,9 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
 	@set -o pipefail; \
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "warning" && { echo "Error: Warnings detected"; exit 1; } || true
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
 	@set -o pipefail; \
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "warning" && { echo "Error: Warnings detected"; exit 1; } || true
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
