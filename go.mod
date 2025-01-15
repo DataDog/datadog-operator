@@ -1,14 +1,13 @@
 module github.com/DataDog/datadog-operator
 
 go 1.22
-
 toolchain go1.22.7
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.27.0
 	// TODO: pin to an EDS released version once there is a release that includes the api module
 	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
-	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/go-logr/logr v1.4.2
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.6.0
@@ -43,6 +42,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
+	github.com/DataDog/datadog-operator/api v0.0.0-20250110084858-d49f7c2a2c1b
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
