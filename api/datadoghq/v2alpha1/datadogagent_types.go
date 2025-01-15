@@ -704,7 +704,6 @@ type OtelCollectorFeatureConfig struct {
 	// If not, this will lead to a port conflict.
 	// This limitation will be lifted once annotations support is removed.
 	// +optional
-	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 
 	// OTelCollector Config Relevant to the Core agent
