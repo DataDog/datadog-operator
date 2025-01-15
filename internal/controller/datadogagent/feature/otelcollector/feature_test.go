@@ -26,6 +26,8 @@ type expectedPorts struct {
 }
 
 type expectedEnvVars struct {
+	agent_ipc_port    expectedEnvVar
+	agent_ipc_refresh expectedEnvVar
 	enabled           expectedEnvVar
 	extension_timeout expectedEnvVar
 	extension_url     expectedEnvVar
@@ -43,12 +45,31 @@ var (
 	}
 	defaultLocalObjectReferenceName = "-otel-agent-config"
 	defaultExpectedEnvVars          = expectedEnvVars{
+		agent_ipc_port: expectedEnvVar{
+			present: true,
+			value:   "5009",
+		},
+		agent_ipc_refresh: expectedEnvVar{
+			present: true,
+			value:   "60",
+		},
 		enabled: expectedEnvVar{
 			present: true,
 			value:   "true",
 		},
 		extension_timeout: expectedEnvVar{},
 		extension_url:     expectedEnvVar{},
+	}
+
+	onlyIpcEnvVars = expectedEnvVars{
+		agent_ipc_port: expectedEnvVar{
+			present: true,
+			value:   "5009",
+		},
+		agent_ipc_refresh: expectedEnvVar{
+			present: true,
+			value:   "60",
+		},
 	}
 )
 
@@ -135,7 +156,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{}),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, onlyIpcEnvVars),
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
@@ -147,6 +168,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				agent_ipc_port: expectedEnvVar{
+					present: true,
+					value:   "5009",
+				},
+				agent_ipc_refresh: expectedEnvVar{
+					present: true,
+					value:   "60",
+				},
 				extension_timeout: expectedEnvVar{
 					present: true,
 					value:   "13",
@@ -163,6 +192,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				agent_ipc_port: expectedEnvVar{
+					present: true,
+					value:   "5009",
+				},
+				agent_ipc_refresh: expectedEnvVar{
+					present: true,
+					value:   "60",
+				},
 				extension_url: expectedEnvVar{
 					present: true,
 					value:   "https://localhost:1234",
@@ -180,6 +217,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
 			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{
+				agent_ipc_port: expectedEnvVar{
+					present: true,
+					value:   "5009",
+				},
+				agent_ipc_refresh: expectedEnvVar{
+					present: true,
+					value:   "60",
+				},
 				extension_url: expectedEnvVar{
 					present: true,
 					value:   "https://localhost:1234",
@@ -253,6 +298,20 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{}
+
+			if expectedEnvVars.agent_ipc_port.present {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  v2alpha1.DDAgentIpcPort,
+					Value: expectedEnvVars.agent_ipc_port.value,
+				})
+			}
+
+			if expectedEnvVars.agent_ipc_refresh.present {
+				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+					Value: expectedEnvVars.agent_ipc_refresh.value,
+				})
+			}
 
 			if expectedEnvVars.enabled.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{

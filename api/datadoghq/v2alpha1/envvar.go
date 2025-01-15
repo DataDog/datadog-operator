@@ -62,6 +62,9 @@ const (
 	DDSystemProbeExternal                  = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                    = "DD_SYSPROBE_SOCKET"
 	DDTags                                 = "DD_TAGS"
+	DDAgentIpcPort                         = "DD_AGENT_IPC_PORT"
+	DDAgentIpcConfigRefreshInterval        = "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL"
+
 	// otelcollector core agent configs
 	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
 	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"
