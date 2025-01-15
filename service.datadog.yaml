@@ -56,7 +56,8 @@ extensions:
         - name: "conductor-test"
           ci_pipeline: "//fake_placeholder:fake_placeholder"
           # Test branch
-          branch: "celene/conductor_testing_branch"
-          slack: "celene-conductor-test"
+          branch: "levan-m/conductor_testing_branch"
+          schedule: "*/60 * 13 * * "
+          slack: "levan-test"
           options:
             disable_failure_notifications: true
