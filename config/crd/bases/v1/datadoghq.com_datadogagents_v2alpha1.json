@@ -1457,8 +1457,7 @@
                     ],
                     "type": "object"
                   },
-                  "type": "array",
-                  "x-kubernetes-list-type": "atomic"
+                  "type": "array"
                 }
               },
               "type": "object"
@@ -8263,8 +8262,7 @@
                         ],
                         "type": "object"
                       },
-                      "type": "array",
-                      "x-kubernetes-list-type": "atomic"
+                      "type": "array"
                     }
                   },
                   "type": "object"

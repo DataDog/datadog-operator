@@ -1411,7 +1411,6 @@ spec:
                               - containerPort
                             type: object
                           type: array
-                          x-kubernetes-list-type: atomic
                       type: object
                     otlp:
                       description: OTLP ingest configuration
@@ -8275,7 +8274,6 @@ spec:
                                   - containerPort
                                 type: object
                               type: array
-                              x-kubernetes-list-type: atomic
                           type: object
                         otlp:
                           description: OTLP ingest configuration
