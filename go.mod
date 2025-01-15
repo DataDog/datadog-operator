@@ -1,7 +1,6 @@
 module github.com/DataDog/datadog-operator
 
 go 1.22
-
 toolchain go1.22.7
 
 require (
@@ -35,7 +34,7 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-aggregator v0.31.1
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340
-	sigs.k8s.io/controller-runtime v0.19.0
+	sigs.k8s.io/controller-runtime v0.19.4
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -43,6 +42,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/config/model v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/config/remote v0.59.0-rc.5
 	github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.59.0-rc.5
+	github.com/DataDog/datadog-operator/api v0.0.0-20250110084858-d49f7c2a2c1b
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/prometheus/client_golang v1.19.1
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
