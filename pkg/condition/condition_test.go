@@ -7,9 +7,12 @@ package condition
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -107,4 +110,12 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 			assert.True(t, apiutils.IsEqualStruct(tt.args.status, tt.expectedStatus), "status \ndiff = %s", cmp.Diff(tt.args.status, tt.expectedStatus))
 		})
 	}
+}
+
+func TestDSUpdateWhenNil(t *testing.T) {
+	var ds *appsv1.DaemonSet
+	dsStatus := UpdateDaemonSetStatus(ds, []*v2alpha1.DaemonSetStatus{}, &metav1.Time{Time: time.Now()})
+	dsStatus = UpdateDaemonSetStatus(ds, dsStatus, &metav1.Time{Time: time.Now()})
+	dsStatus = UpdateDaemonSetStatus(ds, dsStatus, &metav1.Time{Time: time.Now()})
+	assert.Equal(t, 1, len(dsStatus))
 }
