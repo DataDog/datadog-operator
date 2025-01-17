@@ -47,6 +47,8 @@ spec:
       enabled: true
     serviceDiscovery:
       enabled: true
+    gpu:
+      enabled: true
     eventCollection:
       collectKubernetesEvents: true
     orchestratorExplorer:

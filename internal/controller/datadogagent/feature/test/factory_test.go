@@ -12,6 +12,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
@@ -228,6 +229,22 @@ func TestBuilder(t *testing.T) {
 				common.AgentDataPlaneContainerName:          false,
 			},
 		},
+		{
+			name: "GPU monitoring enabled, 4 agents",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithGPUMonitoringEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            true,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -237,7 +254,7 @@ func TestBuilder(t *testing.T) {
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 
 			for name, required := range tt.wantAgentContainer {
-				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "Check", name)
+				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "container %s", name)
 			}
 		})
 	}

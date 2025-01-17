@@ -71,4 +71,6 @@ const (
 	DummyIDType = "dummy"
 	// ServiceDiscoveryType service discovery feature.
 	ServiceDiscoveryType = "service_discovery"
+	// GPUMonitoringType monitoring feature.
+	GPUMonitoringType = "gpu"
 )
