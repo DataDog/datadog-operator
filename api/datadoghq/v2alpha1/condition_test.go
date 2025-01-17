@@ -112,7 +112,7 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 
 func TestUpdateWhenDSNil(t *testing.T) {
 	var ds *appsv1.DaemonSet
-	dsStatus := UpdateDaemonSetStatus("ds", ds, []*v2alpha1.DaemonSetStatus{}, &metav1.Time{Time: time.Now()})
+	dsStatus := UpdateDaemonSetStatus("ds", ds, []*DaemonSetStatus{}, &metav1.Time{Time: time.Now()})
 	dsStatus = UpdateDaemonSetStatus("ds", ds, dsStatus, &metav1.Time{Time: time.Now()})
 	dsStatus = UpdateDaemonSetStatus("ds", ds, dsStatus, &metav1.Time{Time: time.Now()})
 	assert.Equal(t, 1, len(dsStatus))
