@@ -202,8 +202,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent, profile)
 }
 
-func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
+func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(dsName, ds, newStatus.AgentList, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
 	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
