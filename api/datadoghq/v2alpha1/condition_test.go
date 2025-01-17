@@ -7,10 +7,13 @@ package v2alpha1
 
 import (
 	"testing"
+	"time"
 
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -105,4 +108,12 @@ func TestDeleteDatadogAgentStatusCondition(t *testing.T) {
 			assert.True(t, apiutils.IsEqualStruct(tt.args.status, tt.expectedStatus), "status \ndiff = %s", cmp.Diff(tt.args.status, tt.expectedStatus))
 		})
 	}
+}
+
+func TestUpdateWhenDSNil(t *testing.T) {
+	var ds *appsv1.DaemonSet
+	dsStatus := UpdateDaemonSetStatus("ds", ds, []*DaemonSetStatus{}, &metav1.Time{Time: time.Now()})
+	dsStatus = UpdateDaemonSetStatus("ds", ds, dsStatus, &metav1.Time{Time: time.Now()})
+	dsStatus = UpdateDaemonSetStatus("ds", ds, dsStatus, &metav1.Time{Time: time.Now()})
+	assert.Equal(t, 1, len(dsStatus))
 }
