@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -64,6 +65,9 @@ func Test_handleFinalizer(t *testing.T) {
 						Namespace:         testNamespace,
 						Finalizers:        []string{datadogGenericResourceFinalizer},
 						DeletionTimestamp: &metaNow,
+					},
+					Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
+						Type: v1alpha1.Notebook,
 					},
 				},
 			).
