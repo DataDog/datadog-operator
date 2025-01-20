@@ -24,6 +24,7 @@
         "type": {
           "description": "Type is the type of the API object",
           "enum": [
+            "monitor",
             "notebook",
             "synthetics_api_test",
             "synthetics_browser_test"

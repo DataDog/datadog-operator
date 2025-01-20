@@ -38,11 +38,11 @@ type Reconciler struct {
 	client                  client.Client
 	datadogSyntheticsClient *datadogV1.SyntheticsApi
 	datadogNotebooksClient  *datadogV1.NotebooksApi
-	// TODO: add other clients
-	datadogAuth context.Context
-	scheme      *runtime.Scheme
-	log         logr.Logger
-	recorder    record.EventRecorder
+	datadogMonitorsClient   *datadogV1.MonitorsApi
+	datadogAuth             context.Context
+	scheme                  *runtime.Scheme
+	log                     logr.Logger
+	recorder                record.EventRecorder
 }
 
 func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
@@ -50,12 +50,11 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericCl
 		client:                  client,
 		datadogSyntheticsClient: ddClient.SyntheticsClient,
 		datadogNotebooksClient:  ddClient.NotebooksClient,
-		// TODO: add other clients
-		// datadogOtherClient: ddClient.OtherClient,
-		datadogAuth: ddClient.Auth,
-		scheme:      scheme,
-		log:         log,
-		recorder:    recorder,
+		datadogMonitorsClient:   ddClient.MonitorsClient,
+		datadogAuth:             ddClient.Auth,
+		scheme:                  scheme,
+		log:                     log,
+		recorder:                recorder,
 	}
 }
 
