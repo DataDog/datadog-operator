@@ -85,7 +85,7 @@ func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 	}
 	notebookUpdated, _, err := client.UpdateNotebook(auth, notebookID, *notebookUpdateData)
 	if err != nil {
-		return datadogV1.NotebookResponse{}, translateClientError(err, "error updating browser test")
+		return datadogV1.NotebookResponse{}, translateClientError(err, "error updating notebook")
 	}
 	return notebookUpdated, nil
 }
