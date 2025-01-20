@@ -3,8 +3,6 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strconv"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
@@ -23,7 +21,7 @@ func (h *NotebookHandler) createResourcefunc(r *Reconciler, logger logr.Logger, 
 		return err
 	}
 	logger.Info("created a new notebook", "notebook Id", createdNotebook.Data.GetId())
-	status.Id = notebookInt64ToString(createdNotebook.Data.GetId())
+	status.Id = resourceInt64ToStringID(createdNotebook.Data.GetId())
 	createdTime := metav1.NewTime(*createdNotebook.Data.GetAttributes().Created)
 	status.Created = &createdTime
 	status.LastForceSyncTime = &createdTime
@@ -46,7 +44,7 @@ func (h *NotebookHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.D
 }
 
 func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) (datadogV1.NotebookResponse, error) {
-	notebookID, err := notebookStringToInt64(notebookStringID)
+	notebookID, err := resourceStringToInt64ID(notebookStringID)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, err
 	}
@@ -58,7 +56,7 @@ func getNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookS
 }
 
 func deleteNotebook(auth context.Context, client *datadogV1.NotebooksApi, notebookStringID string) error {
-	notebookID, err := notebookStringToInt64(notebookStringID)
+	notebookID, err := resourceStringToInt64ID(notebookStringID)
 	if err != nil {
 		return err
 	}
@@ -81,7 +79,7 @@ func createNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.NotebookResponse, error) {
 	notebookUpdateData := &datadogV1.NotebookUpdateRequest{}
 	json.Unmarshal([]byte(instance.Spec.JsonSpec), notebookUpdateData)
-	notebookID, err := notebookStringToInt64(instance.Status.Id)
+	notebookID, err := resourceStringToInt64ID(instance.Status.Id)
 	if err != nil {
 		return datadogV1.NotebookResponse{}, err
 	}
@@ -90,16 +88,4 @@ func updateNotebook(auth context.Context, client *datadogV1.NotebooksApi, instan
 		return datadogV1.NotebookResponse{}, translateClientError(err, "error updating browser test")
 	}
 	return notebookUpdated, nil
-}
-
-func notebookStringToInt64(notebookStringID string) (int64, error) {
-	notebookID, err := strconv.ParseInt(notebookStringID, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("error parsing notebook Id: %w", err)
-	}
-	return notebookID, nil
-}
-
-func notebookInt64ToString(notebookID int64) string {
-	return strconv.FormatInt(notebookID, 10)
 }
