@@ -128,6 +128,26 @@ func Test_translateClientError(t *testing.T) {
 	}
 }
 
+func Test_resourceStringToInt64ID(t *testing.T) {
+	originalResourceID := "123"
+	expectedResourceID := int64(123)
+	convertedResourceID, err := resourceStringToInt64ID(originalResourceID)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedResourceID, convertedResourceID)
+
+	// Invalid resource ID - cannot be converted to int64
+	originalResourceID = "invalid"
+	convertedResourceID, err = resourceStringToInt64ID(originalResourceID)
+	assert.EqualError(t, err, "error parsing resource ID: strconv.ParseInt: parsing \"invalid\": invalid syntax")
+}
+
+func Test_resourceInt64ToStringID(t *testing.T) {
+	originalResourceID := int64(123)
+	expectedResourceID := "123"
+	convertedResourceID := resourceInt64ToStringID(originalResourceID)
+	assert.Equal(t, expectedResourceID, convertedResourceID)
+}
+
 func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 	mockLogger := logr.Discard()
 	hash := "test-hash"
