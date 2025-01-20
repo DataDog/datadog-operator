@@ -3,6 +3,7 @@ package datadoggenericresource
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
@@ -125,4 +126,47 @@ func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsA
 		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error updating API test")
 	}
 	return testUpdated, nil
+}
+
+// updateStatusFromSyntheticsTest retrieves the common fields from a synthetic test (API, browser) and updates the status of the DatadogGenericResource
+func updateStatusFromSyntheticsTest(createdTest interface{ GetPublicId() string }, additionalProperties map[string]interface{}, status *v1alpha1.DatadogGenericResourceStatus, logger logr.Logger, hash string) error {
+	// All synthetic test types share this method
+	status.Id = createdTest.GetPublicId()
+
+	// Parse Created Time
+	createdTimeString, ok := additionalProperties["created_at"].(string)
+	if !ok {
+		logger.Error(nil, "missing or invalid created_at field, using current time")
+		createdTimeString = time.Now().Format(time.RFC3339)
+	}
+
+	createdTimeParsed, err := time.Parse(time.RFC3339, createdTimeString)
+	if err != nil {
+		logger.Error(err, "error parsing created time, using current time")
+		createdTimeParsed = time.Now()
+	}
+	createdTime := metav1.NewTime(createdTimeParsed)
+
+	// Update status fields
+	status.Created = &createdTime
+	status.LastForceSyncTime = &createdTime
+
+	// Update Creator
+	if createdBy, ok := additionalProperties["created_by"].(map[string]interface{}); ok {
+		if handle, ok := createdBy["handle"].(string); ok {
+			status.Creator = handle
+		} else {
+			logger.Error(nil, "missing handle field in created_by")
+			status.Creator = ""
+		}
+	} else {
+		logger.Error(nil, "missing or invalid created_by field")
+		status.Creator = ""
+	}
+
+	// Update Sync Status and Hash
+	status.SyncStatus = v1alpha1.DatadogSyncStatusOK
+	status.CurrentHash = hash
+
+	return nil
 }
