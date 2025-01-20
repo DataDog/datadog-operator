@@ -13,15 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type operation string
-
-const (
-	// mockSubresource is used to mock the subresource in tests
-	mockSubresource           = "mock_resource"
-	operationDelete operation = "delete"
-	operationGet    operation = "get"
-	operationUpdate operation = "update"
-)
+// mockSubresource is used to mock the subresource in tests
+const mockSubresource = "mock_resource"
 
 type MockHandler struct{}
 
