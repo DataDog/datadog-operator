@@ -16,7 +16,6 @@ import (
 )
 
 const RunInCoreAgentMinVersion = "7.57.0-0"
-const enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
 const enableAdpAnnotation = "agent.datadoghq.com/adp-enabled"
 
 func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
@@ -55,12 +54,6 @@ func hasFeatureEnableAnnotation(dda *v2alpha1.DatadogAgent, annotation string) b
 		return value == "true"
 	}
 	return false
-}
-
-// HasOtelAgentAnnotation returns true if the OpenTelemetry Agent is enabled via the dedicated
-// `agent.datadoghq.com/otel-agent-enabled` annotation
-func HasOtelAgentAnnotation(dda *v2alpha1.DatadogAgent) bool {
-	return hasFeatureEnableAnnotation(dda, enableOtelAnnotation)
 }
 
 // HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation

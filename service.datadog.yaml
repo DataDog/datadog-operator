@@ -38,6 +38,7 @@ extensions:
       slack: "datadog-operator"
       options:
         rollout_strategy: "installation"
+        disable_bia: true
       targets:
         - name: "nightly-build"
           # For now, this config is mandatory, even if the target is not a ci_pipeline CNAB object.
