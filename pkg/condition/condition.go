@@ -173,7 +173,7 @@ func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*v2al
 		if updateTime != nil {
 			newStatus.LastUpdate = updateTime
 		}
-		if hash, ok := ds.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
+		if hash, ok := ds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
 			newStatus.CurrentHash = hash
 		}
 
