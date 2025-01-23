@@ -53,6 +53,8 @@ var (
 	}
 )
 
+var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "07f4530ba2b36a9279f070daa769454e"}
+
 func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		// disabled
@@ -80,7 +82,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent enabled with configMap",
@@ -90,7 +92,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars, map[string]string{}),
 		},
 		{
 			Name: "otel agent enabled without config",
@@ -99,7 +101,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
@@ -115,6 +117,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			},
 				defaultLocalObjectReferenceName,
 				defaultExpectedEnvVars,
+				map[string]string{"checksum/otel_agent-custom-config": "8aeb28718c1afdd92cd7d48d24950727"},
 			),
 		},
 		// coreconfig
@@ -126,7 +129,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig disabled",
@@ -136,7 +139,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{}),
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, expectedEnvVars{}, defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
@@ -152,7 +155,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "13",
 				},
-			}),
+			},
+				defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig extensionURL",
@@ -168,7 +172,8 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "https://localhost:1234",
 				},
-			}),
+			},
+				defaultAnnotations),
 		},
 		{
 			Name: "otel agent coreconfig all env vars",
@@ -193,13 +198,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 					present: true,
 					value:   "true",
 				},
-			}),
+			},
+				defaultAnnotations),
 		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
 }
 
-func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string, expectedEnvVars expectedEnvVars) *test.ComponentTest {
+func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expectedPorts expectedPorts, localObjectReferenceName string, expectedEnvVars expectedEnvVars, expectedAnnotations map[string]string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -283,6 +289,9 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 
+			// annotations
+			agentAnnotations := mgr.AnnotationMgr.Annotations
+			assert.Equal(t, expectedAnnotations, agentAnnotations)
 		},
 	)
 }
