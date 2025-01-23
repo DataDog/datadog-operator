@@ -6,6 +6,7 @@
 package clusteragent
 
 const (
+	pdbMinAvailableInstances = 1
 	// DefaultMetricsServerResourceSuffix use as suffix for cluster-agent metrics-server resource naming
 	defaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
 	// DefaultClusterAgentReplicas default cluster-agent deployment replicas

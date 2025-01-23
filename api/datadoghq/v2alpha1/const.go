@@ -12,55 +12,6 @@ const (
 	DefaultAPPKeyKey = "app_key"
 	// DefaultAPIKeyKey default api-key key (use in secret for instance).
 	DefaultAPIKeyKey = "api_key"
-
-	// DefaultTokenKey default token key (use in secret for instance).
-	DefaultTokenKey = "token"
-	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
-	DefaultClusterAgentReplicas = 1
-	// DefaultClusterAgentServicePort default cluster-agent service port
-	DefaultClusterAgentServicePort = 5005
-	// DefaultClusterChecksRunnerReplicas default cluster checks runner deployment replicas
-	DefaultClusterChecksRunnerReplicas = 1
-	// DefaultAdmissionControllerServicePort default admission controller service port
-	DefaultAdmissionControllerServicePort = 443
-	// DefaultAdmissionControllerTargetPort default admission controller pod port
-	DefaultAdmissionControllerTargetPort = 8000
-	// DefaultAdmissionControllerWebhookName default admission controller webhook name
-	DefaultAdmissionControllerWebhookName string = "datadog-webhook"
-	// DefaultDogstatsdPort default dogstatsd port
-	DefaultDogstatsdPort = 8125
-	// DefaultDogstatsdPortName default dogstatsd port name
-	DefaultDogstatsdPortName = "dogstatsdport"
-	// DefaultOTelAgentConf default otel agent ConfigMap name
-	DefaultOTelAgentConf string = "otel-agent-config"
-	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
-	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
-	DefaultOrchestratorExplorerConf string = "orchestrator-explorer-config"
-	// DefaultKubeAPIServerConf default Kubernetes APIServer ConfigMap name
-	DefaultKubeAPIServerConf string = "kube-apiserver-config"
-	// DefaultSystemProbeSocketPath default System Probe socket path
-	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
-	// DefaultCSPMConf default CSPM ConfigMap name
-	DefaultCSPMConf string = "cspm-config"
-	// DefaultCWSConf default CWS ConfigMap name
-	DefaultCWSConf string = "cws-config"
-	// DefaultHelmCheckConf default Helm Check ConfigMap name
-	DefaultHelmCheckConf string = "helm-check-config"
-
-	// Default Image name
-	DefaultAgentImageName        string = "agent"
-	DefaultClusterAgentImageName string = "cluster-agent"
-	DefaultImageRegistry         string = "gcr.io/datadoghq"
-	DefaultAzureImageRegistry    string = "datadoghq.azurecr.io"
-	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
-	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
-	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
-
-	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
-	EndpointsChecksConfigProvider           = "endpointschecks"
-	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
 )
 
 // Volumes and paths

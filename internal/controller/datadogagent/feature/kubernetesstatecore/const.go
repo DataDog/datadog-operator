@@ -17,6 +17,8 @@ const (
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 
 	ksmCoreVolumeName = "ksm-core-config"
+	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
+	defaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
 )
 
 // GetKubeStateMetricsRBACResourceName return the RBAC resources name

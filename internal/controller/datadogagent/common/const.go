@@ -46,3 +46,14 @@ const (
 	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
 )
+
+const (
+	// DefaultTokenKey default token key (use in secret for instance).
+	DefaultTokenKey = "token"
+	// DefaultClusterAgentServicePort default cluster-agent service port
+	DefaultClusterAgentServicePort = 5005
+	// DefaultDogstatsdPort default dogstatsd port
+	DefaultDogstatsdPort = 8125
+	// DefaultSystemProbeSocketPath default System Probe socket path
+	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
+)

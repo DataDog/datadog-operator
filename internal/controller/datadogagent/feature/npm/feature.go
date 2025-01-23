@@ -146,7 +146,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  v2alpha1.DDSystemProbeSocket,
-		Value: v2alpha1.DefaultSystemProbeSocketPath,
+		Value: common.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, socketEnvVar)
 

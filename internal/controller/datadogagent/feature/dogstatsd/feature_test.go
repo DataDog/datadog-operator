@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -182,7 +183,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						{
 							Name:          v2alpha1.DogstatsdHostPortName,
 							HostPort:      8125,
-							ContainerPort: v2alpha1.DefaultDogstatsdPort,
+							ContainerPort: common.DefaultDogstatsdPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
@@ -367,7 +368,7 @@ func getWantUDPEnvVars() []*corev1.EnvVar {
 	wantUDPEnvVars := []*corev1.EnvVar{
 		{
 			Name:  DDDogstatsdPort,
-			Value: strconv.Itoa(v2alpha1.DefaultDogstatsdPort),
+			Value: strconv.Itoa(common.DefaultDogstatsdPort),
 		},
 		{
 			Name:  DDDogstatsdNonLocalTraffic,

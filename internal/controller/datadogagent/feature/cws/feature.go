@@ -87,7 +87,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
-		f.configMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultCWSConf)
+		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)

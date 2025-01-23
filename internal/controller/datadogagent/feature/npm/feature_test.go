@@ -53,7 +53,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 			{
 				Name:  DDSystemProbeCollectDNSStatsEnabled,
@@ -177,7 +177,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
 		npmFeatureEnvVar := []*corev1.EnvVar{

@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -118,7 +119,7 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]

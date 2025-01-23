@@ -146,7 +146,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
 

@@ -8,6 +8,7 @@ package defaults
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
@@ -148,15 +149,15 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
 		}
 	}
 
@@ -384,7 +385,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, v2alpha1.DefaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, common.DefaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {

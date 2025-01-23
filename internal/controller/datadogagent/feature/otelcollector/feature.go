@@ -17,11 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	otelAgentVolumeName = "otel-agent-config-volume"
-	otelConfigFileName  = "otel-config.yaml"
-)
-
 func init() {
 	err := feature.Register(feature.OtelAgentIDType, buildOtelCollectorFeature)
 	if err != nil {
@@ -56,7 +51,7 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	if dda.Spec.Features.OtelCollector.Conf != nil {
 		o.customConfig = dda.Spec.Features.OtelCollector.Conf
 	}
-	o.configMapName = constants.GetConfName(dda, o.customConfig, v2alpha1.DefaultOTelAgentConf)
+	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
 	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled

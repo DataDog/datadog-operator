@@ -172,11 +172,11 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 		},
 		{
 			Name:  DDExtraConfigProviders,
-			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
+			Value: kubeServicesAndEndpointsConfigProviders,
 		},
 		{
 			Name:  DDExtraListeners,
-			Value: v2alpha1.KubeServicesAndEndpointsListeners,
+			Value: kubeServicesAndEndpointsListeners,
 		},
 	}
 
@@ -207,7 +207,7 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 				},
 				{
 					Name:  DDExtraConfigProviders,
-					Value: ClusterChecksConfigProvider,
+					Value: clusterChecksConfigProvider,
 				},
 			}
 
@@ -229,7 +229,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDExtraConfigProviders,
-					Value: v2alpha1.EndpointsChecksConfigProvider,
+					Value: endpointsChecksConfigProvider,
 				},
 			}
 
@@ -251,7 +251,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDExtraConfigProviders,
-					Value: v2alpha1.ClusterAndEndpointsConfigProviders,
+					Value: clusterAndEndpointsConfigProviders,
 				},
 			}
 

@@ -170,12 +170,12 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 		// DCA Token management
 		f.dcaTokenInfo.token.SecretName = v2alpha1.GetDefaultDCATokenSecretName(dda)
-		f.dcaTokenInfo.token.SecretKey = v2alpha1.DefaultTokenKey
+		f.dcaTokenInfo.token.SecretKey = common.DefaultTokenKey
 		if dda.Spec.Global.ClusterAgentToken != nil {
 			// User specifies token
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
-			f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
+			f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
 		} else if dda.Spec.Global.ClusterAgentTokenSecret != nil {
 			// User specifies token secret
 			f.dcaTokenInfo.token.SecretName = dda.Spec.Global.ClusterAgentTokenSecret.SecretName
@@ -185,9 +185,9 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
 			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
-				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = apiutils.GenerateRandomString(32)
+				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = apiutils.GenerateRandomString(32)
 			} else {
-				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
+				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
 
