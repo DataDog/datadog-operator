@@ -187,7 +187,7 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"trace-agent",
-			fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
 		},
 		Env:           envVarsForTraceAgent(dda),
 		VolumeMounts:  volumeMountsForTraceAgent(),
@@ -200,8 +200,8 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 		Name:  string(apicommon.ProcessAgentContainerName),
 		Image: agentImage(),
 		Command: []string{
-			"process-agent", fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
-			fmt.Sprintf("--sysprobe-config=%s", v2alpha1.SystemProbeConfigVolumePath),
+			"process-agent", fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
+			fmt.Sprintf("--sysprobe-config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForProcessAgent(),
@@ -214,8 +214,8 @@ func otelAgentContainer(_ metav1.Object) corev1.Container {
 		Image: otelAgentImage(),
 		Command: []string{
 			"otel-agent",
-			"--config=" + v2alpha1.OtelCustomConfigVolumePath,
-			"--core-config=" + v2alpha1.AgentCustomConfigVolumePath,
+			"--config=" + otelCustomConfigVolumePath,
+			"--core-config=" + agentCustomConfigVolumePath,
 			"--sync-delay=30s",
 		},
 		Env:          []corev1.EnvVar{},
@@ -246,7 +246,7 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"security-agent",
-			"start", fmt.Sprintf("-c=%s", v2alpha1.AgentCustomConfigVolumePath),
+			"start", fmt.Sprintf("-c=%s", agentCustomConfigVolumePath),
 		},
 		Env:          envVarsForSecurityAgent(dda),
 		VolumeMounts: volumeMountsForSecurityAgent(),
@@ -259,14 +259,14 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"system-probe",
-			fmt.Sprintf("--config=%s", v2alpha1.SystemProbeConfigVolumePath),
+			fmt.Sprintf("--config=%s", systemProbeConfigVolumePath),
 		},
 		Env:          commonEnvVars(dda),
 		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
-				LocalhostProfile: apiutils.NewStringPointer(v2alpha1.SystemProbeSeccompProfileName),
+				LocalhostProfile: apiutils.NewStringPointer(common.SystemProbeSeccompProfileName),
 			},
 		},
 	}
@@ -279,7 +279,7 @@ func agentDataPlaneContainer(dda metav1.Object) corev1.Container {
 		Command: []string{
 			"agent-data-plane",
 			"run",
-			fmt.Sprintf("--config=%s", v2alpha1.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--config=%s", agentCustomConfigVolumePath),
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForAgentDataPlane(),
@@ -296,7 +296,7 @@ func initVolumeContainer() corev1.Container {
 		Args:    []string{"cp -vnr /etc/datadog-agent /opt"},
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.ConfigVolumeName,
+				Name:      common.ConfigVolumeName,
 				MountPath: "/opt/datadog-agent",
 			},
 		},
@@ -322,8 +322,8 @@ func initSeccompSetupContainer() corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"cp",
-			fmt.Sprintf("%s/%s", v2alpha1.SeccompSecurityVolumePath, v2alpha1.SystemProbeSeccompKey),
-			fmt.Sprintf("%s/%s", v2alpha1.SeccompRootVolumePath, v2alpha1.SystemProbeSeccompProfileName),
+			fmt.Sprintf("%s/%s", common.SeccompSecurityVolumePath, common.SystemProbeSeccompKey),
+			fmt.Sprintf("%s/%s", common.SeccompRootVolumePath, common.SystemProbeSeccompProfileName),
 		},
 		VolumeMounts: volumeMountsForSeccompSetup(),
 	}
@@ -402,7 +402,7 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HOST_ROOT",
-			Value: v2alpha1.HostRootMountPath,
+			Value: common.HostRootMountPath,
 		},
 	}
 

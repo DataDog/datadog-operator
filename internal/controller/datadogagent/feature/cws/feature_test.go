@@ -126,7 +126,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 				},
 				{
 					Name:  v2alpha1.DDHostRootEnvVar,
-					Value: v2alpha1.HostRootMountPath,
+					Value: common.HostRootMountPath,
 				},
 				{
 					Name:  DDRuntimeSecurityConfigPoliciesDir,
@@ -180,13 +180,13 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			// check volume mounts
 			securityWantVolumeMount := []corev1.VolumeMount{
 				{
-					Name:      v2alpha1.SystemProbeSocketVolumeName,
-					MountPath: v2alpha1.SystemProbeSocketVolumePath,
+					Name:      common.SystemProbeSocketVolumeName,
+					MountPath: common.SystemProbeSocketVolumePath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.HostRootVolumeName,
-					MountPath: v2alpha1.HostRootMountPath,
+					Name:      common.HostRootVolumeName,
+					MountPath: common.HostRootMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -197,8 +197,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			}
 			sysprobeWantVolumeMount := []corev1.VolumeMount{
 				{
-					Name:      v2alpha1.DebugfsVolumeName,
-					MountPath: v2alpha1.DebugfsPath,
+					Name:      common.DebugfsVolumeName,
+					MountPath: common.DebugfsPath,
 					ReadOnly:  false,
 				},
 				{
@@ -212,28 +212,28 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.SystemProbeSocketVolumeName,
-					MountPath: v2alpha1.SystemProbeSocketVolumePath,
+					Name:      common.SystemProbeSocketVolumeName,
+					MountPath: common.SystemProbeSocketVolumePath,
 					ReadOnly:  false,
 				},
 				{
-					Name:      v2alpha1.ProcdirVolumeName,
-					MountPath: v2alpha1.ProcdirMountPath,
+					Name:      common.ProcdirVolumeName,
+					MountPath: common.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.PasswdVolumeName,
-					MountPath: v2alpha1.PasswdMountPath,
+					Name:      common.PasswdVolumeName,
+					MountPath: common.PasswdMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.GroupVolumeName,
-					MountPath: v2alpha1.GroupMountPath,
+					Name:      common.GroupVolumeName,
+					MountPath: common.GroupMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.SystemProbeOSReleaseDirVolumeName,
-					MountPath: v2alpha1.SystemProbeOSReleaseDirMountPath,
+					Name:      common.SystemProbeOSReleaseDirVolumeName,
+					MountPath: common.SystemProbeOSReleaseDirMountPath,
 					ReadOnly:  true,
 				},
 				{
@@ -251,10 +251,10 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: v2alpha1.DebugfsVolumeName,
+					Name: common.DebugfsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.DebugfsPath,
+							Path: common.DebugfsPath,
 						},
 					},
 				},
@@ -275,48 +275,48 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					},
 				},
 				{
-					Name: v2alpha1.SystemProbeSocketVolumeName,
+					Name: common.SystemProbeSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
 				{
-					Name: v2alpha1.ProcdirVolumeName,
+					Name: common.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.ProcdirHostPath,
+							Path: common.ProcdirHostPath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.PasswdVolumeName,
+					Name: common.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.PasswdHostPath,
+							Path: common.PasswdHostPath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.GroupVolumeName,
+					Name: common.GroupVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.GroupHostPath,
+							Path: common.GroupHostPath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.SystemProbeOSReleaseDirVolumeName,
+					Name: common.SystemProbeOSReleaseDirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.SystemProbeOSReleaseDirVolumePath,
+							Path: common.SystemProbeOSReleaseDirVolumePath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.HostRootVolumeName,
+					Name: common.HostRootVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.HostRootHostPath,
+							Path: common.HostRootHostPath,
 						},
 					},
 				},

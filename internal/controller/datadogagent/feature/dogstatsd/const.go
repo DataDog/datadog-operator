@@ -6,5 +6,7 @@ package dogstatsd
 
 const (
 	// DefaultDogstatsdPortName default dogstatsd port name
-	defaultDogstatsdPortName = "dogstatsdport"
+	defaultDogstatsdPortName  = "dogstatsdport"
+	dogstatsdHostPortName     = "dogstatsdport"
+	dogstatsdHostPortHostPort = 8125
 )

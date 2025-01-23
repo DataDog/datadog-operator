@@ -44,7 +44,7 @@ const (
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
 	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
+	defaultAPMSocketHostPath          string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
@@ -63,7 +63,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -216,7 +216,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, v2alpha1.DefaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, common.DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature

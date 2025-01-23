@@ -7,6 +7,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -157,7 +158,7 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
 	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
 	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, v2alpha1.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
 	// add ports

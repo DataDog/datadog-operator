@@ -52,21 +52,21 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.DebugfsVolumeName,
-				MountPath: v2alpha1.DebugfsPath,
+				Name:      common.DebugfsVolumeName,
+				MountPath: common.DebugfsPath,
 				ReadOnly:  false,
 			},
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
 		}
@@ -80,15 +80,15 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: v2alpha1.DebugfsVolumeName,
+				Name: common.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.DebugfsPath,
+						Path: common.DebugfsPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.SystemProbeSocketVolumeName,
+				Name: common.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

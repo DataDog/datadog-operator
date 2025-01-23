@@ -7,6 +7,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
@@ -206,7 +207,7 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      otelAgentVolumeName,
-					MountPath: v2alpha1.ConfigVolumePath + "/" + otelConfigFileName,
+					MountPath: common.ConfigVolumePath + "/" + otelConfigFileName,
 					SubPath:   otelConfigFileName,
 					ReadOnly:  true,
 				},

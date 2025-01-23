@@ -75,7 +75,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          v2alpha1.DogstatsdHostPortName,
+							Name:          dogstatsdHostPortName,
 							HostPort:      8125,
 							ContainerPort: 8125,
 							Protocol:      corev1.ProtocolUDP,
@@ -113,7 +113,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          v2alpha1.DogstatsdHostPortName,
+							Name:          dogstatsdHostPortName,
 							HostPort:      1234,
 							ContainerPort: 1234,
 							Protocol:      corev1.ProtocolUDP,
@@ -147,9 +147,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          v2alpha1.DogstatsdHostPortName,
+							Name:          dogstatsdHostPortName,
 							HostPort:      1234,
-							ContainerPort: v2alpha1.DogstatsdHostPortHostPort,
+							ContainerPort: dogstatsdHostPortHostPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
@@ -181,7 +181,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          v2alpha1.DogstatsdHostPortName,
+							Name:          dogstatsdHostPortName,
 							HostPort:      8125,
 							ContainerPort: common.DefaultDogstatsdPort,
 							Protocol:      corev1.ProtocolUDP,
@@ -226,14 +226,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					customVolumeMounts := []*corev1.VolumeMount{
 						{
-							Name:      v2alpha1.DogstatsdSocketVolumeName,
-							MountPath: v2alpha1.DogstatsdSocketLocalPath,
+							Name:      common.DogstatsdSocketVolumeName,
+							MountPath: common.DogstatsdSocketLocalPath,
 							ReadOnly:  false,
 						},
 					}
 					customVolumes := []*corev1.Volume{
 						{
-							Name: v2alpha1.DogstatsdSocketVolumeName,
+							Name: common.DogstatsdSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: customVolumePath,
@@ -308,9 +308,9 @@ func getVolType() *corev1.HostPathType {
 func getWantHostPorts() []*corev1.ContainerPort {
 	wantHostPorts := []*corev1.ContainerPort{
 		{
-			Name:          v2alpha1.DogstatsdHostPortName,
-			HostPort:      v2alpha1.DogstatsdHostPortHostPort,
-			ContainerPort: v2alpha1.DogstatsdHostPortHostPort,
+			Name:          dogstatsdHostPortName,
+			HostPort:      dogstatsdHostPortHostPort,
+			ContainerPort: dogstatsdHostPortHostPort,
 			Protocol:      corev1.ProtocolUDP,
 		},
 	}
@@ -320,8 +320,8 @@ func getWantHostPorts() []*corev1.ContainerPort {
 func getWantContainerPorts() []*corev1.ContainerPort {
 	wantContainerPorts := []*corev1.ContainerPort{
 		{
-			Name:          v2alpha1.DogstatsdHostPortName,
-			ContainerPort: v2alpha1.DogstatsdHostPortHostPort,
+			Name:          dogstatsdHostPortName,
+			ContainerPort: dogstatsdHostPortHostPort,
 			Protocol:      corev1.ProtocolUDP,
 		},
 	}
@@ -348,7 +348,7 @@ func getCustomEnvVar() []*corev1.EnvVar {
 	customEnvVar := []*corev1.EnvVar{
 		{
 			Name:  DDDogstatsdSocket,
-			Value: v2alpha1.DogstatsdSocketLocalPath + "/" + customSock,
+			Value: common.DogstatsdSocketLocalPath + "/" + customSock,
 		},
 	}
 	return customEnvVar
@@ -358,7 +358,7 @@ func getWantUDSEnvVars() []*corev1.EnvVar {
 	wantUDSEnvVars := []*corev1.EnvVar{
 		{
 			Name:  DDDogstatsdSocket,
-			Value: v2alpha1.DogstatsdSocketLocalPath + "/" + v2alpha1.DogstatsdSocketName,
+			Value: common.DogstatsdSocketLocalPath + "/" + common.DogstatsdSocketName,
 		},
 	}
 	return wantUDSEnvVars
@@ -382,10 +382,10 @@ func getWantVolumes() []*corev1.Volume {
 	volType := corev1.HostPathDirectoryOrCreate
 	wantVolumes := []*corev1.Volume{
 		{
-			Name: v2alpha1.DogstatsdSocketVolumeName,
+			Name: common.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: v2alpha1.DogstatsdAPMSocketHostPath,
+					Path: common.DogstatsdAPMSocketHostPath,
 					Type: &volType,
 				},
 			},
@@ -397,8 +397,8 @@ func getWantVolumes() []*corev1.Volume {
 func getWantVolumeMounts() []*corev1.VolumeMount {
 	wantVolumeMounts := []*corev1.VolumeMount{
 		{
-			Name:      v2alpha1.DogstatsdSocketVolumeName,
-			MountPath: v2alpha1.DogstatsdSocketLocalPath,
+			Name:      common.DogstatsdSocketVolumeName,
+			MountPath: common.DogstatsdSocketLocalPath,
 			ReadOnly:  false,
 		},
 	}

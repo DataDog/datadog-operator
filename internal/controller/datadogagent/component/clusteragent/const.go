@@ -11,4 +11,6 @@ const (
 	defaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
 	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
 	defaultClusterAgentReplicas = 1
+
+	externalMetricsAPIServiceName = "v1beta1.external.metrics.k8s.io"
 )

@@ -52,26 +52,26 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.ProcdirVolumeName,
-				MountPath: v2alpha1.ProcdirMountPath,
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.CgroupsVolumeName,
-				MountPath: v2alpha1.CgroupsMountPath,
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
 		}
@@ -85,23 +85,23 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: v2alpha1.ProcdirVolumeName,
+				Name: common.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.ProcdirHostPath,
+						Path: common.ProcdirHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.CgroupsVolumeName,
+				Name: common.CgroupsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.CgroupsHostPath,
+						Path: common.CgroupsHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.SystemProbeSocketVolumeName,
+				Name: common.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -99,7 +98,7 @@ func GetMetricsServerServiceName(dda metav1.Object) string {
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name
 func GetMetricsServerAPIServiceName() string {
-	return v2alpha1.ExternalMetricsAPIServiceName
+	return externalMetricsAPIServiceName
 }
 
 // GetDefaultExternalMetricSecretName returns the external metrics provider secret name
