@@ -1,6 +1,8 @@
 package datadoggenericresource
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -67,6 +69,34 @@ func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	default:
 		panic(unsupportedInstanceType(resourceType))
 	}
+}
+
+func CreateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
+	var v any
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), v)
+	resource, err := client.createResource(auth, v)
+	if err != nil {
+		return nil, translateClientError(err, "error creating resource")
+	}
+	return resource, nil
+}
+
+func GetResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) error {
+	return client.getResource(auth, instance.Status.Id)
+}
+
+func UpdateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
+	var v any
+	json.Unmarshal([]byte(instance.Spec.JsonSpec), v)
+	updatedResource, err := client.updateResource(auth, instance.Status.Id, v)
+	if err != nil {
+		return nil, translateClientError(err, "error updating resource")
+	}
+	return updatedResource, nil
+}
+
+func DeleteResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) error {
+	return client.deleteResource(auth, instance.Status.Id)
 }
 
 func translateClientError(err error, msg string) error {
