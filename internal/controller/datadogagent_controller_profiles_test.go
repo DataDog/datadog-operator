@@ -17,10 +17,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -253,7 +253,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Name: "two",
 											ValueFrom: &v1.EnvVarSource{
 												FieldRef: &v1.ObjectFieldSelector{
-													FieldPath: constants.FieldPathStatusPodIP,
+													FieldPath: common.FieldPathStatusPodIP,
 												},
 											},
 										},
@@ -330,7 +330,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						Name: "two",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: constants.FieldPathStatusPodIP,
+								FieldPath: common.FieldPathStatusPodIP,
 							},
 						},
 					},
