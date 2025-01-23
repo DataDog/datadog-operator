@@ -351,7 +351,7 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name: v2alpha1.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: constants.FieldPathStatusHostIP,
+					FieldPath: common.FieldPathStatusHostIP,
 				},
 			},
 		},

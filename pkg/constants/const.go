@@ -70,18 +70,3 @@ const (
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
 )
-
-// Field paths
-const (
-	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
-	FieldPathSpecNodeName = "spec.nodeName"
-
-	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
-	FieldPathStatusHostIP = "status.hostIP"
-
-	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
-	FieldPathStatusPodIP = "status.podIP"
-
-	// FieldPathMetaName used as FieldPath to retrieve the pod name
-	FieldPathMetaName = "metadata.name"
-)

@@ -206,7 +206,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name: v2alpha1.DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: constants.FieldPathStatusPodIP,
+					FieldPath: common.FieldPathStatusPodIP,
 				},
 			},
 		},
@@ -214,7 +214,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name: v2alpha1.DDClcRunnerID,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: constants.FieldPathMetaName,
+					FieldPath: common.FieldPathMetaName,
 				},
 			},
 		},
@@ -242,7 +242,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Name: v2alpha1.DDHostname,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: constants.FieldPathSpecNodeName,
+					FieldPath: common.FieldPathSpecNodeName,
 				},
 			},
 		},
