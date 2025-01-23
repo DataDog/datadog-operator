@@ -6,6 +6,7 @@
 package usm
 
 import (
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
@@ -101,7 +102,7 @@ func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // It should do nothing if the feature doesn't need to configure it.
 func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
-	managers.Annotation().AddAnnotation(v2alpha1.SystemProbeAppArmorAnnotationKey, v2alpha1.SystemProbeAppArmorAnnotationValue)
+	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)

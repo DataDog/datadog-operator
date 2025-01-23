@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"
@@ -75,5 +75,5 @@ func GetChecksumAnnotationKey(keyName string) string {
 		return ""
 	}
 
-	return fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, keyName)
+	return fmt.Sprintf(constants.MD5ChecksumAnnotationKey, keyName)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -110,7 +111,7 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("checksum unique")
 
-	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	feature := buildClusterChecksFeature(&feature.Options{
 		Logger: logger,
 	})
@@ -188,7 +189,7 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 
 func wantClusterAgentHasNonEmptyChecksumAnnotation(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	annotations := mgr.AnnotationMgr.Annotations
 	assert.NotEmpty(t, annotations[annotationKey])
 }

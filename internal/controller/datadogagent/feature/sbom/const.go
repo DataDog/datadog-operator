@@ -30,4 +30,7 @@ const (
 	systemReleaseVolumeName = "etc-system-release"
 	systemReleaseVolumePath = "/etc/system-release"
 	systemReleaseMountPath  = "/host/etc/system-release"
+
+	agentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
+	agentAppArmorAnnotationValue = "unconfined"
 )

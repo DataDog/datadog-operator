@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func TestPodTemplateSpec(t *testing.T) {
@@ -420,7 +421,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: constants.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -440,7 +441,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: constants.FieldPathStatusPodIP,
 							},
 						},
 					},

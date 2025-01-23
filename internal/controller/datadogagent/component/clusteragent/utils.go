@@ -97,7 +97,7 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) cl
 
 // GetMetricsServerServiceName returns the external metrics provider service name
 func GetMetricsServerServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultMetricsServerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), defaultMetricsServerResourceSuffix)
 }
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name

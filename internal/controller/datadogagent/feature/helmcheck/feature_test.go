@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -195,7 +196,7 @@ instances:
 			assert.NoError(t, err)
 
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
 			}
 
 			annotations := mgr.AnnotationMgr.Annotations

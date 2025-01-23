@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/google/go-cmp/cmp"
@@ -134,7 +135,7 @@ func cspmClusterAgentWantFunc() *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
@@ -275,7 +276,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

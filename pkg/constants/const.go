@@ -60,3 +60,28 @@ const (
 	// DefaultClusterChecksRunnerResourceSuffix use as suffix for cluster-checks-runner resource naming
 	DefaultClusterChecksRunnerResourceSuffix = "cluster-checks-runner"
 )
+
+// Labels
+const (
+	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
+	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
+	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
+	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
+	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
+	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
+)
+
+// Field paths
+const (
+	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
+	FieldPathSpecNodeName = "spec.nodeName"
+
+	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
+	FieldPathStatusHostIP = "status.hostIP"
+
+	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
+	FieldPathStatusPodIP = "status.podIP"
+
+	// FieldPathMetaName used as FieldPath to retrieve the pod name
+	FieldPathMetaName = "metadata.name"
+)

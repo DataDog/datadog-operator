@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	corev1 "k8s.io/api/core/v1"
 
@@ -355,8 +357,8 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 			hash, err := comparison.GenerateMD5ForSpec(customConfig)
 			assert.NoError(t, err)
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
-				v2alpha1.SystemProbeAppArmorAnnotationKey:                         v2alpha1.SystemProbeAppArmorAnnotationValue,
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.CWSIDType): hash,
+				common.SystemProbeAppArmorAnnotationKey:                            common.SystemProbeAppArmorAnnotationValue,
 			}
 			annotations := mgr.AnnotationMgr.Annotations
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

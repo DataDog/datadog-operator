@@ -8,28 +8,11 @@ package v2alpha1
 // This file tracks constants related to the DatadogAgent CRD
 
 const (
-	// ClusterAgentReconcileConditionType ReconcileConditionType for Cluster Agent component
-	ClusterAgentReconcileConditionType = "ClusterAgentReconcile"
-	// AgentReconcileConditionType ReconcileConditionType for Agent component
-	AgentReconcileConditionType = "AgentReconcile"
-	// ClusterChecksRunnerReconcileConditionType ReconcileConditionType for Cluster Checks Runner component
-	ClusterChecksRunnerReconcileConditionType = "ClusterChecksRunnerReconcile"
-	// OverrideReconcileConflictConditionType ReconcileConditionType for override conflict
-	OverrideReconcileConflictConditionType = "OverrideReconcileConflict"
-	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
-	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
-
-	// ExtraConfdConfigMapName is the name of the ConfigMap storing Custom Confd data
-	ExtraConfdConfigMapName = "%s-extra-confd"
-	// ExtraChecksdConfigMapName is the name of the ConfigMap storing Custom Checksd data
-	ExtraChecksdConfigMapName = "%s-extra-checksd"
-
-	// DefaultMetricsServerResourceSuffix use as suffix for cluster-agent metrics-server resource naming
-	DefaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
 	// DefaultAPPKeyKey default app-key key (use in secret for instance).
 	DefaultAPPKeyKey = "app_key"
 	// DefaultAPIKeyKey default api-key key (use in secret for instance).
 	DefaultAPIKeyKey = "api_key"
+
 	// DefaultTokenKey default token key (use in secret for instance).
 	DefaultTokenKey = "token"
 	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
@@ -78,27 +61,6 @@ const (
 	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
 	EndpointsChecksConfigProvider           = "endpointschecks"
 	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
-)
-
-// Labels
-const (
-	// MD5AgentDeploymentProviderLabelKey label key is used to identify which provider is being used
-	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
-	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
-	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
-	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
-	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
-)
-
-// Annotations
-const (
-	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
-
-	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
-	SystemProbeAppArmorAnnotationValue = "unconfined"
-
-	AgentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
-	AgentAppArmorAnnotationValue = "unconfined"
 )
 
 // Volumes and paths
@@ -201,19 +163,4 @@ const (
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
 	FIPSProxyCustomConfigMapName    = "%s-fips-config"
 	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
-)
-
-// Field paths
-const (
-	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
-	FieldPathSpecNodeName = "spec.nodeName"
-
-	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
-	FieldPathStatusHostIP = "status.hostIP"
-
-	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
-	FieldPathStatusPodIP = "status.podIP"
-
-	// FieldPathMetaName used as FieldPath to retrieve the pod name
-	FieldPathMetaName = "metadata.name"
 )

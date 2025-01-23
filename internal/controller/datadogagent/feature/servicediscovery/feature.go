@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -61,7 +62,7 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
 	// annotations
-	managers.Annotation().AddAnnotation(v2alpha1.SystemProbeAppArmorAnnotationKey, v2alpha1.SystemProbeAppArmorAnnotationValue)
+	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)

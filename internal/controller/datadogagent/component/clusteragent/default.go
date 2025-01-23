@@ -67,7 +67,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 		podTemplate.Annotations[key] = val
 	}
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(v2alpha1.DefaultClusterAgentReplicas)
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
 
 	return deployment
 }

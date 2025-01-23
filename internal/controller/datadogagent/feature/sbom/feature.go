@@ -175,7 +175,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 				apicommon.CoreAgentContainerName,
 			)
 
-			managers.Annotation().AddAnnotation(v2alpha1.AgentAppArmorAnnotationKey, v2alpha1.AgentAppArmorAnnotationValue)
+			managers.Annotation().AddAnnotation(agentAppArmorAnnotationKey, agentAppArmorAnnotationValue)
 		}
 
 		volMgr := managers.Volume()

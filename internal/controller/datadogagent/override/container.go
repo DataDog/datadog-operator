@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 
@@ -215,9 +216,9 @@ func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager
 	if override.AppArmorProfileName != nil {
 		var annotation string
 		if override.Name != nil {
-			annotation = fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, *override.Name)
+			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, *override.Name)
 		} else {
-			annotation = fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, containerName)
+			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, containerName)
 		}
 
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)

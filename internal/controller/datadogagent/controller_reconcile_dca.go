@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -67,7 +68,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 				condition.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
-					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
 					"ClusterAgent component is set to disabled",
@@ -90,12 +91,12 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 
 func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	newStatus.ClusterAgent = condition.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
-	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
 func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.ClusterAgent = nil
-	condition.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterAgentReconcileConditionType)
+	condition.DeleteDatadogAgentStatusCondition(newStatus, common.ClusterAgentReconcileConditionType)
 }
 
 func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {

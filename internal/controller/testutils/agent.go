@@ -409,7 +409,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
-					FieldPath: v2alpha1.FieldPathSpecNodeName,
+					FieldPath: constants.FieldPathSpecNodeName,
 				},
 			},
 			TLSVerify:  apiutils.NewBoolPointer(true),
