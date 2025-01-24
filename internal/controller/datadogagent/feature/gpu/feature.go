@@ -135,7 +135,7 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	managers.Volume().AddVolume(&devicesVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&devicesMount, []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName})
 
-	// Configure the runtime class for the container
+	// Configure the runtime class for the pod
 	if f.podRuntimeClassName != "" {
 		managers.PodTemplateSpec().Spec.RuntimeClassName = &f.podRuntimeClassName
 	}
