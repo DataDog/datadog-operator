@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	if err := feature.Register(feature.GPUMonitoringType, buildFeature); err != nil {
+	if err := feature.Register(feature.GPUIDType, buildFeature); err != nil {
 		panic(err)
 	}
 }
@@ -30,7 +30,7 @@ type gpuMonitoringFeature struct {
 
 // ID returns the ID of the Feature
 func (f *gpuMonitoringFeature) ID() feature.IDType {
-	return feature.GPUMonitoringType
+	return feature.GPUIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
