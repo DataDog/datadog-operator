@@ -59,6 +59,8 @@ func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alp
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	switch resourceType {
+	case v1alpha1.Monitor:
+		return &MonitorHandler{}
 	case v1alpha1.Notebook:
 		return &NotebookHandler{}
 	case v1alpha1.SyntheticsAPITest, v1alpha1.SyntheticsBrowserTest:
@@ -75,6 +77,8 @@ func createUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
 	resourceSpec := instance.Spec.JsonSpec
 	var result any
 	switch resourceType {
+	case v1alpha1.Monitor:
+		result = &datadogV1.Monitor{}
 	case v1alpha1.Notebook:
 		result = &datadogV1.NotebookCreateRequest{}
 	case v1alpha1.SyntheticsAPITest:
@@ -106,6 +110,8 @@ func updateUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
 	resourceSpec := instance.Spec.JsonSpec
 	var result any
 	switch resourceType {
+	case v1alpha1.Monitor:
+		result = &datadogV1.MonitorUpdateRequest{}
 	case v1alpha1.Notebook:
 		result = &datadogV1.NotebookUpdateRequest{}
 	case v1alpha1.SyntheticsAPITest:
