@@ -2,7 +2,7 @@ package datadoggenericresource
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -12,120 +12,115 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 )
 
-type SyntheticsAPITestHandler struct{}
+type SyntheticsCRUDClient struct {
+	client *datadogV1.SyntheticsApi
+}
 
-func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
-	if err != nil {
-		logger.Error(err, "error creating API test")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
+func (c *SyntheticsCRUDClient) createResource(auth context.Context, unmarshaledSpec any) (any, error) {
+	var test any
+	var err error
+	// We lose the `type` information when unmarshaling, so we need to switch on the type of the unmarshaled object
+	// to determine which type of synthetic test we are creating
+	// Else, we could in the unmarshaling step, add a field to the struct that would indicate the type of synthetic test
+	switch v := unmarshaledSpec.(type) {
+	case *datadogV1.SyntheticsAPITest:
+		test, _, err = c.client.CreateSyntheticsAPITest(auth, *v)
+	case *datadogV1.SyntheticsBrowserTest:
+		test, _, err = c.client.CreateSyntheticsBrowserTest(auth, *v)
+	default:
+		return nil, errors.New("unknown synthetic test type")
 	}
-	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
-}
-
-func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
-	return err
-}
-func (h *SyntheticsAPITestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsAPITest(r.datadogAuth, r.datadogSyntheticsClient, instance)
-	return err
-}
-func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
-}
-
-type SyntheticsBrowserTestHandler struct{}
-
-func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
-	createdTest, err := createSyntheticBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
 	if err != nil {
-		logger.Error(err, "error creating browser test")
-		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
-		return err
-	}
-	additionalProperties := createdTest.AdditionalProperties
-	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
-}
-
-func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := getSyntheticsTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
-	return err
-}
-func (h *SyntheticsBrowserTestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	_, err := updateSyntheticsBrowserTest(r.datadogAuth, r.datadogSyntheticsClient, instance)
-	return err
-}
-func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
-	return deleteSyntheticTest(r.datadogAuth, r.datadogSyntheticsClient, instance.Status.Id)
-}
-
-// Synthetic tests (encompass browser and API tests): get
-func getSyntheticsTest(auth context.Context, client *datadogV1.SyntheticsApi, testID string) (datadogV1.SyntheticsTestDetails, error) {
-	test, _, err := client.GetTest(auth, testID)
-	if err != nil {
-		return datadogV1.SyntheticsTestDetails{}, translateClientError(err, "error getting synthetic test")
+		return nil, err
 	}
 	return test, nil
 }
 
-// Synthetic tests (encompass browser and API tests): delete
-func deleteSyntheticTest(auth context.Context, client *datadogV1.SyntheticsApi, ID string) error {
+func (c *SyntheticsCRUDClient) getResource(auth context.Context, resourceStringID string) error {
+	_, _, err := c.client.GetTest(auth, resourceStringID)
+	if err != nil {
+		return translateClientError(err, "error getting synthetic test")
+	}
+	return nil
+}
+
+func (c *SyntheticsCRUDClient) updateResource(auth context.Context, resourceStringID string, unmarshaledSpec any) (any, error) {
+	var test any
+	var err error
+	switch v := unmarshaledSpec.(type) {
+	case *datadogV1.SyntheticsAPITest:
+		test, _, err = c.client.UpdateAPITest(auth, resourceStringID, *v)
+	case *datadogV1.SyntheticsBrowserTest:
+		test, _, err = c.client.UpdateBrowserTest(auth, resourceStringID, *v)
+	default:
+		return nil, errors.New("unknown synthetic test type")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return test, nil
+}
+
+func (c *SyntheticsCRUDClient) deleteResource(auth context.Context, resourceStringID string) error {
 	body := datadogV1.SyntheticsDeleteTestsPayload{
 		PublicIds: []string{
-			ID,
+			resourceStringID,
 		},
 	}
-	if _, _, err := client.DeleteTests(auth, body); err != nil {
+	if _, _, err := c.client.DeleteTests(auth, body); err != nil {
 		return translateClientError(err, "error deleting synthetic test")
 	}
 	return nil
 }
 
-// Browser test: create
-func createSyntheticBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
-	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
-	test, _, err := client.CreateSyntheticsBrowserTest(auth, *browserTestBody)
+type SyntheticsAPITestHandler struct{}
+
+func (h *SyntheticsAPITestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	resource, err := CreateResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
 	if err != nil {
-		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error creating browser test")
+		logger.Error(err, "error creating API test")
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
+		return err
 	}
-	return test, nil
+	createdTest := resource.(datadogV1.SyntheticsAPITest)
+	additionalProperties := createdTest.AdditionalProperties
+	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 }
 
-// Browser test: update
-func updateSyntheticsBrowserTest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsBrowserTest, error) {
-	browserTestBody := &datadogV1.SyntheticsBrowserTest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), browserTestBody)
-	testUpdated, _, err := client.UpdateBrowserTest(auth, instance.Status.Id, *browserTestBody)
-	if err != nil {
-		return datadogV1.SyntheticsBrowserTest{}, translateClientError(err, "error updating browser test")
-	}
-	return testUpdated, nil
+func (h *SyntheticsAPITestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return GetResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
+}
+func (h *SyntheticsAPITestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := UpdateResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
+	return err
+}
+func (h *SyntheticsAPITestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return DeleteResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
 }
 
-// API test: create
-func createSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
-	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
-	test, _, err := client.CreateSyntheticsAPITest(auth, *apiTestBody)
+type SyntheticsBrowserTestHandler struct{}
+
+func (h *SyntheticsBrowserTestHandler) createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string) error {
+	resource, err := CreateResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
 	if err != nil {
-		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error creating API test")
+		logger.Error(err, "error creating browser test")
+		updateErrStatus(status, now, v1alpha1.DatadogSyncStatusCreateError, "CreatingCustomResource", err)
+		return err
 	}
-	return test, nil
+	createdTest := resource.(datadogV1.SyntheticsBrowserTest)
+	additionalProperties := createdTest.AdditionalProperties
+	return updateStatusFromSyntheticsTest(&createdTest, additionalProperties, status, logger, hash)
 }
 
-// API test: update
-func updateSyntheticsAPITest(auth context.Context, client *datadogV1.SyntheticsApi, instance *v1alpha1.DatadogGenericResource) (datadogV1.SyntheticsAPITest, error) {
-	apiTestBody := &datadogV1.SyntheticsAPITest{}
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), apiTestBody)
-	testUpdated, _, err := client.UpdateAPITest(auth, instance.Status.Id, *apiTestBody)
-	if err != nil {
-		return datadogV1.SyntheticsAPITest{}, translateClientError(err, "error updating API test")
-	}
-	return testUpdated, nil
+func (h *SyntheticsBrowserTestHandler) getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return GetResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
+}
+func (h *SyntheticsBrowserTestHandler) updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	_, err := UpdateResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
+	return err
+}
+func (h *SyntheticsBrowserTestHandler) deleteResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource) error {
+	return DeleteResource(r.datadogAuth, &SyntheticsCRUDClient{client: r.datadogSyntheticsClient}, instance)
 }
 
 // updateStatusFromSyntheticsTest retrieves the common fields from a synthetic test (API, browser) and updates the status of the DatadogGenericResource

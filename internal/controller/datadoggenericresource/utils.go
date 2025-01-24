@@ -80,7 +80,7 @@ func createUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
 	case v1alpha1.Notebook:
 		result = &datadogV1.NotebookCreateRequest{}
 	case v1alpha1.SyntheticsAPITest:
-		result = &datadogV1.SyntheticsAPIStep{}
+		result = &datadogV1.SyntheticsAPITest{}
 	case v1alpha1.SyntheticsBrowserTest:
 		result = &datadogV1.SyntheticsBrowserTest{}
 	default:
@@ -111,7 +111,7 @@ func updateUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
 	case v1alpha1.Notebook:
 		result = &datadogV1.NotebookUpdateRequest{}
 	case v1alpha1.SyntheticsAPITest:
-		result = &datadogV1.SyntheticsAPIStep{}
+		result = &datadogV1.SyntheticsAPITest{}
 	case v1alpha1.SyntheticsBrowserTest:
 		result = &datadogV1.SyntheticsBrowserTest{}
 	default:
