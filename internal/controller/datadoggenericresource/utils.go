@@ -61,10 +61,8 @@ func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	switch resourceType {
 	case v1alpha1.Notebook:
 		return &NotebookHandler{}
-	case v1alpha1.SyntheticsAPITest:
-		return &SyntheticsAPITestHandler{}
-	case v1alpha1.SyntheticsBrowserTest:
-		return &SyntheticsBrowserTestHandler{}
+	case v1alpha1.SyntheticsAPITest, v1alpha1.SyntheticsBrowserTest:
+		return &SyntheticsTestHandler{}
 	case mockSubresource:
 		return &MockHandler{}
 	default:
