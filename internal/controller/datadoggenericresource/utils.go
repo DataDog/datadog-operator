@@ -1,6 +1,8 @@
 package datadoggenericresource
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -10,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -58,15 +61,75 @@ func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	switch resourceType {
 	case v1alpha1.Notebook:
 		return &NotebookHandler{}
-	case v1alpha1.SyntheticsAPITest:
-		return &SyntheticsAPITestHandler{}
-	case v1alpha1.SyntheticsBrowserTest:
-		return &SyntheticsBrowserTestHandler{}
+	case v1alpha1.SyntheticsAPITest, v1alpha1.SyntheticsBrowserTest:
+		return &SyntheticsTestHandler{}
 	case mockSubresource:
 		return &MockHandler{}
 	default:
 		panic(unsupportedInstanceType(resourceType))
 	}
+}
+
+func createUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
+	resourceType := instance.Spec.Type
+	resourceSpec := instance.Spec.JsonSpec
+	var result any
+	switch resourceType {
+	case v1alpha1.Notebook:
+		result = &datadogV1.NotebookCreateRequest{}
+	case v1alpha1.SyntheticsAPITest:
+		result = &datadogV1.SyntheticsAPITest{}
+	case v1alpha1.SyntheticsBrowserTest:
+		result = &datadogV1.SyntheticsBrowserTest{}
+	default:
+		panic(unsupportedInstanceType(resourceType))
+	}
+	json.Unmarshal([]byte(resourceSpec), result)
+	return result
+}
+
+func CreateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
+	v := createUnmarshaler(instance)
+	resource, err := client.createResource(auth, v)
+	if err != nil {
+		return nil, translateClientError(err, "error creating resource")
+	}
+	return resource, nil
+}
+
+func GetResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) error {
+	return client.getResource(auth, instance.Status.Id)
+}
+
+func updateUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
+	resourceType := instance.Spec.Type
+	resourceSpec := instance.Spec.JsonSpec
+	var result any
+	switch resourceType {
+	case v1alpha1.Notebook:
+		result = &datadogV1.NotebookUpdateRequest{}
+	case v1alpha1.SyntheticsAPITest:
+		result = &datadogV1.SyntheticsAPITest{}
+	case v1alpha1.SyntheticsBrowserTest:
+		result = &datadogV1.SyntheticsBrowserTest{}
+	default:
+		panic(unsupportedInstanceType(resourceType))
+	}
+	json.Unmarshal([]byte(resourceSpec), result)
+	return result
+}
+
+func UpdateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
+	v := updateUnmarshaler(instance)
+	updatedResource, err := client.updateResource(auth, instance.Status.Id, v)
+	if err != nil {
+		return nil, translateClientError(err, "error updating resource")
+	}
+	return updatedResource, nil
+}
+
+func DeleteResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) error {
+	return client.deleteResource(auth, instance.Status.Id)
 }
 
 func translateClientError(err error, msg string) error {
