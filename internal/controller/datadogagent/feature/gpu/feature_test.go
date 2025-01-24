@@ -57,8 +57,8 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.NVIDIADevicesVolumeName,
-				MountPath: v2alpha1.NVIDIADevicesMountPath,
+				Name:      nvidiaDevicesVolumeName,
+				MountPath: nvidiaDevicesMountPath,
 				ReadOnly:  true,
 			},
 		}
@@ -75,8 +75,8 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				ReadOnly:  false,
 			},
 			{
-				Name:      v2alpha1.NVIDIADevicesVolumeName,
-				MountPath: v2alpha1.NVIDIADevicesMountPath,
+				Name:      nvidiaDevicesVolumeName,
+				MountPath: nvidiaDevicesMountPath,
 				ReadOnly:  true,
 			},
 		}
@@ -104,10 +104,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				},
 			},
 			{
-				Name: v2alpha1.NVIDIADevicesVolumeName,
+				Name: nvidiaDevicesVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.DevNullPath,
+						Path: devNullPath,
 					},
 				},
 			},

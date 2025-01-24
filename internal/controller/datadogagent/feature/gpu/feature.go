@@ -131,7 +131,7 @@ func (f *gpuMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// in the NVIDIA container runtime config. In this case, we need to mount the
 	// /var/run/nvidia-container-devices/all directory into the container, so that
 	// the nvidia-container-runtime can see that we want to use all GPUs.
-	devicesVol, devicesMount := volume.GetVolumes(v2alpha1.NVIDIADevicesVolumeName, v2alpha1.DevNullPath, v2alpha1.NVIDIADevicesMountPath, true)
+	devicesVol, devicesMount := volume.GetVolumes(nvidiaDevicesVolumeName, devNullPath, nvidiaDevicesMountPath, true)
 	managers.Volume().AddVolume(&devicesVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&devicesMount, []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName})
 
