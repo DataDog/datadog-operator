@@ -18,10 +18,10 @@ func init() {
 }
 
 func buildFeature(*feature.Options) feature.Feature {
-	return &gpuMonitoringFeature{}
+	return &gpuFeature{}
 }
 
-type gpuMonitoringFeature struct {
+type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
@@ -29,12 +29,12 @@ type gpuMonitoringFeature struct {
 }
 
 // ID returns the ID of the Feature
-func (f *gpuMonitoringFeature) ID() feature.IDType {
+func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuMonitoringFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil || dda.Spec.Features.GPUMonitoring == nil || !apiutils.BoolValue(dda.Spec.Features.GPUMonitoring.Enabled) {
 		return reqComp
 	}
@@ -58,13 +58,13 @@ func (f *gpuMonitoringFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuMonitoringFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
+func (f *gpuFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuMonitoringFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
+func (f *gpuFeature) ManageClusterAgent(feature.PodTemplateManagers) error {
 	return nil
 }
 
@@ -98,7 +98,7 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
 	configureSystemProbe(managers)
 
 	// env var to enable the GPU module
@@ -152,12 +152,12 @@ func (f *gpuMonitoringFeature) ManageNodeAgent(managers feature.PodTemplateManag
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuMonitoringFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
+func (f *gpuFeature) ManageSingleContainerNodeAgent(feature.PodTemplateManagers, string) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *gpuMonitoringFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
+func (f *gpuFeature) ManageClusterChecksRunner(feature.PodTemplateManagers) error {
 	return nil
 }
