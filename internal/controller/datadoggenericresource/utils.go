@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -71,9 +72,26 @@ func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	}
 }
 
+func createUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
+	resourceType := instance.Spec.Type
+	resourceSpec := instance.Spec.JsonSpec
+	var result any
+	switch resourceType {
+	case v1alpha1.Notebook:
+		result = &datadogV1.NotebookCreateRequest{}
+	case v1alpha1.SyntheticsAPITest:
+		result = &datadogV1.SyntheticsAPIStep{}
+	case v1alpha1.SyntheticsBrowserTest:
+		result = &datadogV1.SyntheticsBrowserTest{}
+	default:
+		panic(unsupportedInstanceType(resourceType))
+	}
+	json.Unmarshal([]byte(resourceSpec), result)
+	return result
+}
+
 func CreateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
-	var v any
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), v)
+	v := createUnmarshaler(instance)
 	resource, err := client.createResource(auth, v)
 	if err != nil {
 		return nil, translateClientError(err, "error creating resource")
@@ -85,9 +103,26 @@ func GetResource(auth context.Context, client CRUDClient, instance *v1alpha1.Dat
 	return client.getResource(auth, instance.Status.Id)
 }
 
+func updateUnmarshaler(instance *v1alpha1.DatadogGenericResource) any {
+	resourceType := instance.Spec.Type
+	resourceSpec := instance.Spec.JsonSpec
+	var result any
+	switch resourceType {
+	case v1alpha1.Notebook:
+		result = &datadogV1.NotebookUpdateRequest{}
+	case v1alpha1.SyntheticsAPITest:
+		result = &datadogV1.SyntheticsAPIStep{}
+	case v1alpha1.SyntheticsBrowserTest:
+		result = &datadogV1.SyntheticsBrowserTest{}
+	default:
+		panic(unsupportedInstanceType(resourceType))
+	}
+	json.Unmarshal([]byte(resourceSpec), result)
+	return result
+}
+
 func UpdateResource(auth context.Context, client CRUDClient, instance *v1alpha1.DatadogGenericResource) (any, error) {
-	var v any
-	json.Unmarshal([]byte(instance.Spec.JsonSpec), v)
+	v := updateUnmarshaler(instance)
 	updatedResource, err := client.updateResource(auth, instance.Status.Id, v)
 	if err != nil {
 		return nil, translateClientError(err, "error updating resource")
