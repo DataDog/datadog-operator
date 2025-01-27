@@ -1,9 +1,0 @@
-apiVersion: datadoghq.com/v2alpha1
-kind: DatadogPodAutoscaler
-metadata:
-  labels:
-    app.kubernetes.io/name: datadog-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: datadogpodautoscaler-sample
-spec:
-  # TODO(user): Add fields here
