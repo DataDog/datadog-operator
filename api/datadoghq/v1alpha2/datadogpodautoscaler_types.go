@@ -10,8 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // spec:
@@ -557,5 +555,5 @@ type DatadogPodAutoscalerList struct {
 }
 
 func init() {
-	v2alpha1.SchemeBuilder.Register(&DatadogPodAutoscaler{}, &DatadogPodAutoscalerList{})
+	SchemeBuilder.Register(&DatadogPodAutoscaler{}, &DatadogPodAutoscalerList{})
 }
