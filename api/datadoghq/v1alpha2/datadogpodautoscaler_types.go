@@ -3,13 +3,15 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package v1alpha2
 
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // spec:
@@ -115,22 +117,21 @@ const (
 // DatadogPodAutoscalerActuation defines how recommendations should be applied.
 type DatadogPodAutoscalerActuation struct {
 	// Mode determines recommendations that should be applied by the controller:
-	// - All: Apply all recommendations (regular and manual).
-	// - Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).
+	// - All: Apply all recommendations.
 	// - None: Prevent the controller to apply any recommendations.
-	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.
+	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
 	// +optional
 	// +kubebuilder:default=All
-	Mode DatadogPodAutoscalerActuationMode `json:"applyMode"`
+	Mode DatadogPodAutoscalerActuationMode `json:"mode"`
 
 	// Update defines the policy to update target resource.
 	Update *DatadogPodAutoscalerUpdatePolicy `json:"update,omitempty"`
 
-	// Upscale defines the policy to scale up the target resource.
-	Upscale *DatadogPodAutoscalerScalingPolicy `json:"upscale,omitempty"`
+	// ScaleUp defines the policy to scale up the target resource.
+	ScaleUp *DatadogPodAutoscalerScalingPolicy `json:"scaleup,omitempty"`
 
-	// Downscale defines the policy to scale down the target resource.
-	Downscale *DatadogPodAutoscalerScalingPolicy `json:"downscale,omitempty"`
+	// ScaleDown defines the policy to scale down the target resource.
+	ScaleDown *DatadogPodAutoscalerScalingPolicy `json:"scaledown,omitempty"`
 }
 
 // DatadogPodAutoscalerUpdateStrategy defines the mode of the update policy.
@@ -556,5 +557,5 @@ type DatadogPodAutoscalerList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&DatadogPodAutoscaler{}, &DatadogPodAutoscalerList{})
+	v2alpha1.SchemeBuilder.Register(&DatadogPodAutoscaler{}, &DatadogPodAutoscalerList{})
 }
