@@ -12,7 +12,6 @@ resources:
 - bases/v1/datadoghq.com_datadogpodautoscalers.yaml
 - bases/v1/datadoghq.com_datadogdashboards.yaml
 - bases/v1/datadoghq.com_datadoggenericresources.yaml
-- bases/datadoghq.com_datadogpodautoscalers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 #patches:

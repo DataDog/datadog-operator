@@ -19,7 +19,7 @@ import (
 //     name: test
 //   owner: local
 //   remoteVersion: 1
-//   actuation:
+//   applyPolicy:
 //     mode: Apply | Preview
 //     update:
 //       strategy: Auto|Disabled
@@ -68,7 +68,7 @@ const (
 	// DatadogPodAutoscalerLocalOwner states that this `DatadogPodAutoscaler` object is created/managed outside of Datadog app.
 	DatadogPodAutoscalerLocalOwner DatadogPodAutoscalerOwner = "Local"
 
-	// DatadogPodAutoscalerLocalOwner states that this `DatadogPodAutoscaler` object is created/managed in Datadog app.
+	// DatadogPodAutoscalerRemoteOwner states that this `DatadogPodAutoscaler` object is created/managed in Datadog app.
 	DatadogPodAutoscalerRemoteOwner DatadogPodAutoscalerOwner = "Remote"
 )
 
@@ -85,10 +85,10 @@ type DatadogPodAutoscalerSpec struct {
 	// Only set if the owner is Remote.
 	RemoteVersion *uint64 `json:"remoteVersion,omitempty"`
 
-	// Actuation defines how recommendations should be applied.
+	// ApplyPolicy defines how recommendations should be applied.
 	// +optional
 	// +kubebuilder:default={}
-	Actuation *DatadogPodAutoscalerActuation `json:"actuation,omitempty"`
+	ApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"applyPolicy,omitempty"`
 
 	// Objectives are objectives to reach and maintain for the target resource.
 	// Default to a single target to maintain 80% POD CPU utilization.
@@ -100,27 +100,27 @@ type DatadogPodAutoscalerSpec struct {
 	Constraints *DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
 }
 
-// DatadogPodAutoscalerOwner defines the source of truth for this object (local or remote)
-// +kubebuilder:validation:Enum:=All;Manual;None
-type DatadogPodAutoscalerActuationMode string
+// DatadogPodAutoscalerApplyMode specifies if the controller should apply recommendations.
+// +kubebuilder:validation:Enum:=Apply;Preview
+type DatadogPodAutoscalerApplyMode string
 
 const (
 	// DatadogPodAutoscalerApplyApplyMode allows the controller to apply all recommendations (regular and manual)
-	DatadogPodAutoscalerApplyApplyMode DatadogPodAutoscalerActuationMode = "Apply"
+	DatadogPodAutoscalerApplyModeApply DatadogPodAutoscalerApplyMode = "Apply"
 
 	// DatadogPodAutoscalerPreviewApplyMode doesn't allow the controller to apply any recommendations
-	DatadogPodAutoscalerPreviewApplyMode DatadogPodAutoscalerActuationMode = "Preview"
+	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
 )
 
-// DatadogPodAutoscalerActuation defines how recommendations should be applied.
-type DatadogPodAutoscalerActuation struct {
+// DatadogPodAutoscalerApplyPolicy defines how recommendations should be applied.
+type DatadogPodAutoscalerApplyPolicy struct {
 	// Mode determines recommendations that should be applied by the controller:
-	// - All: Apply all recommendations.
-	// - None: Prevent the controller to apply any recommendations.
+	// - Apply: Apply all recommendations.
+	// - Preview: Preview: Recommendations are received and available through .status but prevent the controller to apply them.
 	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
 	// +optional
-	// +kubebuilder:default=All
-	Mode DatadogPodAutoscalerActuationMode `json:"mode"`
+	// +kubebuilder:default=Apply
+	Mode DatadogPodAutoscalerApplyMode `json:"mode"`
 
 	// Update defines the policy to update target resource.
 	Update *DatadogPodAutoscalerUpdatePolicy `json:"update,omitempty"`
