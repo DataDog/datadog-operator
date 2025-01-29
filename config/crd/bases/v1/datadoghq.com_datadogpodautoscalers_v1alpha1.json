@@ -205,7 +205,7 @@
           "properties": {
             "applyMode": {
               "default": "All",
-              "description": "ApplyMode determines recommendations that should be applied by the controller:\n- All: Apply all recommendations (regular and manual).\n- Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).\n- None: Prevent the controller to apply any recommendations.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.",
+              "description": "ApplyMode determines recommendations that should be applied by the controller:\n- All: Apply all recommendations (regular and manual).\n- Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).\n- None: Prevent the controller to apply any recommendations.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.",
               "enum": [
                 "All",
                 "Manual",

@@ -173,7 +173,7 @@ spec:
                         - All: Apply all recommendations (regular and manual).
                         - Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).
                         - None: Prevent the controller to apply any recommendations.
-                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
+                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.
                       enum:
                         - All
                         - Manual
@@ -688,7 +688,7 @@ spec:
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
                         - Apply: Apply all recommendations.
-                        - Preview: Prevent the controller to apply any recommendations.
+                        - Preview: Preview: Recommendations are received and available through .status but prevent the controller to apply them.
                         It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
                       enum:
                         - Apply
