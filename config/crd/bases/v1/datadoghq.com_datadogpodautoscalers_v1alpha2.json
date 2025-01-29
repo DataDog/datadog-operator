@@ -24,7 +24,7 @@
           "properties": {
             "mode": {
               "default": "Apply",
-              "description": "Mode determines recommendations that should be applied by the controller:\n- Apply: Apply all recommendations.\n- Preview: Prevent the controller to apply any recommendations.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.",
+              "description": "Mode determines recommendations that should be applied by the controller:\n- Apply: Apply all recommendations.\n- Preview: Preview: Recommendations are received and available through .status but prevent the controller to apply them.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.",
               "enum": [
                 "Apply",
                 "Preview"

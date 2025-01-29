@@ -1,4 +1,5 @@
 {
+  "additionalProperties": false,
   "description": "DatadogAgent Deployment with the Datadog Operator.",
   "properties": {
     "apiVersion": {
