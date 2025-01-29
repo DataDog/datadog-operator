@@ -21,6 +21,9 @@ func Test_buildOtelCollectorConfigMap(t *testing.T) {
 	configMapWant := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "-otel-agent-config",
+			Annotations: map[string]string{
+				"checksum/otel_agent-custom-config": "07f4530ba2b36a9279f070daa769454e",
+			},
 		},
 		Data: map[string]string{
 			"otel-config.yaml": defaultconfig.DefaultOtelCollectorConfig,

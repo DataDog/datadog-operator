@@ -165,46 +165,47 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus,
 }
 
 // UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
-func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
+func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*DaemonSetStatus, updateTime *metav1.Time) []*DaemonSetStatus {
 	if dsStatus == nil {
 		dsStatus = []*DaemonSetStatus{}
 	}
+
+	var newStatus DaemonSetStatus
 	if ds == nil {
-		dsStatus = append(dsStatus, &DaemonSetStatus{
-			State:  string(DatadogAgentStateFailed),
-			Status: string(DatadogAgentStateFailed),
-		})
-		return dsStatus
-	}
+		newStatus = DaemonSetStatus{
+			State:         string(DatadogAgentStateFailed),
+			Status:        string(DatadogAgentStateFailed),
+			DaemonsetName: dsName,
+		}
+	} else {
+		newStatus = DaemonSetStatus{
+			Desired:       ds.Status.DesiredNumberScheduled,
+			Current:       ds.Status.CurrentNumberScheduled,
+			Ready:         ds.Status.NumberReady,
+			Available:     ds.Status.NumberAvailable,
+			UpToDate:      ds.Status.UpdatedNumberScheduled,
+			DaemonsetName: ds.ObjectMeta.Name,
+		}
+		if updateTime != nil {
+			newStatus.LastUpdate = updateTime
+		}
+		if hash, ok := ds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
+			newStatus.CurrentHash = hash
+		}
 
-	newStatus := DaemonSetStatus{
-		Desired:       ds.Status.DesiredNumberScheduled,
-		Current:       ds.Status.CurrentNumberScheduled,
-		Ready:         ds.Status.NumberReady,
-		Available:     ds.Status.NumberAvailable,
-		UpToDate:      ds.Status.UpdatedNumberScheduled,
-		DaemonsetName: ds.ObjectMeta.Name,
-	}
+		var deploymentState DatadogAgentState
+		switch {
+		case newStatus.UpToDate != newStatus.Desired:
+			deploymentState = DatadogAgentStateUpdating
+		case newStatus.Ready == 0 && newStatus.Desired != 0:
+			deploymentState = DatadogAgentStateProgressing
+		default:
+			deploymentState = DatadogAgentStateRunning
+		}
 
-	if updateTime != nil {
-		newStatus.LastUpdate = updateTime
+		newStatus.State = fmt.Sprintf("%v", deploymentState)
+		newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
 	}
-	if hash, ok := ds.Annotations[MD5AgentDeploymentAnnotationKey]; ok {
-		newStatus.CurrentHash = hash
-	}
-
-	var deploymentState DatadogAgentState
-	switch {
-	case newStatus.UpToDate != newStatus.Desired:
-		deploymentState = DatadogAgentStateUpdating
-	case newStatus.Ready == 0 && newStatus.Desired != 0:
-		deploymentState = DatadogAgentStateProgressing
-	default:
-		deploymentState = DatadogAgentStateRunning
-	}
-
-	newStatus.State = fmt.Sprintf("%v", deploymentState)
-	newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
 
 	// match ds name to ds status
 	found := false
