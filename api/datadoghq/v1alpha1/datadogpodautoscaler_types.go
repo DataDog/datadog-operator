@@ -125,7 +125,7 @@ type DatadogPodAutoscalerPolicy struct {
 	// - All: Apply all recommendations (regular and manual).
 	// - Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).
 	// - None: Prevent the controller to apply any recommendations.
-	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
+	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.
 	// +optional
 	// +kubebuilder:default=All
 	ApplyMode DatadogPodAutoscalerApplyMode `json:"applyMode"`

@@ -679,21 +679,20 @@ spec:
             spec:
               description: DatadogPodAutoscalerSpec defines the desired state of DatadogPodAutoscaler
               properties:
-                actuation:
+                applyPolicy:
                   default: {}
-                  description: Actuation defines how recommendations should be applied.
+                  description: ApplyPolicy defines how recommendations should be applied.
                   properties:
                     mode:
-                      default: All
+                      default: Apply
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
-                        - All: Apply all recommendations.
-                        - None: Prevent the controller to apply any recommendations.
+                        - Apply: Apply all recommendations.
+                        - Preview: Prevent the controller to apply any recommendations.
                         It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
                       enum:
-                        - All
-                        - Manual
-                        - None
+                        - Apply
+                        - Preview
                       type: string
                     scaledown:
                       description: ScaleDown defines the policy to scale down the target resource.

@@ -88,5 +88,5 @@ resources:
   group: datadoghq
   kind: DatadogPodAutoscaler
   path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha2
-  version: v2alpha1
+  version: v1alpha2
 version: "3"
