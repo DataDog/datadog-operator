@@ -272,29 +272,11 @@ type DatadogPodAutoscalerContainerResourceTarget struct {
 
 // DatadogPodAutoscalerTargetValue defines the value of the target.
 type DatadogPodAutoscalerTargetValue struct {
-	// Type specifies how the value is expressed (Absolute or Utilization).
-	Type DatadogPodAutoscalerTargetValueType `json:"type"`
-
-	// Absolute defines the absolute value of the target (for instance 500 millicores).
-	Absolute *resource.Quantity `json:"absolute,omitempty"`
-
 	// Utilization defines a percentage of the target compared to requested resource
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
 }
-
-// DatadogPodAutoscalerTargetValueType specifies the type of metric being targeted, and should be either
-// kubebuilder:validation:Enum:=Absolute;Utilization
-type DatadogPodAutoscalerTargetValueType string
-
-const (
-	// DatadogPodAutoscalerAbsoluteTargetValueType is the target type for absolute values
-	DatadogPodAutoscalerAbsoluteTargetValueType DatadogPodAutoscalerTargetValueType = "Absolute"
-
-	// DatadogPodAutoscalerUtilizationTargetValueType declares a MetricTarget is an AverageUtilization value
-	DatadogPodAutoscalerUtilizationTargetValueType DatadogPodAutoscalerTargetValueType = "Utilization"
-)
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
 type DatadogPodAutoscalerConstraints struct {
