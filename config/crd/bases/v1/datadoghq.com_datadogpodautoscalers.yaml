@@ -892,24 +892,12 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
-                              absolute:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: Absolute defines the absolute value of the target (for instance 500 millicores).
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              type:
-                                description: Type specifies how the value is expressed (Absolute or Utilization).
-                                type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested resource
                                 format: int32
                                 maximum: 100
                                 minimum: 0
                                 type: integer
-                            required:
-                              - type
                             type: object
                         required:
                           - container
@@ -927,24 +915,12 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
-                              absolute:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: Absolute defines the absolute value of the target (for instance 500 millicores).
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              type:
-                                description: Type specifies how the value is expressed (Absolute or Utilization).
-                                type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested resource
                                 format: int32
                                 maximum: 100
                                 minimum: 0
                                 type: integer
-                            required:
-                              - type
                             type: object
                         required:
                           - name
