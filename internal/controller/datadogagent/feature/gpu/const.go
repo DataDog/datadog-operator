@@ -5,6 +5,11 @@
 
 package gpu
 
-const nvidiaDevicesMountPath  = "/var/run/nvidia-container-devices/all"
-const nvidiaDevicesVolumeName = "nvidia-devices"
-const devNullPath             = "/dev/null" // used to mount the NVIDIADevicesHostPath to /dev/null in the container, it's just used as a "signal" to the nvidia runtime to use the nvidia devices
+const (
+	nvidiaDevicesMountPath  = "/var/run/nvidia-container-devices/all"
+ 	nvidiaDevicesVolumeName = "nvidia-devices"
+	devNullPath             = "/dev/null" // used to mount the NVIDIADevicesHostPath to /dev/null in the container, it's just used as a "signal" to the nvidia runtime to use the nvidia devices
+
+	// defaultGPURuntimeClass default runtime class for GPU pods
+	defaultGPURuntimeClass = "nvidia"
+)

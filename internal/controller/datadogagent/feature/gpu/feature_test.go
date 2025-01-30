@@ -156,7 +156,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 			DDA:           ddaGPUMonitoringEnabled,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, v2alpha1.DefaultGPUMonitoringRuntimeClass)
+				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, defaultGPURuntimeClass)
 			}),
 		},
 		{

@@ -78,9 +78,6 @@ const (
 	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
 	EndpointsChecksConfigProvider           = "endpointschecks"
 	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
-
-	// DefaultGPUMonitoringRuntimeClass default runtime class for GPU pods
-	DefaultGPUMonitoringRuntimeClass = "nvidia"
 )
 
 // Labels

@@ -46,7 +46,7 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 	if dda.Spec.Features.GPUMonitoring.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
-		f.podRuntimeClassName = v2alpha1.DefaultGPUMonitoringRuntimeClass
+		f.podRuntimeClassName = defaultGPURuntimeClass
 	} else {
 		// Configuration option set, use the value. Note that here the value might be an empty
 		// string, which tells us to not change the runtime class.
