@@ -2,6 +2,8 @@ module github.com/DataDog/datadog-operator/test/e2e
 
 go 1.23.1
 
+toolchain go1.23.5
+
 replace (
 	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-rc.1
 	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-rc.1
