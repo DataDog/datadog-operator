@@ -268,10 +268,10 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
 	// GPU monitoring feature
-	if ddaSpec.Features.GPUMonitoring == nil {
-		ddaSpec.Features.GPUMonitoring = &v2alpha1.GPUMonitoringFeatureConfig{}
+	if ddaSpec.Features.GPU == nil {
+		ddaSpec.Features.GPU = &v2alpha1.GPUFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.GPUMonitoring.Enabled, defaultGPUMonitoringEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.GPU.Enabled, defaultGPUMonitoringEnabled)
 
 	// APM Feature
 	// APM is enabled by default

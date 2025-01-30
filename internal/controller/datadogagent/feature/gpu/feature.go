@@ -35,7 +35,7 @@ func (f *gpuFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil || dda.Spec.Features.GPUMonitoring == nil || !apiutils.BoolValue(dda.Spec.Features.GPUMonitoring.Enabled) {
+	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
@@ -44,13 +44,13 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 
-	if dda.Spec.Features.GPUMonitoring.PodRuntimeClassName == nil {
+	if dda.Spec.Features.GPU.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
 		f.podRuntimeClassName = defaultGPURuntimeClass
 	} else {
 		// Configuration option set, use the value. Note that here the value might be an empty
 		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *dda.Spec.Features.GPUMonitoring.PodRuntimeClassName
+		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
 	}
 
 	return reqComp

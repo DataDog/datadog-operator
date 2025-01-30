@@ -83,7 +83,7 @@ type DatadogFeatures struct {
 	// ServiceDiscovery
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
 	// GPU monitoring
-	GPUMonitoring *GPUMonitoringFeatureConfig `json:"gpu,omitempty"`
+	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
 
 	// Cluster-level features
 
@@ -500,8 +500,8 @@ type ServiceDiscoveryFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// GPUMonitoringFeatureConfig contains the GPU monitoring configuration.
-type GPUMonitoringFeatureConfig struct {
+// GPUFeatureConfig contains the GPU monitoring configuration.
+type GPUFeatureConfig struct {
 	// Enabled enables GPU monitoring.
 	// Default: false
 	// +optional

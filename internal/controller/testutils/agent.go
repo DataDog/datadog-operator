@@ -357,7 +357,7 @@ func NewDatadogAgentWithGPUMonitoring(namespace string, name string) v2alpha1.Da
 		namespace,
 		name,
 		&v2alpha1.DatadogFeatures{
-			GPUMonitoring: &v2alpha1.GPUMonitoringFeatureConfig{
+			GPU: &v2alpha1.GPUFeatureConfig{
 				Enabled: apiutils.NewBoolPointer(true),
 			},
 		},
