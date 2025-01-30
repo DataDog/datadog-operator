@@ -1030,7 +1030,7 @@ spec:
                         requiredRuntimeClassName:
                           description: |-
                             PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
-                            If left empty, the runtime class is not set.
+                            If the value is an empty string, the runtime class is not set.
                             Default: nvidia
                           type: string
                       type: object
@@ -7909,7 +7909,7 @@ spec:
                             requiredRuntimeClassName:
                               description: |-
                                 PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
-                                If left empty, the runtime class is not set.
+                                If the value is an empty string, the runtime class is not set.
                                 Default: nvidia
                               type: string
                           type: object

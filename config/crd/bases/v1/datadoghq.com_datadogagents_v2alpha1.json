@@ -1074,7 +1074,7 @@
                   "type": "boolean"
                 },
                 "requiredRuntimeClassName": {
-                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf left empty, the runtime class is not set.\nDefault: nvidia",
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
                   "type": "string"
                 }
               },
@@ -7895,7 +7895,7 @@
                       "type": "boolean"
                     },
                     "requiredRuntimeClassName": {
-                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf left empty, the runtime class is not set.\nDefault: nvidia",
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
                       "type": "string"
                     }
                   },

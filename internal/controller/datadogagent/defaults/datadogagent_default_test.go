@@ -2018,7 +2018,7 @@ func Test_defaultFeatures(t *testing.T) {
 					OOMKill:                 &v2alpha1.OOMKillFeatureConfig{},
 					TCPQueueLength:          &v2alpha1.TCPQueueLengthFeatureConfig{},
 					EBPFCheck:               &v2alpha1.EBPFCheckFeatureConfig{},
-					GPU:           &v2alpha1.GPUFeatureConfig{},
+					GPU:                     &v2alpha1.GPUFeatureConfig{},
 					ServiceDiscovery:        &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					APM:                     &v2alpha1.APMFeatureConfig{},
 					ASM:                     &v2alpha1.ASMFeatureConfig{},
