@@ -82,6 +82,8 @@ type DatadogFeatures struct {
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
+	// GPU monitoring
+	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
 
 	// Cluster-level features
 
@@ -508,6 +510,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// GPUFeatureConfig contains the GPU monitoring configuration.
+type GPUFeatureConfig struct {
+	// Enabled enables GPU monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+	// If the value is an empty string, the runtime class is not set.
+	// Default: nvidia
+	// +optional
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
 }
 
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
