@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.23
+go 1.23.5
 
 toolchain go1.23.5
 
@@ -33,6 +33,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
+require github.com/DataDog/datadog-operator v1.11.1
+
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -45,7 +47,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/pointer v0.63.0-rc.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.63.0-rc.1 // indirect
 	github.com/DataDog/datadog-agent/pkg/version v0.63.0-rc.1 // indirect
-	github.com/DataDog/extendeddaemonset v0.10.0-rc.4 // indirect
+	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
 	github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f // indirect
