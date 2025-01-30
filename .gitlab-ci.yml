@@ -109,7 +109,7 @@ unit_tests:
     - make test
 
 check-golang-version:
-  stage: test
+  stage: build
   tags: ["arch:amd64"]
   before_script:
     - make install-tools
