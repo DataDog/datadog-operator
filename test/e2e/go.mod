@@ -1,8 +1,8 @@
 module github.com/DataDog/datadog-operator/test/e2e
 
-go 1.23.1
+go 1.23
 
-toolchain go1.23.5
+toolchain go1.23.1
 
 replace (
 	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-rc.1
