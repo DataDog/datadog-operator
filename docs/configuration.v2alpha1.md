@@ -111,6 +111,8 @@ spec:
 | features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
+| features.gpu.enabled | Enables GPU monitoring. Default: false |
+| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
@@ -146,8 +148,8 @@ spec:
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
 | features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
-| features.otelCollector.coreConfig.extension_timeout | Extension URL provides the timout of the ddflareextension to the core agent. |
-| features.otelCollector.coreConfig.extension_url | Extension URL provides the URL of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extensionTimeout | Extension URL provides the timout of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extensionURL | Extension URL provides the URL of the ddflareextension to the core agent. |
 | features.otelCollector.enabled | Enables the OTel Agent. Default: true |
 | features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |

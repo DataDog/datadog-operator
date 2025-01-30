@@ -4,5 +4,6 @@ toolchain go1.23.1
 
 use (
 	.
+	./api
 	./test/e2e
 )

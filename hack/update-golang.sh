@@ -98,14 +98,14 @@ echo "Running go work sync..."
 go work sync
 
 # Update go.mod files
-go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod"
+go_mod_files="$ROOT/go.mod $ROOT/test/e2e/go.mod $ROOT/api/go.mod"
 for file in $go_mod_files; do
     if [[ -f $file ]]; then
         echo "Processing $file..."
         go mod edit -go $new_minor_version $file
         go mod edit -toolchain go$GOVERSION $file
         parent_dir=$(dirname "$file")
-        cd $parent_dir && go mod tidy -v; cd $ROOT
+        cd $parent_dir; cd $ROOT
     else
         echo "Warning: $file not found, skipping."
     fi

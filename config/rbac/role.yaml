@@ -14,7 +14,12 @@ rules:
   resources:
   - componentstatuses
   - deployments
+  - limitranges
   - namespaces
+  - persistentvolumeclaims
+  - persistentvolumes
+  - replicationcontrollers
+  - resourcequotas
   verbs:
   - get
   - list
@@ -40,17 +45,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - limitranges
-  - persistentvolumeclaims
-  - persistentvolumes
-  - replicationcontrollers
-  - resourcequotas
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - nodes
   verbs:
   - get
@@ -66,6 +60,12 @@ rules:
   - nodes/stats
   verbs:
   - get
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - create
 - apiGroups:
   - '*'
   resources:
@@ -142,12 +142,8 @@ rules:
   verbs:
   - create
   - get
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - pods/exec
-  verbs:
-  - create
+  - list
+  - watch
 - apiGroups:
   - authorization.k8s.io
   resources:
@@ -200,6 +196,7 @@ rules:
   resources:
   - certificatesigningrequests
   verbs:
+  - get
   - list
   - watch
 - apiGroups:
@@ -234,6 +231,8 @@ rules:
   - datadogagents
   - datadogagents/finalizers
   - datadogdashboards
+  - datadoggenericresources
+  - datadoggenericresources/finalizers
   - datadogmonitors
   - datadogmonitors/finalizers
   - datadogslos
@@ -253,6 +252,7 @@ rules:
   - datadogagentprofiles/status
   - datadogagents/status
   - datadogdashboards/status
+  - datadoggenericresources/status
   - datadogmonitors/status
   - datadogslos/status
   verbs:
@@ -273,6 +273,7 @@ rules:
   verbs:
   - create
   - delete
+  - get
   - list
   - watch
 - apiGroups:
@@ -356,5 +357,6 @@ rules:
   - storageclasses
   - volumeattachments
   verbs:
+  - get
   - list
   - watch

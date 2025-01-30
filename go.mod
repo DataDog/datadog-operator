@@ -6,7 +6,8 @@ toolchain go1.23.1
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
-	github.com/DataDog/extendeddaemonset v0.10.0-rc.4
+	// TODO: pin to an EDS released version once there is a release that includes the api module
+	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.4.2
 	github.com/gobwas/glob v0.2.3
@@ -17,7 +18,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.34.1
-	github.com/pkg/errors v0.9.1
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.10.0
@@ -87,6 +88,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.6.0-alpha.5 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect

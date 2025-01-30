@@ -26,6 +26,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardSpec":                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardSpec(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboardStatus":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResource":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec":            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus":          schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetric":                         schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetric(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMetricCondition":                schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitor":                        schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitor(ref),
@@ -612,6 +615,160 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboardStatus(ref c
 					"lastForceSyncTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastForceSyncTime is the last time the API dashboard was last force synced with the DatadogDashboard resource",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResource(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogGenericResource is the Schema for the DatadogGenericResources API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceSpec", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogGenericResourceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogGenericResourceSpec defines the desired state of DatadogGenericResource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is the type of the API object",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"jsonSpec": {
+						SchemaProps: spec.SchemaProps{
+							Description: "JsonSpec is the specification of the API object",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"type", "jsonSpec"},
+			},
+		},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogGenericResourceStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogGenericResourceStatus defines the observed state of DatadogGenericResource",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the state of a DatadogGenericResource.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Id is the object unique identifier generated in Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"creator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Creator is the identity of the creator.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"created": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Created is the time the object was created.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"syncStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncStatus shows the health of syncing the object state to Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash tracks the hash of the current DatadogGenericResourceSpec to know if the JsonSpec has changed and needs an update.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastForceSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastForceSyncTime is the last time the API object was last force synced with the custom resource",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
