@@ -1065,6 +1065,21 @@
               },
               "type": "object"
             },
+            "gpu": {
+              "additionalProperties": false,
+              "description": "GPU monitoring",
+              "properties": {
+                "enabled": {
+                  "description": "Enabled enables GPU monitoring.\nDefault: false",
+                  "type": "boolean"
+                },
+                "requiredRuntimeClassName": {
+                  "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
             "helmCheck": {
               "additionalProperties": false,
               "description": "HelmCheck configuration.",
@@ -1407,11 +1422,11 @@
                       "description": "Enabled marks otelcollector as enabled in core agent.",
                       "type": "boolean"
                     },
-                    "extension_timeout": {
+                    "extensionTimeout": {
                       "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
                       "type": "integer"
                     },
-                    "extension_url": {
+                    "extensionURL": {
                       "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
                       "type": "string"
                     }
@@ -1457,7 +1472,8 @@
                     ],
                     "type": "object"
                   },
-                  "type": "array"
+                  "type": "array",
+                  "x-kubernetes-list-type": "atomic"
                 }
               },
               "type": "object"
@@ -7870,6 +7886,21 @@
                   },
                   "type": "object"
                 },
+                "gpu": {
+                  "additionalProperties": false,
+                  "description": "GPU monitoring",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables GPU monitoring.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "requiredRuntimeClassName": {
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
                 "helmCheck": {
                   "additionalProperties": false,
                   "description": "HelmCheck configuration.",
@@ -8212,11 +8243,11 @@
                           "description": "Enabled marks otelcollector as enabled in core agent.",
                           "type": "boolean"
                         },
-                        "extension_timeout": {
+                        "extensionTimeout": {
                           "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
                           "type": "integer"
                         },
-                        "extension_url": {
+                        "extensionURL": {
                           "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
                           "type": "string"
                         }
@@ -8262,7 +8293,8 @@
                         ],
                         "type": "object"
                       },
-                      "type": "array"
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
                     }
                   },
                   "type": "object"

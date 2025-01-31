@@ -82,6 +82,8 @@ type DatadogFeatures struct {
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
+	// GPU monitoring
+	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
 
 	// Cluster-level features
 
@@ -498,6 +500,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// GPUFeatureConfig contains the GPU monitoring configuration.
+type GPUFeatureConfig struct {
+	// Enabled enables GPU monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+	// If the value is an empty string, the runtime class is not set.
+	// Default: nvidia
+	// +optional
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+}
+
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
 type DogstatsdFeatureConfig struct {
@@ -704,6 +720,7 @@ type OtelCollectorFeatureConfig struct {
 	// If not, this will lead to a port conflict.
 	// This limitation will be lifted once annotations support is removed.
 	// +optional
+	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 
 	// OTelCollector Config Relevant to the Core agent
@@ -718,15 +735,15 @@ type CoreConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// +optional
 	// Extension URL provides the URL of the ddflareextension to
 	// the core agent.
-	ExtensionURL *string `json:"extension_url,omitempty"`
-
 	// +optional
+	ExtensionURL *string `json:"extensionURL,omitempty"`
+
 	// Extension URL provides the timout of the ddflareextension to
 	// the core agent.
-	ExtensionTimeout *int `json:"extension_timeout,omitempty"`
+	// +optional
+	ExtensionTimeout *int `json:"extensionTimeout,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.

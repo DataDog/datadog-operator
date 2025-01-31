@@ -207,14 +207,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 	agentContainers := make([]apicommon.AgentContainerName, 0)
 
-	// If the OpenTelemetry Agent is enabled, add the OTel Agent to the list of required containers for the Agent
-	// feature.
-	//
-	// NOTE: This is a temporary solution until the OTel Agent is fully integrated into the Operator via a dedicated feature.
-	if dda.ObjectMeta.Annotations != nil && featureutils.HasOtelAgentAnnotation(dda) {
-		agentContainers = append(agentContainers, apicommon.OtelAgent)
-	}
-
 	// If Agent Data Plane is enabled, add the ADP container to the list of required containers for the Agent feature.
 	if f.adpEnabled {
 		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
