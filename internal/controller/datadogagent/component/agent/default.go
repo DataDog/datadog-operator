@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -345,7 +346,7 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  v2alpha1.DDClusterAgentTokenName,
-			Value: v2alpha1.GetDefaultDCATokenSecretName(dda),
+			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
 		{
 			Name: v2alpha1.DDKubeletHost,
