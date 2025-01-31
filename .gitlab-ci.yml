@@ -378,7 +378,7 @@ trigger_custom_operator_image_staging:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v2
+    IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
