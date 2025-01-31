@@ -137,7 +137,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.failurePolicy = *ac.FailurePolicy
 		}
 
-		f.webhookName = v2alpha1.DefaultAdmissionControllerWebhookName
+		f.webhookName = defaultAdmissionControllerWebhookName
 		if ac.WebhookName != nil {
 			f.webhookName = *ac.WebhookName
 		}
@@ -176,7 +176,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
-			f.agentSidecarConfig.imageName = v2alpha1.DefaultAgentImageName
+			f.agentSidecarConfig.imageName = defaulting.DefaultAgentImageName
 			f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
@@ -247,8 +247,8 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 		{
 			Name:       admissionControllerPortName,
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(v2alpha1.DefaultAdmissionControllerTargetPort),
-			Port:       v2alpha1.DefaultAdmissionControllerServicePort,
+			TargetPort: intstr.FromInt(defaultAdmissionControllerTargetPort),
+			Port:       defaultAdmissionControllerServicePort,
 		},
 	}
 	if err := managers.ServiceManager().AddService(f.serviceName, ns, selector, port, nil); err != nil {
@@ -273,7 +273,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 						{
 							Port: &intstr.IntOrString{
 								Type:   intstr.Int,
-								IntVal: v2alpha1.DefaultAdmissionControllerTargetPort,
+								IntVal: defaultAdmissionControllerTargetPort,
 							},
 						},
 					},
@@ -301,7 +301,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 								{
 									Ports: []cilium.PortProtocol{
 										{
-											Port:     strconv.Itoa(v2alpha1.DefaultAdmissionControllerTargetPort),
+											Port:     strconv.Itoa(defaultAdmissionControllerTargetPort),
 											Protocol: cilium.ProtocolTCP,
 										},
 									},

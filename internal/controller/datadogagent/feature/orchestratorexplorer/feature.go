@@ -113,7 +113,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultOrchestratorExplorerConf)
+		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
@@ -199,7 +199,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 		volMount = corev1.VolumeMount{
 			Name:      orchestratorExplorerVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, orchestratorExplorerFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, orchestratorExplorerFolderName),
 			ReadOnly:  true,
 		}
 	}

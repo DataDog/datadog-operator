@@ -20,6 +20,9 @@ const (
 	helmCheckRBACPrefix   = "helm-check"
 
 	helmCheckConfigVolumeName = "helm-check-config"
+
+	// DefaultHelmCheckConf default Helm Check ConfigMap name
+	defaultHelmCheckConf string = "helm-check-config"
 )
 
 var helmCheckRBACPolicyRules = []rbacv1.PolicyRule{

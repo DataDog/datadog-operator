@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -299,7 +300,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 func getExpectedVolumes() []*corev1.Volume {
 	return []*corev1.Volume{
 		{
-			Name: v2alpha1.KubeletCAVolumeName,
+			Name: kubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
@@ -307,7 +308,7 @@ func getExpectedVolumes() []*corev1.Volume {
 			},
 		},
 		{
-			Name: v2alpha1.CriSocketVolumeName,
+			Name: common.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
@@ -320,12 +321,12 @@ func getExpectedVolumes() []*corev1.Volume {
 func getExpectedVolumeMounts() []*corev1.VolumeMount {
 	return []*corev1.VolumeMount{
 		{
-			Name:      v2alpha1.KubeletCAVolumeName,
+			Name:      kubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
 		},
 		{
-			Name:      v2alpha1.CriSocketVolumeName,
+			Name:      common.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
 		},

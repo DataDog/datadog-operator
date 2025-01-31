@@ -8,4 +8,11 @@ package admissioncontroller
 const (
 	admissionControllerPortName                = "admissioncontrollerport"
 	admissionControllerSocketCommunicationMode = "socket"
+
+	// DefaultAdmissionControllerServicePort default admission controller service port
+	defaultAdmissionControllerServicePort = 443
+	// DefaultAdmissionControllerTargetPort default admission controller pod port
+	defaultAdmissionControllerTargetPort = 8000
+	// DefaultAdmissionControllerWebhookName default admission controller webhook name
+	defaultAdmissionControllerWebhookName string = "datadog-webhook"
 )

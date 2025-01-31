@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -119,7 +120,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
 				assert.NoError(t, err)
 				wantAnnotations := map[string]string{
-					fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+					fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
 				}
 				annotations := mgr.AnnotationMgr.Annotations
 				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))

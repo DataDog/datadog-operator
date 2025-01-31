@@ -18,6 +18,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 )
 
@@ -420,7 +421,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: common.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -440,7 +441,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: common.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -492,7 +493,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == v2alpha1.ConfdVolumeName {
+					if vol.Name == common.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -515,7 +516,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == v2alpha1.ConfdVolumeName {
+					if vol.Name == common.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -538,7 +539,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == v2alpha1.ChecksdVolumeName {
+					if vol.Name == common.ChecksdVolumeName {
 						found = true
 						break
 					}
@@ -561,7 +562,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == v2alpha1.ChecksdVolumeName {
+					if vol.Name == common.ChecksdVolumeName {
 						found = true
 						break
 					}

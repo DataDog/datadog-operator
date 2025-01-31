@@ -120,7 +120,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultKubeStateMetricsCoreConf)
+		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
 	return output
@@ -158,7 +158,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// Manage RBAC permission
+	// Manage RBAC permissionDefaultKubeStateMetricsCoreConf
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(collectorOpts))
@@ -183,7 +183,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		vol = volume.GetBasicVolume(f.configConfigMapName, ksmCoreVolumeName)
 		volMount = corev1.VolumeMount{
 			Name:      ksmCoreVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, ksmCoreCheckFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}
 	}

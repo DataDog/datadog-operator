@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -110,7 +111,7 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName("checksum unique")
 
-	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	feature := buildClusterChecksFeature(&feature.Options{
 		Logger: logger,
 	})
@@ -171,11 +172,11 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 		},
 		{
 			Name:  DDExtraConfigProviders,
-			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
+			Value: kubeServicesAndEndpointsConfigProviders,
 		},
 		{
 			Name:  DDExtraListeners,
-			Value: v2alpha1.KubeServicesAndEndpointsListeners,
+			Value: kubeServicesAndEndpointsListeners,
 		},
 	}
 
@@ -188,7 +189,7 @@ func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTempl
 
 func wantClusterAgentHasNonEmptyChecksumAnnotation(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	annotationKey := fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotationKey := fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
 	annotations := mgr.AnnotationMgr.Annotations
 	assert.NotEmpty(t, annotations[annotationKey])
 }
@@ -206,7 +207,7 @@ func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {
 				},
 				{
 					Name:  DDExtraConfigProviders,
-					Value: ClusterChecksConfigProvider,
+					Value: clusterChecksConfigProvider,
 				},
 			}
 
@@ -228,7 +229,7 @@ func testAgentHasExpectedEnvsWithRunners(agentContainerName apicommon.AgentConta
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDExtraConfigProviders,
-					Value: v2alpha1.EndpointsChecksConfigProvider,
+					Value: endpointsChecksConfigProvider,
 				},
 			}
 
@@ -250,7 +251,7 @@ func testAgentHasExpectedEnvsWithNoRunners(agentContainerName apicommon.AgentCon
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  DDExtraConfigProviders,
-					Value: v2alpha1.ClusterAndEndpointsConfigProviders,
+					Value: clusterAndEndpointsConfigProviders,
 				},
 			}
 

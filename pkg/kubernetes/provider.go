@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 const (
@@ -166,7 +167,7 @@ func ComponentOverrideFromProvider(overrideName, provider string, providerList m
 	return v2alpha1.DatadogAgentComponentOverride{
 		Name:     &overrideDSName,
 		Affinity: getProviderNodeAffinity(provider, providerList),
-		Labels:   map[string]string{v2alpha1.MD5AgentDeploymentProviderLabelKey: provider},
+		Labels:   map[string]string{constants.MD5AgentDeploymentProviderLabelKey: provider},
 	}
 }
 

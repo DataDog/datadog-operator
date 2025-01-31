@@ -17,13 +17,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -75,7 +75,7 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 func helmCheckWantDepsFunc(ccr bool, collectEvents bool, valuesAsTags map[string]string, rbacSuffix string) func(t testing.TB, store store.StoreClient) {
 	return func(t testing.TB, store store.StoreClient) {
 		// validate configMap
-		configMapName := fmt.Sprintf("%s-%s", resourcesName, v2alpha1.DefaultHelmCheckConf)
+		configMapName := fmt.Sprintf("%s-%s", resourcesName, defaultHelmCheckConf)
 
 		obj, found := store.Get(kubernetes.ConfigMapKind, resourcesNamespace, configMapName)
 
@@ -142,7 +142,7 @@ func helmCheckWantResourcesFunc(ccr bool, collectEvents bool) *test.ComponentTes
 			// validate volumes
 			expectedVols := []*corev1.Volume{
 				{
-					Name: v2alpha1.DefaultHelmCheckConf,
+					Name: defaultHelmCheckConf,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
 							LocalObjectReference: corev1.LocalObjectReference{
@@ -164,7 +164,7 @@ func helmCheckWantResourcesFunc(ccr bool, collectEvents bool) *test.ComponentTes
 			// validate volumeMounts
 			expectedVolMounts := []*corev1.VolumeMount{
 				{
-					Name:      v2alpha1.DefaultHelmCheckConf,
+					Name:      defaultHelmCheckConf,
 					MountPath: "/etc/datadog-agent/conf.d/helm.d",
 					ReadOnly:  true,
 				},
@@ -195,7 +195,7 @@ instances:
 			assert.NoError(t, err)
 
 			wantAnnotations := map[string]string{
-				fmt.Sprintf(v2alpha1.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
+				fmt.Sprintf(constants.MD5ChecksumAnnotationKey, feature.HelmCheckIDType): hash,
 			}
 
 			annotations := mgr.AnnotationMgr.Annotations

@@ -28,7 +28,14 @@ const (
 	// PublicECSContainerRegistry corresponds to the datadoghq PublicECSContainerRegistry registry
 	PublicECSContainerRegistry ContainerRegistry = "public.ecr.aws/datadog"
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
-	DefaultImageRegistry = GCRContainerRegistry // TODO: this is also defined elsewhere and not used; consolidate
+	DefaultImageRegistry = "gcr.io/datadoghq"
+	// Default Image names
+	DefaultAgentImageName        string = "agent"
+	DefaultClusterAgentImageName string = "cluster-agent"
+	DefaultAzureImageRegistry    string = "datadoghq.azurecr.io"
+	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
+	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
+	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
 	// JMXTagSuffix prefix tag for agent JMX images
 	JMXTagSuffix      = "-jmx"
 	AgentDevImageName = "datadog/agent-dev"

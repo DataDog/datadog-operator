@@ -15,12 +15,12 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // IsSameSpecMD5Hash used to compare the DatadogAgent.spec md5 hash with the one set in annotations
 func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
-	return IsSameMD5Hash(hash, annotations, v2alpha1.MD5AgentDeploymentAnnotationKey)
+	return IsSameMD5Hash(hash, annotations, constants.MD5AgentDeploymentAnnotationKey)
 }
 
 // IsSameMD5Hash used to compare a md5 hash with the one set in annotations
@@ -50,7 +50,7 @@ func GenerateMD5ForSpec(spec interface{}) (string, error) {
 
 // SetMD5DatadogAgentGenerationAnnotation is used to set the md5 annotation key/value from spec
 func SetMD5DatadogAgentGenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (string, error) {
-	return SetMD5GenerationAnnotation(obj, spec, v2alpha1.MD5AgentDeploymentAnnotationKey)
+	return SetMD5GenerationAnnotation(obj, spec, constants.MD5AgentDeploymentAnnotationKey)
 }
 
 // SetMD5GenerationAnnotation is used to set the md5 annotation key/value from spec
