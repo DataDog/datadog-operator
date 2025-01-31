@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/golang:1.23.1
+image: registry.ddbuild.io/images/mirror/library/golang:1.23.5
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -109,7 +109,7 @@ unit_tests:
     - make test
 
 check-golang-version:
-  stage: test
+  stage: build
   tags: ["arch:amd64"]
   before_script:
     - make install-tools
