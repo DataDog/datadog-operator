@@ -32,6 +32,7 @@ import (
 const (
 	hostCAPath           = "/host/ca/path/ca.crt"
 	agentCAPath          = "/agent/ca/path/ca.crt"
+	podResourcesSocket   = "/kubelet/podresources.sock"
 	dockerSocketPath     = "/docker/socket/path/docker.sock"
 	secretBackendCommand = "foo.sh"
 	secretBackendArgs    = "bar baz"
@@ -69,7 +70,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
@@ -84,6 +85,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				{
 					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
+				},
+				{
+					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Value: podResourcesSocket,
 				},
 			}...),
 			wantVolumeMounts: getExpectedVolumeMounts(),
@@ -94,7 +99,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
@@ -109,6 +114,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				{
 					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
+				},
+				{
+					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Value: podResourcesSocket,
 				},
 			}...),
 			wantVolumeMounts: getExpectedVolumeMounts(),
@@ -314,6 +323,14 @@ func getExpectedVolumes() []*corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: v2alpha1.KubeletPodResourcesVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: podResourcesSocket,
+				},
+			},
+		},
 	}
 }
 
@@ -328,6 +345,11 @@ func getExpectedVolumeMounts() []*corev1.VolumeMount {
 			Name:      v2alpha1.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
+		},
+		{
+			Name:      v2alpha1.KubeletPodResourcesVolumeName,
+			MountPath: podResourcesSocket,
+			ReadOnly:  false,
 		},
 	}
 }

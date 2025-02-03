@@ -115,6 +115,7 @@ const (
 
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	defaultKubeletPodResourcesSocket = "/var/lib/kubelet/pod-resources/kubelet.sock"
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -190,6 +191,14 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.Port, defaultFIPSPort)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
+	}
+
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
+	}
+
+	if ddaSpec.Global.Kubelet.PodResourcesSocket == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocket = defaultKubeletPodResourcesSocket
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)

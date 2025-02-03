@@ -1079,6 +1079,11 @@ type KubeletConfig struct {
 	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
+
+	// PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
+	// Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+	// +optional
+	PodResourcesSocket string `json:"podResourcesSocket,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.

@@ -285,6 +285,31 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					Value: agentCAPath,
 				})
 			}
+			if config.Kubelet.PodResourcesSocket != "" {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Value: config.Kubelet.PodResourcesSocket,
+				})
+
+				podResourcesVol, podResourcesMount := volume.GetVolumes(v2alpha1.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
+				if singleContainerStrategyEnabled {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&podResourcesMount,
+						[]apicommon.AgentContainerName{
+							apicommon.UnprivilegedSingleAgentContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&podResourcesVol)
+				} else {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&podResourcesMount,
+						[]apicommon.AgentContainerName{
+							apicommon.CoreAgentContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&podResourcesVol)
+				}
+			}
 		}
 
 		var runtimeVol corev1.Volume
