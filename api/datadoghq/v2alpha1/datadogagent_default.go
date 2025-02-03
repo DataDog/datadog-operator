@@ -30,6 +30,7 @@ const (
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
 	defaultRunProcessChecksInCoreAgent    bool = false
+	defaultCoreAgentEnabled               bool = true
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
@@ -38,19 +39,20 @@ const (
 
 	defaultServiceDiscoveryEnabled bool = false
 
-	defaultAPMEnabled                 bool   = true
-	defaultAPMHostPortEnabled         bool   = false
-	defaultAPMHostPort                int32  = 8126
-	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	defaultAPMSingleStepInstrEnabled  bool   = false
-	defaultLanguageDetectionEnabled   bool   = true
-	defaultCSPMEnabled                bool   = false
-	defaultCSPMHostBenchmarksEnabled  bool   = true
-	defaultCWSEnabled                 bool   = false
-	defaultCWSSyscallMonitorEnabled   bool   = false
-	defaultCWSNetworkEnabled          bool   = true
-	defaultCWSSecurityProfilesEnabled bool   = true
+	defaultAPMEnabled                     bool   = true
+	defaultAPMHostPortEnabled             bool   = false
+	defaultAPMHostPort                    int32  = 8126
+	defaultAPMSocketEnabled               bool   = true
+	defaultAPMSocketHostPath              string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultAPMSingleStepInstrEnabled      bool   = false
+	defaultLanguageDetectionEnabled       bool   = true
+	defaultCSPMEnabled                    bool   = false
+	defaultCSPMHostBenchmarksEnabled      bool   = true
+	defaultCWSEnabled                     bool   = false
+	defaultCWSSyscallMonitorEnabled       bool   = false
+	defaultCWSNetworkEnabled              bool   = true
+	defaultCWSSecurityProfilesEnabled     bool   = true
+	defaultErrorTrackingStandaloneEnabled bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -187,6 +189,11 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
+
+	if ddaSpec.Global.CoreAgent == nil {
+		ddaSpec.Global.CoreAgent = &CoreAgent{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.CoreAgent.Enabled, defaultCoreAgentEnabled)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
@@ -290,6 +297,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
+
+		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &ErrorTrackingStandalone{}
+		}
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultErrorTrackingStandaloneEnabled)
 	}
 
 	// ASM Features
