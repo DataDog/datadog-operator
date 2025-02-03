@@ -146,6 +146,17 @@ func getDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.Po
 			},
 			Verbs: []string{rbac.GetVerb},
 		},
+		// EKS kube_scheduler and kube_controller_manager control plane metrics
+		{
+			APIGroups: []string{rbac.EksMetricsMetricsApiGroup},
+			Resources: []string{
+				rbac.EksKubeControllerManagerMetrics,
+				rbac.EksKubeSchedulerMetrics
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
+		},
 	}
 }
 
@@ -281,6 +292,17 @@ func getDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 			},
 			ResourceNames: []string{
 				common.KubeSystemResourceName,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
+		},
+		// EKS kube_scheduler and kube_controller_manager control plane metrics
+		{
+			APIGroups: []string{rbac.EksMetricsMetricsApiGroup},
+			Resources: []string{
+				rbac.EksKubeControllerManagerMetrics,
+				rbac.EksKubeSchedulerMetrics
 			},
 			Verbs: []string{
 				rbac.GetVerb,
