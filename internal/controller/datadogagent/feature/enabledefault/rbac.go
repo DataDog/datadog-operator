@@ -38,10 +38,10 @@ func getDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv
 
 func getEksControlPlaneMetricsPolicyRule() rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		APIGroups: []string{rbac.EksMetricsApiGroup},
+		APIGroups: []string{rbac.EKSMetricsAPIGroup},
 		Resources: []string{
-			rbac.EksKubeControllerManagerMetrics,
-			rbac.EksKubeSchedulerMetrics,
+			rbac.EKSKubeControllerManagerMetrics,
+			rbac.EKSKubeSchedulerMetrics,
 		},
 		Verbs: []string{
 			rbac.GetVerb,
