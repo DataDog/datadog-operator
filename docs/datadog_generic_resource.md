@@ -38,7 +38,7 @@ spec:
 ```
 
 A `DatadogGenericResource` object has two fields:
-* `type`: as one of the [supported resources types](#supported-resources) (e.g. `synthetics_browser_test`), API to create the resource in the Datadog platform.
+* `type`: one of the [supported resources types](#supported-resources) (e.g. `synthetics_browser_test`)
 * `jsonSpec`: JSON description of the resource you want to create.
 
 ## Supported Resources
