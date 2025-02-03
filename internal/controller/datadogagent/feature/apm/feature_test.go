@@ -363,6 +363,17 @@ func TestAPMFeature(t *testing.T) {
 				}
 			},
 		},
+		{
+			Name: "error tracking standalone enabled",
+			DDA: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithErrorTrackingStandalone(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testAgentErrorTrackingStandalone(),
+		},
 	}
 
 	tests.Run(t, buildAPMFeature)
@@ -439,6 +450,35 @@ func testAgentHostPortOnly() *test.ComponentTest {
 				t,
 				apiutils.IsEqualStruct(agentPorts, expectedPorts),
 				"Trace Agent Ports \ndiff = %s", cmp.Diff(agentPorts, expectedPorts),
+			)
+		},
+	)
+}
+
+func testAgentErrorTrackingStandalone() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMEnabled,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAPMReceiverSocket,
+					Value: apmSocketLocalPath,
+				},
+				{
+					Name:  apicommon.DDAPMErrorTrackingStandaloneEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 		},
 	)
