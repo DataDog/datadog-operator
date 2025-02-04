@@ -33,7 +33,7 @@ import (
 const (
 	hostCAPath           = "/host/ca/path/ca.crt"
 	agentCAPath          = "/agent/ca/path/ca.crt"
-	podResourcesSocket   = v2alpha1.DefaultKubeletPodResourcesSocket
+	podResourcesSocket   = "/var/lib/kubelet/pod-resources/kubelet.sock"
 	dockerSocketPath     = "/docker/socket/path/docker.sock"
 	secretBackendCommand = "foo.sh"
 	secretBackendArgs    = "bar baz"
@@ -307,7 +307,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	if !containsPodResourcesEnvVar {
 		defaultEnvVars = append(defaultEnvVars, &corev1.EnvVar{
 			Name:  v2alpha1.DDKubernetesPodResourcesSocket,
-			Value: v2alpha1.DefaultKubeletPodResourcesSocket,
+			Value: podResourcesSocket,
 		})
 	}
 
