@@ -5,7 +5,7 @@ images:
   newTag: latest
 kind: Kustomization
 namePrefix: datadog-operator-e2e-
-namespace: system
+namespace: e2e-operator
 patches:
 - path: rc-e2e-manager.yaml
   target:

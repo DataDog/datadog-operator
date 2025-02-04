@@ -1,5 +1,5 @@
 {
-	"image": "mcr.microsoft.com/devcontainers/go:dev-1.22",
+	"image": "mcr.microsoft.com/devcontainers/go:dev-1.23",
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
