@@ -777,4 +777,4 @@ spec:
   provider:
     name: Datadog
   version: 1.12.0
-  replaces: datadog-operator.v1.12.0
+  replaces: datadog-operator.v1.11.1
