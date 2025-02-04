@@ -688,7 +688,7 @@ spec:
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
                         - Apply: Apply all recommendations.
-                        - Preview: Preview: Recommendations are received and available through .status but prevent the controller to apply them.
+                        - Preview: Recommendations are received and visible through .Status , but the controller does not apply them.
                         It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
                       enum:
                         - Apply
@@ -702,7 +702,7 @@ spec:
                             Rules is a list of potential scaling polices which can be used during scaling.
                             At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
                           items:
-                            description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
                             properties:
                               periodSeconds:
                                 description: |-
@@ -758,7 +758,7 @@ spec:
                             Rules is a list of potential scaling polices which can be used during scaling.
                             At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
                           items:
-                            description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
                             properties:
                               periodSeconds:
                                 description: |-
@@ -807,7 +807,7 @@ spec:
                           type: string
                       type: object
                     update:
-                      description: Update defines the policy to update target resource.
+                      description: Update defines the policy for updating the target resource.
                       properties:
                         strategy:
                           description: Mode defines the mode of the update policy.
@@ -825,10 +825,10 @@ spec:
                       items:
                         description: |-
                           DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
-                          If no constraints are set, it enables resources scaling for all containers without any constraints.
+                          If no constraints are set, it enables resource scaling for all containers without any constraints.
                         properties:
                           enabled:
-                            description: Enabled false allows to disable resources autoscaling for the container. Default to true.
+                            description: Enabled, if false, allows one to disable resource autoscaling for the container. Defaults to true.
                             type: boolean
                           name:
                             description: Name is the name of the container. Can be "*" to apply to all containers.
@@ -864,7 +864,7 @@ spec:
                       format: int32
                       type: integer
                     minReplicas:
-                      description: MinReplicas is the lower limit for the number of POD replicas. Needs to be >= 1. Default to 1.
+                      description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Default to 1.
                       format: int32
                       minimum: 1
                       type: integer
@@ -873,7 +873,7 @@ spec:
                   type: object
                 objectives:
                   description: |-
-                    Objectives are objectives to reach and maintain for the target resource.
+                    Objectives are the objectives to reach and maintain for the target resource.
                     Default to a single target to maintain 80% POD CPU utilization.
                   items:
                     description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target resource.
@@ -905,7 +905,7 @@ spec:
                           - value
                         type: object
                       podResource:
-                        description: PodResource allows to set a POD-level resource target.
+                        description: PodResource allows to set a pod-level resource target.
                         properties:
                           name:
                             description: Name is the name of the resource.
@@ -939,16 +939,16 @@ spec:
                   x-kubernetes-list-type: atomic
                 owner:
                   description: |-
-                    Owner defines the source of truth for this object (local or remote)
-                    Value needs to be set when a DatadogPodAutoscaler object is created.
+                    Owner defines the source of truth for this object (local or remote).
+                    Value must be set when a DatadogPodAutoscaler object is created.
                   enum:
                     - Local
                     - Remote
                   type: string
                 remoteVersion:
                   description: |-
-                    RemoteVersion is the version of the .Spec currently store in this object.
-                    Only set if the owner is Remote.
+                    RemoteVersion is the version of the .Spec currently stored in this object.
+                    This is only set if the owner is Remote.
                   format: int64
                   type: integer
                 targetRef:
@@ -993,7 +993,7 @@ spec:
                         description: Status of the condition, one of True, False, Unknown.
                         type: string
                       type:
-                        description: Type of DatadogMetric condition.
+                        description: DatadogPodAutoscalerConditionType is the type of DatadogPodAutoscaler condition.
                         type: string
                     required:
                       - status
@@ -1004,7 +1004,7 @@ spec:
                     - type
                   x-kubernetes-list-type: map
                 currentReplicas:
-                  description: CurrentReplicas is the current number of PODs for the targetRef observed by the controller.
+                  description: CurrentReplicas is the current number of pods for the targetRef observed by the controller.
                   format: int32
                   type: integer
                 horizontal:
@@ -1013,10 +1013,10 @@ spec:
                     lastActions:
                       description: LastActions are the last successful actions done by the controller
                       items:
-                        description: DatadogPodAutoscalerHorizontalAction represents an horizontal action done by the controller
+                        description: DatadogPodAutoscalerHorizontalAction represents a horizontal action done by the controller
                         properties:
                           limitedReason:
-                            description: LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+                            description: LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
                             type: string
                           recommendedReplicas:
                             description: RecommendedReplicas is the original number of replicas recommended by Datadog
@@ -1073,7 +1073,7 @@ spec:
                           description: Type is the type of action
                           type: string
                         version:
-                          description: Version is the recommendation version used for the action
+                          description: Version is the version of the recommendation used for the action
                           type: string
                       required:
                         - time
@@ -1120,18 +1120,18 @@ spec:
                           anyOf:
                             - type: integer
                             - type: string
-                          description: PODCPURequest is the sum of CPU requests for all containers (used for display)
+                          description: PodCPURequest is the sum of CPU requests for all containers (used for display)
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         podMemoryRequest:
                           anyOf:
                             - type: integer
                             - type: string
-                          description: PODMemoryRequest is the sum of memory requests for all containers (used for display)
+                          description: PodMemoryRequest is the sum of memory requests for all containers (used for display)
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         scaled:
-                          description: Scaled is the current number of PODs having desired resources
+                          description: Scaled is the current number of pods having desired resources
                           format: int32
                           type: integer
                         source:
