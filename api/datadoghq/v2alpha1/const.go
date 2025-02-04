@@ -181,6 +181,7 @@ const (
 	KubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName           = "kubelet-ca"
 	KubeletPodResourcesVolumeName = "kubelet-pod-resources"
+	DefaultKubeletPodResourcesSocket = "/var/lib/kubelet/pod-resources/kubelet.sock"
 
 	APMSocketName = "apm.socket"
 

@@ -327,16 +327,16 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	if slices.Contains(configs, kubeletCAVolumes) {
 		volumes = append(volumes, &corev1.Volume{
 			Name: v2alpha1.KubeletCAVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: hostCAPath,
-					},
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostCAPath,
 				},
+			},
 		})
 	}
 
 	if slices.Contains(configs, defaultVolumes) {
-		volumes = append(volumes,  &corev1.Volume{
+		volumes = append(volumes, &corev1.Volume{
 			Name: v2alpha1.KubeletPodResourcesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
@@ -351,8 +351,8 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 			Name: v2alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-						Path: dockerSocketPath,
-					},
+					Path: dockerSocketPath,
+				},
 			},
 		})
 	}
@@ -396,7 +396,6 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 			ReadOnly:  true,
 		})
 	}
-
 
 	return mounts
 }
