@@ -305,6 +305,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 						&podResourcesMount,
 						[]apicommon.AgentContainerName{
 							apicommon.CoreAgentContainerName,
+							apicommon.ProcessAgentContainerName,
+							apicommon.TraceAgentContainerName,
+							apicommon.SecurityAgentContainerName,
+							apicommon.AgentDataPlaneContainerName,
+							apicommon.SystemProbeContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&podResourcesVol)
