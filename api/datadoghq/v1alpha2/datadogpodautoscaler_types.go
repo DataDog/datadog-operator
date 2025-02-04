@@ -122,7 +122,7 @@ type DatadogPodAutoscalerApplyPolicy struct {
 	// +kubebuilder:default=Apply
 	Mode DatadogPodAutoscalerApplyMode `json:"mode"`
 
-	// Update defines the policy to update the target resource.
+	// Update defines the policy for updating the target resource.
 	Update *DatadogPodAutoscalerUpdatePolicy `json:"update,omitempty"`
 
 	// ScaleUp defines the policy to scale up the target resource.
@@ -304,6 +304,7 @@ type DatadogPodAutoscalerContainerConstraints struct {
 	Requests *DatadogPodAutoscalerContainerResourceConstraints `json:"requests,omitempty"`
 }
 
+// DatadogPodAutoscalerContainerResourceConstraints defines constraints for the resources recommended for a container.
 type DatadogPodAutoscalerContainerResourceConstraints struct {
 	// MinAllowed is the lower limit for the requests of the container.
 	// +optional
@@ -386,7 +387,7 @@ type DatadogPodAutoscalerHorizontalAction struct {
 	// RecommendedReplicas is the original number of replicas recommended by Datadog
 	RecommendedReplicas *int32 `json:"recommendedReplicas,omitempty"`
 
-	// LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+	// LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
 	LimitedReason *string `json:"limitedReason,omitempty"`
 }
 
@@ -436,7 +437,7 @@ type DatadogPodAutoscalerVerticalAction struct {
 	// Time is the timestamp of the action
 	Time metav1.Time `json:"time"`
 
-	// Version is the recommendation version used for the action
+	// Version is the version of the recommendation used for the action
 	Version string `json:"version"`
 
 	// Type is the type of action
