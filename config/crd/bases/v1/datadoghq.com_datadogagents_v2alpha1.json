@@ -2468,7 +2468,7 @@
               "type": "string"
             },
             "runProcessChecksInCoreAgent": {
-              "description": "Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).\nThe Process Agent container won't spin up if there are no other running checks as a result.\n(Requires Agent 7.57.0+)\nDefault: 'false'",
+              "description": "Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).\nIf no other checks are running, the Process Agent container will not initialize.\n(Requires Agent 7.60.0+)\nDefault: 'true'",
               "type": "boolean"
             },
             "secretBackend": {
