@@ -19,7 +19,7 @@ const ProcessCongigRunInCoreAgentMinVersion = "7.60.0-0"
 const enableAdpAnnotation = "agent.datadoghq.com/adp-enabled"
 
 func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
-	// Agent version must >= 7.53.0 to run feature in core agent
+	// Agent version must >= 7.60.0 to run feature in core agent
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
 			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessCongigRunInCoreAgentMinVersion)
