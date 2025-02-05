@@ -1019,6 +1019,21 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    gpu:
+                      description: GPU monitoring
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables GPU monitoring.
+                            Default: false
+                          type: boolean
+                        requiredRuntimeClassName:
+                          description: |-
+                            PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                            If the value is an empty string, the runtime class is not set.
+                            Default: nvidia
+                          type: string
+                      type: object
                     helmCheck:
                       description: HelmCheck configuration.
                       properties:
@@ -1352,12 +1367,12 @@ spec:
                             enabled:
                               description: Enabled marks otelcollector as enabled in core agent.
                               type: boolean
-                            extension_timeout:
+                            extensionTimeout:
                               description: |-
                                 Extension URL provides the timout of the ddflareextension to
                                 the core agent.
                               type: integer
-                            extension_url:
+                            extensionURL:
                               description: |-
                                 Extension URL provides the URL of the ddflareextension to
                                 the core agent.
@@ -1411,6 +1426,7 @@ spec:
                               - containerPort
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     otlp:
                       description: OTLP ingest configuration
@@ -2132,6 +2148,11 @@ spec:
                           type: object
                         hostCAPath:
                           description: HostCAPath is the host path where the kubelet CA certificate is stored.
+                          type: string
+                        podResourcesSocket:
+                          description: |-
+                            PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
+                            Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
                           type: string
                         tlsVerify:
                           description: |-
@@ -7882,6 +7903,21 @@ spec:
                                 Default: false
                               type: boolean
                           type: object
+                        gpu:
+                          description: GPU monitoring
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables GPU monitoring.
+                                Default: false
+                              type: boolean
+                            requiredRuntimeClassName:
+                              description: |-
+                                PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                                If the value is an empty string, the runtime class is not set.
+                                Default: nvidia
+                              type: string
+                          type: object
                         helmCheck:
                           description: HelmCheck configuration.
                           properties:
@@ -8215,12 +8251,12 @@ spec:
                                 enabled:
                                   description: Enabled marks otelcollector as enabled in core agent.
                                   type: boolean
-                                extension_timeout:
+                                extensionTimeout:
                                   description: |-
                                     Extension URL provides the timout of the ddflareextension to
                                     the core agent.
                                   type: integer
-                                extension_url:
+                                extensionURL:
                                   description: |-
                                     Extension URL provides the URL of the ddflareextension to
                                     the core agent.
@@ -8274,6 +8310,7 @@ spec:
                                   - containerPort
                                 type: object
                               type: array
+                              x-kubernetes-list-type: atomic
                           type: object
                         otlp:
                           description: OTLP ingest configuration

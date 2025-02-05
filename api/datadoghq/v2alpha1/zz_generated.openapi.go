@@ -85,14 +85,14 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_CoreConfig(ref common.Refere
 							Format:      "",
 						},
 					},
-					"extension_url": {
+					"extensionURL": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Extension URL provides the URL of the ddflareextension to the core agent.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"extension_timeout": {
+					"extensionTimeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Extension URL provides the timout of the ddflareextension to the core agent.",
 							Type:        []string{"integer"},
@@ -675,6 +675,12 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig"),
 						},
 					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU monitoring",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig"),
+						},
+					},
 					"eventCollection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "EventCollection configuration.",
@@ -733,7 +739,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref common.R
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.APMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ASMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AutoscalingFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CSPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CWSFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EBPFCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.GPUFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.LogCollectionFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.NPMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OOMKillFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OtelCollectorFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigurationFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.SBOMFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ServiceDiscoveryFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
@@ -1418,6 +1424,11 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 						},
 					},
 					"ports": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Ports contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed.",
 							Type:        []string{"array"},

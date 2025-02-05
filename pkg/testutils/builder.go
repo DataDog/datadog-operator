@@ -834,11 +834,12 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 
 // Global Kubelet
 
-func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocket string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
-		TLSVerify:   apiutils.NewBoolPointer(tlsVerify),
-		HostCAPath:  hostCAPath,
-		AgentCAPath: agentCAPath,
+		TLSVerify:          apiutils.NewBoolPointer(tlsVerify),
+		HostCAPath:         hostCAPath,
+		AgentCAPath:        agentCAPath,
+		PodResourcesSocket: podResourcesSocket,
 	}
 	return builder
 }
@@ -947,5 +948,19 @@ func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *Da
 	}
 
 	builder.datadogAgent.Spec.Global.FIPS = &fipsConfig
+	return builder
+}
+
+// GPU
+
+func (builder *DatadogAgentBuilder) initGPUMonitoring() {
+	if builder.datadogAgent.Spec.Features.GPU == nil {
+		builder.datadogAgent.Spec.Features.GPU = &v2alpha1.GPUFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initGPUMonitoring()
+	builder.datadogAgent.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }

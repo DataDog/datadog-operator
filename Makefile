@@ -109,14 +109,10 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
+manager: sync generate lint managergobuild ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -209,8 +205,13 @@ integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v2.out
 
 .PHONY: e2e-tests
-e2e-tests: manifests $(KUSTOMIZE) ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e.out
+e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+	else \
+	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+	fi
 
 .PHONY: e2e-tests-keep-stacks
 e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environment stacks running. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks`.
@@ -319,9 +320,9 @@ verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 update-golang:
 	hack/update-golang.sh
 
-.PHONY: tidy
-tidy: ## Run go tidy
-	go mod tidy -v
+.PHONY: sync
+sync: ## Run go work sync
+	go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
