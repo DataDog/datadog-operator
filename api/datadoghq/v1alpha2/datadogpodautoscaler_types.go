@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v1alpha1
+package v1alpha2
 
 import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -19,8 +19,8 @@ import (
 //     name: test
 //   owner: local
 //   remoteVersion: 1
-//   policy:
-//     applyMode: All|Manual|None
+//   applyPolicy:
+//     mode: Apply | Preview
 //     update:
 //       strategy: Auto|Disabled
 //     upscale:
@@ -35,7 +35,7 @@ import (
 //         - type: Pods|Percent
 //           value: 1
 //           periodSeconds: 60
-//   targets:
+//   objectives:
 //     - type: PodResource
 //       resource:
 //         name: cpu
@@ -59,19 +59,16 @@ import (
 //         requests:
 //           minAllowed:
 //           maxAllowed:
-//         limits:
-//           minAllowed:
-//           maxAllowed:
 
 // DatadogPodAutoscalerOwner defines the source of truth for this object (local or remote)
 // +kubebuilder:validation:Enum:=Local;Remote
 type DatadogPodAutoscalerOwner string
 
 const (
-	// DatadogPodAutoscalerLocalOwner states that this `DatadogPodAutoscaler` object is created/managed outside of Datadog app.
+	// DatadogPodAutoscalerLocalOwner states that this `DatadogPodAutoscaler` object is created/managed outside of the Datadog app.
 	DatadogPodAutoscalerLocalOwner DatadogPodAutoscalerOwner = "Local"
 
-	// DatadogPodAutoscalerLocalOwner states that this `DatadogPodAutoscaler` object is created/managed in Datadog app.
+	// DatadogPodAutoscalerRemoteOwner states that this `DatadogPodAutoscaler` object is created/managed in the Datadog app.
 	DatadogPodAutoscalerRemoteOwner DatadogPodAutoscalerOwner = "Remote"
 )
 
@@ -80,64 +77,59 @@ type DatadogPodAutoscalerSpec struct {
 	// TargetRef is the reference to the resource to scale.
 	TargetRef autoscalingv2.CrossVersionObjectReference `json:"targetRef"`
 
-	// Owner defines the source of truth for this object (local or remote)
-	// Value needs to be set when a DatadogPodAutoscaler object is created.
+	// Owner defines the source of truth for this object (local or remote).
+	// Value must be set when a DatadogPodAutoscaler object is created.
 	Owner DatadogPodAutoscalerOwner `json:"owner"`
 
-	// RemoteVersion is the version of the .Spec currently store in this object.
-	// Only set if the owner is Remote.
+	// RemoteVersion is the version of the .Spec currently stored in this object.
+	// This is only set if the owner is Remote.
 	RemoteVersion *uint64 `json:"remoteVersion,omitempty"`
 
-	// Policy defines how recommendations should be applied.
+	// ApplyPolicy defines how recommendations should be applied.
 	// +optional
 	// +kubebuilder:default={}
-	Policy *DatadogPodAutoscalerPolicy `json:"policy,omitempty"`
+	ApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"applyPolicy,omitempty"`
 
-	// Targets are objectives to reach and maintain for the target resource.
+	// Objectives are the objectives to reach and maintain for the target resource.
 	// Default to a single target to maintain 80% POD CPU utilization.
 	// +listType=atomic
 	// +optional
-	Targets []DatadogPodAutoscalerTarget `json:"targets,omitempty"`
+	Objectives []DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
 }
 
-// DatadogPodAutoscalerOwner defines the source of truth for this object (local or remote)
-// +kubebuilder:validation:Enum:=All;Manual;None
+// DatadogPodAutoscalerApplyMode specifies if the controller should apply recommendations.
+// +kubebuilder:validation:Enum:=Apply;Preview
 type DatadogPodAutoscalerApplyMode string
 
 const (
-	// DatadogPodAutoscalerAllApplyMode allows the controller to apply all recommendations (regular and manual)
-	DatadogPodAutoscalerAllApplyMode DatadogPodAutoscalerApplyMode = "All"
+	// DatadogPodAutoscalerApplyModeApply allows the controller to apply all recommendations (regular and manual)
+	DatadogPodAutoscalerApplyModeApply DatadogPodAutoscalerApplyMode = "Apply"
 
-	// DatadogPodAutoscalerManualApplyMode allows the controller to only apply manual recommendations (recommendations manually validated by user in the Datadog app)
-	DatadogPodAutoscalerManualApplyMode DatadogPodAutoscalerApplyMode = "Manual"
-
-	// DatadogPodAutoscalerNoneApplyMode prevent the controller to apply any recommendations. Datadog will still produce and display recommendations
-	// but the controller will not apply them, even when they are manually validated. Similar to "DryRun" mode.
-	DatadogPodAutoscalerNoneApplyMode DatadogPodAutoscalerApplyMode = "None"
+	// DatadogPodAutoscalerApplyModePreview doesn't allow the controller to apply any recommendations
+	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
 )
 
-// DatadogPodAutoscalerPolicy defines how recommendations should be applied.
-type DatadogPodAutoscalerPolicy struct {
-	// ApplyMode determines recommendations that should be applied by the controller:
-	// - All: Apply all recommendations (regular and manual).
-	// - Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).
-	// - None: Prevent the controller to apply any recommendations.
-	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.
+// DatadogPodAutoscalerApplyPolicy defines how recommendations should be applied.
+type DatadogPodAutoscalerApplyPolicy struct {
+	// Mode determines recommendations that should be applied by the controller:
+	// - Apply: Apply all recommendations.
+	// - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
+	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
 	// +optional
-	// +kubebuilder:default=All
-	ApplyMode DatadogPodAutoscalerApplyMode `json:"applyMode"`
+	// +kubebuilder:default=Apply
+	Mode DatadogPodAutoscalerApplyMode `json:"mode"`
 
-	// Update defines the policy to update target resource.
+	// Update defines the policy for updating the target resource.
 	Update *DatadogPodAutoscalerUpdatePolicy `json:"update,omitempty"`
 
-	// Upscale defines the policy to scale up the target resource.
-	Upscale *DatadogPodAutoscalerScalingPolicy `json:"upscale,omitempty"`
+	// ScaleUp defines the policy to scale up the target resource.
+	ScaleUp *DatadogPodAutoscalerScalingPolicy `json:"scaleup,omitempty"`
 
-	// Downscale defines the policy to scale down the target resource.
-	Downscale *DatadogPodAutoscalerScalingPolicy `json:"downscale,omitempty"`
+	// ScaleDown defines the policy to scale down the target resource.
+	ScaleDown *DatadogPodAutoscalerScalingPolicy `json:"scaledown,omitempty"`
 }
 
 // DatadogPodAutoscalerUpdateStrategy defines the mode of the update policy.
@@ -152,9 +144,9 @@ const (
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
 )
 
-// DatadogPodAutoscalerUpdatePolicy defines the policy to update target resource.
+// DatadogPodAutoscalerUpdatePolicy defines the policy to update the target resource.
 type DatadogPodAutoscalerUpdatePolicy struct {
-	// Mode defines the mode of the update policy.
+	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
 }
 
@@ -200,38 +192,25 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
-// DatadogPodAutoscalerScalingRuleType defines how scaling rule value should be interpreted.
+// DatadogPodAutoscalerScalingRuleType defines how a scaling rule value should be interpreted.
 // +kubebuilder:validation:Enum:=Pods;Percent
 type DatadogPodAutoscalerScalingRuleType string
 
 const (
-	// DatadogPodAutoscalerPodsScalingRuleType specifies a change in absolute number of pods compared to the starting number of PODs.
+	// DatadogPodAutoscalerPodsScalingRuleType specifies a change in the absolute number of pods compared to the starting number of pods.
 	DatadogPodAutoscalerPodsScalingRuleType DatadogPodAutoscalerScalingRuleType = "Pods"
 
-	// DatadogPodAutoscalerPercentScalingRuleType specifies a relative amount of change compared to the starting number of PODs.
+	// DatadogPodAutoscalerPercentScalingRuleType specifies a relative amount of change compared to the starting number of pods.
 	DatadogPodAutoscalerPercentScalingRuleType DatadogPodAutoscalerScalingRuleType = "Percent"
 )
 
-// DatadogPodAutoscalerScalingRuleMatch
-// +kubebuilder:validation:Enum:=Always;IfScalingEvent
-type DatadogPodAutoscalerScalingRuleMatch string
-
-const (
-	// DatadogPodAutoscalerAlwaysScalingRuleMatch defines that the rule should always be considered in the calculation.
-	DatadogPodAutoscalerAlwaysScalingRuleMatch DatadogPodAutoscalerScalingRuleMatch = "Always"
-
-	// DatadogPodAutoscalerIfScalingEventRuleMatch defines that rule should only be considered if at least one scaling event occurred.
-	// It allows to define behaviors such as forbidden windows (e.g. allow 0 PODs (Value) to be created in the next 5m (PeriodSeconds) after a scaling events).
-	DatadogPodAutoscalerIfScalingEventRuleMatch DatadogPodAutoscalerScalingRuleMatch = "IfScalingEvent"
-)
-
-// DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
+// DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
 type DatadogPodAutoscalerScalingRule struct {
 	// Type is used to specify the scaling policy.
 	Type DatadogPodAutoscalerScalingRuleType `json:"type"`
 
 	// Value contains the amount of change which is permitted by the policy.
-	// Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+	// Setting it to 0 will prevent any scaling in this direction.
 	// +kubebuilder:validation:Minimum=0
 	Value int32 `json:"value"`
 
@@ -240,10 +219,6 @@ type DatadogPodAutoscalerScalingRule struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=1800
 	PeriodSeconds int32 `json:"periodSeconds"`
-
-	// Match defines if the rule should be considered or not in the calculation.
-	// Default to Always if not set.
-	Match *DatadogPodAutoscalerScalingRuleMatch `json:"match,omitempty"`
 }
 
 // DatadogPodAutoscalerTargetType defines the type of the target.
@@ -251,27 +226,27 @@ type DatadogPodAutoscalerScalingRule struct {
 type DatadogPodAutoscalerTargetType string
 
 const (
-	// DatadogPodAutoscalerResourceTargetType allows to set POD-level resources targets.
+	// DatadogPodAutoscalerResourceTargetType allows to set pod-level resource targets.
 	DatadogPodAutoscalerResourceTargetType DatadogPodAutoscalerTargetType = "PodResource"
 
-	// DatadogPodAutoscalerContainerResourceTargetType allows to set container-level resources targets.
+	// DatadogPodAutoscalerContainerResourceTargetType allows to set container-level resource targets.
 	DatadogPodAutoscalerContainerResourceTargetType DatadogPodAutoscalerTargetType = "ContainerResource"
 )
 
-// DatadogPodAutoscalerTarget defines the objectives to reach and maintain for the target resource.
-type DatadogPodAutoscalerTarget struct {
+// DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target resource.
+type DatadogPodAutoscalerObjective struct {
 	// Type sets the type of the target.
 	Type DatadogPodAutoscalerTargetType `json:"type"`
 
-	// PodResource allows to set a POD-level resource target.
+	// PodResource allows to set a pod-level resource target.
 	PodResource *DatadogPodAutoscalerResourceTarget `json:"podResource,omitempty"`
 
 	// ContainerResource allows to set a container-level resource target.
 	ContainerResource *DatadogPodAutoscalerContainerResourceTarget `json:"containerResource,omitempty"`
 }
 
-// DatadogPodAutoscalerResourceTarget defines a POD-level resource target (for instance, CPU Utilization at 80%)
-// For POD-level targets, resources are the sum of all containers resources.
+// DatadogPodAutoscalerResourceTarget defines a pod-level resource target (for instance, CPU Utilization at 80%)
+// For pod-level targets, resources are the sum of all containers resources.
 // Utilization is computed from sum(usage) / sum(requests).
 type DatadogPodAutoscalerResourceTarget struct {
 	// Name is the name of the resource.
@@ -282,7 +257,7 @@ type DatadogPodAutoscalerResourceTarget struct {
 	Value DatadogPodAutoscalerTargetValue `json:"value"`
 }
 
-// DatadogPodAutoscalerContainerResourceTarget defines a Container level resource target (for instance, CPU Utilization for container named "foo" at 80%)
+// DatadogPodAutoscalerContainerResourceTarget defines a container-level resource target (for instance, CPU Utilization for container named "foo" at 80%)
 type DatadogPodAutoscalerContainerResourceTarget struct {
 	// Name is the name of the resource.
 	// +kubebuilder:validation:Enum:=cpu
@@ -297,33 +272,15 @@ type DatadogPodAutoscalerContainerResourceTarget struct {
 
 // DatadogPodAutoscalerTargetValue defines the value of the target.
 type DatadogPodAutoscalerTargetValue struct {
-	// Type specifies how the value is expressed (Absolute or Utilization).
-	Type DatadogPodAutoscalerTargetValueType `json:"type"`
-
-	// Absolute defines the absolute value of the target (for instance 500 millicores).
-	Absolute *resource.Quantity `json:"absolute,omitempty"`
-
 	// Utilization defines a percentage of the target compared to requested resource
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
 }
 
-// DatadogPodAutoscalerTargetValueType specifies the type of metric being targeted, and should be either
-// kubebuilder:validation:Enum:=Absolute;Utilization
-type DatadogPodAutoscalerTargetValueType string
-
-const (
-	// DatadogPodAutoscalerAbsoluteTargetValueType is the target type for absolute values
-	DatadogPodAutoscalerAbsoluteTargetValueType DatadogPodAutoscalerTargetValueType = "Absolute"
-
-	// DatadogPodAutoscalerUtilizationTargetValueType declares a MetricTarget is an AverageUtilization value
-	DatadogPodAutoscalerUtilizationTargetValueType DatadogPodAutoscalerTargetValueType = "Utilization"
-)
-
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
 type DatadogPodAutoscalerConstraints struct {
-	// MinReplicas is the lower limit for the number of POD replicas. Needs to be >= 1. Default to 1.
+	// MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
 	// +kubebuilder:validation:Minimum=1
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
@@ -335,21 +292,19 @@ type DatadogPodAutoscalerConstraints struct {
 }
 
 // DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
-// If no constraints are set, it enables resources scaling for all containers without any constraints.
+// If no constraints are set, it enables resource scaling for all containers without any constraints.
 type DatadogPodAutoscalerContainerConstraints struct {
 	// Name is the name of the container. Can be "*" to apply to all containers.
 	Name string `json:"name"`
 
-	// Enabled false allows to disable resources autoscaling for the container. Default to true.
+	// Enabled, if false, allows one to disable resource autoscaling for the container. Defaults to true.
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Requests defines the constraints for the requests of the container.
 	Requests *DatadogPodAutoscalerContainerResourceConstraints `json:"requests,omitempty"`
-
-	// Limits defines the constraints for the limits of the container.
-	Limits *DatadogPodAutoscalerContainerResourceConstraints `json:"limits,omitempty"`
 }
 
+// DatadogPodAutoscalerContainerResourceConstraints defines constraints for the resources recommended for a container.
 type DatadogPodAutoscalerContainerResourceConstraints struct {
 	// MinAllowed is the lower limit for the requests of the container.
 	// +optional
@@ -370,7 +325,7 @@ type DatadogPodAutoscalerStatus struct {
 	// +optional
 	Horizontal *DatadogPodAutoscalerHorizontalStatus `json:"horizontal,omitempty"`
 
-	// CurrentReplicas is the current number of PODs for the targetRef observed by the controller.
+	// CurrentReplicas is the current number of pods for the targetRef observed by the controller.
 	// +optional
 	CurrentReplicas *int32 `json:"currentReplicas,omitempty"`
 
@@ -393,7 +348,7 @@ const (
 	// DatadogPodAutoscalerManualValueSource is a recommendation that comes from manually applying a recommendation.
 	DatadogPodAutoscalerManualValueSource DatadogPodAutoscalerValueSource = "Manual"
 
-	// DatadogPodAutoscalerLocalValueSource is a recommendation that comes from local fallback.
+	// DatadogPodAutoscalerLocalValueSource is a recommendation that comes from the local fallback.
 	DatadogPodAutoscalerLocalValueSource DatadogPodAutoscalerValueSource = "Local"
 )
 
@@ -418,7 +373,7 @@ type DatadogPodAutoscalerHorizontalTargetStatus struct {
 	Replicas int32 `json:"desiredReplicas"`
 }
 
-// DatadogPodAutoscalerHorizontalAction represents an horizontal action done by the controller
+// DatadogPodAutoscalerHorizontalAction represents a horizontal action done by the controller
 type DatadogPodAutoscalerHorizontalAction struct {
 	// Time is the timestamp of the action
 	Time metav1.Time `json:"time"`
@@ -432,7 +387,7 @@ type DatadogPodAutoscalerHorizontalAction struct {
 	// RecommendedReplicas is the original number of replicas recommended by Datadog
 	RecommendedReplicas *int32 `json:"recommendedReplicas,omitempty"`
 
-	// LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+	// LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
 	LimitedReason *string `json:"limitedReason,omitempty"`
 }
 
@@ -456,17 +411,17 @@ type DatadogPodAutoscalerVerticalTargetStatus struct {
 	// Version is the current version of the received recommendation
 	Version string `json:"version"`
 
-	// Scaled is the current number of PODs having desired resources
+	// Scaled is the current number of pods having desired resources
 	Scaled *int32 `json:"scaled,omitempty"`
 
 	// DesiredResources is the desired resources for containers
 	DesiredResources []DatadogPodAutoscalerContainerResources `json:"desiredResources"`
 
-	// PODCPURequest is the sum of CPU requests for all containers (used for display)
-	PODCPURequest resource.Quantity `json:"podCPURequest"`
+	// PodCPURequest is the sum of CPU requests for all containers (used for display)
+	PodCPURequest resource.Quantity `json:"podCPURequest"`
 
-	// PODMemoryRequest is the sum of memory requests for all containers (used for display)
-	PODMemoryRequest resource.Quantity `json:"podMemoryRequest"`
+	// PodMemoryRequest is the sum of memory requests for all containers (used for display)
+	PodMemoryRequest resource.Quantity `json:"podMemoryRequest"`
 }
 
 // DatadogPodAutoscalerVerticalActionType represents the type of action done by the controller
@@ -482,7 +437,7 @@ type DatadogPodAutoscalerVerticalAction struct {
 	// Time is the timestamp of the action
 	Time metav1.Time `json:"time"`
 
-	// Version is the recommendation version used for the action
+	// Version is the version of the recommendation used for the action
 	Version string `json:"version"`
 
 	// Type is the type of action
@@ -497,12 +452,12 @@ type DatadogPodAutoscalerContainerResources struct {
 	// +optional
 	Limits corev1.ResourceList `json:"limits,omitempty"`
 
-	// Requests describes target resources of compute resources allowed.
+	// Requests describes the requested amount of compute resources.
 	// +optional
 	Requests corev1.ResourceList `json:"requests,omitempty"`
 }
 
-// DatadogPodAutoscalerConditionType type use to represent a DatadogMetric condition
+// DatadogPodAutoscalerConditionType is the type used to represent a DatadogPodAutoscaler condition
 type DatadogPodAutoscalerConditionType string
 
 const (
@@ -512,7 +467,7 @@ const (
 	// DatadogPodAutoscalerActiveCondition is true when the DatadogPodAutoscaler can be used for autoscaling.
 	DatadogPodAutoscalerActiveCondition DatadogPodAutoscalerConditionType = "Active"
 
-	// DatadogPodAutoscalerHorizontalAbleToRecommendCondition is true when we can get horizontal recommendation from Datadog.
+	// DatadogPodAutoscalerHorizontalAbleToRecommendCondition is true when a horizontal recommendation can be received from Datadog.
 	DatadogPodAutoscalerHorizontalAbleToRecommendCondition DatadogPodAutoscalerConditionType = "HorizontalAbleToRecommend"
 
 	// DatadogPodAutoscalerHorizontalAbleToScaleCondition is true when horizontal scaling is working correctly.
@@ -521,16 +476,16 @@ const (
 	// DatadogPodAutoscalerHorizontalScalingLimitedCondition is true when horizontal scaling is limited by constraints.
 	DatadogPodAutoscalerHorizontalScalingLimitedCondition DatadogPodAutoscalerConditionType = "HorizontalScalingLimited"
 
-	// DatadogPodAutoscalerVerticalAbleToRecommendCondition is true when we can ge vertical recommendation from Datadog.
+	// DatadogPodAutoscalerVerticalAbleToRecommendCondition is true when a vertical recommendation can be received from Datadog.
 	DatadogPodAutoscalerVerticalAbleToRecommendCondition DatadogPodAutoscalerConditionType = "VerticalAbleToRecommend"
 
-	// DatadogPodAutoscalerVerticalAbleToApply is true when we can rollout the targetRef to pick up new resources.
+	// DatadogPodAutoscalerVerticalAbleToApply is true when the targetRef can be rolled out to pick up new resources.
 	DatadogPodAutoscalerVerticalAbleToApply DatadogPodAutoscalerConditionType = "VerticalAbleToApply"
 )
 
 // DatadogPodAutoscalerCondition describes the state of DatadogPodAutoscaler.
 type DatadogPodAutoscalerCondition struct {
-	// Type of DatadogMetric condition.
+	// DatadogPodAutoscalerConditionType is the type of DatadogPodAutoscaler condition.
 	Type DatadogPodAutoscalerConditionType `json:"type"`
 
 	// Status of the condition, one of True, False, Unknown.
@@ -564,7 +519,6 @@ type DatadogPodAutoscalerCondition struct {
 // +kubebuilder:printcolumn:name="Generated",type="date",JSONPath=".status.vertical.target.generatedAt"
 // +kubebuilder:printcolumn:name="Able to Apply",type="string",JSONPath=".status.conditions[?(@.type=='VerticalAbleToApply')].status"
 // +kubebuilder:printcolumn:name="Last Trigger",type="date",JSONPath=".status.vertical.lastAction.time"
-// +kubebuilder:storageversion
 // DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
 type DatadogPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -576,7 +530,7 @@ type DatadogPodAutoscaler struct {
 
 //+kubebuilder:object:root=true
 
-// DatadogPodAutoscalerList contains a list of DatadogPodAutoscaler
+// DatadogPodAutoscalerList contains a list of DatadogPodAutoscalers
 type DatadogPodAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
