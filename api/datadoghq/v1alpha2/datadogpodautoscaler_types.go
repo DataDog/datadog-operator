@@ -116,7 +116,7 @@ const (
 type DatadogPodAutoscalerApplyPolicy struct {
 	// Mode determines recommendations that should be applied by the controller:
 	// - Apply: Apply all recommendations.
-	// - Preview: Recommendations are received and visible through .Status , but the controller does not apply them.
+	// - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
 	// It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
 	// +optional
 	// +kubebuilder:default=Apply
@@ -144,7 +144,7 @@ const (
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
 )
 
-// DatadogPodAutoscalerUpdatePolicy defines the policy to update target resource.
+// DatadogPodAutoscalerUpdatePolicy defines the policy to update the target resource.
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Mode defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
@@ -192,7 +192,7 @@ type DatadogPodAutoscalerScalingPolicy struct {
 	StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,omitempty"`
 }
 
-// DatadogPodAutoscalerScalingRuleType defines how scaling rule value should be interpreted.
+// DatadogPodAutoscalerScalingRuleType defines how a scaling rule value should be interpreted.
 // +kubebuilder:validation:Enum:=Pods;Percent
 type DatadogPodAutoscalerScalingRuleType string
 
@@ -280,7 +280,7 @@ type DatadogPodAutoscalerTargetValue struct {
 
 // DatadogPodAutoscalerConstraints defines constraints that should always be respected.
 type DatadogPodAutoscalerConstraints struct {
-	// MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Default to 1.
+	// MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
 	// +kubebuilder:validation:Minimum=1
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
@@ -452,12 +452,12 @@ type DatadogPodAutoscalerContainerResources struct {
 	// +optional
 	Limits corev1.ResourceList `json:"limits,omitempty"`
 
-	// Requests describes target resources of compute resources allowed.
+	// Requests describes the requested amount of compute resources.
 	// +optional
 	Requests corev1.ResourceList `json:"requests,omitempty"`
 }
 
-// DatadogPodAutoscalerConditionType is the type used to represent a DatadogMetric condition
+// DatadogPodAutoscalerConditionType is the type used to represent a DatadogPodAutoscaler condition
 type DatadogPodAutoscalerConditionType string
 
 const (

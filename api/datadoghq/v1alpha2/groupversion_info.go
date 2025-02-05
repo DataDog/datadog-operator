@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// Package v2alpha1 contains API Schema definitions for the datadoghq v2alpha1 API group
+// Package v1alpha2 contains API Schema definitions for the datadoghq v1alpha2 API group
 // +kubebuilder:object:generate=true
 // +groupName=datadoghq.com
 package v1alpha2
@@ -15,7 +15,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "datadoghq.com", Version: "v2alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "datadoghq.com", Version: "v1alpha2"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
