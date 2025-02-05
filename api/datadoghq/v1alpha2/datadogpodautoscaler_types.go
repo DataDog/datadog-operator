@@ -146,7 +146,7 @@ const (
 
 // DatadogPodAutoscalerUpdatePolicy defines the policy to update the target resource.
 type DatadogPodAutoscalerUpdatePolicy struct {
-	// Mode defines the mode of the update policy.
+	// Strategy defines the mode of the update policy.
 	Strategy DatadogPodAutoscalerUpdateStrategy `json:"strategy,omitempty"`
 }
 
@@ -210,7 +210,7 @@ type DatadogPodAutoscalerScalingRule struct {
 	Type DatadogPodAutoscalerScalingRuleType `json:"type"`
 
 	// Value contains the amount of change which is permitted by the policy.
-	// Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+	// Setting it to 0 will prevent any scaling in this direction.
 	// +kubebuilder:validation:Minimum=0
 	Value int32 `json:"value"`
 
