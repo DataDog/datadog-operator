@@ -44,6 +44,8 @@ type DatadogAgentSpec struct {
 type DatadogFeatures struct {
 	// Application-level features
 
+	// OtelCollector configuration.
+	OtelCollector *OtelCollectorFeatureConfig `json:"otelCollector,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
 	// LiveProcessCollection configuration.
@@ -80,6 +82,8 @@ type DatadogFeatures struct {
 	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 	// ServiceDiscovery
 	ServiceDiscovery *ServiceDiscoveryFeatureConfig `json:"serviceDiscovery,omitempty"`
+	// GPU monitoring
+	GPU *GPUFeatureConfig `json:"gpu,omitempty"`
 
 	// Cluster-level features
 
@@ -510,6 +514,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// GPUFeatureConfig contains the GPU monitoring configuration.
+type GPUFeatureConfig struct {
+	// Enabled enables GPU monitoring.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+	// If the value is an empty string, the runtime class is not set.
+	// Default: nvidia
+	// +optional
+	PodRuntimeClassName *string `json:"requiredRuntimeClassName"`
+}
+
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
 type DogstatsdFeatureConfig struct {
@@ -696,6 +714,52 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
+// OtelCollectorFeatureConfig contains the configuration for the otel-agent.
+// +k8s:openapi-gen=true
+type OtelCollectorFeatureConfig struct {
+	// Enabled enables the OTel Agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// When passing a configmap, file name *must* be otel-config.yaml.
+	// +optional
+	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// Ports contains the ports for the otel-agent.
+	// Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317
+	// or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).
+	// If not, this will lead to a port conflict.
+	// This limitation will be lifted once annotations support is removed.
+	// +optional
+	// +listType=atomic
+	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
+
+	// OTelCollector Config Relevant to the Core agent
+	// +optional
+	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+}
+
+// CoreConfig exposes the otel collector configs relevant to the core agent.
+// +k8s:openapi-gen=true
+type CoreConfig struct {
+	// Enabled marks otelcollector as enabled in core agent.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Extension URL provides the URL of the ddflareextension to
+	// the core agent.
+	// +optional
+	ExtensionURL *string `json:"extensionURL,omitempty"`
+
+	// Extension URL provides the timout of the ddflareextension to
+	// the core agent.
+	// +optional
+	ExtensionTimeout *int `json:"extensionTimeout,omitempty"`
+}
+
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
 // The Admission Controller runs in the Cluster Agent.
 type AdmissionControllerFeatureConfig struct {
@@ -742,6 +806,10 @@ type AdmissionControllerFeatureConfig struct {
 	// Registry defines an image registry for the admission controller.
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.
+	// +optional
+	KubernetesAdmissionEvents *KubernetesAdmissionEventsConfig `json:"kubernetesAdmissionEvents,omitempty"`
 
 	// CWSInstrumentation holds the CWS Instrumentation endpoint configuration
 	// +optional
@@ -821,6 +889,13 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type KubernetesAdmissionEventsConfig struct {
+	// Enable the Kubernetes Admission Events feature.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSInstrumentationConfig contains the configuration of the CWS Instrumentation admission controller endpoint.
@@ -1018,6 +1093,11 @@ type KubeletConfig struct {
 	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
+
+	// PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
+	// Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+	// +optional
+	PodResourcesSocket string `json:"podResourcesSocket,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.
@@ -1565,6 +1645,12 @@ type DatadogAgentComponentOverride struct {
 	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
 	// the pod priority is default, or zero if there is no default.
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+
+	// If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.
+	// If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase.
+	// If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
+	// +optional
+	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints.
 	// +optional

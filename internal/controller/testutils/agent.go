@@ -25,6 +25,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
@@ -350,6 +351,19 @@ func NewDatadogAgentWithUSM(namespace string, name string) v2alpha1.DatadogAgent
 	)
 }
 
+// NewDatadogAgentWithGPUMonitoring returns an agent with GPU monitoring enabled
+func NewDatadogAgentWithGPUMonitoring(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			GPU: &v2alpha1.GPUFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithGlobalConfigSettings returns an agent with some global
 // settings set
 func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2alpha1.DatadogAgent {
@@ -408,7 +422,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathSpecNodeName,
+					FieldPath: v2alpha1.FieldPathSpecNodeName,
 				},
 			},
 			TLSVerify:  apiutils.NewBoolPointer(true),
@@ -455,7 +469,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  apicommon.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "debug",
 					},
 				},
@@ -474,9 +488,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				ReadinessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -489,9 +503,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LivenessProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},
@@ -504,9 +518,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				StartupProbe: &v1.Probe{
 					ProbeHandler: v1.ProbeHandler{
 						HTTPGet: &v1.HTTPGetAction{
-							Path: v2alpha1.DefaultLivenessProbeHTTPPath,
+							Path: constants.DefaultLivenessProbeHTTPPath,
 							Port: intstr.IntOrString{
-								IntVal: v2alpha1.DefaultAgentHealthPort,
+								IntVal: constants.DefaultAgentHealthPort,
 							},
 						},
 					},

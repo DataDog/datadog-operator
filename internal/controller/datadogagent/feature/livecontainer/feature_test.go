@@ -10,12 +10,12 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ func TestLiveContainerFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "live container collection enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -34,7 +34,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled with single container",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -43,7 +43,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled on core agent via env var",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -58,7 +58,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled on core agent via spec",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -73,7 +73,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled in core agent via spec without min version",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -88,7 +88,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection disabled on core agent via env var override",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -115,11 +115,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  apicommon.DDContainerCollectionEnabled,
+					Name:  v2alpha1.DDContainerCollectionEnabled,
 					Value: "true",
 				},
 			}
@@ -133,13 +133,13 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      apicommon.CgroupsVolumeName,
-					MountPath: apicommon.CgroupsMountPath,
+					Name:      v2alpha1.CgroupsVolumeName,
+					MountPath: v2alpha1.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.ProcdirVolumeName,
-					MountPath: apicommon.ProcdirMountPath,
+					Name:      v2alpha1.ProcdirVolumeName,
+					MountPath: v2alpha1.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -152,18 +152,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []corev1.Volume{
 				{
-					Name: apicommon.CgroupsVolumeName,
+					Name: v2alpha1.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.CgroupsHostPath,
+							Path: v2alpha1.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.ProcdirVolumeName,
+					Name: v2alpha1.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.ProcdirHostPath,
+							Path: v2alpha1.ProcdirHostPath,
 						},
 					},
 				},

@@ -31,6 +31,7 @@ func getRBACClusterPolicyRules(webhookName string, cwsInstrumentationEnabled boo
 				rbac.ListVerb,
 				rbac.WatchVerb,
 				rbac.UpdateVerb,
+				rbac.DeleteVerb,
 			},
 		},
 		// ExtendedDaemonsetReplicaSets

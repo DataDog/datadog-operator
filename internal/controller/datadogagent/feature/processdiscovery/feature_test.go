@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package processdiscovery
 
 import (
@@ -5,12 +10,12 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +26,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "process discovery enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -29,21 +34,21 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery disabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "process discovery config missing",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled in core agent via env vars",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -58,7 +63,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled in core agent via spec",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -73,7 +78,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled in core agent via spec without min version",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -88,7 +93,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery disabled in core agent via env var override",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -104,7 +109,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled on single container",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -123,18 +128,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volume mounts
 			wantVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      apicommon.PasswdVolumeName,
-					MountPath: apicommon.PasswdMountPath,
+					Name:      v2alpha1.PasswdVolumeName,
+					MountPath: v2alpha1.PasswdMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.CgroupsVolumeName,
-					MountPath: apicommon.CgroupsMountPath,
+					Name:      v2alpha1.CgroupsVolumeName,
+					MountPath: v2alpha1.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      apicommon.ProcdirVolumeName,
-					MountPath: apicommon.ProcdirMountPath,
+					Name:      v2alpha1.ProcdirVolumeName,
+					MountPath: v2alpha1.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -145,26 +150,26 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check volumes
 			wantVolumes := []corev1.Volume{
 				{
-					Name: apicommon.PasswdVolumeName,
+					Name: v2alpha1.PasswdVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.PasswdHostPath,
+							Path: v2alpha1.PasswdHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.CgroupsVolumeName,
+					Name: v2alpha1.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.CgroupsHostPath,
+							Path: v2alpha1.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: apicommon.ProcdirVolumeName,
+					Name: v2alpha1.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.ProcdirHostPath,
+							Path: v2alpha1.ProcdirHostPath,
 						},
 					},
 				},
@@ -176,11 +181,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
 				{
-					Name:  apicommon.DDProcessConfigRunInCoreAgent,
+					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  apicommon.DDProcessDiscoveryEnabled,
+					Name:  DDProcessDiscoveryEnabled,
 					Value: "true",
 				},
 			}

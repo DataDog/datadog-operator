@@ -168,6 +168,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		"with overrides",
 		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
 	)
+
+	Context(
+		"with GPU monitoring",
+		testFunction(testutils.NewDatadogAgentWithGPUMonitoring(namespace, "with-gpu-monitoring")),
+	)
 })
 
 func testFunction(agent v2alpha1.DatadogAgent) func() {

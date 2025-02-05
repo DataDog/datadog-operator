@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -66,6 +65,16 @@ var (
 	ErrEmptyAPIKey = errors.New("empty api key")
 	// errInitValue used to initialize lastReconcileErr
 	errInitValue = errors.New("last error init value")
+)
+
+// datadogForwarderConditionType type use to represent a Datadog Metrics Forwarder condition.
+type datadogForwarderConditionType string
+
+const (
+	// datadogMetricsActive forwarding metrics and events to Datadog is active.
+	datadogMetricsActive datadogForwarderConditionType = "ActiveDatadogMetrics"
+	// datadogMetricsError cannot forward deployment metrics and events to Datadog.
+	datadogMetricsError datadogForwarderConditionType = "DatadogMetricsError"
 )
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
@@ -669,14 +678,17 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	conditionStatus := true
 	message := "Datadog metrics forwarding ok"
 	reason := "MetricsForwardingSucceeded"
+	conditionType := string(datadogMetricsActive)
+
 	if err != nil {
 		conditionStatus = false
 		message = "Datadog metrics forwarding error"
 		reason = "MetricsForwardingError"
+		conditionType = string(datadogMetricsError)
 	}
 
 	newConditionStatus := &ConditionCommon{
-		ConditionType:  string(v1alpha1.DatadogMetricsActive),
+		ConditionType:  conditionType,
 		Status:         conditionStatus,
 		LastUpdateTime: now,
 		Message:        message,

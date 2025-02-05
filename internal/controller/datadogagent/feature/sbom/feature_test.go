@@ -56,15 +56,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -78,15 +78,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -100,15 +100,15 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "false",
 			},
 		}
@@ -118,7 +118,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(nodeAgentEnvVars, wantEnvVars), "Node agent envvars \ndiff = %s", cmp.Diff(nodeAgentEnvVars, wantEnvVars))
 
 		wantEnvVars = []*corev1.EnvVar{{
-			Name:  apicommon.DDSBOMContainerOverlayFSDirectScan,
+			Name:  DDSBOMContainerOverlayFSDirectScan,
 			Value: "true",
 		}}
 		assert.True(t, apiutils.IsEqualStruct(nodeCoreAgentEnvVars, wantEnvVars), "Core agent envvars \ndiff = %s", cmp.Diff(nodeCoreAgentEnvVars, wantEnvVars))
@@ -129,22 +129,22 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantAllAgentsEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSBOMEnabled,
+				Name:  DDSBOMEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSBOMContainerImageEnabled,
+				Name:  DDSBOMContainerImageEnabled,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDSBOMHostEnabled,
+				Name:  DDSBOMHostEnabled,
 				Value: "true",
 			},
 		}
 
 		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDHostRootEnvVar,
+				Name:  v2alpha1.DDHostRootEnvVar,
 				Value: "/host",
 			},
 		}
@@ -156,8 +156,8 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
-				MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
+				Name:      v2alpha1.SystemProbeOSReleaseDirVolumeName,
+				MountPath: v2alpha1.SystemProbeOSReleaseDirMountPath,
 				ReadOnly:  true,
 			},
 			{
@@ -202,10 +202,10 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumes := []corev1.Volume{
 			{
-				Name: apicommon.SystemProbeOSReleaseDirVolumeName,
+				Name: v2alpha1.SystemProbeOSReleaseDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+						Path: v2alpha1.SystemProbeOSReleaseDirVolumePath,
 					},
 				},
 			},

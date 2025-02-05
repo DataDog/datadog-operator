@@ -130,20 +130,20 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 
 	// envvars
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLogsEnabled,
+		Name:  v2alpha1.DDLogsEnabled,
 		Value: "true",
 	})
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLogsConfigContainerCollectAll,
+		Name:  DDLogsConfigContainerCollectAll,
 		Value: strconv.FormatBool(f.containerCollectAll),
 	})
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  apicommon.DDLogsContainerCollectUsingFiles,
+		Name:  DDLogsContainerCollectUsingFiles,
 		Value: strconv.FormatBool(f.containerCollectUsingFiles),
 	})
 	if f.openFilesLimit != 0 {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDLogsConfigOpenFilesLimit,
+			Name:  DDLogsConfigOpenFilesLimit,
 			Value: strconv.FormatInt(int64(f.openFilesLimit), 10),
 		})
 	}

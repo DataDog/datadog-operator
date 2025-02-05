@@ -13,9 +13,12 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
@@ -27,7 +30,7 @@ const (
 
 // GetClusterAgentService returns the Cluster-Agent service
 func GetClusterAgentService(dda metav1.Object) *corev1.Service {
-	labels := object.GetDefaultLabels(dda, v2alpha1.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
+	labels := object.GetDefaultLabels(dda, constants.DefaultClusterAgentResourceSuffix, GetClusterAgentVersion(dda))
 	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
@@ -41,7 +44,7 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
@@ -58,13 +61,27 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	return service
 }
 
-func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisruptionBudget {
+func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) client.Object {
 	// labels and annotations
 	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
 	matchLabels := map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: v2alpha1.DefaultClusterAgentResourceSuffix}
-	pdb := &policyv1.PodDisruptionBudget{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix}
+	if useV1BetaPDB {
+		return &policyv1beta1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      GetClusterAgentPodDisruptionBudgetName(dda),
+				Namespace: dda.GetNamespace(),
+			},
+			Spec: policyv1beta1.PodDisruptionBudgetSpec{
+				MinAvailable: &minAvailableStr,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: matchLabels,
+				},
+			},
+		}
+	}
+	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetClusterAgentPodDisruptionBudgetName(dda),
 			Namespace: dda.GetNamespace(),
@@ -76,7 +93,6 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object) *policyv1.PodDisrupti
 			},
 		},
 	}
-	return pdb
 }
 
 // GetMetricsServerServiceName returns the external metrics provider service name
@@ -86,7 +102,7 @@ func GetMetricsServerServiceName(dda metav1.Object) string {
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name
 func GetMetricsServerAPIServiceName() string {
-	return apicommon.ExternalMetricsAPIServiceName
+	return v2alpha1.ExternalMetricsAPIServiceName
 }
 
 // GetDefaultExternalMetricSecretName returns the external metrics provider secret name

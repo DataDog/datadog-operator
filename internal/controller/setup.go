@@ -28,27 +28,29 @@ import (
 )
 
 const (
-	agentControllerName     = "DatadogAgent"
-	monitorControllerName   = "DatadogMonitor"
-	sloControllerName       = "DatadogSLO"
-	profileControllerName   = "DatadogAgentProfile"
-	dashboardControllerName = "DatadogDashboard"
+	agentControllerName           = "DatadogAgent"
+	monitorControllerName         = "DatadogMonitor"
+	sloControllerName             = "DatadogSLO"
+	profileControllerName         = "DatadogAgentProfile"
+	dashboardControllerName       = "DatadogDashboard"
+	genericResourceControllerName = "DatadogGenericResource"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset   ExtendedDaemonsetOptions
-	SupportCilium              bool
-	Creds                      config.Creds
-	DatadogAgentEnabled        bool
-	DatadogMonitorEnabled      bool
-	DatadogSLOEnabled          bool
-	OperatorMetricsEnabled     bool
-	V2APIEnabled               bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
-	OtelAgentEnabled           bool
-	DatadogDashboardEnabled    bool
+	SupportExtendedDaemonset      ExtendedDaemonsetOptions
+	SupportCilium                 bool
+	Creds                         config.Creds
+	DatadogAgentEnabled           bool
+	DatadogMonitorEnabled         bool
+	DatadogSLOEnabled             bool
+	OperatorMetricsEnabled        bool
+	V2APIEnabled                  bool
+	IntrospectionEnabled          bool
+	DatadogAgentProfileEnabled    bool
+	OtelAgentEnabled              bool
+	DatadogDashboardEnabled       bool
+	DatadogGenericResourceEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -69,11 +71,12 @@ type ExtendedDaemonsetOptions struct {
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricForwardersManager) error
 
 var controllerStarters = map[string]starterFunc{
-	agentControllerName:     startDatadogAgent,
-	monitorControllerName:   startDatadogMonitor,
-	sloControllerName:       startDatadogSLO,
-	profileControllerName:   startDatadogAgentProfiles,
-	dashboardControllerName: startDatadogDashboard,
+	agentControllerName:           startDatadogAgent,
+	monitorControllerName:         startDatadogMonitor,
+	sloControllerName:             startDatadogSLO,
+	profileControllerName:         startDatadogAgentProfiles,
+	dashboardControllerName:       startDatadogDashboard,
+	genericResourceControllerName: startDatadogGenericResource,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -160,7 +163,6 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
 			IntrospectionEnabled:       options.IntrospectionEnabled,
 			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
-			OtelAgentEnabled:           options.OtelAgentEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
@@ -203,6 +205,26 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+	if !options.DatadogGenericResourceEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", genericResourceControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogGenericClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	return (&DatadogGenericResourceReconciler{
+		Client:   mgr.GetClient(),
+		DDClient: ddClient,
+		Log:      ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
 	}).SetupWithManager(mgr)
 }
 

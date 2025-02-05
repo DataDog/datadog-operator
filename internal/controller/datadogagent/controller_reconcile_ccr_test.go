@@ -7,6 +7,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -97,7 +98,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "dda-foo-cluster-checks-runner",
 						Labels: map[string]string{
-							apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
@@ -110,7 +111,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 							Name:            "dda-foo-cluster-checks-runner",
 							ResourceVersion: "999",
 							Labels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 							},
 						},
@@ -126,7 +127,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "dda-foo-cluster-checks-runner",
 						Labels: map[string]string{
-							apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
@@ -135,7 +136,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foo-ccr",
 						Labels: map[string]string{
-							apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
@@ -144,7 +145,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "bar-ccr",
 						Labels: map[string]string{
-							apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 						},
 					},
@@ -157,7 +158,7 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 							Name:            "dda-foo-cluster-checks-runner",
 							ResourceVersion: "999",
 							Labels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: datadoghqv2alpha1.DefaultClusterChecksRunnerResourceSuffix,
+								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 							},
 						},

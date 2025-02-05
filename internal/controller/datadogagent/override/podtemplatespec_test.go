@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -420,7 +420,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: common.FieldPathStatusPodIP,
+								FieldPath: v2alpha1.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -440,7 +440,7 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name: "added-env-valuefrom",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: common.FieldPathStatusPodIP,
+								FieldPath: v2alpha1.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -492,7 +492,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ConfdVolumeName {
+					if vol.Name == v2alpha1.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -515,7 +515,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ConfdVolumeName {
+					if vol.Name == v2alpha1.ConfdVolumeName {
 						found = true
 						break
 					}
@@ -538,7 +538,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ChecksdVolumeName {
+					if vol.Name == v2alpha1.ChecksdVolumeName {
 						found = true
 						break
 					}
@@ -561,7 +561,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.ChecksdVolumeName {
+					if vol.Name == v2alpha1.ChecksdVolumeName {
 						found = true
 						break
 					}
@@ -576,19 +576,19 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
 					Spec: v1.PodSpec{
 						Containers: []v1.Container{
-							{Name: string(common.CoreAgentContainerName)},
-							{Name: string(common.ClusterAgentContainerName)},
+							{Name: string(apicommon.CoreAgentContainerName)},
+							{Name: string(apicommon.ClusterAgentContainerName)},
 						},
 						InitContainers: []v1.Container{
-							{Name: string(common.InitConfigContainerName)},
+							{Name: string(apicommon.InitConfigContainerName)},
 						},
 					},
 				})
 
 				manager.EnvVarMgr.AddEnvVarToContainer(
-					common.ClusterAgentContainerName,
+					apicommon.ClusterAgentContainerName,
 					&v1.EnvVar{
-						Name:  common.DDLogLevel,
+						Name:  v2alpha1.DDLogLevel,
 						Value: "info",
 					},
 				)
@@ -596,8 +596,8 @@ func TestPodTemplateSpec(t *testing.T) {
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-					common.ClusterAgentContainerName: {
+				Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+					apicommon.ClusterAgentContainerName: {
 						LogLevel: apiutils.NewStringPointer("trace"),
 					},
 				},
@@ -605,8 +605,8 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				envSet := false
 
-				for _, env := range manager.EnvVarMgr.EnvVarsByC[common.ClusterAgentContainerName] {
-					if env.Name == common.DDLogLevel && env.Value == "trace" {
+				for _, env := range manager.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName] {
+					if env.Name == v2alpha1.DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
 					}
@@ -676,6 +676,20 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assert.Equal(t, "new-name", manager.PodTemplateSpec().Spec.PriorityClassName)
+			},
+		},
+		{
+			name: "override runtime class name",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.RuntimeClassName = apiutils.NewStringPointer("old-name")
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				RuntimeClassName: apiutils.NewStringPointer("new-name"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "new-name", *manager.PodTemplateSpec().Spec.RuntimeClassName)
 			},
 		},
 		{

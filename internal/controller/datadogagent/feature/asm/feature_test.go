@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -52,7 +52,7 @@ func TestASMFeature(t *testing.T) {
 	test.FeatureTestSuite{
 		{
 			Name: "ASM not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(false, false, false).
 				Build(),
@@ -60,17 +60,17 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM Threats enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, false, false).
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerAppsecEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM Threats enabled, admission controller not enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(false).
 				WithASMEnabled(true, false, false).
 				Build(),
@@ -79,7 +79,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM Threats enabled, admission controller not configured",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithASMEnabled(true, false, false).
 				Build(),
 
@@ -87,27 +87,27 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM SCA enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithASMEnabled(false, true, false).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerAppsecSCAEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerAppsecSCAEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM IAST enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithASMEnabled(false, false, true).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 
 			WantConfigure: true,
-			ClusterAgent:  assertEnv(envVar{name: apicommon.DDAdmissionControllerIASTEnabled, value: "true", present: true}),
+			ClusterAgent:  assertEnv(envVar{name: DDAdmissionControllerIASTEnabled, value: "true", present: true}),
 		},
 		{
 			Name: "ASM all enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, true, true).
 				Build(),
@@ -115,15 +115,15 @@ func TestASMFeature(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: assertEnv(
 				envVar{
-					name:    apicommon.DDAdmissionControllerAppsecEnabled,
+					name:    DDAdmissionControllerAppsecEnabled,
 					value:   "true",
 					present: true,
 				}, envVar{
-					name:    apicommon.DDAdmissionControllerAppsecSCAEnabled,
+					name:    DDAdmissionControllerAppsecSCAEnabled,
 					value:   "true",
 					present: true,
 				}, envVar{
-					name:    apicommon.DDAdmissionControllerIASTEnabled,
+					name:    DDAdmissionControllerIASTEnabled,
 					value:   "true",
 					present: true,
 				}),

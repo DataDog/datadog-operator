@@ -7,14 +7,16 @@ package override
 
 import (
 	"fmt"
+	"slices"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	v2alpha1test "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +33,7 @@ import (
 const (
 	hostCAPath           = "/host/ca/path/ca.crt"
 	agentCAPath          = "/agent/ca/path/ca.crt"
+	podResourcesSocket   = "/var/lib/kubelet/pod-resources/kubelet.sock"
 	dockerSocketPath     = "/docker/socket/path/docker.sock"
 	secretBackendCommand = "foo.sh"
 	secretBackendArgs    = "bar baz"
@@ -51,9 +54,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		Scheme: testScheme,
 	}
 
-	var emptyVolumeMounts []*corev1.VolumeMount
-	emptyVolumes := []*corev1.Volume{}
-
 	tests := []struct {
 		name                           string
 		dda                            *v2alpha1.DatadogAgent
@@ -67,85 +67,93 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
+			dda: testutils.NewDatadogAgentBuilder().
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Value: podResourcesSocket,
+				},
+				{
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
-			wantVolumeMounts: getExpectedVolumeMounts(),
-			wantVolumes:      getExpectedVolumes(),
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantVolumes:      getExpectedVolumes(defaultVolumes, kubeletCAVolumes, criSocketVolume),
 			want:             assertAll,
 		},
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
+			dda: testutils.NewDatadogAgentBuilder().
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDKubeletTLSVerify,
+					Name:  v2alpha1.DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  apicommon.DDKubeletCAPath,
+					Name:  v2alpha1.DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  apicommon.DockerHost,
+					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Value: podResourcesSocket,
+				},
+				{
+					Name:  v2alpha1.DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
-			wantVolumeMounts: getExpectedVolumeMounts(),
-			wantVolumes:      getExpectedVolumes(),
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantVolumes:      getExpectedVolumes(defaultVolumes, kubeletCAVolumes, criSocketVolume),
 			want:             assertAllAgentSingleContainer,
 		},
 		{
 			name:                           "Checks tag cardinality set to orchestrator",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDChecksTagCardinality,
+				Name:  v2alpha1.DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
-			wantVolumeMounts: emptyVolumeMounts,
-			wantVolumes:      emptyVolumes,
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantVolumes:      getExpectedVolumes(defaultVolumes),
 			want:             assertAll,
 		},
 		{
 			name:                           "Unified origin detection activated",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  apicommon.DDOriginDetectionUnified,
+				Name:  v2alpha1.DDOriginDetectionUnified,
 				Value: "true",
 			}),
-			wantVolumeMounts: emptyVolumeMounts,
-			wantVolumes:      emptyVolumes,
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantVolumes:      getExpectedVolumes(defaultVolumes),
 			want:             assertAll,
 		},
 		{
 			name:                           "Global environment variable configured",
 			singleContainerStrategyEnabled: false,
-			dda: v2alpha1test.NewDatadogAgentBuilder().
+			dda: testutils.NewDatadogAgentBuilder().
 				WithEnvVars([]corev1.EnvVar{
 					{
 						Name:  "envA",
@@ -167,8 +175,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "valueB",
 				},
 			}...),
-			wantVolumeMounts: emptyVolumeMounts,
-			wantVolumes:      emptyVolumes,
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantVolumes:      getExpectedVolumes(defaultVolumes),
 			want:             assertAll,
 		},
 		{
@@ -177,26 +185,26 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
 					BuildWithDefaults(),
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
-			wantVolumeMounts: emptyVolumeMounts,
-			wantVolumes:      emptyVolumes,
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantVolumes:      getExpectedVolumes(defaultVolumes),
 			want:             assertAll,
 			wantDependency:   assertSecretBackendGlobalPerms,
 		},
@@ -206,26 +214,26 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				v2alpha1test.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentBuilder().
 					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
 					BuildWithDefaults(),
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  apicommon.DDSecretBackendCommand,
+					Name:  v2alpha1.DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  apicommon.DDSecretBackendArguments,
+					Name:  v2alpha1.DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  apicommon.DDSecretBackendTimeout,
+					Name:  v2alpha1.DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
-			wantVolumeMounts: emptyVolumeMounts,
-			wantVolumes:      emptyVolumes,
+			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantVolumes:      getExpectedVolumes(defaultVolumes),
 			want:             assertAll,
 			wantDependency:   assertSecretBackendSpecificPerms,
 		},
@@ -255,15 +263,15 @@ func assertAll(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedE
 	traceAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.TraceAgentContainerName]
 	processAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.ProcessAgentContainerName]
 
-	assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
-	assert.True(t, apiutils.IsEqualStruct(traceAgentVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(traceAgentVolumeMounts, []*corev1.VolumeMount(nil)))
-	assert.True(t, apiutils.IsEqualStruct(processAgentVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(processAgentVolumeMounts, []*corev1.VolumeMount(nil)))
+	assert.ElementsMatch(t, coreAgentVolumeMounts, expectedVolumeMounts, "core-agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, expectedVolumeMounts))
+	assert.ElementsMatch(t, traceAgentVolumeMounts, expectedVolumeMounts, "trace-agent volume mounts \ndiff = %s", cmp.Diff(traceAgentVolumeMounts, expectedVolumeMounts))
+	assert.ElementsMatch(t, processAgentVolumeMounts, expectedVolumeMounts, "process-agent volume mounts \ndiff = %s", cmp.Diff(processAgentVolumeMounts, expectedVolumeMounts))
 
 	volumes := mgr.VolumeMgr.Volumes
-	assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
+	assert.ElementsMatch(t, volumes, expectedVolumes, "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 
 	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers]
-	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedEnvVars))
+	assert.ElementsMatch(t, agentEnvVars, expectedEnvVars, "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedEnvVars))
 }
 
 func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount) {
@@ -271,7 +279,7 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 
 	agentSingleContainerVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.UnprivilegedSingleAgentContainerName]
 
-	assert.True(t, apiutils.IsEqualStruct(agentSingleContainerVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(agentSingleContainerVolumeMounts, []*corev1.VolumeMount(nil)))
+	assert.True(t, apiutils.IsEqualStruct(agentSingleContainerVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(agentSingleContainerVolumeMounts, expectedVolumeMounts))
 
 	volumes := mgr.VolumeMgr.Volumes
 	assert.True(t, apiutils.IsEqualStruct(volumes, expectedVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
@@ -283,52 +291,113 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDSite,
+			Name:  v2alpha1.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  apicommon.DDLogLevel,
+			Name:  v2alpha1.DDLogLevel,
 			Value: "info",
 		},
+	}
+
+	containsPodResourcesEnvVar := slices.ContainsFunc(addedEnvVars, func(envVar *corev1.EnvVar) bool {
+		return envVar.Name == v2alpha1.DDKubernetesPodResourcesSocket
+	})
+
+	if !containsPodResourcesEnvVar {
+		defaultEnvVars = append(defaultEnvVars, &corev1.EnvVar{
+			Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+			Value: podResourcesSocket,
+		})
 	}
 
 	return append(defaultEnvVars, addedEnvVars...)
 }
 
-func getExpectedVolumes() []*corev1.Volume {
-	return []*corev1.Volume{
-		{
-			Name: apicommon.KubeletCAVolumeName,
+type volumeConfig string
+
+const defaultVolumes volumeConfig = "default"
+const kubeletCAVolumes volumeConfig = "kubeletCA"
+const criSocketVolume volumeConfig = "criSocket"
+
+func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
+	volumes := []*corev1.Volume{}
+
+	// Order is important for the comparisons in the assertion, so respect that
+	if slices.Contains(configs, kubeletCAVolumes) {
+		volumes = append(volumes, &corev1.Volume{
+			Name: v2alpha1.KubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
 				},
 			},
-		},
-		{
-			Name: apicommon.CriSocketVolumeName,
+		})
+	}
+
+	if slices.Contains(configs, defaultVolumes) {
+		volumes = append(volumes, &corev1.Volume{
+			Name: v2alpha1.KubeletPodResourcesVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: podResourcesSocket,
+				},
+			},
+		})
+	}
+
+	if slices.Contains(configs, criSocketVolume) {
+		volumes = append(volumes, &corev1.Volume{
+			Name: v2alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
 				},
 			},
+		})
+	}
+
+	return volumes
+}
+
+func getDefaultVolumeMounts() []*corev1.VolumeMount {
+	return []*corev1.VolumeMount{
+		{
+			Name:      v2alpha1.KubeletPodResourcesVolumeName,
+			MountPath: podResourcesSocket,
+			ReadOnly:  false,
 		},
 	}
 }
 
-func getExpectedVolumeMounts() []*corev1.VolumeMount {
-	return []*corev1.VolumeMount{
-		{
-			Name:      apicommon.KubeletCAVolumeName,
+func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
+	mounts := []*corev1.VolumeMount{}
+
+	if slices.Contains(configs, kubeletCAVolumes) {
+		mounts = append(mounts, &corev1.VolumeMount{
+			Name:      v2alpha1.KubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
-		},
-		{
-			Name:      apicommon.CriSocketVolumeName,
+		})
+	}
+
+	if slices.Contains(configs, defaultVolumes) {
+		mounts = append(mounts, &corev1.VolumeMount{
+			Name:      v2alpha1.KubeletPodResourcesVolumeName,
+			MountPath: podResourcesSocket,
+			ReadOnly:  false,
+		})
+	}
+
+	if slices.Contains(configs, criSocketVolume) {
+		mounts = append(mounts, &corev1.VolumeMount{
+			Name:      v2alpha1.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
-		},
+		})
 	}
+
+	return mounts
 }
 
 func addNameNamespaceToDDA(name string, namespace string, dda *v2alpha1.DatadogAgent) *v2alpha1.DatadogAgent {
@@ -369,7 +438,7 @@ func assertSecretBackendGlobalPerms(t testing.TB, resourcesManager feature.Resou
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}
@@ -428,7 +497,7 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 	expectedSubject := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
-			Name:      ddaName + "-" + v2alpha1.DefaultAgentResourceSuffix,
+			Name:      ddaName + "-" + constants.DefaultAgentResourceSuffix,
 			Namespace: ddaNamespace,
 		},
 	}

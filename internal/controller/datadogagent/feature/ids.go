@@ -25,6 +25,8 @@ const (
 	LiveContainerIDType = "live_container"
 	// LiveProcessIDType Live Process feature.
 	LiveProcessIDType = "live_process"
+	// OtelAgentIDType Otel Agent feature.
+	OtelAgentIDType = "otel_agent"
 	// ProcessDiscoveryIDType Process Discovery feature.
 	ProcessDiscoveryIDType = "process_discovery"
 	// KubernetesAPIServerIDType Kube APIServer feature.
@@ -69,4 +71,6 @@ const (
 	DummyIDType = "dummy"
 	// ServiceDiscoveryType service discovery feature.
 	ServiceDiscoveryType = "service_discovery"
+	// GPUIDType GPU monitoring feature.
+	GPUIDType = "gpu"
 )
