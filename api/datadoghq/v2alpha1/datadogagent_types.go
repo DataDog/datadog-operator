@@ -1390,8 +1390,8 @@ type GlobalConfig struct {
 
 	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
 	// The Process Agent container won't spin up if there are no other running checks as a result.
-	// (Requires Agent 7.57.0+)
-	// Default: 'false'
+	// (Requires Agent 7.60.0+)
+	// Default: 'true'
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
