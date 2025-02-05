@@ -688,7 +688,7 @@ spec:
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
                         - Apply: Apply all recommendations.
-                        - Preview: Recommendations are received and visible through .Status , but the controller does not apply them.
+                        - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
                         It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
                       enum:
                         - Apply
@@ -721,7 +721,7 @@ spec:
                               value:
                                 description: |-
                                   Value contains the amount of change which is permitted by the policy.
-                                  Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+                                  Setting it to 0 will prevent any scaling in this direction.
                                 format: int32
                                 minimum: 0
                                 type: integer
@@ -777,7 +777,7 @@ spec:
                               value:
                                 description: |-
                                   Value contains the amount of change which is permitted by the policy.
-                                  Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+                                  Setting it to 0 will prevent any scaling in this direction.
                                 format: int32
                                 minimum: 0
                                 type: integer
@@ -810,7 +810,7 @@ spec:
                       description: Update defines the policy for updating the target resource.
                       properties:
                         strategy:
-                          description: Mode defines the mode of the update policy.
+                          description: Strategy defines the mode of the update policy.
                           enum:
                             - Auto
                             - Disabled
@@ -864,7 +864,7 @@ spec:
                       format: int32
                       type: integer
                     minReplicas:
-                      description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Default to 1.
+                      description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
                       format: int32
                       minimum: 1
                       type: integer
@@ -1106,7 +1106,7 @@ spec:
                                     - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: Requests describes target resources of compute resources allowed.
+                                description: Requests describes the requested amount of compute resources.
                                 type: object
                             required:
                               - name

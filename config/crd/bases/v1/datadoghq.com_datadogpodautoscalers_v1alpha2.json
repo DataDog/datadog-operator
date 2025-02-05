@@ -24,7 +24,7 @@
           "properties": {
             "mode": {
               "default": "Apply",
-              "description": "Mode determines recommendations that should be applied by the controller:\n- Apply: Apply all recommendations.\n- Preview: Recommendations are received and visible through .Status , but the controller does not apply them.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.",
+              "description": "Mode determines recommendations that should be applied by the controller:\n- Apply: Apply all recommendations.\n- Preview: Recommendations are received and visible through .Status, but the controller does not apply them.\nIt's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.",
               "enum": [
                 "Apply",
                 "Preview"
@@ -57,7 +57,7 @@
                         "type": "string"
                       },
                       "value": {
-                        "description": "Value contains the amount of change which is permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.",
+                        "description": "Value contains the amount of change which is permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction.",
                         "format": "int32",
                         "minimum": 0,
                         "type": "integer"
@@ -118,7 +118,7 @@
                         "type": "string"
                       },
                       "value": {
-                        "description": "Value contains the amount of change which is permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.",
+                        "description": "Value contains the amount of change which is permitted by the policy.\nSetting it to 0 will prevent any scaling in this direction.",
                         "format": "int32",
                         "minimum": 0,
                         "type": "integer"
@@ -158,7 +158,7 @@
               "description": "Update defines the policy for updating the target resource.",
               "properties": {
                 "strategy": {
-                  "description": "Mode defines the mode of the update policy.",
+                  "description": "Strategy defines the mode of the update policy.",
                   "enum": [
                     "Auto",
                     "Disabled"
@@ -268,7 +268,7 @@
               "type": "integer"
             },
             "minReplicas": {
-              "description": "MinReplicas is the lower limit for the number of pod replicas. Needs to be \u003e= 1. Default to 1.",
+              "description": "MinReplicas is the lower limit for the number of pod replicas. Needs to be \u003e= 1. Defaults to 1.",
               "format": "int32",
               "minimum": 1,
               "type": "integer"
@@ -608,7 +608,7 @@
                       },
                       "requests": {
                         "additionalProperties": false,
-                        "description": "Requests describes target resources of compute resources allowed.",
+                        "description": "Requests describes the requested amount of compute resources.",
                         "properties": {
                           "cpu": {
                             "anyOf": [
