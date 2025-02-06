@@ -297,7 +297,7 @@ preflight-redhat-container: bin/$(PLATFORM)/preflight
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit
 preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
 
 .PHONY: patch-crds
 patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
