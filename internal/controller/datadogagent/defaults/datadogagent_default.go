@@ -30,7 +30,7 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
-	defaultRunProcessChecksInCoreAgent    bool = false
+	defaultRunProcessChecksInCoreAgent    bool = true
 	defaultCoreAgentEnabled               bool = true
 
 	defaultOOMKillEnabled        bool = false
@@ -206,7 +206,7 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 
 	if ddaSpec.Global.CoreAgent == nil {
-		ddaSpec.Global.CoreAgent = &CoreAgent{}
+		ddaSpec.Global.CoreAgent = &v2alpha1.CoreAgent{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.CoreAgent.Enabled, defaultCoreAgentEnabled)
 }
@@ -326,7 +326,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
 
 		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
-			ddaSpec.Features.APM.ErrorTrackingStandalone = &ErrorTrackingStandalone{}
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{}
 		}
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultErrorTrackingStandaloneEnabled)

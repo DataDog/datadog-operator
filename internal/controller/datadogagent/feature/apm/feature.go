@@ -160,7 +160,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
@@ -413,7 +413,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 	// Error Tracking standalone
 	if f.errorTrackingStandaloneEnabled {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDAPMErrorTrackingStandaloneEnabled,
+			Name:  v2alpha1.DDAPMErrorTrackingStandaloneEnabled,
 			Value: apiutils.BoolToString(&f.errorTrackingStandaloneEnabled),
 		})
 	}

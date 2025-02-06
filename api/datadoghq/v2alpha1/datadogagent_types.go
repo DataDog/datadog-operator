@@ -1403,9 +1403,9 @@ type GlobalConfig struct {
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
 
 	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-	// The Process Agent container won't spin up if there are no other running checks as a result.
-	// (Requires Agent 7.57.0+)
-	// Default: 'false'
+	// If no other checks are running, the Process Agent container will not initialize.
+	// (Requires Agent 7.60.0+)
+	// Default: 'true'
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 

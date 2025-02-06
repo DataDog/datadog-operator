@@ -348,7 +348,7 @@ func TestAPMFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 					},
 				).
 				WithProcessChecksInCoreAgent(true).
@@ -365,7 +365,7 @@ func TestAPMFeature(t *testing.T) {
 		},
 		{
 			Name: "error tracking standalone enabled",
-			DDA: v2alpha1test.NewDatadogAgentBuilder().
+			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).

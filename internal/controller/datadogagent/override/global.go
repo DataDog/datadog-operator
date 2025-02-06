@@ -444,7 +444,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Apply core agent config
 	if config.CoreAgent != nil && config.CoreAgent.Enabled != nil && apiutils.BoolValue(config.CoreAgent.Enabled) {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDCoreAgentEnabled,
+			Name:  v2alpha1.DDCoreAgentEnabled,
 			Value: apiutils.BoolToString(config.CoreAgent.Enabled),
 		})
 	}
