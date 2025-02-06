@@ -183,7 +183,7 @@ type LanguageDetectionConfig struct {
 
 // InjectorConfig contains the configuration for the APM Injector.
 type InjectorConfig struct {
-	// Set the image version to use for the APM Injector.
+	// Set the image tag to use for the APM Injector.
 	// (Requires Cluster Agent 7.57.0+)
 	// +optional
 	ImageTag string `json:"imageTag,omitempty"`
