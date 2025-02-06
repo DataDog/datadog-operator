@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -13,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	assert "github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -228,7 +226,7 @@ func Test_shouldCheckCreateStrategyStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(common.CreateStrategyEnabled, tt.CreateStrategy)
+			t.Setenv(apicommon.CreateStrategyEnabled, tt.CreateStrategy)
 			actual := shouldCheckCreateStrategyStatus(tt.profile)
 			assert.Equal(t, tt.expected, actual)
 		})
@@ -255,7 +253,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 	}
 	testERSLabels := map[string]string{
-		edsv1alpha1.ExtendedDaemonSetNameLabelKey: "test-eds",
+		edsdatadoghqv1alpha1.ExtendedDaemonSetNameLabelKey: "test-eds",
 	}
 
 	tests := []struct {
@@ -364,7 +362,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Name:      "test-eds",
 						Namespace: testNS,
 						Annotations: map[string]string{
-							edsv1alpha1.ExtendedDaemonSetCanaryPausedAnnotationKey: "true",
+							edsdatadoghqv1alpha1.ExtendedDaemonSetCanaryPausedAnnotationKey: "true",
 						},
 						Labels: testEDSLabels,
 					},
@@ -391,8 +389,8 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
-						Canary: &edsv1alpha1.ExtendedDaemonSetStatusCanary{},
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
+						Canary: &edsdatadoghqv1alpha1.ExtendedDaemonSetStatusCanary{},
 					},
 				},
 			},
@@ -477,7 +475,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "",
 					},
 				},
@@ -510,7 +508,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
@@ -542,11 +540,11 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Name:      "test-eds",
 						Namespace: testNS,
 						Annotations: map[string]string{
-							edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-2",
+							edsdatadoghqv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-2",
 						},
 						Labels: testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
@@ -578,11 +576,11 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Name:      "test-eds",
 						Namespace: testNS,
 						Annotations: map[string]string{
-							edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-1",
+							edsdatadoghqv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-1",
 						},
 						Labels: testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
@@ -616,7 +614,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
@@ -653,7 +651,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 							v2alpha1.MD5AgentDeploymentAnnotationKey: "12345",
 						},
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
@@ -693,7 +691,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 							v2alpha1.MD5AgentDeploymentAnnotationKey: "12345",
 						},
 					},
-					Status: edsv1alpha1.ExtendedDaemonSetStatus{
+					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
 						ActiveReplicaSet: "test-ers-1",
 					},
 				},
