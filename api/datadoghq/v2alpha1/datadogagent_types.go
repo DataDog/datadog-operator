@@ -1079,6 +1079,11 @@ type KubeletConfig struct {
 	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
+
+	// PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
+	// Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+	// +optional
+	PodResourcesSocket string `json:"podResourcesSocket,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.
@@ -1384,9 +1389,9 @@ type GlobalConfig struct {
 	SecretBackend *SecretBackendConfig `json:"secretBackend,omitempty"`
 
 	// Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-	// The Process Agent container won't spin up if there are no other running checks as a result.
-	// (Requires Agent 7.57.0+)
-	// Default: 'false'
+	// If no other checks are running, the Process Agent container will not initialize.
+	// (Requires Agent 7.60.0+)
+	// Default: 'true'
 	// +optional
 	RunProcessChecksInCoreAgent *bool `json:"runProcessChecksInCoreAgent,omitempty"`
 }
