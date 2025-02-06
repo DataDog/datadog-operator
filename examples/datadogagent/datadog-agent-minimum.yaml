@@ -6,4 +6,42 @@ spec:
   global:
     clusterName: my-example-cluster
     credentials:
-      apiKey: <DATADOG_API_KEY>
+      apiKey: <APIkey>
+  features:
+    apm:
+      instrumentation:
+        targets:
+          - name: "sometarget"
+            podSelector:
+              matchLabels:
+                key: value
+              matchExpressions:
+                - key: somekey
+                  operator: In
+                  values:
+                    - value1
+                    - value2
+            namespaceSelector:
+              matchNames:
+                - name1
+                - name2
+              matchLabels:
+                key1: val1
+                key2: val2
+              matchExpressions:
+                - key1: somekey1
+                  operator: In
+                  values:
+                    - value1
+                    - value2
+            ddTraceVersions:
+              java: "1"
+              dotnet: "2"
+        enabled: true
+        enabledNamespaces:
+          - "test-1"
+        libVersions:
+          java: "1"
+          dotnet: "3"
+          python: "2"
+          js: "5"

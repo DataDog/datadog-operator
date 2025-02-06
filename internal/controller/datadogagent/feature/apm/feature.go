@@ -72,6 +72,7 @@ type instrumentationConfig struct {
 	libVersions        map[string]string
 	languageDetection  *languageDetection
 	injector           *injector
+	targetJSON         string
 }
 
 type languageDetection struct {
@@ -152,6 +153,14 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
+			if len(apm.SingleStepInstrumentation.Targets) > 0 {
+				j, err := json.Marshal(apm.SingleStepInstrumentation.Targets)
+				if err != nil {
+					// TODO: ERROR HANDLING
+					panic(err)
+				}
+				f.singleStepInstrumentation.targetJSON = string(j)
+			}
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
@@ -327,6 +336,12 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 				Name:  DDAPMInstrumentationLibVersions,
 				Value: string(libs),
+			})
+		}
+		if f.singleStepInstrumentation.targetJSON != "" {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationTargets,
+				Value: f.singleStepInstrumentation.targetJSON,
 			})
 		}
 

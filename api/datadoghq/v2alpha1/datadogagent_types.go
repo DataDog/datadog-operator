@@ -170,6 +170,75 @@ type SingleStepInstrumentation struct {
 	// Injector configures the APM Injector.
 	// +optional
 	Injector *InjectorConfig `json:"injector,omitempty"`
+
+	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
+	// used. If no target matches, the auto instrumentation will not be applied. Full config key:
+	// apm_config.instrumentation.targets
+	// (Requires Cluster Agent 7.64.0+)
+	// +optional
+	Targets []SSITarget `json:"targets,omitempty"`
+}
+
+// SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+// Full config key: apm_config.instrumentation.targets to get the list of targets.
+type SSITarget struct {
+	// Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
+	// Full config key: apm_config.instrumentation.targets[].name
+	Name string `json:"name"`
+	// PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
+	// conjunction with the NamespaceSelector to match the pods. Full config key:
+	// apm_config.instrumentation.targets[].selector
+	PodSelector PodSelector `json:"podSelector"`
+	// NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
+	// be used in conjunction with the Selector to match the pods. Full config key:
+	// apm_config.instrumentation.targets[].namespaceSelector
+	NamespaceSelector NamespaceSelector `json:"namespaceSelector"`
+	// TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer
+	// name and the value is the version to inject. Full config key:
+	// apm_config.instrumentation.targets[].ddTraceVersions
+	TracerVersions map[string]string `json:"ddTraceVersions"`
+}
+
+// PodSelector is a reconstruction of the metav1.LabelSelector struct to be able to unmarshal the configuration. It
+// can be converted to a metav1.LabelSelector using the AsLabelSelector method. Full config key:
+// apm_config.instrumentation.targets[].selector
+type PodSelector struct {
+	// MatchLabels is a map of key-value pairs to match the labels of the pod. The labels and expressions are ANDed.
+	// Full config key: apm_config.instrumentation.targets[].podSelector.matchLabels
+	MatchLabels map[string]string `json:"matchLabels"`
+	// MatchExpressions is a list of label selector requirements to match the labels of the pod. The labels and
+	// expressions are ANDed. Full config key: apm_config.instrumentation.targets[].podSelector.matchExpressions
+	MatchExpressions []SelectorMatchExpression `json:"matchExpressions"`
+}
+
+// SelectorMatchExpression is a reconstruction of the metav1.LabelSelectorRequirement struct to be able to unmarshal
+// the configuration. Full config key: apm_config.instrumentation.targets[].selector.matchExpressions
+type SelectorMatchExpression struct {
+	// Key is the key of the label to match. Full config key:
+	// apm_config.instrumentation.targets[].selector.matchExpressions[].key
+	Key string `json:"key"`
+	// Operator is the operator to use to match the label. Valid values are In, NotIn, Exists, DoesNotExist.
+	Operator metav1.LabelSelectorOperator `json:"operator"`
+	// Values is a list of values to match the label against. If the operator is Exists or DoesNotExist, the values
+	// should be empty. If the operator is In or NotIn, the values should be non-empty.
+	Values []string `json:"values"`
+}
+
+// NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
+// namespaces to apply the auto instrumentation to. Full config key:
+// apm_config.instrumentation.targets[].namespaceSelector
+type NamespaceSelector struct {
+	// MatchNames is a list of namespace names to match. If empty, all namespaces are matched. Full config key:
+	// apm_config.instrumentation.targets[].namespaceSelector.matchNames
+	MatchNames []string `json:"matchNames"`
+	// MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are
+	// ANDed. This cannot be used with MatchNames. Full config key:
+	// apm_config.instrumentation.targets[].namespaceSelector.matchLabels
+	MatchLabels map[string]string `json:"matchLabels"`
+	// MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
+	// expressions are ANDed. This cannot be used with MatchNames. Full config key:
+	// apm_config.instrumentation.targets[].selector.matchExpressions
+	MatchExpressions []SelectorMatchExpression `json:"matchExpressions"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.
