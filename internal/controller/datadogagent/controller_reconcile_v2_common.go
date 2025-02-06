@@ -493,8 +493,9 @@ func (r *Reconciler) shouldUpdateProfileDaemonSet(profile *v1alpha1.DatadogAgent
 		}
 
 		// eds canary was validated manually
-		if eds.Annotations[edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey] == ers.Name {
-			r.log.Info("Updating profile DaemonSet because the canary was validated")
+		if eds.Annotations[edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey] == ers.Name &&
+			eds.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey] == ers.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey] {
+			r.log.Info("Updating profile DaemonSet because the canary was validated and EDS and ERS hashes match")
 			return true, nil
 		}
 
@@ -506,6 +507,7 @@ func (r *Reconciler) shouldUpdateProfileDaemonSet(profile *v1alpha1.DatadogAgent
 
 		// if eds and ers agentspechash match, canary was successful
 		if eds.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey] == ers.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey] {
+			r.log.Info("Updating profile DaemonSet because the EDS and ERS hashes match")
 			return true, nil
 		}
 	}
