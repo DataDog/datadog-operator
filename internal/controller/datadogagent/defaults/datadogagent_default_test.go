@@ -215,6 +215,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -575,6 +578,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -725,6 +731,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -870,6 +879,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -1014,6 +1026,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1169,6 +1184,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -1313,6 +1331,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1462,6 +1483,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -1601,6 +1625,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1767,6 +1794,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -1912,6 +1942,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2081,6 +2114,9 @@ func Test_defaultFeatures(t *testing.T) {
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
+						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultOtelCollectorEnabled),
@@ -2228,6 +2264,9 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultErrorTrackingStandaloneEnabled),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{

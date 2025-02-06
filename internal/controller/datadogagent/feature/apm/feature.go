@@ -63,6 +63,8 @@ type apmFeature struct {
 	singleStepInstrumentation *instrumentationConfig
 
 	processCheckRunsInCoreAgent bool
+
+	errorTrackingStandaloneEnabled bool
 }
 
 type instrumentationConfig struct {
@@ -94,6 +96,10 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	// SingleStepInstrumentation requires APM Enabled
 	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
 		return true
+	}
+
+	if apmConf.ErrorTrackingStandalone != nil {
+		return apiutils.BoolValue(apmConf.ErrorTrackingStandalone.Enabled)
 	}
 
 	return false
@@ -157,6 +163,10 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
+		}
+
+		if apm.ErrorTrackingStandalone != nil {
+			f.errorTrackingStandaloneEnabled = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
 	}
 
@@ -398,6 +408,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
+	}
+
+	// Error Tracking standalone
+	if f.errorTrackingStandaloneEnabled {
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  v2alpha1.DDAPMErrorTrackingStandaloneEnabled,
+			Value: apiutils.BoolToString(&f.errorTrackingStandaloneEnabled),
+		})
 	}
 
 	return nil
