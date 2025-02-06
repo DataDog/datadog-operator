@@ -30,7 +30,7 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
-	defaultRunProcessChecksInCoreAgent    bool = false
+	defaultRunProcessChecksInCoreAgent    bool = true
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
