@@ -352,6 +352,19 @@ func NewDatadogAgentWithUSM(namespace string, name string) v2alpha1.DatadogAgent
 	)
 }
 
+// NewDatadogAgentWithGPUMonitoring returns an agent with GPU monitoring enabled
+func NewDatadogAgentWithGPUMonitoring(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			GPU: &v2alpha1.GPUFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithGlobalConfigSettings returns an agent with some global
 // settings set
 func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2alpha1.DatadogAgent {

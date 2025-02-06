@@ -257,11 +257,13 @@ func run(opts *options) error {
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
-			DatadogAgentEnabled:        opts.datadogAgentEnabled,
-			DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
-			DatadogSLOEnabled:          opts.datadogSLOEnabled,
-			DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-			IntrospectionEnabled:       opts.introspectionEnabled,
+			DatadogAgentEnabled:           opts.datadogAgentEnabled,
+			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
+			DatadogSLOEnabled:             opts.datadogSLOEnabled,
+			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
+			IntrospectionEnabled:          opts.introspectionEnabled,
+			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
+			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 		}),
 	})
 	if err != nil {

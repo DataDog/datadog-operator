@@ -75,7 +75,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		wantFunc func(c client.Client) error
 	}{
 		{
-			name: "DatadogAgent default, create Daemonset with core, trace and process agents",
+			name: "DatadogAgent default, create Daemonset with core and trace agents",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -94,7 +94,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
@@ -102,7 +101,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent singleProcessContainer, create Daemonset with core, trace and process agents",
+			name: "DatadogAgent singleProcessContainer, create Daemonset with core and agents",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -122,7 +121,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
@@ -156,7 +154,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with APM enabled, create Daemonset with core, trace and process agents",
+			name: "DatadogAgent with APM enabled, create Daemonset with core and process agents",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -177,7 +175,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 				}
 
@@ -212,7 +209,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
+			name: "DatadogAgent with APM and CWS enables, create Daemonset with four agents",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -234,7 +231,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 					string(apicommon.SecurityAgentContainerName),
@@ -244,7 +240,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with all five agents",
+			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with four agents",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -267,7 +263,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 					string(apicommon.SecurityAgentContainerName),
@@ -277,7 +272,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
+			name: "DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -299,7 +294,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 				}
@@ -308,7 +302,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, process and system-probe",
+			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
@@ -330,7 +324,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.SystemProbeContainerName),
 				}
@@ -362,7 +355,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
 					string(apicommon.CoreAgentContainerName),
-					string(apicommon.ProcessAgentContainerName),
 					string(apicommon.TraceAgentContainerName),
 					string(apicommon.FIPSProxyContainerName),
 				}
@@ -396,6 +388,34 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				return verifyPDB(t, c)
+			},
+		},
+		{
+			name: "DatadogAgent with container monitoring in process agent",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithProcessChecksInCoreAgent(false).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommon.CoreAgentContainerName),
+					string(apicommon.ProcessAgentContainerName),
+					string(apicommon.TraceAgentContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 	}

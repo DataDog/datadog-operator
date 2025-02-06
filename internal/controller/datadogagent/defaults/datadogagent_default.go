@@ -31,12 +31,14 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
-	defaultRunProcessChecksInCoreAgent    bool = false
+	defaultRunProcessChecksInCoreAgent    bool = true
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
 
 	defaultEBPFCheckEnabled bool = false
+
+	defaultGPUMonitoringEnabled bool = false
 
 	defaultServiceDiscoveryEnabled bool = false
 
@@ -114,6 +116,7 @@ const (
 
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	defaultKubeletPodResourcesSocket = "/var/lib/kubelet/pod-resources/kubelet.sock"
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -191,6 +194,14 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
 
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
+	}
+
+	if ddaSpec.Global.Kubelet.PodResourcesSocket == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocket = defaultKubeletPodResourcesSocket
+	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
@@ -265,6 +276,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+
+	// GPU monitoring feature
+	if ddaSpec.Features.GPU == nil {
+		ddaSpec.Features.GPU = &v2alpha1.GPUFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.GPU.Enabled, defaultGPUMonitoringEnabled)
 
 	// APM Feature
 	// APM is enabled by default
