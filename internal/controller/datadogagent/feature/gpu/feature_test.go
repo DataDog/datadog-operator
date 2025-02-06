@@ -70,6 +70,11 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
+				Name:      v2alpha1.CgroupsVolumeName,
+				MountPath: v2alpha1.CgroupsMountPath,
+				ReadOnly:  true,
+			},
+			{
 				Name:      v2alpha1.SystemProbeSocketVolumeName,
 				MountPath: v2alpha1.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
@@ -94,6 +99,14 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: v2alpha1.ProcdirHostPath,
+					},
+				},
+			},
+			{
+				Name: v2alpha1.CgroupsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: v2alpha1.CgroupsHostPath,
 					},
 				},
 			},

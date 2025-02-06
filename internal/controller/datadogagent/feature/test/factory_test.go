@@ -28,10 +28,24 @@ func TestBuilder(t *testing.T) {
 		wantAgentContainer     map[common.AgentContainerName]bool
 	}{
 		{
-			// This test relies on the fact that by default Live Container feature is enabled
-			// in the default settings which enables process agent.
-			name: "Default DDA, Core and Process agent enabled",
+			name: "Default DDA",
 			dda: testutils.NewDatadogAgentBuilder().
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Container monitoring on Process agent",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithProcessChecksInCoreAgent(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
@@ -61,14 +75,14 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM enabled, 3 agents",
+			name: "APM enabled, 2 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -173,7 +187,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -189,7 +203,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -205,7 +219,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -221,7 +235,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -230,14 +244,14 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "GPU monitoring enabled, 4 agents",
+			name: "GPU monitoring enabled, 3 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithGPUMonitoringEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
