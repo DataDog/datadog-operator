@@ -95,6 +95,14 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		Value: *config.LogLevel,
 	})
 
+	// Apply core agent config
+	if config.CoreAgent != nil && config.CoreAgent.Enabled != nil && apiutils.BoolValue(config.CoreAgent.Enabled) {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  v2alpha1.DDCoreAgentEnabled,
+			Value: apiutils.BoolToString(config.CoreAgent.Enabled),
+		})
+	}
+
 	// NetworkPolicy contains the network configuration.
 	if config.NetworkPolicy != nil {
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
@@ -439,14 +447,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// Apply FIPS config
 	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
-	}
-
-	// Apply core agent config
-	if config.CoreAgent != nil && config.CoreAgent.Enabled != nil && apiutils.BoolValue(config.CoreAgent.Enabled) {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  v2alpha1.DDCoreAgentEnabled,
-			Value: apiutils.BoolToString(config.CoreAgent.Enabled),
-		})
 	}
 
 	return manager.PodTemplateSpec()
