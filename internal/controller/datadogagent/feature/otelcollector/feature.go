@@ -9,10 +9,14 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,7 +34,13 @@ func init() {
 }
 
 func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
-	return &otelCollectorFeature{}
+	otelCollectorFeat := &otelCollectorFeature{}
+
+	if options != nil {
+		otelCollectorFeat.logger = options.Logger
+	}
+
+	return otelCollectorFeat
 }
 
 type otelCollectorFeature struct {
@@ -39,6 +49,11 @@ type otelCollectorFeature struct {
 	configMapName   string
 	ports           []*corev1.ContainerPort
 	coreAgentConfig coreAgentConfig
+
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
+
+	logger logr.Logger
 }
 
 type coreAgentConfig struct {
@@ -47,7 +62,7 @@ type coreAgentConfig struct {
 	enabled           *bool
 }
 
-func (o otelCollectorFeature) ID() feature.IDType {
+func (o *otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
@@ -101,12 +116,29 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 
 func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
 	if o.customConfig != nil && o.customConfig.ConfigData != nil {
-		return configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
+		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add md5 hash annotation for configMap
+		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
+		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
+		if err != nil {
+			return cm, err
+		}
+
+		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
+			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
+			cm.SetAnnotations(annotations)
+		}
+
+		return cm, nil
 	}
 	return nil, nil
 }
 
-func (o otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -138,11 +170,11 @@ func (o otelCollectorFeature) ManageDependencies(managers feature.ResourceManage
 	return nil
 }
 
-func (o otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
@@ -165,11 +197,35 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, v2alpha1.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
+	// Add md5 hash annotation for configMap
+	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(o.customConfigAnnotationKey, o.customConfigAnnotationValue)
+	}
+
 	// add ports
 	for _, port := range o.ports {
 		// bind container port to host port.
 		port.HostPort = port.ContainerPort
 		managers.Port().AddPortToContainer(apicommon.OtelAgent, port)
+	}
+
+	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
+	// core agent when secrets backend is used.
+	agentIpcPortEnvVar := &corev1.EnvVar{
+		Name:  v2alpha1.DDAgentIpcPort,
+		Value: "5009",
+	}
+	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
+		Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+		Value: "60",
+	}
+	// don't set env var if it was already set by user.
+	mergeFunc := func(current, newEnv *corev1.EnvVar) (*corev1.EnvVar, error) {
+		return current, nil
+	}
+	for _, container := range []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent} {
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcPortEnvVar, mergeFunc)
+		managers.EnvVar().AddEnvVarToContainerWithMergeFunc(container, agentIpcConfigRefreshIntervalEnvVar, mergeFunc)
 	}
 
 	var enableEnvVar *corev1.EnvVar
@@ -201,13 +257,14 @@ func (o otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManage
 			Value: *o.coreAgentConfig.extension_url,
 		})
 	}
+
 	return nil
 }
 
-func (o otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 
-func (o otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (o *otelCollectorFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
