@@ -530,6 +530,17 @@
                       "type": "array",
                       "x-kubernetes-list-type": "set"
                     },
+                    "injector": {
+                      "additionalProperties": false,
+                      "description": "Injector configures the APM Injector.",
+                      "properties": {
+                        "imageTag": {
+                          "description": "Set the image tag to use for the APM Injector.\n(Requires Cluster Agent 7.57.0+)",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "languageDetection": {
                       "additionalProperties": false,
                       "description": "LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.\n(Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)",
@@ -7354,6 +7365,17 @@
                           },
                           "type": "array",
                           "x-kubernetes-list-type": "set"
+                        },
+                        "injector": {
+                          "additionalProperties": false,
+                          "description": "Injector configures the APM Injector.",
+                          "properties": {
+                            "imageTag": {
+                              "description": "Set the image tag to use for the APM Injector.\n(Requires Cluster Agent 7.57.0+)",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
                         },
                         "languageDetection": {
                           "additionalProperties": false,

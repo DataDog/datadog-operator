@@ -62,6 +62,7 @@ spec:
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |

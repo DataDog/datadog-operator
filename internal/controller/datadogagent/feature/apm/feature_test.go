@@ -233,7 +233,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
@@ -251,7 +251,9 @@ func TestAPMFeature(t *testing.T) {
 					[]string{"foo", "bar"},
 					map[string]string{
 						"java": "1.2.4",
-					}, false).
+					},
+					false,
+					"").
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
@@ -269,7 +271,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(false).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: false,
@@ -280,7 +282,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
 				WithAdmissionControllerEnabled(false).
 				WithSingleContainerStrategy(false).
 				Build(),
@@ -294,7 +296,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false).
+				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false, "").
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -306,7 +308,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "").
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -325,7 +327,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -344,7 +346,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "").
 				WithAdmissionControllerEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -363,6 +365,18 @@ func TestAPMFeature(t *testing.T) {
 					t.Error("Should have created proper RBAC for language detection")
 				}
 			},
+		},
+		{
+			Name: "single step instrumentation with custom injector image",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "0.27.0").
+				WithAdmissionControllerEnabled(true).
+				Build(),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationWithCustomInjectorImage(),
 		},
 	}
 
@@ -634,6 +648,31 @@ func testAPMInstrumentationWithLanguageDetectionEnabledForClusterAgent() *test.C
 				t,
 				apiutils.IsEqualStruct(clusterAgentEnvs, expectedClusterAgentEnvs),
 				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedClusterAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationWithCustomInjectorImage() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  DDAPMInstrumentationEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMInstrumentationInjectorImageTag,
+					Value: "0.27.0",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 		},
 	)

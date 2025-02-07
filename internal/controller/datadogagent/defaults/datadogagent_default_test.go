@@ -216,6 +216,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -576,6 +577,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -726,6 +728,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -871,6 +874,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1016,6 +1020,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1170,6 +1175,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1315,6 +1321,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1463,6 +1470,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1603,6 +1611,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1768,6 +1777,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1914,6 +1924,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2082,6 +2093,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2230,6 +2242,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
