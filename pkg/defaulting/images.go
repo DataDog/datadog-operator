@@ -102,7 +102,7 @@ func GetLatestAgentImageJMX(opts ...ImageOptions) string {
 func GetLatestClusterAgentImage(opts ...ImageOptions) string {
 	image := &Image{
 		registry:  DefaultImageRegistry,
-		imageName: clusterAgentImageName,
+		imageName: DefaultClusterAgentImageName,
 		tag:       ClusterAgentLatestVersion,
 	}
 	processOptions(image, opts...)
