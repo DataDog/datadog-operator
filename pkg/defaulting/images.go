@@ -42,9 +42,6 @@ const (
 	AgentDevImageName                   = "datadog/agent-dev"
 	// Nightly dev image tag for otel agent
 	OTelAgentNightlyTag = "nightly-ot-beta-main"
-
-	agentImageName        = "agent"
-	clusterAgentImageName = "cluster-agent"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -82,7 +79,7 @@ type ImageOptions func(*Image)
 func GetLatestAgentImage(opts ...ImageOptions) string {
 	image := &Image{
 		registry:  DefaultImageRegistry,
-		imageName: agentImageName,
+		imageName: DefaultAgentImageName,
 		tag:       AgentLatestVersion,
 	}
 	processOptions(image, opts...)
@@ -93,7 +90,7 @@ func GetLatestAgentImage(opts ...ImageOptions) string {
 func GetLatestAgentImageJMX(opts ...ImageOptions) string {
 	image := &Image{
 		registry:  DefaultImageRegistry,
-		imageName: agentImageName,
+		imageName: DefaultAgentImageName,
 		tag:       AgentLatestVersion,
 	}
 	processOptions(image, opts...)
