@@ -29,16 +29,17 @@ const (
 	PublicECSContainerRegistry ContainerRegistry = "public.ecr.aws/datadog"
 	// DefaultImageRegistry corresponds to the datadoghq containers registry
 	DefaultImageRegistry = "gcr.io/datadoghq"
+	// Default Image Registries
+	DefaultAzureImageRegistry  string = "datadoghq.azurecr.io"
+	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
+	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
+	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
+	// JMXTagSuffix prefix tag for agent JMX images
+	JMXTagSuffix = "-jmx"
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	DefaultAzureImageRegistry    string = "datadoghq.azurecr.io"
-	DefaultEuropeImageRegistry   string = "eu.gcr.io/datadoghq"
-	DefaultAsiaImageRegistry     string = "asia.gcr.io/datadoghq"
-	DefaultGovImageRegistry      string = "public.ecr.aws/datadog"
-	// JMXTagSuffix prefix tag for agent JMX images
-	JMXTagSuffix      = "-jmx"
-	AgentDevImageName = "datadog/agent-dev"
+	AgentDevImageName                   = "datadog/agent-dev"
 	// Nightly dev image tag for otel agent
 	OTelAgentNightlyTag = "nightly-ot-beta-main"
 
