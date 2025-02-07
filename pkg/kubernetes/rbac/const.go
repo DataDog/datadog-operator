@@ -30,6 +30,7 @@ const (
 	RbacAPIGroup             = "rbac.authorization.k8s.io"
 	RegistrationAPIGroup     = "apiregistration.k8s.io"
 	StorageAPIGroup          = "storage.k8s.io"
+	EKSMetricsAPIGroup       = "metrics.eks.amazonaws.com"
 
 	// Resources
 
@@ -85,6 +86,8 @@ const (
 	VolumeAttachments                   = "volumeattachments"
 	VPAResource                         = "verticalpodautoscalers"
 	WpaResource                         = "watermarkpodautoscalers"
+	EKSKubeControllerManagerMetrics     = "kcm/metrics"
+	EKSKubeSchedulerMetrics             = "ksh/metrics"
 
 	// Non resource URLs
 
