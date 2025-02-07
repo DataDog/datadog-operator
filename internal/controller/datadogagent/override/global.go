@@ -292,7 +292,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					Value: config.Kubelet.PodResourcesSocket,
 				})
 
-				podResourcesVol, podResourcesMount := volume.GetVolumes(v2alpha1.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
+				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&podResourcesMount,
