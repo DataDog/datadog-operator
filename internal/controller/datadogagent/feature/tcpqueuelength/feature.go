@@ -8,6 +8,7 @@ package tcpqueuelength
 import (
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -117,7 +118,7 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDSystemProbeEnabled,
+		Name:  common.DDSystemProbeEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(
@@ -126,7 +127,7 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDSystemProbeSocket,
+		Name:  common.DDSystemProbeSocket,
 		Value: v2alpha1.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(

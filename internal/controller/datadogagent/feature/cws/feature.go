@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
@@ -241,7 +242,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDHostRootEnvVar,
+		Name:  common.DDHostRootEnvVar,
 		Value: v2alpha1.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)

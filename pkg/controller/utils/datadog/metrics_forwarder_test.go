@@ -18,6 +18,7 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -184,8 +185,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Setenv(v2alpha1.DDAPIKey, "test123")
-					os.Setenv(v2alpha1.DDAppKey, "testabc")
+					os.Setenv(constants.DDAPIKey, "test123")
+					os.Setenv(constants.DDAppKey, "testabc")
 				},
 			},
 			wantAPIKey: "test123",
@@ -203,8 +204,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(v2alpha1.DDAPIKey)
-					os.Unsetenv(v2alpha1.DDAppKey)
+					os.Unsetenv(constants.DDAPIKey)
+					os.Unsetenv(constants.DDAppKey)
 				},
 			},
 			wantAPIKey: "foundAPIKey",
@@ -225,8 +226,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(v2alpha1.DDAPIKey)
-					os.Unsetenv(v2alpha1.DDAppKey)
+					os.Unsetenv(constants.DDAPIKey)
+					os.Unsetenv(constants.DDAppKey)
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds-api",
@@ -254,8 +255,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(v2alpha1.DDAPIKey)
-					os.Unsetenv(v2alpha1.DDAppKey)
+					os.Unsetenv(constants.DDAPIKey)
+					os.Unsetenv(constants.DDAppKey)
 					m.cleanSecretsCache()
 					m.creds.Store(encAPIKey, "cachedAPIKey")
 				},
@@ -282,8 +283,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(v2alpha1.DDAPIKey)
-					os.Unsetenv(v2alpha1.DDAppKey)
+					os.Unsetenv(constants.DDAPIKey)
+					os.Unsetenv(constants.DDAppKey)
 					m.cleanSecretsCache()
 					d.On("Decrypt", []string{encAPIKey}).Once()
 				},
@@ -307,8 +308,8 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(v2alpha1.DDAPIKey)
-					os.Unsetenv(v2alpha1.DDAppKey)
+					os.Unsetenv(constants.DDAPIKey)
+					os.Unsetenv(constants.DDAppKey)
 				},
 			},
 			wantErr: true,

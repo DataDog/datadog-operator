@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -144,7 +145,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
-				Name:  v2alpha1.DDHostRootEnvVar,
+				Name:  common.DDHostRootEnvVar,
 				Value: "/host",
 			},
 		}

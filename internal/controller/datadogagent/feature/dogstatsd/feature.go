@@ -151,7 +151,7 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 	// Cluster Checks Runner.
 	if f.adpEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  v2alpha1.DDDogstatsdEnabled,
+			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	}
@@ -175,7 +175,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  v2alpha1.DDDogstatsdEnabled,
+			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	} else {

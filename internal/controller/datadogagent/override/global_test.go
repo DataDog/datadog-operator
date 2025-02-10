@@ -73,19 +73,19 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDKubeletTLSVerify,
+					Name:  DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDKubeletCAPath,
+					Name:  DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Name:  DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 				{
-					Name:  v2alpha1.DockerHost,
+					Name:  DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -102,19 +102,19 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDKubeletTLSVerify,
+					Name:  DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDKubeletCAPath,
+					Name:  DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Name:  DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 				{
-					Name:  v2alpha1.DockerHost,
+					Name:  DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -129,7 +129,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  v2alpha1.DDChecksTagCardinality,
+				Name:  DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
 			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
@@ -143,7 +143,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  v2alpha1.DDOriginDetectionUnified,
+				Name:  DDOriginDetectionUnified,
 				Value: "true",
 			}),
 			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
@@ -191,15 +191,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDSecretBackendCommand,
+					Name:  DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendArguments,
+					Name:  DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendTimeout,
+					Name:  DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -220,15 +220,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDSecretBackendCommand,
+					Name:  DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendArguments,
+					Name:  DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendTimeout,
+					Name:  DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -291,22 +291,22 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDSite,
+			Name:  constants.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  v2alpha1.DDLogLevel,
+			Name:  constants.DDLogLevel,
 			Value: "info",
 		},
 	}
 
 	containsPodResourcesEnvVar := slices.ContainsFunc(addedEnvVars, func(envVar *corev1.EnvVar) bool {
-		return envVar.Name == v2alpha1.DDKubernetesPodResourcesSocket
+		return envVar.Name == DDKubernetesPodResourcesSocket
 	})
 
 	if !containsPodResourcesEnvVar {
 		defaultEnvVars = append(defaultEnvVars, &corev1.EnvVar{
-			Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+			Name:  DDKubernetesPodResourcesSocket,
 			Value: podResourcesSocket,
 		})
 	}

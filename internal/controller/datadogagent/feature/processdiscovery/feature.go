@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -69,7 +70,7 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -85,7 +86,7 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)

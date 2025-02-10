@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	corev1 "k8s.io/api/core/v1"
@@ -123,7 +124,7 @@ func cwsAgentNodeWantFunc(withSubFeatures bool) *test.ComponentTest {
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDHostRootEnvVar,
+					Name:  common.DDHostRootEnvVar,
 					Value: v2alpha1.HostRootMountPath,
 				},
 				{

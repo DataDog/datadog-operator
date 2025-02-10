@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -184,11 +185,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  v2alpha1.DDProcessCollectionEnabled,
+					Name:  common.DDProcessCollectionEnabled,
 					Value: "true",
 				},
 			}

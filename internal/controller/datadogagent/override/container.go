@@ -11,6 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 
@@ -58,7 +59,7 @@ func overrideLogLevel(containerName apicommon.AgentContainerName, manager featur
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
-			Name:  v2alpha1.DDLogLevel,
+			Name:  constants.DDLogLevel,
 			Value: logLevel,
 		},
 	)
@@ -98,7 +99,7 @@ func addHealthPort(containerName apicommon.AgentContainerName, manager feature.P
 	manager.EnvVar().AddEnvVarToContainer(
 		containerName,
 		&corev1.EnvVar{
-			Name:  v2alpha1.DDHealthPort,
+			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(healthPort)),
 		},
 	)

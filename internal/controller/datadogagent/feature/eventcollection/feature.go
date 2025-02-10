@@ -150,7 +150,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
+		Name:  common.DDLeaderElection,
 		Value: "true",
 	})
 
@@ -160,7 +160,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
+		Name:  common.DDClusterAgentTokenName,
 		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
@@ -207,7 +207,7 @@ func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.Ag
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
+		Name:  common.DDLeaderElection,
 		Value: "true",
 	})
 
@@ -217,7 +217,7 @@ func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.Ag
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
+		Name:  common.DDClusterAgentTokenName,
 		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 

@@ -152,7 +152,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
-			Name: v2alpha1.DDPodName,
+			Name: DDPodName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
@@ -160,35 +160,35 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentKubeServiceName,
+			Name:  common.DDClusterAgentKubeServiceName,
 			Value: GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  v2alpha1.DDKubeResourcesNamespace,
+			Name:  DDKubeResourcesNamespace,
 			Value: utils.GetDatadogAgentResourceNamespace(dda),
 		},
 		{
-			Name:  v2alpha1.DDLeaderElection,
+			Name:  common.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDHealthPort,
+			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallId,
+			Name:  common.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
+			Name:  common.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallType,
+			Name:  common.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 		{
-			Name:  v2alpha1.DDAuthTokenFilePath,
+			Name:  DDAuthTokenFilePath,
 			Value: filepath.Join(v2alpha1.AuthVolumePath, "token"),
 		},
 	}

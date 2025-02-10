@@ -183,31 +183,31 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDClusterAgentKubeServiceName,
+			Name:  common.DDClusterAgentKubeServiceName,
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentEnabled,
+			Name:  common.DDClusterAgentEnabled,
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDHealthPort,
+			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  v2alpha1.KubernetesEnvVar,
+			Name:  common.KubernetesEnvVar,
 			Value: "yes",
 		},
 		{
-			Name:  v2alpha1.DDEnableMetadataCollection,
+			Name:  DDEnableMetadataCollection,
 			Value: "false",
 		},
 		{
-			Name:  v2alpha1.DDClcRunnerEnabled,
+			Name:  DDClcRunnerEnabled,
 			Value: "true",
 		},
 		{
-			Name: v2alpha1.DDClcRunnerHost,
+			Name: DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: v2alpha1.FieldPathStatusPodIP,
@@ -215,7 +215,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name: v2alpha1.DDClcRunnerID,
+			Name: DDClcRunnerID,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: v2alpha1.FieldPathMetaName,
@@ -223,27 +223,27 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name:  v2alpha1.DDDogstatsdEnabled,
+			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		},
 		{
-			Name:  v2alpha1.DDProcessCollectionEnabled,
+			Name:  common.DDProcessCollectionEnabled,
 			Value: "false",
 		},
 		{
-			Name:  v2alpha1.DDContainerCollectionEnabled,
+			Name:  common.DDContainerCollectionEnabled,
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDLogsEnabled,
+			Name:  common.DDLogsEnabled,
 			Value: "false",
 		},
 		{
-			Name:  v2alpha1.DDAPMEnabled,
+			Name:  common.DDAPMEnabled,
 			Value: "false",
 		},
 		{
-			Name: v2alpha1.DDHostname,
+			Name: DDHostname,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: v2alpha1.FieldPathSpecNodeName,

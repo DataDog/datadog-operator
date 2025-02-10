@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -130,11 +131,11 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  v2alpha1.DDSystemProbeEnabled,
+				Name:  common.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
-				Name:  v2alpha1.DDSystemProbeSocket,
+				Name:  common.DDSystemProbeSocket,
 				Value: v2alpha1.DefaultSystemProbeSocketPath,
 			},
 		}

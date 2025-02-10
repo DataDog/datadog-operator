@@ -333,23 +333,23 @@ func initSeccompSetupContainer() corev1.Container {
 func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
-			Name:  v2alpha1.KubernetesEnvVar,
+			Name:  common.KubernetesEnvVar,
 			Value: "yes",
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentEnabled,
+			Name:  common.DDClusterAgentEnabled,
 			Value: strconv.FormatBool(true),
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentKubeServiceName,
+			Name:  common.DDClusterAgentKubeServiceName,
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentTokenName,
+			Name:  common.DDClusterAgentTokenName,
 			Value: secrets.GetDefaultDCATokenSecretName(dda),
 		},
 		{
-			Name: v2alpha1.DDKubeletHost,
+			Name: common.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: v2alpha1.FieldPathStatusHostIP,
@@ -362,17 +362,17 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDHealthPort,
+			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  v2alpha1.DDLeaderElection,
+			Name:  common.DDLeaderElection,
 			Value: "true",
 		},
 		{
 			// we want to default it in 7.49.0
 			// but in 7.50.0 it will be already defaulted in the agent process.
-			Name:  v2alpha1.DDContainerImageEnabled,
+			Name:  DDContainerImageEnabled,
 			Value: "true",
 		},
 	}
@@ -383,15 +383,15 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallId,
+			Name:  common.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
+			Name:  common.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallType,
+			Name:  common.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 	}

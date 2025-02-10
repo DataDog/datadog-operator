@@ -450,12 +450,12 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 
@@ -465,7 +465,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  v2alpha1.DDKubernetesResourcesLabelsAsTags,
+				Name:  DDKubernetesResourcesLabelsAsTags,
 				Value: string(kubernetesResourceLabelsAsTags),
 			})
 		}
@@ -477,7 +477,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  v2alpha1.DDKubernetesResourcesAnnotationsAsTags,
+				Name:  DDKubernetesResourcesAnnotationsAsTags,
 				Value: string(kubernetesResourceAnnotationsAsTags),
 			})
 		}

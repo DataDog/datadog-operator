@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -389,7 +390,7 @@ func testTraceAgentEnabled(containerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[containerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDAPMEnabled,
+					Name:  common.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -422,7 +423,7 @@ func testAgentHostPortOnly() *test.ComponentTest {
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDAPMEnabled,
+					Name:  common.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -466,7 +467,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDAPMEnabled,
+					Name:  common.DDAPMEnabled,
 					Value: "true",
 				},
 				{
@@ -693,7 +694,7 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 						Value: "true",
 					},
 					{
-						Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+						Name:  common.DDProcessConfigRunInCoreAgent,
 						Value: utils.BoolToString(&processChecksInCoreAgent),
 					},
 				}
@@ -729,7 +730,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDAPMEnabled,
+					Name:  common.DDAPMEnabled,
 					Value: "true",
 				},
 				{

@@ -13,7 +13,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -77,7 +79,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDLogLevel,
+						Name:  constants.DDLogLevel,
 						Value: "debug",
 					},
 				}
@@ -365,7 +367,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDHealthPort,
+						Name:  common.DDHealthPort,
 						Value: "1234",
 					},
 				}
