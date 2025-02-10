@@ -381,7 +381,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 					Name:      agentPod.Name,
 				},
 			}
-			if err = r.client.Delete(ctx, &toDelete); err != nil {
+			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 		}
