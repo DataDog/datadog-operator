@@ -547,7 +547,7 @@ publish_release_candidate_workflow:
   variables:
     OPERATOR_RC: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental"
+    ENVIRONMENTS: "experimental,alpha,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"
