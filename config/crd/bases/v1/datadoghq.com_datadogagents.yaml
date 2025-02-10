@@ -2160,8 +2160,8 @@ spec:
                           type: string
                         podResourcesSocket:
                           description: |-
-                            PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
-                            Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+                            PodResourcesSocketDir is the path to the folder where the pod resources socket is, to be used to read pod resource assignments
+                            Default: `/var/lib/kubelet/pod-resources/`
                           type: string
                         tlsVerify:
                           description: |-
