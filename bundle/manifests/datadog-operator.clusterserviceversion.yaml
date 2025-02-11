@@ -194,12 +194,12 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-02-10 16:39:57"
+    createdAt: "2025-02-11 18:13:00"
     description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.12.1-rc.1
+    containerImage: gcr.io/datadoghq/operator:1.12.1
     support: Datadog, Inc.
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
@@ -208,12 +208,12 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: '>=1.7.0 <1.12.1-rc.1'
+    olm.skipRange: '>=1.7.0 <1.12.1'
   labels:
     operatorframework.io/arch.amd64: supported
     operatorframework.io/arch.arm64: supported
     operatorframework.io/os.linux: supported
-  name: datadog-operator.v1.12.1-rc.1
+  name: datadog-operator.v1.12.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -678,7 +678,7 @@ spec:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: DD_TOOL_VERSION
                         value: redhat
-                    image: gcr.io/datadoghq/operator:1.12.1-rc.1
+                    image: gcr.io/datadoghq/operator:1.12.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -776,5 +776,5 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.12.1-rc.1
+  version: 1.12.1
   replaces: datadog-operator.v1.12.0
