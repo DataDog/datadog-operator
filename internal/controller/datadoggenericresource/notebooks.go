@@ -11,6 +11,7 @@ import (
 )
 
 type NotebookHandler struct{}
+
 type NotebookCRUDClient struct {
 	client *datadogV1.NotebooksApi
 }

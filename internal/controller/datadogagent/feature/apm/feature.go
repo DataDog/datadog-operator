@@ -71,10 +71,15 @@ type instrumentationConfig struct {
 	disabledNamespaces []string
 	libVersions        map[string]string
 	languageDetection  *languageDetection
+	injector           *injector
 }
 
 type languageDetection struct {
 	enabled bool
+}
+
+type injector struct {
+	imageTag string
 }
 
 // ID returns the ID of the Feature
@@ -146,6 +151,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
+			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
@@ -154,13 +160,20 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
 	}
 
 	return reqComp
+}
+
+func (f *apmFeature) shouldSetCustomInjectorImage() bool {
+	return f.singleStepInstrumentation != nil &&
+		f.singleStepInstrumentation.enabled &&
+		f.singleStepInstrumentation.injector != nil &&
+		f.singleStepInstrumentation.injector.imageTag != ""
 }
 
 func (f *apmFeature) shouldEnableLanguageDetection() bool {
@@ -271,6 +284,13 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			Name:  DDAPMInstrumentationEnabled,
 			Value: apiutils.BoolToString(&f.singleStepInstrumentation.enabled),
 		})
+
+		if f.shouldSetCustomInjectorImage() {
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationInjectorImageTag,
+				Value: f.singleStepInstrumentation.injector.imageTag,
+			})
+		}
 
 		if f.shouldEnableLanguageDetection() {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
