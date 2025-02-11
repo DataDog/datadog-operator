@@ -530,6 +530,17 @@
                       "type": "array",
                       "x-kubernetes-list-type": "set"
                     },
+                    "injector": {
+                      "additionalProperties": false,
+                      "description": "Injector configures the APM Injector.",
+                      "properties": {
+                        "imageTag": {
+                          "description": "Set the image tag to use for the APM Injector.\n(Requires Cluster Agent 7.57.0+)",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "languageDetection": {
                       "additionalProperties": false,
                       "description": "LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.\n(Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)",
@@ -2300,6 +2311,10 @@
                   "description": "HostCAPath is the host path where the kubelet CA certificate is stored.",
                   "type": "string"
                 },
+                "podResourcesSocket": {
+                  "description": "PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments\nDefault: `/var/lib/kubelet/pod-resources/kubelet.sock`",
+                  "type": "string"
+                },
                 "tlsVerify": {
                   "description": "TLSVerify toggles kubelet TLS verification.\nDefault: true",
                   "type": "boolean"
@@ -2464,7 +2479,7 @@
               "type": "string"
             },
             "runProcessChecksInCoreAgent": {
-              "description": "Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).\nThe Process Agent container won't spin up if there are no other running checks as a result.\n(Requires Agent 7.57.0+)\nDefault: 'false'",
+              "description": "Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).\nIf no other checks are running, the Process Agent container will not initialize.\n(Requires Agent 7.60.0+)\nDefault: 'true'",
               "type": "boolean"
             },
             "secretBackend": {
@@ -7350,6 +7365,17 @@
                           },
                           "type": "array",
                           "x-kubernetes-list-type": "set"
+                        },
+                        "injector": {
+                          "additionalProperties": false,
+                          "description": "Injector configures the APM Injector.",
+                          "properties": {
+                            "imageTag": {
+                              "description": "Set the image tag to use for the APM Injector.\n(Requires Cluster Agent 7.57.0+)",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
                         },
                         "languageDetection": {
                           "additionalProperties": false,

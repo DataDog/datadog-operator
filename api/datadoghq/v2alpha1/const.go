@@ -178,8 +178,9 @@ const (
 	CriSocketVolumeName     = "runtimesocketdir"
 	RuntimeDirVolumePath    = "/var/run"
 
-	KubeletAgentCAPath  = "/var/run/host-kubelet-ca.crt"
-	KubeletCAVolumeName = "kubelet-ca"
+	KubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
+	KubeletCAVolumeName           = "kubelet-ca"
+	KubeletPodResourcesVolumeName = "kubelet-pod-resources"
 
 	APMSocketName = "apm.socket"
 

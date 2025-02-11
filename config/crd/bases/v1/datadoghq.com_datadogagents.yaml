@@ -527,6 +527,15 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            injector:
+                              description: Injector configures the APM Injector.
+                              properties:
+                                imageTag:
+                                  description: |-
+                                    Set the image tag to use for the APM Injector.
+                                    (Requires Cluster Agent 7.57.0+)
+                                  type: string
+                              type: object
                             languageDetection:
                               description: |-
                                 LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
@@ -2149,6 +2158,11 @@ spec:
                         hostCAPath:
                           description: HostCAPath is the host path where the kubelet CA certificate is stored.
                           type: string
+                        podResourcesSocket:
+                          description: |-
+                            PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
+                            Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+                          type: string
                         tlsVerify:
                           description: |-
                             TLSVerify toggles kubelet TLS verification.
@@ -2316,9 +2330,9 @@ spec:
                     runProcessChecksInCoreAgent:
                       description: |-
                         Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-                        The Process Agent container won't spin up if there are no other running checks as a result.
-                        (Requires Agent 7.57.0+)
-                        Default: 'false'
+                        If no other checks are running, the Process Agent container will not initialize.
+                        (Requires Agent 7.60.0+)
+                        Default: 'true'
                       type: boolean
                     secretBackend:
                       description: |-
@@ -7406,6 +7420,15 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                injector:
+                                  description: Injector configures the APM Injector.
+                                  properties:
+                                    imageTag:
+                                      description: |-
+                                        Set the image tag to use for the APM Injector.
+                                        (Requires Cluster Agent 7.57.0+)
+                                      type: string
+                                  type: object
                                 languageDetection:
                                   description: |-
                                     LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
