@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.22.7 AS builder
+FROM golang:1.23.5 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -43,6 +43,7 @@ LABEL summary="The Datadog Operator aims at providing a new way to deploy the Da
 LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
       metrics, logs and traces for full observability of your Kubernetes cluster with \
       Datadog Operator."
+LABEL maintainer="Datadog Inc."
 
 WORKDIR /
 COPY --from=builder /workspace/manager .

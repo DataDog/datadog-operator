@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+package gpu
 
-// Hub defines this CRD version as being the Hub version
-func (*DatadogAgent) Hub() {}
+const DDEnableGPUMonitoringEnvVar = "DD_GPU_MONITORING_ENABLED"
+const NVIDIAVisibleDevicesEnvVar = "NVIDIA_VISIBLE_DEVICES"

@@ -12,6 +12,7 @@ core,github.com/DataDog/datadog-agent/pkg/util/http,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/log,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/scrubber,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/util/uuid,Apache-2.0
+core,github.com/DataDog/datadog-agent/pkg/version,Apache-2.0
 core,github.com/DataDog/datadog-api-client-go/v2,Apache-2.0
 core,github.com/DataDog/datadog-go/v5/statsd,MIT
 core,github.com/DataDog/datadog-operator,Apache-2.0
@@ -69,6 +70,9 @@ core,github.com/hashicorp/hcl,MPL-2.0
 core,github.com/imdario/mergo,BSD-3-Clause
 core,github.com/josharian/intern,MIT
 core,github.com/json-iterator/go,MIT
+core,github.com/klauspost/compress,Apache-2.0
+core,github.com/klauspost/compress/internal/snapref,BSD-3-Clause
+core,github.com/klauspost/compress/zstd/internal/xxhash,MIT
 core,github.com/magiconair/properties,BSD-2-Clause
 core,github.com/mailru/easyjson,MIT
 core,github.com/mitchellh/mapstructure,MIT
@@ -83,6 +87,7 @@ core,github.com/pelletier/go-toml,Apache-2.0
 core,github.com/philhofer/fwd,MIT
 core,github.com/pkg/errors,BSD-2-Clause
 core,github.com/pmezard/go-difflib/difflib,BSD-3-Clause
+core,github.com/prometheus/client_golang/internal/github.com/golang/gddo/httputil,BSD-3-Clause
 core,github.com/prometheus/client_golang/prometheus,Apache-2.0
 core,github.com/prometheus/client_model/go,Apache-2.0
 core,github.com/prometheus/common,Apache-2.0
@@ -105,6 +110,7 @@ core,github.com/tinylib/msgp/msgp,MIT
 core,github.com/x448/float16,MIT
 core,github.com/zorkian/go-datadog-api,BSD-3-Clause
 core,go.etcd.io/bbolt,MIT
+core,go.opentelemetry.io/auto/sdk,Apache-2.0
 core,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0
 core,go.opentelemetry.io/otel,Apache-2.0
 core,go.opentelemetry.io/otel/exporters/otlp/otlptrace,Apache-2.0

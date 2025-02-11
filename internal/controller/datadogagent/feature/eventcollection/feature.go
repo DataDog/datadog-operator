@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func init() {
@@ -106,7 +107,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	}
 
 	// event collection RBAC
-	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
+	tokenResourceName := secrets.GetDefaultDCATokenSecretName(f.owner)
 	err = managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 	if err != nil {
 		return err
@@ -160,7 +161,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  v2alpha1.DDClusterAgentTokenName,
-		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
+		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	// ConfigMap for event collection if required
@@ -217,7 +218,7 @@ func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.Ag
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 		Name:  v2alpha1.DDClusterAgentTokenName,
-		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
+		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil

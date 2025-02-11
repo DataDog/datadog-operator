@@ -44,6 +44,7 @@ const (
 	DDKubeResourcesNamespace               = "DD_KUBE_RESOURCES_NAMESPACE"
 	DDKubernetesResourcesLabelsAsTags      = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
 	DDKubernetesResourcesAnnotationsAsTags = "DD_KUBERNETES_RESOURCES_ANNOTATIONS_AS_TAGS"
+	DDKubernetesPodResourcesSocket         = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDLeaderElection                       = "DD_LEADER_ELECTION"
 	DDLogsEnabled                          = "DD_LOGS_ENABLED"
 	DDNamespaceLabelsAsTags                = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
@@ -62,6 +63,9 @@ const (
 	DDSystemProbeExternal                  = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                    = "DD_SYSPROBE_SOCKET"
 	DDTags                                 = "DD_TAGS"
+	DDAgentIpcPort                         = "DD_AGENT_IPC_PORT"
+	DDAgentIpcConfigRefreshInterval        = "DD_AGENT_IPC_CONFIG_REFRESH_INTERVAL"
+
 	// otelcollector core agent configs
 	DDOtelCollectorCoreConfigEnabled          = "DD_OTELCOLLECTOR_ENABLED"
 	DDOtelCollectorCoreConfigExtensionURL     = "DD_OTELCOLLECTOR_EXTENSION_URL"

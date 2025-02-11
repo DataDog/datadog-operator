@@ -124,6 +124,10 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
+// EKS control plane metrics
+// +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=kcm/metrics,verbs=get
+// +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=ksh/metrics,verbs=get
+
 // Orchestrator explorer
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
