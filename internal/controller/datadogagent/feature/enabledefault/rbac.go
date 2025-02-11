@@ -26,6 +26,7 @@ func getDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv
 		getKubeletPolicyRule(),
 		getEndpointsPolicyRule(),
 		getLeaderElectionPolicyRule(),
+		getEKSControlPlaneMetricsPolicyRule(),
 	}
 
 	if !excludeNonResourceRules {
@@ -33,6 +34,19 @@ func getDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv
 	}
 
 	return policyRule
+}
+
+func getEKSControlPlaneMetricsPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.EKSMetricsAPIGroup},
+		Resources: []string{
+			rbac.EKSKubeControllerManagerMetrics,
+			rbac.EKSKubeSchedulerMetrics,
+		},
+		Verbs: []string{
+			rbac.GetVerb,
+		},
+	}
 }
 
 func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
@@ -286,6 +300,8 @@ func getDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 				rbac.GetVerb,
 			},
 		},
+		// EKS kube_scheduler and kube_controller_manager control plane metrics
+		getEKSControlPlaneMetricsPolicyRule(),
 	}
 
 	if !excludeNonResourceRules {

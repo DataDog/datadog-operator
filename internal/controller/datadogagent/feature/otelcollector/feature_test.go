@@ -73,7 +73,7 @@ var (
 	}
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "07f4530ba2b36a9279f070daa769454e"}
+var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "c609e2fb7352676a67f0423b58970d43"}
 
 func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -137,7 +137,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			},
 				defaultLocalObjectReferenceName,
 				defaultExpectedEnvVars,
-				map[string]string{"checksum/otel_agent-custom-config": "8aeb28718c1afdd92cd7d48d24950727"},
+				map[string]string{"checksum/otel_agent-custom-config": "8fd9e6854714be53bd838063a4111c96"},
 			),
 		},
 		// coreconfig

@@ -166,6 +166,10 @@ type SingleStepInstrumentation struct {
 	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
 	// +optional
 	LanguageDetection *LanguageDetectionConfig `json:"languageDetection,omitempty"`
+
+	// Injector configures the APM Injector.
+	// +optional
+	Injector *InjectorConfig `json:"injector,omitempty"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.
@@ -175,6 +179,14 @@ type LanguageDetectionConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// InjectorConfig contains the configuration for the APM Injector.
+type InjectorConfig struct {
+	// Set the image tag to use for the APM Injector.
+	// (Requires Cluster Agent 7.57.0+)
+	// +optional
+	ImageTag string `json:"imageTag,omitempty"`
 }
 
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
