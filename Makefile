@@ -205,8 +205,13 @@ integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
 	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v2.out
 
 .PHONY: e2e-tests
-e2e-tests: manifests $(KUSTOMIZE) ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e.out
+e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run TestAWSKindSuite -timeout 0s -coverprofile cover_e2e.out; \
+	else \
+	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -count=1 --tags=e2e -v -run $(E2E_RUN_REGEX) -timeout 0s -coverprofile cover_e2e.out; \
+	fi
 
 .PHONY: e2e-tests-keep-stacks
 e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environment stacks running. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks`.
@@ -282,8 +287,10 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
@@ -350,7 +357,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.10.1
+	hack/install-openshift-preflight.sh 1.11.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)

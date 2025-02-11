@@ -42,7 +42,7 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.OverrideRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
