@@ -390,7 +390,10 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Labels:    testEDSLabels,
 					},
 					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
-						Canary: &edsdatadoghqv1alpha1.ExtendedDaemonSetStatusCanary{},
+						Canary: &edsdatadoghqv1alpha1.ExtendedDaemonSetStatusCanary{
+							ReplicaSet: "test-ers-2",
+							Nodes:      []string{"node-foo"},
+						},
 					},
 				},
 			},
@@ -524,7 +527,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 			errorMessage:         nil,
 		},
 		{
-			name: "Canary validated annotation present but name doesn't match",
+			name: "Canary validated annotation present but agent spec hashes doesn't match",
 			reconcilerOptions: ReconcilerOptions{
 				ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
 					Enabled: true,
@@ -541,6 +544,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Annotations: map[string]string{
 							edsdatadoghqv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-2",
+							v2alpha1.MD5AgentDeploymentAnnotationKey:                       "12345",
 						},
 						Labels: testEDSLabels,
 					},
@@ -553,10 +557,13 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Name:      "test-ers-1",
 						Namespace: testNS,
 						Labels:    testERSLabels,
+						Annotations: map[string]string{
+							v2alpha1.MD5AgentDeploymentAnnotationKey: "67890",
+						},
 					},
 				},
 			},
-			expectedShouldUpdate: true,
+			expectedShouldUpdate: false,
 			errorMessage:         nil,
 		},
 		{
