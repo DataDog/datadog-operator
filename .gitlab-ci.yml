@@ -358,7 +358,7 @@ trigger_internal_operator_nightly_image:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v1
+    IMAGE_VERSION: tmpl-v2
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
