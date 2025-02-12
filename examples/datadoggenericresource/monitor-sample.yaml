@@ -1,0 +1,17 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-monitor-sample
+spec:
+    type: monitor
+    jsonSpec: |-
+      {
+        "name": "Example Monitor",
+        "type": "composite",
+        "query": "60693519 && 135415923",
+        "message": "some message Notify: @hipchat-channel",
+        "tags": [
+          "test:examplemonitor",
+          "env:ci"
+        ],
+        "priority": 3
