@@ -287,6 +287,16 @@ func TestAPMFeature(t *testing.T) {
 								"dotnet": "2",
 								"java":   "1",
 							},
+							TracerConfigs: []v2alpha1.TracerConfig{
+								{
+									Name:  "DD_PROFILING_ENABLED",
+									Value: "true",
+								},
+								{
+									Name:  "DD_DATA_JOBS_ENABLED",
+									Value: "true",
+								},
+							},
 						},
 					}).
 				WithSingleContainerStrategy(false).
@@ -587,7 +597,7 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 				},
 				{
 					Name:  DDAPMInstrumentationTargets,
-					Value: `[{"name":"sometarget","podSelector":{"matchLabels":{"key":"value"},"matchExpressions":[{"key":"somekey","operator":"In","values":["value1","value2"]}]},"namespaceSelector":{"matchNames":["name1","name2"],"matchLabels":{"key1":"val1","key2":"val2"},"matchExpressions":[{"key":"somekey1","operator":"In","values":["value1","value2"]}]},"ddTraceVersions":{"dotnet":"2","java":"1"}}]`,
+					Value: `[{"name":"sometarget","podSelector":{"matchLabels":{"key":"value"},"matchExpressions":[{"key":"somekey","operator":"In","values":["value1","value2"]}]},"namespaceSelector":{"matchNames":["name1","name2"],"matchLabels":{"key1":"val1","key2":"val2"},"matchExpressions":[{"key":"somekey1","operator":"In","values":["value1","value2"]}]},"ddTraceVersions":{"dotnet":"2","java":"1"},"ddTraceConfigs":[{"name":"DD_PROFILING_ENABLED","value":"true"},{"name":"DD_DATA_JOBS_ENABLED","value":"true"}]}]`,
 				},
 			}
 			assert.True(
