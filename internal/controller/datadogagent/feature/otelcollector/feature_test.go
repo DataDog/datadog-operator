@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -308,35 +307,35 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			if expectedEnvVars.agent_ipc_port.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  v2alpha1.DDAgentIpcPort,
+					Name:  DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
 			}
 
 			if expectedEnvVars.agent_ipc_refresh.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+					Name:  DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
 			}
 
 			if expectedEnvVars.enabled.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
+					Name:  DDOtelCollectorCoreConfigEnabled,
 					Value: expectedEnvVars.enabled.value,
 				})
 			}
 
 			if expectedEnvVars.extension_timeout.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionTimeout,
+					Name:  DDOtelCollectorCoreConfigExtensionTimeout,
 					Value: expectedEnvVars.extension_timeout.value,
 				})
 			}
 
 			if expectedEnvVars.extension_url.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
-					Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionURL,
+					Name:  DDOtelCollectorCoreConfigExtensionURL,
 					Value: expectedEnvVars.extension_url.value,
 				})
 			}

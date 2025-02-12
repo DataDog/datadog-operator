@@ -93,7 +93,7 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDSystemProbeSocket,
+		Name:  common.DDSystemProbeSocket,
 		Value: common.DefaultSystemProbeSocketPath,
 	}
 

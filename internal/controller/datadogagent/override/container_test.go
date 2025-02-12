@@ -78,7 +78,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDLogLevel,
+						Name:  DDLogLevel,
 						Value: "debug",
 					},
 				}
@@ -366,7 +366,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDHealthPort,
+						Name:  common.DDHealthPort,
 						Value: "1234",
 					},
 				}

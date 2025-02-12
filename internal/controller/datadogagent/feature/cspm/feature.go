@@ -325,7 +325,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SecurityAgentContainerName}, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDHostRootEnvVar,
+		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)

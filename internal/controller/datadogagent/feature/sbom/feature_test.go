@@ -145,7 +145,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
-				Name:  v2alpha1.DDHostRootEnvVar,
+				Name:  common.DDHostRootEnvVar,
 				Value: "/host",
 			},
 		}

@@ -156,7 +156,7 @@ func cspmAgentNodeWantFunc() *test.ComponentTest {
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDHostRootEnvVar,
+					Name:  common.DDHostRootEnvVar,
 					Value: common.HostRootMountPath,
 				},
 				{

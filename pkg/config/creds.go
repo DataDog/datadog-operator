@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -54,8 +54,8 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		return creds, nil
 	}
 
-	apiKey := os.Getenv(v2alpha1.DDAPIKey)
-	appKey := os.Getenv(v2alpha1.DDAppKey)
+	apiKey := os.Getenv(constants.DDAPIKey)
+	appKey := os.Getenv(constants.DDAppKey)
 
 	if apiKey == "" || appKey == "" {
 		return Creds{}, errors.New("empty API key and/or App key")

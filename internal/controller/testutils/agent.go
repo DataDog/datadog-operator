@@ -470,7 +470,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  v2alpha1.DDLogLevel,
+						Name:  "DD_LOG_LEVEL",
 						Value: "debug",
 					},
 				},

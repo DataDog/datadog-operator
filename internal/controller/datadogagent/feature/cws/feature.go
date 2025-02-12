@@ -242,7 +242,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, policiesDirEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDHostRootEnvVar,
+		Name:  common.DDHostRootEnvVar,
 		Value: common.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)

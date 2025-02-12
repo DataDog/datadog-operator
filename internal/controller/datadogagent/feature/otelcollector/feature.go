@@ -208,11 +208,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDAgentIpcPort,
+		Name:  DDAgentIpcPort,
 		Value: "5009",
 	}
 	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+		Name:  DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
 	// don't set env var if it was already set by user.
@@ -229,27 +229,27 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		if *o.coreAgentConfig.enabled {
 			// only need to set env var if true, as it will default to false.
 			enableEnvVar = &corev1.EnvVar{
-				Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
+				Name:  DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
 			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
 		}
 	} else {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
+			Name:  DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})
 	}
 
 	if o.coreAgentConfig.extension_timeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionTimeout,
+			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
 			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
 		})
 	}
 	if o.coreAgentConfig.extension_url != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionURL,
+			Name:  DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
 		})
 	}

@@ -33,7 +33,7 @@ func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 func OverrideProcessConfigRunInCoreAgent(dda *v2alpha1.DatadogAgent, currentVal bool) bool {
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		for _, env := range nodeAgent.Env {
-			if env.Name == v2alpha1.DDProcessConfigRunInCoreAgent {
+			if env.Name == common.DDProcessConfigRunInCoreAgent {
 				val, err := strconv.ParseBool(env.Value)
 				if err == nil {
 					return val

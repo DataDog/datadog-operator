@@ -262,19 +262,19 @@ defaults
 func getExpectedComponentContainerEnvVars(port int) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDFIPSEnabled,
+			Name:  DDFIPSEnabled,
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDFIPSPortRangeStart,
+			Name:  DDFIPSPortRangeStart,
 			Value: strconv.Itoa(port),
 		},
 		{
-			Name:  v2alpha1.DDFIPSUseHTTPS,
+			Name:  DDFIPSUseHTTPS,
 			Value: "false",
 		},
 		{
-			Name:  v2alpha1.DDFIPSLocalAddress,
+			Name:  DDFIPSLocalAddress,
 			Value: "127.0.0.1",
 		},
 	}
@@ -325,7 +325,7 @@ func getFIPSVolumeMount() corev1.VolumeMount {
 func checkFIPSContainerEnvVars(t testing.TB, mgr *fake.PodTemplateManagers) {
 	fipsEnvVars := mgr.PodTemplateSpec().Spec.Containers[3].Env
 	expectedEnvVars := corev1.EnvVar{
-		Name:  v2alpha1.DDFIPSLocalAddress,
+		Name:  DDFIPSLocalAddress,
 		Value: "127.0.0.1",
 	}
 	assert.Contains(t, fipsEnvVars, expectedEnvVars)

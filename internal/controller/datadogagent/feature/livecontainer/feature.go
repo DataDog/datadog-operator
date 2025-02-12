@@ -81,7 +81,7 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
@@ -94,7 +94,7 @@ func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.P
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -121,7 +121,7 @@ func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.Agen
 	managers.Volume().AddVolume(&procdirVol)
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDContainerCollectionEnabled,
+		Name:  common.DDContainerCollectionEnabled,
 		Value: "true",
 	})
 

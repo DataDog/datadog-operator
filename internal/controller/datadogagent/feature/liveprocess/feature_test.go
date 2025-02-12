@@ -185,11 +185,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  v2alpha1.DDProcessCollectionEnabled,
+					Name:  common.DDProcessCollectionEnabled,
 					Value: "true",
 				},
 			}

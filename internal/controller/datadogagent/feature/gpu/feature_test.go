@@ -133,7 +133,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  v2alpha1.DDSystemProbeSocket,
+				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
 			},
 			{
