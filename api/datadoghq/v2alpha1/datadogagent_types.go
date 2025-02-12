@@ -1092,10 +1092,10 @@ type KubeletConfig struct {
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
 
-	// PodResourcesSocketDir is the path to the folder where the pod resources socket is, to be used to read pod resource assignments
+	// PodResourcesSocketPath is the host path where the pod resources socket is stored
 	// Default: `/var/lib/kubelet/pod-resources/`
 	// +optional
-	PodResourcesSocketDir string `json:"podResourcesSocket,omitempty"`
+	PodResourcesSocketPath string `json:"podResourcesSocketPath,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.

@@ -197,8 +197,8 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
 	}
 
-	if ddaSpec.Global.Kubelet.PodResourcesSocketDir == "" {
-		ddaSpec.Global.Kubelet.PodResourcesSocketDir = defaultKubeletPodResourcesSocketDir
+	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)

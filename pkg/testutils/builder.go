@@ -842,7 +842,7 @@ func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAP
 		TLSVerify:             apiutils.NewBoolPointer(tlsVerify),
 		HostCAPath:            hostCAPath,
 		AgentCAPath:           agentCAPath,
-		PodResourcesSocketDir: podResourcesSocketDir,
+		PodResourcesSocketPath: podResourcesSocketDir,
 	}
 	return builder
 }

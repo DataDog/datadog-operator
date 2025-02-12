@@ -286,13 +286,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					Value: agentCAPath,
 				})
 			}
-			if config.Kubelet.PodResourcesSocketDir != "" {
+			if config.Kubelet.PodResourcesSocketPath != "" {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
-					Value: path.Join(config.Kubelet.PodResourcesSocketDir, "kubelet.sock"),
+					Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
 				})
 
-				podResourcesVol, podResourcesMount := volume.GetVolumes(v2alpha1.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketDir, config.Kubelet.PodResourcesSocketDir, false)
+				podResourcesVol, podResourcesMount := volume.GetVolumes(v2alpha1.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketPath, config.Kubelet.PodResourcesSocketPath, false)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&podResourcesMount,

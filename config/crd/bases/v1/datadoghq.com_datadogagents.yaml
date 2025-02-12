@@ -2158,9 +2158,9 @@ spec:
                         hostCAPath:
                           description: HostCAPath is the host path where the kubelet CA certificate is stored.
                           type: string
-                        podResourcesSocket:
+                        podResourcesSocketPath:
                           description: |-
-                            PodResourcesSocketDir is the path to the folder where the pod resources socket is, to be used to read pod resource assignments
+                            PodResourcesSocketPath is the path to the folder where the pod resources socket is, to be used to read pod resource assignments
                             Default: `/var/lib/kubelet/pod-resources/`
                           type: string
                         tlsVerify:
