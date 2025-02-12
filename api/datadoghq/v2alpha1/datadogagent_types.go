@@ -197,6 +197,10 @@ type SSITarget struct {
 	// name and the value is the version to inject. Full config key:
 	// apm_config.instrumentation.targets[].ddTraceVersions
 	TracerVersions map[string]string `json:"ddTraceVersions"`
+	// TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+	// as environment variables in addition to the injected tracer. Full config key:
+	// apm_config.instrumentation.targets[].ddTraceConfigs
+	TracerConfigs []TracerConfig `json:"ddTraceConfigs"`
 }
 
 // PodSelector is a reconstruction of the metav1.LabelSelector struct to be able to unmarshal the configuration. It
@@ -239,6 +243,15 @@ type NamespaceSelector struct {
 	// expressions are ANDed. This cannot be used with MatchNames. Full config key:
 	// apm_config.instrumentation.targets[].selector.matchExpressions
 	MatchExpressions []SelectorMatchExpression `json:"matchExpressions"`
+}
+
+// TracerConfig is a struct that stores configuration options for a tracer. These will be injected as environment
+// variables to the workload that matches targeting.
+type TracerConfig struct {
+	// Name is the name of the environment variable.
+	Name string `json:"name"`
+	// Value is the value to use.
+	Value string `json:"value"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.

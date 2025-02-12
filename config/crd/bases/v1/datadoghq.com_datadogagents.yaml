@@ -567,6 +567,27 @@ spec:
                                   SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
                                   Full config key: apm_config.instrumentation.targets to get the list of targets.
                                 properties:
+                                  ddTraceConfigs:
+                                    description: |-
+                                      TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+                                      as environment variables in addition to the injected tracer. Full config key:
+                                      apm_config.instrumentation.targets[].ddTraceConfigs
+                                    items:
+                                      description: |-
+                                        TracerConfig is a struct that stores configuration options for a tracer. These will be injected as environment
+                                        variables to the workload that matches targeting.
+                                      properties:
+                                        name:
+                                          description: Name is the name of the environment variable.
+                                          type: string
+                                        value:
+                                          description: Value is the value to use.
+                                          type: string
+                                      required:
+                                        - name
+                                        - value
+                                      type: object
+                                    type: array
                                   ddTraceVersions:
                                     additionalProperties:
                                       type: string
@@ -685,6 +706,7 @@ spec:
                                       - matchLabels
                                     type: object
                                 required:
+                                  - ddTraceConfigs
                                   - ddTraceVersions
                                   - name
                                   - namespaceSelector
@@ -7595,6 +7617,27 @@ spec:
                                       SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
                                       Full config key: apm_config.instrumentation.targets to get the list of targets.
                                     properties:
+                                      ddTraceConfigs:
+                                        description: |-
+                                          TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+                                          as environment variables in addition to the injected tracer. Full config key:
+                                          apm_config.instrumentation.targets[].ddTraceConfigs
+                                        items:
+                                          description: |-
+                                            TracerConfig is a struct that stores configuration options for a tracer. These will be injected as environment
+                                            variables to the workload that matches targeting.
+                                          properties:
+                                            name:
+                                              description: Name is the name of the environment variable.
+                                              type: string
+                                            value:
+                                              description: Value is the value to use.
+                                              type: string
+                                          required:
+                                            - name
+                                            - value
+                                          type: object
+                                        type: array
                                       ddTraceVersions:
                                         additionalProperties:
                                           type: string
@@ -7713,6 +7756,7 @@ spec:
                                           - matchLabels
                                         type: object
                                     required:
+                                      - ddTraceConfigs
                                       - ddTraceVersions
                                       - name
                                       - namespaceSelector
