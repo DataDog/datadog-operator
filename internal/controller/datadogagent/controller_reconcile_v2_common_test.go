@@ -7,7 +7,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -544,7 +543,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Annotations: map[string]string{
 							edsdatadoghqv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey: "test-ers-2",
-							v2alpha1.MD5AgentDeploymentAnnotationKey:                       "12345",
+							constants.MD5AgentDeploymentAnnotationKey:                      "12345",
 						},
 						Labels: testEDSLabels,
 					},
@@ -558,7 +557,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testERSLabels,
 						Annotations: map[string]string{
-							v2alpha1.MD5AgentDeploymentAnnotationKey: "67890",
+							constants.MD5AgentDeploymentAnnotationKey: "67890",
 						},
 					},
 				},
@@ -655,7 +654,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 						Annotations: map[string]string{
-							v2alpha1.MD5AgentDeploymentAnnotationKey: "12345",
+							constants.MD5AgentDeploymentAnnotationKey: "12345",
 						},
 					},
 					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
@@ -668,7 +667,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testERSLabels,
 						Annotations: map[string]string{
-							v2alpha1.MD5AgentDeploymentAnnotationKey: "67890",
+							constants.MD5AgentDeploymentAnnotationKey: "67890",
 						},
 					},
 				},
@@ -695,7 +694,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testEDSLabels,
 						Annotations: map[string]string{
-							v2alpha1.MD5AgentDeploymentAnnotationKey: "12345",
+							constants.MD5AgentDeploymentAnnotationKey: "12345",
 						},
 					},
 					Status: edsdatadoghqv1alpha1.ExtendedDaemonSetStatus{
@@ -708,7 +707,7 @@ func Test_shouldUpdateProfileDaemonSet(t *testing.T) {
 						Namespace: testNS,
 						Labels:    testERSLabels,
 						Annotations: map[string]string{
-							v2alpha1.MD5AgentDeploymentAnnotationKey: "12345",
+							constants.MD5AgentDeploymentAnnotationKey: "12345",
 						},
 					},
 				},
