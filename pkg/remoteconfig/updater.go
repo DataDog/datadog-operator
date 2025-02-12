@@ -16,17 +16,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config/model"
+	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
+	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 	"github.com/cenkalti/backoff"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/DataDog/datadog-agent/pkg/config/model"
-	"github.com/DataDog/datadog-agent/pkg/config/remote/client"
-	"github.com/DataDog/datadog-agent/pkg/config/remote/service"
-	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/config"

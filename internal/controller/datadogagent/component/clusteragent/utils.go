@@ -9,19 +9,19 @@ import (
 	"fmt"
 	"strings"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 // GetClusterAgentService returns the Cluster-Agent service

@@ -15,9 +15,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	s "github.com/DataDog/datadog-operator/pkg/secrets"
-
 	"github.com/spf13/cobra"
+
+	s "github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 const (

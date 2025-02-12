@@ -10,6 +10,9 @@ import (
 	"strconv"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -21,10 +24,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
-
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet

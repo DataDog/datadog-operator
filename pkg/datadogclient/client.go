@@ -13,13 +13,12 @@ import (
 	"os"
 	"strings"
 
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-
-	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 )
 
 const prefix = "https://api."

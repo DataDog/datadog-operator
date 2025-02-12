@@ -16,7 +16,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"

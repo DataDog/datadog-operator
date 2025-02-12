@@ -9,10 +9,10 @@ import (
 	"context"
 	"fmt"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )

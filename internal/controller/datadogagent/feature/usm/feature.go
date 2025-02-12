@@ -6,14 +6,13 @@
 package usm
 
 import (
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )

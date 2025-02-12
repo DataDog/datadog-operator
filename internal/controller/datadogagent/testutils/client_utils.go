@@ -6,8 +6,6 @@
 package testutils_test
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // TestScheme return a runtime.Scheme for testing purposes

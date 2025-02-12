@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // getRBACRules generates the cluster role permissions required for the orchestrator explorer feature

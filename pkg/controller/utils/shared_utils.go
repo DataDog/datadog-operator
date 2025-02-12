@@ -9,9 +9,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
