@@ -18,4 +18,7 @@ const (
 	securityfsVolumeName = "securityfs"
 	securityfsVolumePath = "/sys/kernel/security"
 	securityfsMountPath  = "/host/sys/kernel/security"
+
+	// DefaultCWSConf default CWS ConfigMap name
+	defaultCWSConf string = "cws-config"
 )

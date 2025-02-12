@@ -67,7 +67,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 		podTemplate.Annotations[key] = val
 	}
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(v2alpha1.DefaultClusterAgentReplicas)
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -117,7 +117,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
@@ -189,7 +189,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  v2alpha1.DDAuthTokenFilePath,
-			Value: filepath.Join(v2alpha1.AuthVolumePath, "token"),
+			Value: filepath.Join(common.AuthVolumePath, "token"),
 		},
 	}
 

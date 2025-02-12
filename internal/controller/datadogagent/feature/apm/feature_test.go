@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -26,8 +27,8 @@ import (
 )
 
 const (
-	apmSocketHostPath  = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
-	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + v2alpha1.APMSocketName
+	apmSocketHostPath  = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
+	apmSocketLocalPath = apmSocketVolumeLocalPath + "/" + common.APMSocketName
 )
 
 func TestShouldEnableAPM(t *testing.T) {
@@ -501,7 +502,7 @@ func testAgentUDSOnly(agentContainerName apicommon.AgentContainerName) *test.Com
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.DogstatsdAPMSocketHostPath,
+							Path: common.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},
@@ -772,7 +773,7 @@ func testAgentHostPortUDS(agentContainerName apicommon.AgentContainerName, hostP
 					Name: apmSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.DogstatsdAPMSocketHostPath,
+							Path: common.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},

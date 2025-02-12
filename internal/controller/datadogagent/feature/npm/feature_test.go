@@ -11,6 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -52,7 +53,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 			{
 				Name:  DDSystemProbeCollectDNSStatsEnabled,
@@ -72,7 +73,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 
 		// check annotations
 		wantAnnotations := make(map[string]string)
-		wantAnnotations[v2alpha1.SystemProbeAppArmorAnnotationKey] = v2alpha1.SystemProbeAppArmorAnnotationValue
+		wantAnnotations[common.SystemProbeAppArmorAnnotationKey] = common.SystemProbeAppArmorAnnotationValue
 		annotations := mgr.AnnotationMgr.Annotations
 		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 
@@ -83,31 +84,31 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.ProcdirVolumeName,
-				MountPath: v2alpha1.ProcdirMountPath,
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.CgroupsVolumeName,
-				MountPath: v2alpha1.CgroupsMountPath,
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.DebugfsVolumeName,
-				MountPath: v2alpha1.DebugfsPath,
+				Name:      common.DebugfsVolumeName,
+				MountPath: common.DebugfsPath,
 				ReadOnly:  false,
 			},
 		}
 
 		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
-			Name:      v2alpha1.SystemProbeSocketVolumeName,
-			MountPath: v2alpha1.SystemProbeSocketVolumePath,
+			Name:      common.SystemProbeSocketVolumeName,
+			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  true,
 		})
 
 		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
-			Name:      v2alpha1.SystemProbeSocketVolumeName,
-			MountPath: v2alpha1.SystemProbeSocketVolumePath,
+			Name:      common.SystemProbeSocketVolumeName,
+			MountPath: common.SystemProbeSocketVolumePath,
 			ReadOnly:  false,
 		})
 
@@ -119,8 +120,8 @@ func Test_npmFeature_Configure(t *testing.T) {
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
@@ -130,31 +131,31 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: v2alpha1.ProcdirVolumeName,
+				Name: common.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.ProcdirHostPath,
+						Path: common.ProcdirHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.CgroupsVolumeName,
+				Name: common.CgroupsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.CgroupsHostPath,
+						Path: common.CgroupsHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.DebugfsVolumeName,
+				Name: common.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.DebugfsPath,
+						Path: common.DebugfsPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.SystemProbeSocketVolumeName,
+				Name: common.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -176,7 +177,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
 		npmFeatureEnvVar := []*corev1.EnvVar{
