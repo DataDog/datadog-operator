@@ -92,7 +92,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  constants.DDLogLevel,
+		Name:  DDLogLevel,
 		Value: *config.LogLevel,
 	})
 

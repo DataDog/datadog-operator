@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func TestPodTemplateSpec(t *testing.T) {
@@ -589,7 +588,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager.EnvVarMgr.AddEnvVarToContainer(
 					apicommon.ClusterAgentContainerName,
 					&v1.EnvVar{
-						Name:  constants.DDLogLevel,
+						Name:  DDLogLevel,
 						Value: "info",
 					},
 				)
@@ -607,7 +606,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				envSet := false
 
 				for _, env := range manager.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName] {
-					if env.Name == constants.DDLogLevel && env.Value == "trace" {
+					if env.Name == DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
 					}

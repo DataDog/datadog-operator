@@ -27,4 +27,5 @@ const (
 	DDSecretBackendTimeout         = "DD_SECRET_BACKEND_TIMEOUT"
 	DDTags                         = "DD_TAGS"
 	DockerHost                     = "DOCKER_HOST"
+	DDLogLevel                     = "DD_LOG_LEVEL"
 )

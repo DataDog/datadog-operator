@@ -295,7 +295,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  constants.DDLogLevel,
+			Name:  DDLogLevel,
 			Value: "info",
 		},
 	}
