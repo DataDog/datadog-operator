@@ -185,6 +185,10 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		containerdLibVol, containerdLibVolMount := volume.GetVolumes(containerdDirVolumeName, containerdDirVolumePath, containerdDirMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&containerdLibVol)
+
+		criLibVol, criLibVolMount := volume.GetVolumes(criDirVolumeName, criDirVolumePath, criDirMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&criLibVolMount, apicommon.CoreAgentContainerName)
+		volMgr.AddVolume(&criLibVol)
 	}
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
