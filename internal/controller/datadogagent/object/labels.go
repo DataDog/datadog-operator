@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // GetDefaultLabels return default labels attached to a DatadogAgent resource.

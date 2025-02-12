@@ -10,8 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-
 	"github.com/spf13/cobra"
 	coordv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +18,8 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var leaderExample = `

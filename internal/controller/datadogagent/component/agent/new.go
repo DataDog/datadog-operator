@@ -8,12 +8,12 @@ package agent
 import (
 	"time"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information

@@ -20,7 +20,6 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )

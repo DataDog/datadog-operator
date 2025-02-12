@@ -9,22 +9,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
-
-	"github.com/go-logr/logr"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
 )
 
 const (
