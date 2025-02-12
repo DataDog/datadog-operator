@@ -158,7 +158,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// Manage RBAC permissionDefaultKubeStateMetricsCoreConf
+	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(collectorOpts))
