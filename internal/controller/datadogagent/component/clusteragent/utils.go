@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,10 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/version"
-)
-
-const (
-	pdbMinAvailableInstances = 1
 )
 
 // GetClusterAgentService returns the Cluster-Agent service
@@ -49,8 +45,8 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(v2alpha1.DefaultClusterAgentServicePort),
-					Port:       v2alpha1.DefaultClusterAgentServicePort,
+					TargetPort: intstr.FromInt(common.DefaultClusterAgentServicePort),
+					Port:       common.DefaultClusterAgentServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
@@ -97,12 +93,12 @@ func GetClusterAgentPodDisruptionBudget(dda metav1.Object, useV1BetaPDB bool) cl
 
 // GetMetricsServerServiceName returns the external metrics provider service name
 func GetMetricsServerServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.DefaultMetricsServerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.GetName(), defaultMetricsServerResourceSuffix)
 }
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name
 func GetMetricsServerAPIServiceName() string {
-	return v2alpha1.ExternalMetricsAPIServiceName
+	return externalMetricsAPIServiceName
 }
 
 // GetDefaultExternalMetricSecretName returns the external metrics provider secret name

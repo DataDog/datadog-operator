@@ -173,7 +173,7 @@ func getWantVolumes() []*corev1.Volume {
 			Name: pointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: v2alpha1.DefaultLogTempStoragePath,
+					Path: common.DefaultLogTempStoragePath,
 				},
 			},
 		},

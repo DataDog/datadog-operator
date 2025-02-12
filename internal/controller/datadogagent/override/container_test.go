@@ -875,7 +875,7 @@ func TestContainer(t *testing.T) {
 				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				annotation := fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
 				assert.Equal(t, "my-app-armor-profile", manager.AnnotationMgr.Annotations[annotation])
 			},
 		},

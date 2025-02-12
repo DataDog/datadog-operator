@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
@@ -164,7 +165,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 	return netv1.NetworkPolicyPort{
 		Port: &intstr.IntOrString{
 			Type:   intstr.Int,
-			IntVal: v2alpha1.DefaultClusterAgentServicePort,
+			IntVal: common.DefaultClusterAgentServicePort,
 		},
 	}
 }
@@ -400,7 +401,7 @@ func ingressDogstatsd(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec
 					{
 						Ports: []cilium.PortProtocol{
 							{
-								Port:     strconv.Itoa(v2alpha1.DefaultDogstatsdPort),
+								Port:     strconv.Itoa(common.DefaultDogstatsdPort),
 								Protocol: cilium.ProtocolUDP,
 							},
 						},

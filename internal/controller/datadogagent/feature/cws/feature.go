@@ -87,7 +87,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
-		f.configMapName = constants.GetConfName(dda, f.customConfig, v2alpha1.DefaultCWSConf)
+		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Network != nil {
 			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
@@ -177,7 +177,7 @@ func (f *cwsFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
-	managers.Annotation().AddAnnotation(v2alpha1.SystemProbeAppArmorAnnotationKey, v2alpha1.SystemProbeAppArmorAnnotationValue)
+	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
@@ -199,7 +199,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	runtimeSocketEnvVar := &corev1.EnvVar{
 		Name:  DDRuntimeSecurityConfigSocket,
-		Value: filepath.Join(v2alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
+		Value: filepath.Join(common.SystemProbeSocketVolumePath, "runtime-security.sock"),
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, runtimeSocketEnvVar)
 
@@ -243,7 +243,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  common.DDHostRootEnvVar,
-		Value: v2alpha1.HostRootMountPath,
+		Value: common.HostRootMountPath,
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SecurityAgentContainerName, hostRootEnvVar)
 
@@ -251,7 +251,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr := managers.Volume()
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(v2alpha1.DebugfsVolumeName, v2alpha1.DebugfsPath, v2alpha1.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
 
@@ -266,10 +266,10 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr.AddVolume(&securityfsVol)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, false)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, true)
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMountReadOnly,
 		[]apicommon.AgentContainerName{
@@ -280,27 +280,27 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMgr.AddVolume(&socketVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&procdirVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(v2alpha1.PasswdVolumeName, v2alpha1.PasswdHostPath, v2alpha1.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&passwdVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(v2alpha1.GroupVolumeName, v2alpha1.GroupHostPath, v2alpha1.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&groupVol)
 
 	// osRelease volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(v2alpha1.SystemProbeOSReleaseDirVolumeName, v2alpha1.SystemProbeOSReleaseDirVolumePath, v2alpha1.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 
 	// hostroot volume mount
-	hostrootVol, hostrootVolMount := volume.GetVolumes(v2alpha1.HostRootVolumeName, v2alpha1.HostRootHostPath, v2alpha1.HostRootMountPath, true)
+	hostrootVol, hostrootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommon.SecurityAgentContainerName)
 	volMgr.AddVolume(&hostrootVol)
 

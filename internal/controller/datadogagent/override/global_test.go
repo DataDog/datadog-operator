@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -326,7 +327,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	// Order is important for the comparisons in the assertion, so respect that
 	if slices.Contains(configs, kubeletCAVolumes) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.KubeletCAVolumeName,
+			Name: kubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
@@ -337,7 +338,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 
 	if slices.Contains(configs, defaultVolumes) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.KubeletPodResourcesVolumeName,
+			Name: common.KubeletPodResourcesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: podResourcesSocket,
@@ -348,7 +349,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 
 	if slices.Contains(configs, criSocketVolume) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.CriSocketVolumeName,
+			Name: common.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
@@ -363,7 +364,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 func getDefaultVolumeMounts() []*corev1.VolumeMount {
 	return []*corev1.VolumeMount{
 		{
-			Name:      v2alpha1.KubeletPodResourcesVolumeName,
+			Name:      common.KubeletPodResourcesVolumeName,
 			MountPath: podResourcesSocket,
 			ReadOnly:  false,
 		},
@@ -375,7 +376,7 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 
 	if slices.Contains(configs, kubeletCAVolumes) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.KubeletCAVolumeName,
+			Name:      kubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
 		})
@@ -383,7 +384,7 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 
 	if slices.Contains(configs, defaultVolumes) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.KubeletPodResourcesVolumeName,
+			Name:      common.KubeletPodResourcesVolumeName,
 			MountPath: podResourcesSocket,
 			ReadOnly:  false,
 		})
@@ -391,7 +392,7 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 
 	if slices.Contains(configs, criSocketVolume) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.CriSocketVolumeName,
+			Name:      common.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
 		})

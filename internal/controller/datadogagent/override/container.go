@@ -174,7 +174,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 	if containerName == apicommon.SystemProbeContainerName {
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomRootPath != nil {
 			vol := corev1.Volume{
-				Name: v2alpha1.SeccompRootVolumeName,
+				Name: common.SeccompRootVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: *override.SeccompConfig.CustomRootPath,
@@ -187,7 +187,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 		// TODO support ConfigMap creation when ConfigData is used.
 		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigMap != nil {
 			vol := corev1.Volume{
-				Name: v2alpha1.SeccompSecurityVolumeName,
+				Name: common.SeccompSecurityVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
@@ -216,9 +216,9 @@ func overrideAppArmorProfile(containerName apicommon.AgentContainerName, manager
 	if override.AppArmorProfileName != nil {
 		var annotation string
 		if override.Name != nil {
-			annotation = fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, *override.Name)
+			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, *override.Name)
 		} else {
-			annotation = fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, containerName)
+			annotation = fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, containerName)
 		}
 
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)

@@ -72,11 +72,11 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Registry is the image registry to use for all Agent images.
-	if *config.Registry != v2alpha1.DefaultImageRegistry {
-		image := v2alpha1.DefaultAgentImageName
+	if *config.Registry != defaulting.DefaultImageRegistry {
+		image := defaulting.DefaultAgentImageName
 		version := defaulting.AgentLatestVersion
 		if componentName == v2alpha1.ClusterAgentComponentName {
-			image = v2alpha1.DefaultClusterAgentImageName
+			image = defaulting.DefaultClusterAgentImageName
 			version = defaulting.ClusterAgentLatestVersion
 		}
 		fullImage := fmt.Sprintf("%s/%s:%s", *config.Registry, image, version)
@@ -256,9 +256,9 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if config.Kubelet.AgentCAPath != "" {
 					agentCAPath = config.Kubelet.AgentCAPath
 				} else {
-					agentCAPath = v2alpha1.KubeletAgentCAPath
+					agentCAPath = common.KubeletAgentCAPath
 				}
-				kubeletVol, kubeletVolMount := volume.GetVolumes(v2alpha1.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
+				kubeletVol, kubeletVolMount := volume.GetVolumes(kubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
@@ -292,7 +292,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					Value: config.Kubelet.PodResourcesSocket,
 				})
 
-				podResourcesVol, podResourcesMount := volume.GetVolumes(v2alpha1.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
+				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&podResourcesMount,
@@ -322,20 +322,20 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.DockerSocketPath)
+			dockerMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.DockerSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
 		} else if config.CriSocketPath != nil {
 			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(v2alpha1.HostCriSocketPathPrefix, *config.CriSocketPath)
+			criSocketMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(v2alpha1.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 

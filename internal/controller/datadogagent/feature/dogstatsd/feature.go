@@ -112,13 +112,13 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
 		dsdPort := &corev1.ServicePort{
 			Protocol:   corev1.ProtocolUDP,
-			TargetPort: intstr.FromInt(int(v2alpha1.DefaultDogstatsdPort)),
-			Port:       v2alpha1.DefaultDogstatsdPort,
-			Name:       v2alpha1.DefaultDogstatsdPortName,
+			TargetPort: intstr.FromInt(int(common.DefaultDogstatsdPort)),
+			Port:       common.DefaultDogstatsdPort,
+			Name:       defaultDogstatsdPortName,
 		}
 		if f.hostPortEnabled {
 			dsdPort.Port = f.hostPortHostPort
-			dsdPort.Name = v2alpha1.DogstatsdHostPortName
+			dsdPort.Name = dogstatsdHostPortName
 			if f.useHostNetwork {
 				dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
 			}
@@ -188,14 +188,14 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
-		Name:          v2alpha1.DefaultDogstatsdPortName,
-		ContainerPort: v2alpha1.DefaultDogstatsdPort,
+		Name:          defaultDogstatsdPortName,
+		ContainerPort: common.DefaultDogstatsdPort,
 		Protocol:      corev1.ProtocolUDP,
 	}
 	if f.hostPortEnabled {
 		// f.hostPortHostPort will be 0 if HostPort is not set in v1alpha1
 		// f.hostPortHostPort will default to 8125 in v2alpha1
-		dsdPortEnvVarValue := v2alpha1.DefaultDogstatsdPort
+		dsdPortEnvVarValue := common.DefaultDogstatsdPort
 		if f.hostPortHostPort != 0 {
 			dogstatsdPort.HostPort = f.hostPortHostPort
 			// if using host network, host port should be set and needs to match container port
@@ -220,7 +220,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
 		sockName := filepath.Base(f.udsHostFilepath)
-		socketVol, socketVolMount := volume.GetVolumes(v2alpha1.DogstatsdSocketVolumeName, udsHostFolder, v2alpha1.DogstatsdSocketLocalPath, false)
+		socketVol, socketVolMount := volume.GetVolumes(common.DogstatsdSocketVolumeName, udsHostFolder, common.DogstatsdSocketLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 
 		socketVol.VolumeSource.HostPath.Type = &volType
@@ -228,7 +228,7 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDDogstatsdSocket,
-			Value: filepath.Join(v2alpha1.DogstatsdSocketLocalPath, sockName),
+			Value: filepath.Join(common.DogstatsdSocketLocalPath, sockName),
 		})
 	}
 

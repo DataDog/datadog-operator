@@ -134,13 +134,13 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      v2alpha1.CgroupsVolumeName,
-					MountPath: v2alpha1.CgroupsMountPath,
+					Name:      common.CgroupsVolumeName,
+					MountPath: common.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.ProcdirVolumeName,
-					MountPath: v2alpha1.ProcdirMountPath,
+					Name:      common.ProcdirVolumeName,
+					MountPath: common.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -153,18 +153,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []corev1.Volume{
 				{
-					Name: v2alpha1.CgroupsVolumeName,
+					Name: common.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.CgroupsHostPath,
+							Path: common.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.ProcdirVolumeName,
+					Name: common.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.ProcdirHostPath,
+							Path: common.ProcdirHostPath,
 						},
 					},
 				},

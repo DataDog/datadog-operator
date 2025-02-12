@@ -102,26 +102,26 @@ func (f *usmFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // It should do nothing if the feature doesn't need to configure it.
 func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
-	managers.Annotation().AddAnnotation(v2alpha1.SystemProbeAppArmorAnnotationKey, v2alpha1.SystemProbeAppArmorAnnotationValue)
+	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// volume mounts
-	procdirVol, procdirMount := volume.GetVolumes(v2alpha1.ProcdirVolumeName, v2alpha1.ProcdirHostPath, v2alpha1.ProcdirMountPath, true)
+	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
-	cgroupsVol, cgroupsMount := volume.GetVolumes(v2alpha1.CgroupsVolumeName, v2alpha1.CgroupsHostPath, v2alpha1.CgroupsMountPath, true)
+	cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
-	debugfsVol, debugfsMount := volume.GetVolumes(v2alpha1.DebugfsVolumeName, v2alpha1.DebugfsPath, v2alpha1.DebugfsPath, false)
+	debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&debugfsVol)
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, false)
+	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketDirMount,
 		[]apicommon.AgentContainerName{
@@ -130,7 +130,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	)
 	managers.Volume().AddVolume(&socketDirVol)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, true)
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMountReadOnly,
 		[]apicommon.AgentContainerName{
@@ -163,7 +163,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 
 	sysProbeSocketEnvVar := &corev1.EnvVar{
 		Name:  common.DDSystemProbeSocket,
-		Value: v2alpha1.DefaultSystemProbeSocketPath,
+		Value: common.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers(containersForEnvVars, sysProbeSocketEnvVar)
 
