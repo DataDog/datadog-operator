@@ -10,7 +10,7 @@ require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
 	// TODO: pin to an EDS released version once there is a release that includes the api module
 	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
-	github.com/Masterminds/semver/v3 v3.1.1
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/go-logr/logr v1.4.2
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.6.0
