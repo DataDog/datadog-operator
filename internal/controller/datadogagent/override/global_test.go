@@ -362,16 +362,6 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	return volumes
 }
 
-func getDefaultVolumeMounts() []*corev1.VolumeMount {
-	return []*corev1.VolumeMount{
-		{
-			Name:      common.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocket,
-			ReadOnly:  false,
-		},
-	}
-}
-
 func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 	mounts := []*corev1.VolumeMount{}
 
