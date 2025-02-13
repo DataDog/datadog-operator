@@ -206,7 +206,25 @@
           "type": "string"
         }
       },
-      "type": "object"
+      "type": "object",
+      "x-kubernetes-validations": [
+        {
+          "message": "spec.Name must be defined",
+          "rule": "has(self.name) \u0026\u0026 size(self.name) \u003e 0"
+        },
+        {
+          "message": "spec.Message must be defined",
+          "rule": "has(self.message) \u0026\u0026 size(self.message) \u003e 0"
+        },
+        {
+          "message": "spec.Query must be defined",
+          "rule": "has(self.query) \u0026\u0026 size(self.query) \u003e 0"
+        },
+        {
+          "message": "spec.Type must be defined",
+          "rule": "has(self.type) \u0026\u0026 size(self.type) \u003e 0"
+        }
+      ]
     },
     "status": {
       "additionalProperties": false,

@@ -13,6 +13,10 @@ import (
 
 // DatadogMonitorSpec defines the desired state of DatadogMonitor
 // +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="has(self.name) && size(self.name) > 0",message="spec.Name must be defined"
+// +kubebuilder:validation:XValidation:rule="has(self.message) && size(self.message) > 0",message="spec.Message must be defined"
+// +kubebuilder:validation:XValidation:rule="has(self.query) && size(self.query) > 0",message="spec.Query must be defined"
+// +kubebuilder:validation:XValidation:rule="has(self.type) && size(self.type) > 0",message="spec.Type must be defined"
 type DatadogMonitorSpec struct {
 	// Name is the monitor name
 	Name string `json:"name,omitempty"`

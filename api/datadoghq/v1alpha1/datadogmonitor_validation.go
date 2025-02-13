@@ -13,6 +13,8 @@ import (
 
 // IsValidDatadogMonitor use to check if a DatadogMonitorSpec is valid by checking
 // that the required fields are defined
+// Deprecated: Use CRD validation rules for input validation
+// https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#validation-rules
 func IsValidDatadogMonitor(spec *DatadogMonitorSpec) error {
 	var errs []error
 	if spec.Query == "" {
