@@ -223,6 +223,15 @@ spec:
                   description: Type is the monitor type
                   type: string
               type: object
+              x-kubernetes-validations:
+                - message: spec.Name must be defined
+                  rule: has(self.name) && size(self.name) > 0
+                - message: spec.Message must be defined
+                  rule: has(self.message) && size(self.message) > 0
+                - message: spec.Query must be defined
+                  rule: has(self.query) && size(self.query) > 0
+                - message: spec.Type must be defined
+                  rule: has(self.type) && size(self.type) > 0
             status:
               description: DatadogMonitorStatus defines the observed state of DatadogMonitor
               properties:
