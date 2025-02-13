@@ -13,6 +13,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 
 	"github.com/stretchr/testify/assert"
@@ -77,7 +78,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDLogLevel,
+						Name:  DDLogLevel,
 						Value: "debug",
 					},
 				}
@@ -365,7 +366,7 @@ func TestContainer(t *testing.T) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 				expectedEnvs := []*corev1.EnvVar{
 					{
-						Name:  v2alpha1.DDHealthPort,
+						Name:  common.DDHealthPort,
 						Value: "1234",
 					},
 				}
@@ -874,7 +875,7 @@ func TestContainer(t *testing.T) {
 				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				annotation := fmt.Sprintf("%s/%s", v2alpha1.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
+				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
 				assert.Equal(t, "my-app-armor-profile", manager.AnnotationMgr.Annotations[annotation])
 			},
 		},

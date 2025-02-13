@@ -11,16 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +21,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -492,7 +491,7 @@ func (r *Reconciler) shouldUpdateProfileDaemonSet(profile *v1alpha1.DatadogAgent
 			return false, nil
 		}
 
-		hashesMatch := eds.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey] == ers.Annotations[datadoghqv2alpha1.MD5AgentDeploymentAnnotationKey]
+		hashesMatch := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey] == ers.Annotations[constants.MD5AgentDeploymentAnnotationKey]
 		// eds canary was validated manually
 		if eds.Annotations[edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey] == ers.Name && hashesMatch {
 			r.log.Info("Updating profile DaemonSet because the canary was validated and EDS and ERS hashes match")

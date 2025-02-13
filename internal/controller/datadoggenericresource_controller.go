@@ -8,6 +8,7 @@ package controller
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	ddgr "github.com/DataDog/datadog-operator/internal/controller/datadoggenericresource"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
-	"github.com/go-logr/logr"
 )
 
 // DatadogGenericResourceReconciler reconciles a DatadogGenericResource object

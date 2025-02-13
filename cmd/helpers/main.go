@@ -8,9 +8,9 @@ package main
 import (
 	"os"
 
-	"github.com/DataDog/datadog-operator/cmd/helpers/secrets"
-
 	"github.com/spf13/cobra"
+
+	"github.com/DataDog/datadog-operator/cmd/helpers/secrets"
 )
 
 func main() {

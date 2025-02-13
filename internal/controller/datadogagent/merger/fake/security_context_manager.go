@@ -3,9 +3,9 @@ package fake
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 // SecurityContextManager is a mock type for the SecurityContextManager type

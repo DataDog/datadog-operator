@@ -1,9 +1,10 @@
 package datadoggenericresource
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 type ResourceHandler interface {

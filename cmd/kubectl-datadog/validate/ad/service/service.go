@@ -10,10 +10,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var serviceExample = `

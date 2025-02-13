@@ -8,15 +8,14 @@ package sbom
 import (
 	"strings"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/go-logr/logr"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
@@ -175,7 +174,7 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 				apicommon.CoreAgentContainerName,
 			)
 
-			managers.Annotation().AddAnnotation(v2alpha1.AgentAppArmorAnnotationKey, v2alpha1.AgentAppArmorAnnotationValue)
+			managers.Annotation().AddAnnotation(agentAppArmorAnnotationKey, agentAppArmorAnnotationValue)
 		}
 
 		volMgr := managers.Volume()
@@ -184,6 +183,10 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		containerdLibVol, containerdLibVolMount := volume.GetVolumes(containerdDirVolumeName, containerdDirVolumePath, containerdDirMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&containerdLibVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&containerdLibVol)
+
+		criLibVol, criLibVolMount := volume.GetVolumes(criDirVolumeName, criDirVolumePath, criDirMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&criLibVolMount, apicommon.CoreAgentContainerName)
+		volMgr.AddVolume(&criLibVol)
 	}
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -199,14 +202,14 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	if f.hostEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  v2alpha1.DDHostRootEnvVar,
+			Name:  common.DDHostRootEnvVar,
 			Value: "/host",
 		})
 
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(v2alpha1.SystemProbeOSReleaseDirVolumeName, v2alpha1.SystemProbeOSReleaseDirVolumePath, v2alpha1.SystemProbeOSReleaseDirMountPath, true)
+		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
 		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
 		volMgr.AddVolume(&osReleaseVol)
 
