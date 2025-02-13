@@ -10,10 +10,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 )
@@ -130,7 +130,7 @@ func (f *logCollectionFeature) manageNodeAgent(agentContainerName apicommon.Agen
 
 	// envvars
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLogsEnabled,
+		Name:  common.DDLogsEnabled,
 		Value: "true",
 	})
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{

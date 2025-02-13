@@ -352,7 +352,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDAPMEnabled,
+		Name:  common.DDAPMEnabled,
 		Value: "true",
 	})
 
@@ -398,7 +398,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 		// Always add this envvar to Core and Process containers
 		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+			Name:  common.DDProcessConfigRunInCoreAgent,
 			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)

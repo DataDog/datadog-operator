@@ -4,9 +4,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -15,15 +20,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	otelAgentVolumeName = "otel-agent-config-volume"
-	otelConfigFileName  = "otel-config.yaml"
 )
 
 func init() {
@@ -71,7 +67,7 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	if dda.Spec.Features.OtelCollector.Conf != nil {
 		o.customConfig = dda.Spec.Features.OtelCollector.Conf
 	}
-	o.configMapName = constants.GetConfName(dda, o.customConfig, v2alpha1.DefaultOTelAgentConf)
+	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
 	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
@@ -194,7 +190,7 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// [investigation needed]: When the user provides a custom config map, the file name *must be* otel-config.yaml. If we choose to allow
 	// any file name, we would need to update both the volume mount here, as well as the otel-agent container command. I haven't seen this
 	// done for other containers, which is why I think it's acceptable to force users to use the `otel-config.yaml` name.
-	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, v2alpha1.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
+	volMount := volume.GetVolumeMountWithSubPath(otelAgentVolumeName, common.ConfigVolumePath+"/"+otelConfigFileName, otelConfigFileName)
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.OtelAgent)
 
 	// Add md5 hash annotation for configMap
@@ -212,11 +208,11 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	// (todo: mackjmr): remove this once IPC port is enabled by default. Enabling this port is required to fetch the API key from
 	// core agent when secrets backend is used.
 	agentIpcPortEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDAgentIpcPort,
+		Name:  DDAgentIpcPort,
 		Value: "5009",
 	}
 	agentIpcConfigRefreshIntervalEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDAgentIpcConfigRefreshInterval,
+		Name:  DDAgentIpcConfigRefreshInterval,
 		Value: "60",
 	}
 	// don't set env var if it was already set by user.
@@ -233,27 +229,27 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		if *o.coreAgentConfig.enabled {
 			// only need to set env var if true, as it will default to false.
 			enableEnvVar = &corev1.EnvVar{
-				Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
+				Name:  DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
 			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
 		}
 	} else {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigEnabled,
+			Name:  DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})
 	}
 
 	if o.coreAgentConfig.extension_timeout != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionTimeout,
+			Name:  DDOtelCollectorCoreConfigExtensionTimeout,
 			Value: strconv.Itoa(*o.coreAgentConfig.extension_timeout),
 		})
 	}
 	if o.coreAgentConfig.extension_url != nil {
 		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
-			Name:  v2alpha1.DDOtelCollectorCoreConfigExtensionURL,
+			Name:  DDOtelCollectorCoreConfigExtensionURL,
 			Value: *o.coreAgentConfig.extension_url,
 		})
 	}

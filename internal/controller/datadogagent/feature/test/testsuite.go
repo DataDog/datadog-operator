@@ -3,6 +3,12 @@ package test
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -10,12 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	"github.com/go-logr/logr"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // FeatureTestSuite use define several tests on a Feature
