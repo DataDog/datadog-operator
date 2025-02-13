@@ -6,14 +6,14 @@
 package feature
 
 import (
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // RequiredComponents use to know which component need to be enabled for the feature

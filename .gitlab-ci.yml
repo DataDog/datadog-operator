@@ -303,7 +303,25 @@ trigger_internal_operator_image:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v1
+    IMAGE_VERSION: tmpl-v2
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_image_fips:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
@@ -340,7 +358,7 @@ trigger_internal_operator_nightly_image:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v1
+    IMAGE_VERSION: tmpl-v2
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     # Trigger a nightly images build that sets the RELEASE_TAG and BUILD_TAG
@@ -378,7 +396,26 @@ trigger_custom_operator_image_staging:
     branch: master
     strategy: depend
   variables:
-    IMAGE_VERSION: tmpl-v1
+    IMAGE_VERSION: tmpl-v2
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
+trigger_custom_operator_image_fips_staging:
+  stage: release
+  rules:
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
@@ -547,7 +584,7 @@ publish_release_candidate_workflow:
   variables:
     OPERATOR_RC: "true"
     SKIP_PLAN_CHECK: "true"
-    ENVIRONMENTS: "experimental"
+    ENVIRONMENTS: "experimental,alpha,staging"
     CHART: "datadog-operator"
     OPTION_AUTOMATIC_ROLLOUT: "true"
     EXPLICIT_WORKFLOWS: "//workflows:deploy_operator_rc.operator_rc"

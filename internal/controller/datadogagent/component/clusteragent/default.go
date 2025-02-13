@@ -15,9 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -67,7 +65,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 		podTemplate.Annotations[key] = val
 	}
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(v2alpha1.DefaultClusterAgentReplicas)
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -117,7 +115,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s/%s:%s", v2alpha1.DefaultImageRegistry, v2alpha1.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
@@ -152,7 +150,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
-			Name: v2alpha1.DDPodName,
+			Name: DDPodName,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
@@ -160,36 +158,36 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentKubeServiceName,
+			Name:  common.DDClusterAgentKubeServiceName,
 			Value: GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  v2alpha1.DDKubeResourcesNamespace,
+			Name:  DDKubeResourcesNamespace,
 			Value: utils.GetDatadogAgentResourceNamespace(dda),
 		},
 		{
-			Name:  v2alpha1.DDLeaderElection,
+			Name:  common.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDHealthPort,
+			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallId,
+			Name:  common.DDAPMInstrumentationInstallId,
 			Value: utils.GetDatadogAgentResourceUID(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallTime,
+			Name:  common.DDAPMInstrumentationInstallTime,
 			Value: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 		{
-			Name:  v2alpha1.DDAPMInstrumentationInstallType,
+			Name:  common.DDAPMInstrumentationInstallType,
 			Value: common.DefaultAgentInstallType,
 		},
 		{
-			Name:  v2alpha1.DDAuthTokenFilePath,
-			Value: filepath.Join(v2alpha1.AuthVolumePath, "token"),
+			Name:  DDAuthTokenFilePath,
+			Value: filepath.Join(common.AuthVolumePath, "token"),
 		},
 	}
 

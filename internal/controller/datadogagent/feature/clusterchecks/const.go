@@ -5,4 +5,10 @@
 
 package clusterchecks
 
-const ClusterChecksConfigProvider = "clusterchecks"
+const (
+	clusterChecksConfigProvider             = "clusterchecks"
+	kubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
+	kubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
+	endpointsChecksConfigProvider           = "endpointschecks"
+	clusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
+)

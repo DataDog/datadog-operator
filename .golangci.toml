@@ -21,7 +21,11 @@
 
   [linters-settings.gci]
     sections = [
-      "prefix(github.com/DataDog/datadog-operator)"
+      "standard",
+      "default",
+      "prefix(github.com/DataDog/datadog-operator)",
+      "blank",
+      "dot",
     ]
 
   [linters-settings.godot]
@@ -55,7 +59,6 @@
     "paralleltest",
     "nestif",
     "exhaustive",
-    "gci",
     "wsl",
     "godox",
     "godot",

@@ -31,7 +31,7 @@
               ],
               "type": "string"
             },
-            "scaledown": {
+            "scaleDown": {
               "additionalProperties": false,
               "description": "ScaleDown defines the policy to scale down the target resource.",
               "properties": {
@@ -92,7 +92,7 @@
               },
               "type": "object"
             },
-            "scaleup": {
+            "scaleUp": {
               "additionalProperties": false,
               "description": "ScaleUp defines the policy to scale up the target resource.",
               "properties": {
@@ -304,6 +304,10 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the target.",
                     "properties": {
+                      "type": {
+                        "description": "Type specifies how the value is expressed (Absolute or Utilization).",
+                        "type": "string"
+                      },
                       "utilization": {
                         "description": "Utilization defines a percentage of the target compared to requested resource",
                         "format": "int32",
@@ -312,6 +316,9 @@
                         "type": "integer"
                       }
                     },
+                    "required": [
+                      "type"
+                    ],
                     "type": "object"
                   }
                 },
@@ -337,6 +344,10 @@
                     "additionalProperties": false,
                     "description": "Value is the value of the target.",
                     "properties": {
+                      "type": {
+                        "description": "Type specifies how the value is expressed (Absolute or Utilization).",
+                        "type": "string"
+                      },
                       "utilization": {
                         "description": "Utilization defines a percentage of the target compared to requested resource",
                         "format": "int32",
@@ -345,6 +356,9 @@
                         "type": "integer"
                       }
                     },
+                    "required": [
+                      "type"
+                    ],
                     "type": "object"
                   }
                 },

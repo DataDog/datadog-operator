@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
 
 func init() {

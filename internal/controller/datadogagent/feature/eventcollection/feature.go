@@ -8,14 +8,13 @@ package eventcollection
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/go-logr/logr"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -24,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func init() {
@@ -75,7 +75,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = constants.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
+				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
 			} else {
@@ -106,7 +106,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	}
 
 	// event collection RBAC
-	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
+	tokenResourceName := secrets.GetDefaultDCATokenSecretName(f.owner)
 	err = managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 	if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
+		Name:  common.DDLeaderElection,
 		Value: "true",
 	})
 
@@ -159,8 +159,8 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
-		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
+		Name:  common.DDClusterAgentTokenName,
+		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	// ConfigMap for event collection if required
@@ -168,7 +168,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 		vol := volume.GetBasicVolume(f.configMapName, kubernetesAPIServerCheckConfigVolumeName)
 		volMount := corev1.VolumeMount{
 			Name:      kubernetesAPIServerCheckConfigVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, kubeAPIServerConfigFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, kubeAPIServerConfigFolderName),
 			ReadOnly:  true,
 		}
 
@@ -206,7 +206,7 @@ func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.Ag
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
+		Name:  common.DDLeaderElection,
 		Value: "true",
 	})
 
@@ -216,8 +216,8 @@ func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.Ag
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
-		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
+		Name:  common.DDClusterAgentTokenName,
+		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil

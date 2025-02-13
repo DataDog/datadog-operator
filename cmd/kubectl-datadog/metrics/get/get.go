@@ -7,15 +7,15 @@ import (
 	"io"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	"k8s.io/apimachinery/pkg/util/duration"
-
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var getExample = `

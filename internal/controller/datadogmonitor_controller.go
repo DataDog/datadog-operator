@@ -16,7 +16,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogmonitor"
-
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 

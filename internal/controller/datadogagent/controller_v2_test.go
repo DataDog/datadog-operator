@@ -18,6 +18,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -601,7 +602,7 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 
 func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
 	daemonSetList := appsv1.DaemonSetList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{v2alpha1.MD5AgentDeploymentProviderLabelKey}); err != nil {
+	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
 		return err
 	}
 

@@ -6,10 +6,10 @@
 package validate
 
 import (
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/ad"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/ad"
 )
 
 // options provides information required by validate command
