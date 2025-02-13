@@ -14,7 +14,7 @@ func NewDatadogPodAutoscalerFromV1Alpha1(in *v1alpha1.DatadogPodAutoscaler) *Dat
 		return nil
 	}
 
-	// As many type are shared, we'll assign the deep copied value to the new object
+	// As many types are shared, we'll assign the deep copied value to the new object
 	in = in.DeepCopy()
 	out := &DatadogPodAutoscaler{
 		TypeMeta:   in.TypeMeta,
@@ -58,7 +58,7 @@ func NewDatadogPodAutoscalerToV1Alpha1(in *DatadogPodAutoscaler) *v1alpha1.Datad
 		return nil
 	}
 
-	// As many type are shared, we'll assign the deep copied value to the new object
+	// As many types are shared, we'll assign the deep copied value to the new object
 	in = in.DeepCopy()
 	out := &v1alpha1.DatadogPodAutoscaler{
 		TypeMeta:   in.TypeMeta,
