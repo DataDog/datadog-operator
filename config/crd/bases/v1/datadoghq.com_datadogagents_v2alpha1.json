@@ -2311,8 +2311,8 @@
                   "description": "HostCAPath is the host path where the kubelet CA certificate is stored.",
                   "type": "string"
                 },
-                "podResourcesSocket": {
-                  "description": "PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments\nDefault: `/var/lib/kubelet/pod-resources/kubelet.sock`",
+                "podResourcesSocketPath": {
+                  "description": "PodResourcesSocketPath is the host path where the pod resources socket is stored.\nDefault: `/var/lib/kubelet/pod-resources/`",
                   "type": "string"
                 },
                 "tlsVerify": {

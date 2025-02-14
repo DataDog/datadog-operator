@@ -13,6 +13,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// NewPointer returns a pointer to a new value instance
+func NewPointer[T any](v T) *T {
+	return &v
+}
+
 // NewInt32Pointer returns pointer on a new int32 value instance
 func NewInt32Pointer(i int32) *int32 {
 	return &i

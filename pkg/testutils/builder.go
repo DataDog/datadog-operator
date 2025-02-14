@@ -838,12 +838,12 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 
 // Global Kubelet
 
-func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocket string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
-		TLSVerify:          apiutils.NewBoolPointer(tlsVerify),
-		HostCAPath:         hostCAPath,
-		AgentCAPath:        agentCAPath,
-		PodResourcesSocket: podResourcesSocket,
+		TLSVerify:              apiutils.NewBoolPointer(tlsVerify),
+		HostCAPath:             hostCAPath,
+		AgentCAPath:            agentCAPath,
+		PodResourcesSocketPath: podResourcesSocketDir,
 	}
 	return builder
 }
