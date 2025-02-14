@@ -18,6 +18,9 @@ const (
 
 	securityAgentComplianceConfigDirVolumeName = "compliancedir"
 	securityAgentComplianceConfigDirVolumePath = "/etc/datadog-agent/compliance.d"
+
+	// DefaultCSPMConf default CSPM ConfigMap name
+	defaultCSPMConf string = "cspm-config"
 )
 
 // getRBACResourceName return the RBAC resources name

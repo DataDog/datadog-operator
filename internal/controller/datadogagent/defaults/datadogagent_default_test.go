@@ -10,6 +10,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -34,7 +36,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -49,7 +51,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultEuropeSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultEuropeImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -64,7 +66,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAsiaSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultAsiaImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -79,7 +81,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAzureSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultAzureImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -94,7 +96,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultGovSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultGovImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -110,7 +112,7 @@ func Test_defaultGlobal(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -138,7 +140,7 @@ func Test_defaultGlobal(t *testing.T) {
 						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -214,6 +216,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -577,6 +580,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -691,7 +695,7 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
 						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(v2alpha1.DefaultLogTempStoragePath),
+						TempStoragePath:            apiutils.NewStringPointer(common.DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
@@ -730,6 +734,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -878,6 +883,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1026,6 +1032,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1183,6 +1190,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1331,6 +1339,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1482,6 +1491,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1625,6 +1635,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1793,6 +1804,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -1942,6 +1954,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -2113,6 +2126,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
@@ -2264,6 +2278,7 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
 						},
 						ErrorTracking: &v2alpha1.ErrorTracking{
 							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),

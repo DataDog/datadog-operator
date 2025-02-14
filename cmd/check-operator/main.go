@@ -10,9 +10,10 @@ import (
 
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/DataDog/datadog-operator/cmd/check-operator/root"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func main() {

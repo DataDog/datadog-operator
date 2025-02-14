@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -19,9 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
@@ -34,19 +34,19 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
 		if cont.Name != string(apicommon.SystemProbeContainerName) {
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  v2alpha1.DDFIPSEnabled,
+				Name:  DDFIPSEnabled,
 				Value: "true",
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  v2alpha1.DDFIPSPortRangeStart,
+				Name:  DDFIPSPortRangeStart,
 				Value: strconv.Itoa(int(*fipsConfig.Port)),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  v2alpha1.DDFIPSUseHTTPS,
+				Name:  DDFIPSUseHTTPS,
 				Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
 			})
 			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  v2alpha1.DDFIPSLocalAddress,
+				Name:  DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			})
 		}
@@ -76,18 +76,18 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	vol := getFIPSDefaultVolume(dda.Name)
 	if fipsConfig.CustomFIPSConfig != nil {
 		volMount := corev1.VolumeMount{
-			Name:      v2alpha1.FIPSProxyCustomConfigVolumeName,
-			MountPath: v2alpha1.FIPSProxyCustomConfigMountPath,
-			SubPath:   v2alpha1.FIPSProxyCustomConfigFileName,
+			Name:      FIPSProxyCustomConfigVolumeName,
+			MountPath: FIPSProxyCustomConfigMountPath,
+			SubPath:   FIPSProxyCustomConfigFileName,
 			ReadOnly:  true,
 		}
 
 		// Add md5 hash annotation to component for custom config
 		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
 		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", v2alpha1.FIPSProxyCustomConfigFileName)
+			logger.Error(err, "couldn't generate hash for custom config", "filename", FIPSProxyCustomConfigFileName)
 		}
-		annotationKey := object.GetChecksumAnnotationKey(string(v2alpha1.FIPSProxyCustomConfigFileName))
+		annotationKey := object.GetChecksumAnnotationKey(string(FIPSProxyCustomConfigFileName))
 		if annotationKey != "" && hash != "" {
 			manager.Annotation().AddAnnotation(annotationKey, hash)
 		}
@@ -96,15 +96,15 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 		if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
 			vol = volume.GetVolumeFromConfigMap(
 				fipsConfig.CustomFIPSConfig.ConfigMap,
-				fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, dda.Name),
-				v2alpha1.FIPSProxyCustomConfigVolumeName,
+				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
+				FIPSProxyCustomConfigVolumeName,
 			)
 			// configData
 		} else if fipsConfig.CustomFIPSConfig.ConfigData != nil {
 			cm, err := configmap.BuildConfigMapMulti(
 				dda.Namespace,
-				map[string]string{v2alpha1.FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
-				fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, dda.Name),
+				map[string]string{FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
+				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
 				false,
 			)
 			if err != nil {
@@ -136,7 +136,7 @@ func getFIPSProxyContainer(fipsConfig *v2alpha1.FIPSConfig) corev1.Container {
 		Ports:           getFIPSPorts(fipsConfig),
 		Env: []corev1.EnvVar{
 			{
-				Name:  v2alpha1.DDFIPSLocalAddress,
+				Name:  DDFIPSLocalAddress,
 				Value: *fipsConfig.LocalAddress,
 			},
 		},
@@ -162,16 +162,16 @@ func getFIPSPorts(fipsConfig *v2alpha1.FIPSConfig) []corev1.ContainerPort {
 
 func getFIPSDefaultVolume(name string) corev1.Volume {
 	return corev1.Volume{
-		Name: v2alpha1.FIPSProxyCustomConfigVolumeName,
+		Name: FIPSProxyCustomConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: fmt.Sprintf(v2alpha1.FIPSProxyCustomConfigMapName, name),
+					Name: fmt.Sprintf(FIPSProxyCustomConfigMapName, name),
 				},
 				Items: []corev1.KeyToPath{
 					{
-						Key:  v2alpha1.FIPSProxyCustomConfigFileName,
-						Path: v2alpha1.FIPSProxyCustomConfigFileName,
+						Key:  FIPSProxyCustomConfigFileName,
+						Path: FIPSProxyCustomConfigFileName,
 					},
 				},
 			},

@@ -7,26 +7,29 @@ package datadogagent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
@@ -156,7 +159,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	if alreadyExists {
-		now := metav1.NewTime(time.Now())
+		now := metav1.Now()
 		if agentprofile.CreateStrategyEnabled() {
 			if profile.Status.CreateStrategy != nil {
 				profile.Status.CreateStrategy.PodsReady = currentDaemonset.Status.NumberReady
@@ -226,8 +229,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			return reconcile.Result{}, nil
 		}
 
-		logger.Info("Updating Daemonset")
-
 		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
 		keepAnnotationsFilter := ""
 		keepLabelsFilter := ""
@@ -241,14 +242,25 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		// won't filter labels with "datadoghq.com" in the key
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
-		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
+		var updateProfileDS bool
+		ddaLastSpecUpdate := getDDALastUpdatedTime(dda.ManagedFields, dda.CreationTimestamp)
+		updateProfileDS, err = r.shouldUpdateProfileDaemonSet(profile, ddaLastSpecUpdate, now)
 		if err != nil {
-			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
-			return reconcile.Result{}, err
+			return result, err
 		}
-		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-		updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
+
+		if updateProfileDS {
+			logger.Info("Updating Daemonset")
+
+			err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
+			if err != nil {
+				updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
+				return reconcile.Result{}, err
+			}
+			event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)
+			r.recordEvent(dda, event)
+			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
+		}
 	} else {
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be added to this daemonset.
 		_, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
@@ -256,7 +268,8 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			return result, err
 		}
 
-		now := metav1.NewTime(time.Now())
+		now := metav1.Now()
+		logger.Info("Creating Daemonset")
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
@@ -267,8 +280,6 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		r.recordEvent(dda, event)
 		updateStatusFunc(daemonset.Name, daemonset, newStatus, now, metav1.ConditionTrue, createSucceeded, "Daemonset created")
 	}
-
-	logger.Info("Creating Daemonset")
 
 	return result, err
 }
@@ -406,4 +417,113 @@ func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool
 	}
 
 	return profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus
+}
+
+// shouldUpdateProfileDaemonSet determines if we should update a daemonset
+// created from a profile based on the canary status, if one exists
+// * true causes the daemonset to be updated immediately
+// * false causes the reconcile to skip updating the daemonset
+func (r *Reconciler) shouldUpdateProfileDaemonSet(profile *v1alpha1.DatadogAgentProfile, ddaLastUpdateTime metav1.Time, now metav1.Time) (bool, error) {
+	// eds needs to be enabled
+	if !r.options.ExtendedDaemonsetOptions.Enabled {
+		return true, nil
+	}
+
+	// profiles need to be enabled
+	if !r.options.DatadogAgentProfileEnabled {
+		return true, nil
+	}
+
+	// profile should not be nil or the default profile
+	if profile == nil {
+		return true, nil
+	}
+	if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		return true, nil
+	}
+
+	// TODO: check that EDS is for a specific DDA
+	edsList := edsv1alpha1.ExtendedDaemonSetList{}
+	if err := r.client.List(context.TODO(), &edsList, client.MatchingLabels{
+		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+	}); err != nil {
+		return false, err
+	}
+
+	for _, eds := range edsList.Items {
+		// eds canary was paused
+		if eds.Annotations[edsv1alpha1.ExtendedDaemonSetCanaryPausedAnnotationKey] == "true" {
+			r.log.Info("Waiting to update profile DaemonSet because the canary was paused")
+			return false, nil
+		}
+
+		// wait if eds has an active canary
+		if eds.Status.Canary != nil {
+			r.log.Info("Waiting to update profile DaemonSet because of an active canary")
+			return false, nil
+		}
+		// get ers associated with eds
+		ersList := edsv1alpha1.ExtendedDaemonSetReplicaSetList{}
+		if err := r.client.List(context.TODO(), &ersList, client.MatchingLabels{
+			edsv1alpha1.ExtendedDaemonSetNameLabelKey: eds.Name,
+		}); err != nil {
+			return false, err
+		}
+		// there should be at least 1 ers
+		if len(ersList.Items) == 0 {
+			return false, errors.New("there must exist at least 1 ExtendedDaemonSetReplicaSet")
+		}
+		// wait for canary ers to be cleaned up if there are multiple ers
+		if len(ersList.Items) > 1 {
+			r.log.Info("Waiting to update profile DaemonSet until unused ExtendedDaemonSetReplicaSets are cleaned up")
+			return false, nil
+		}
+		ers := ersList.Items[0]
+		// the eds's active ers should match the ers name
+		if eds.Status.ActiveReplicaSet != ers.Name {
+			return false, errors.New("ExtendedDaemonSetReplicaSet name does not match ExtendedDaemonSet's active replicaset")
+		}
+
+		// add reconcile requeue time buffer to allow eds time to update before making a decision
+		if ddaLastUpdateTime.Add(defaultRequeuePeriod).After(now.Time) {
+			r.log.Info("Waiting to update profile DaemonSet after DatadogAgent update", "last update", ddaLastUpdateTime, "wait period", defaultRequeuePeriod)
+			return false, nil
+		}
+
+		hashesMatch := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey] == ers.Annotations[constants.MD5AgentDeploymentAnnotationKey]
+		// eds canary was validated manually
+		if eds.Annotations[edsv1alpha1.ExtendedDaemonSetCanaryValidAnnotationKey] == ers.Name && hashesMatch {
+			r.log.Info("Updating profile DaemonSet because the canary was validated and EDS and ERS hashes match")
+			return true, nil
+		}
+
+		// wait for canary duration to elapse
+		if ddaLastUpdateTime.Add(r.options.ExtendedDaemonsetOptions.CanaryDuration).After(now.Time) {
+			r.log.Info("Waiting to update profile DaemonSet because the canary duration has not yet elapsed")
+			return false, nil
+		}
+
+		// if eds and ers agentspechash match, canary was successful
+		if hashesMatch {
+			r.log.Info("Updating profile DaemonSet because the EDS and ERS hashes match")
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// getDDALastUpdatedTime returns the latest timestamp from managedFields
+// ignoring the `status` subresource. If there are no managed fields, it uses
+// the creation timestamp
+func getDDALastUpdatedTime(managedFields []metav1.ManagedFieldsEntry, creationTimestamp metav1.Time) metav1.Time {
+	lastUpdateTime := creationTimestamp
+	for _, mf := range managedFields {
+		if mf.Subresource != "status" {
+			if mf.Time != nil && mf.Time.After(lastUpdateTime.Time) {
+				lastUpdateTime = *mf.Time
+			}
+		}
+	}
+	return lastUpdateTime
 }

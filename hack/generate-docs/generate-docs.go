@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 )

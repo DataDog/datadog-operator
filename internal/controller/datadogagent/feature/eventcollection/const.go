@@ -17,6 +17,8 @@ const (
 	eventCollectionRBACPrefix     = "event"
 
 	kubernetesAPIServerCheckConfigVolumeName = "kubernetes-apiserver-check-config"
+	// DefaultKubeAPIServerConf default Kubernetes APIServer ConfigMap name
+	defaultKubeAPIServerConf string = "kube-apiserver-config"
 )
 
 // getRBACResourceName return the RBAC resources name

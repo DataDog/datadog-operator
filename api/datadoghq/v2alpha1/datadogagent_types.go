@@ -181,6 +181,10 @@ type SingleStepInstrumentation struct {
 	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
 	// +optional
 	LanguageDetection *LanguageDetectionConfig `json:"languageDetection,omitempty"`
+
+	// Injector configures the APM Injector.
+	// +optional
+	Injector *InjectorConfig `json:"injector,omitempty"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.
@@ -190,6 +194,14 @@ type LanguageDetectionConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// InjectorConfig contains the configuration for the APM Injector.
+type InjectorConfig struct {
+	// Set the image tag to use for the APM Injector.
+	// (Requires Cluster Agent 7.57.0+)
+	// +optional
+	ImageTag string `json:"imageTag,omitempty"`
 }
 
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
@@ -1095,10 +1107,10 @@ type KubeletConfig struct {
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
 
-	// PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
-	// Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+	// PodResourcesSocketPath is the host path where the pod resources socket is stored.
+	// Default: `/var/lib/kubelet/pod-resources/`
 	// +optional
-	PodResourcesSocket string `json:"podResourcesSocket,omitempty"`
+	PodResourcesSocketPath string `json:"podResourcesSocketPath,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.

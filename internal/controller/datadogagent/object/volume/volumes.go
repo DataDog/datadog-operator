@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
@@ -69,7 +70,7 @@ func GetVolumesFromConfigMap(configMap *v2alpha1.ConfigMapConfig, volumeName, de
 
 	volumeMount := corev1.VolumeMount{
 		Name:      volumeName,
-		MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, configFolder),
+		MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, configFolder),
 		ReadOnly:  true,
 	}
 	return volume, volumeMount
