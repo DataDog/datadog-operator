@@ -137,6 +137,21 @@ type APMFeatureConfig struct {
 	// Enabled Default: false
 	// +optional
 	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
+
+	// ErrorTracking contains the configuration for the Error Tracking product.
+	// Feature is in beta.
+	// +optional
+	ErrorTracking *ErrorTracking `json:"errorTracking,omitempty"`
+}
+
+// ErrorTracking contains the configuration for the Error Tracking product.
+// +k8s:openapi-gen=true
+type ErrorTracking struct {
+	// Defines mode of operation of Error Tracking for backend services.
+	// It can be "disabled", "standalone", or "full".
+	// Default: disabled
+	// +optional
+	Mode *string `json:"mode,omitempty"`
 }
 
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
@@ -1307,7 +1322,7 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	//Env contains a list of environment variables that are set for all Agents.
+	// Env contains a list of environment variables that are set for all Agents.
 	// +optional
 	// +listType=map
 	// +listMapKey=name

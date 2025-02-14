@@ -647,6 +647,14 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithErrorTrackingMode(mode string) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.ErrorTracking = &v2alpha1.ErrorTracking{
+		Mode: apiutils.NewStringPointer(mode),
+	}
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{

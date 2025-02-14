@@ -487,6 +487,18 @@ spec:
                             Enabled enables Application Performance Monitoring.
                             Default: true
                           type: boolean
+                        errorTracking:
+                          description: |-
+                            ErrorTracking contains the configuration for the Error Tracking product.
+                            Feature is in beta.
+                          properties:
+                            mode:
+                              description: |-
+                                Defines mode of operation of Error Tracking for backend services.
+                                It can be "disabled", "standalone", or "full".
+                                Default: disabled
+                              type: string
+                          type: object
                         hostPortConfig:
                           description: |-
                             HostPortConfig contains host port configuration.
@@ -7380,6 +7392,18 @@ spec:
                                 Enabled enables Application Performance Monitoring.
                                 Default: true
                               type: boolean
+                            errorTracking:
+                              description: |-
+                                ErrorTracking contains the configuration for the Error Tracking product.
+                                Feature is in beta.
+                              properties:
+                                mode:
+                                  description: |-
+                                    Defines mode of operation of Error Tracking for backend services.
+                                    It can be "disabled", "standalone", or "full".
+                                    Default: disabled
+                                  type: string
+                              type: object
                             hostPortConfig:
                               description: |-
                                 HostPortConfig contains host port configuration.

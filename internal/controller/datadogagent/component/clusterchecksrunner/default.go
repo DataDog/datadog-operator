@@ -245,6 +245,14 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 				},
 			},
 		},
+		{
+			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
+			Value: "false",
+		},
+		{
+			Name:  common.DDCoreAgentEnabled,
+			Value: "true",
+		},
 	}
 
 	return envVars
