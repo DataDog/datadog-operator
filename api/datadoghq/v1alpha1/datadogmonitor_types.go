@@ -15,12 +15,18 @@ import (
 // +k8s:openapi-gen=true
 type DatadogMonitorSpec struct {
 	// Name is the monitor name
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name,omitempty"`
 	// Message is a message to include with notifications for this monitor
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Message string `json:"message,omitempty"`
 	// Priority is an integer from 1 (high) to 5 (low) indicating alert severity
 	Priority int64 `json:"priority,omitempty"`
 	// Query is the Datadog monitor query
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Query string `json:"query,omitempty"`
 	// RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor.
 	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
@@ -31,6 +37,8 @@ type DatadogMonitorSpec struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 	// Type is the monitor type
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=metric alert;query alert;service check;event alert;log alert;process alert;rum alert;trace-analytics alert;slo alert;event-v2 alert;audit alert;composite
 	Type DatadogMonitorType `json:"type,omitempty"`
 	// Options are the optional parameters associated with your monitor
 	Options DatadogMonitorOptions `json:"options,omitempty"`
