@@ -20,7 +20,7 @@ const (
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
 	ClusterAgentLatestVersion = "7.62.2"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.6"
+	FIPSProxyLatestVersion = "1.1.7"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry ContainerRegistry = "gcr.io/datadoghq"
 	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry
