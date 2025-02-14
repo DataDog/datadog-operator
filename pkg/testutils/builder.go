@@ -78,13 +78,6 @@ func (builder *DatadogAgentBuilder) WithAnnotations(annotations map[string]strin
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithCoreAgent(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.CoreAgent = &v2alpha1.CoreAgent{
-		Enabled: apiutils.NewBoolPointer(enabled),
-	}
-	return builder
-}
-
 // Global environment variable
 func (builder *DatadogAgentBuilder) WithEnvVars(envs []corev1.EnvVar) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Env = envs
@@ -653,10 +646,10 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithErrorTrackingMode(mode string) *DatadogAgentBuilder {
 	builder.initAPM()
-	builder.datadogAgent.Spec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{
-		Enabled: apiutils.NewBoolPointer(enabled),
+	builder.datadogAgent.Spec.Features.APM.ErrorTracking = &v2alpha1.ErrorTracking{
+		Mode: apiutils.NewStringPointer(mode),
 	}
 	return builder
 }

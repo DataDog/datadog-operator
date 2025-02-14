@@ -6,8 +6,8 @@ spec:
   features:
     apm:
       enabled: true
-      errorTrackingStandalone:
-        enabled: true
+      errorTracking:
+        mode: "standalone"
   global:
     clusterName: local-k8s
     credentials:

@@ -298,10 +298,6 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 			Name:  v2alpha1.DDLogLevel,
 			Value: "info",
 		},
-		{
-			Name:  v2alpha1.DDCoreAgentEnabled,
-			Value: "true",
-		},
 	}
 
 	containsPodResourcesEnvVar := slices.ContainsFunc(addedEnvVars, func(envVar *corev1.EnvVar) bool {

@@ -490,13 +490,13 @@
                   "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                   "type": "boolean"
                 },
-                "errorTrackingStandalone": {
+                "errorTracking": {
                   "additionalProperties": false,
-                  "description": "ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.\nFeature is in beta.",
+                  "description": "ErrorTracking contains the configuration for the Error Tracking product.\nFeature is in beta.",
                   "properties": {
-                    "enabled": {
-                      "description": "Enabled enables Error Tracking backend standalone.\nDefault: false",
-                      "type": "boolean"
+                    "mode": {
+                      "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
+                      "type": "string"
                     }
                   },
                   "type": "object"
@@ -1747,17 +1747,6 @@
             "containerStrategy": {
               "description": "ContainerStrategy determines whether agents run in a single or multiple containers.\nDefault: 'optimized'",
               "type": "string"
-            },
-            "coreAgent": {
-              "additionalProperties": false,
-              "description": "CoreAgent contains the settings for the core agent.",
-              "properties": {
-                "enabled": {
-                  "description": "Enabled enables the Core Agent.\nDefault: true",
-                  "type": "boolean"
-                }
-              },
-              "type": "object"
             },
             "credentials": {
               "additionalProperties": false,
@@ -7337,13 +7326,13 @@
                       "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                       "type": "boolean"
                     },
-                    "errorTrackingStandalone": {
+                    "errorTracking": {
                       "additionalProperties": false,
-                      "description": "ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.\nFeature is in beta.",
+                      "description": "ErrorTracking contains the configuration for the Error Tracking product.\nFeature is in beta.",
                       "properties": {
-                        "enabled": {
-                          "description": "Enabled enables Error Tracking backend standalone.\nDefault: false",
-                          "type": "boolean"
+                        "mode": {
+                          "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
+                          "type": "string"
                         }
                       },
                       "type": "object"

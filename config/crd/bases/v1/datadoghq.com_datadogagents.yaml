@@ -487,16 +487,17 @@ spec:
                             Enabled enables Application Performance Monitoring.
                             Default: true
                           type: boolean
-                        errorTrackingStandalone:
+                        errorTracking:
                           description: |-
-                            ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.
+                            ErrorTracking contains the configuration for the Error Tracking product.
                             Feature is in beta.
                           properties:
-                            enabled:
+                            mode:
                               description: |-
-                                Enabled enables Error Tracking backend standalone.
-                                Default: false
-                              type: boolean
+                                Defines mode of operation of Error Tracking for backend services.
+                                It can be "disabled", "standalone", or "full".
+                                Default: disabled
+                              type: string
                           type: object
                         hostPortConfig:
                           description: |-
@@ -1657,15 +1658,6 @@ spec:
                         ContainerStrategy determines whether agents run in a single or multiple containers.
                         Default: 'optimized'
                       type: string
-                    coreAgent:
-                      description: CoreAgent contains the settings for the core agent.
-                      properties:
-                        enabled:
-                          description: |-
-                            Enabled enables the Core Agent.
-                            Default: true
-                          type: boolean
-                      type: object
                     credentials:
                       description: Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
                       properties:
@@ -7391,16 +7383,17 @@ spec:
                                 Enabled enables Application Performance Monitoring.
                                 Default: true
                               type: boolean
-                            errorTrackingStandalone:
+                            errorTracking:
                               description: |-
-                                ErrorTrackingStandalone contains the configuration for Error Tracking backends standalone.
+                                ErrorTracking contains the configuration for the Error Tracking product.
                                 Feature is in beta.
                               properties:
-                                enabled:
+                                mode:
                                   description: |-
-                                    Enabled enables Error Tracking backend standalone.
-                                    Default: false
-                                  type: boolean
+                                    Defines mode of operation of Error Tracking for backend services.
+                                    It can be "disabled", "standalone", or "full".
+                                    Default: disabled
+                                  type: string
                               type: object
                             hostPortConfig:
                               description: |-
