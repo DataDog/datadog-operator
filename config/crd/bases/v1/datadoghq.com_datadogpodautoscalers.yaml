@@ -86,33 +86,11 @@ spec:
                       items:
                         description: |-
                           DatadogPodAutoscalerContainerConstraints defines constraints that should always be respected for a container.
-                          If no constraints are set, it enables resources scaling for all containers without any constraints.
+                          If no constraints are set, it enables resource scaling for all containers without any constraints.
                         properties:
                           enabled:
-                            description: Enabled false allows to disable resources autoscaling for the container. Default to true.
+                            description: Enabled, if false, allows one to disable resource autoscaling for the container. Defaults to true.
                             type: boolean
-                          limits:
-                            description: Limits defines the constraints for the limits of the container.
-                            properties:
-                              maxAllowed:
-                                additionalProperties:
-                                  anyOf:
-                                    - type: integer
-                                    - type: string
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                                description: MaxAllowed is the upper limit for the requests of the container.
-                                type: object
-                              minAllowed:
-                                additionalProperties:
-                                  anyOf:
-                                    - type: integer
-                                    - type: string
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                                description: MinAllowed is the lower limit for the requests of the container.
-                                type: object
-                            type: object
                           name:
                             description: Name is the name of the container. Can be "*" to apply to all containers.
                             type: string
@@ -147,7 +125,7 @@ spec:
                       format: int32
                       type: integer
                     minReplicas:
-                      description: MinReplicas is the lower limit for the number of POD replicas. Needs to be >= 1. Default to 1.
+                      description: MinReplicas is the lower limit for the number of pod replicas. Needs to be >= 1. Defaults to 1.
                       format: int32
                       minimum: 1
                       type: integer
@@ -187,16 +165,8 @@ spec:
                             Rules is a list of potential scaling polices which can be used during scaling.
                             At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
                           items:
-                            description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
                             properties:
-                              match:
-                                description: |-
-                                  Match defines if the rule should be considered or not in the calculation.
-                                  Default to Always if not set.
-                                enum:
-                                  - Always
-                                  - IfScalingEvent
-                                type: string
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
@@ -214,7 +184,7 @@ spec:
                               value:
                                 description: |-
                                   Value contains the amount of change which is permitted by the policy.
-                                  Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+                                  Setting it to 0 will prevent any scaling in this direction.
                                 format: int32
                                 minimum: 0
                                 type: integer
@@ -247,7 +217,7 @@ spec:
                       description: Update defines the policy to update target resource.
                       properties:
                         strategy:
-                          description: Mode defines the mode of the update policy.
+                          description: Strategy defines the mode of the update policy.
                           enum:
                             - Auto
                             - Disabled
@@ -261,16 +231,8 @@ spec:
                             Rules is a list of potential scaling polices which can be used during scaling.
                             At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
                           items:
-                            description: DatadogPodAutoscalerScalingRule define rules for horizontal that should be true for a certain amount of time.
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
                             properties:
-                              match:
-                                description: |-
-                                  Match defines if the rule should be considered or not in the calculation.
-                                  Default to Always if not set.
-                                enum:
-                                  - Always
-                                  - IfScalingEvent
-                                type: string
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
@@ -288,7 +250,7 @@ spec:
                               value:
                                 description: |-
                                   Value contains the amount of change which is permitted by the policy.
-                                  Setting it to 0 will prevent any scaling in this direction and should not be used unless Match is set to IfScalingEvent.
+                                  Setting it to 0 will prevent any scaling in this direction.
                                 format: int32
                                 minimum: 0
                                 type: integer
@@ -345,7 +307,7 @@ spec:
                     Targets are objectives to reach and maintain for the target resource.
                     Default to a single target to maintain 80% POD CPU utilization.
                   items:
-                    description: DatadogPodAutoscalerTarget defines the objectives to reach and maintain for the target resource.
+                    description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target resource.
                     properties:
                       containerResource:
                         description: ContainerResource allows to set a container-level resource target.
@@ -361,13 +323,6 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
-                              absolute:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: Absolute defines the absolute value of the target (for instance 500 millicores).
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                               type:
                                 description: Type specifies how the value is expressed (Absolute or Utilization).
                                 type: string
@@ -386,7 +341,7 @@ spec:
                           - value
                         type: object
                       podResource:
-                        description: PodResource allows to set a POD-level resource target.
+                        description: PodResource allows to set a pod-level resource target.
                         properties:
                           name:
                             description: Name is the name of the resource.
@@ -396,13 +351,6 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
-                              absolute:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                description: Absolute defines the absolute value of the target (for instance 500 millicores).
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
                               type:
                                 description: Type specifies how the value is expressed (Absolute or Utilization).
                                 type: string
@@ -456,7 +404,7 @@ spec:
                         description: Status of the condition, one of True, False, Unknown.
                         type: string
                       type:
-                        description: Type of DatadogMetric condition.
+                        description: DatadogPodAutoscalerConditionType is the type of DatadogPodAutoscaler condition.
                         type: string
                     required:
                       - status
@@ -467,7 +415,7 @@ spec:
                     - type
                   x-kubernetes-list-type: map
                 currentReplicas:
-                  description: CurrentReplicas is the current number of PODs for the targetRef observed by the controller.
+                  description: CurrentReplicas is the current number of pods for the targetRef observed by the controller.
                   format: int32
                   type: integer
                 horizontal:
@@ -476,10 +424,10 @@ spec:
                     lastActions:
                       description: LastActions are the last successful actions done by the controller
                       items:
-                        description: DatadogPodAutoscalerHorizontalAction represents an horizontal action done by the controller
+                        description: DatadogPodAutoscalerHorizontalAction represents a horizontal action done by the controller
                         properties:
                           limitedReason:
-                            description: LimitedReason is the reason why the action was limited (ToReplicas != RecommendedReplicas)
+                            description: LimitedReason is the reason why the action was limited (that is ToReplicas != RecommendedReplicas)
                             type: string
                           recommendedReplicas:
                             description: RecommendedReplicas is the original number of replicas recommended by Datadog
@@ -536,7 +484,7 @@ spec:
                           description: Type is the type of action
                           type: string
                         version:
-                          description: Version is the recommendation version used for the action
+                          description: Version is the version of the recommendation used for the action
                           type: string
                       required:
                         - time
@@ -569,7 +517,7 @@ spec:
                                     - type: string
                                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                   x-kubernetes-int-or-string: true
-                                description: Requests describes target resources of compute resources allowed.
+                                description: Requests describes the requested amount of compute resources.
                                 type: object
                             required:
                               - name
@@ -583,18 +531,18 @@ spec:
                           anyOf:
                             - type: integer
                             - type: string
-                          description: PODCPURequest is the sum of CPU requests for all containers (used for display)
+                          description: PodCPURequest is the sum of CPU requests for all containers (used for display)
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         podMemoryRequest:
                           anyOf:
                             - type: integer
                             - type: string
-                          description: PODMemoryRequest is the sum of memory requests for all containers (used for display)
+                          description: PodMemoryRequest is the sum of memory requests for all containers (used for display)
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         scaled:
-                          description: Scaled is the current number of PODs having desired resources
+                          description: Scaled is the current number of pods having desired resources
                           format: int32
                           type: integer
                         source:
@@ -694,7 +642,7 @@ spec:
                         - Apply
                         - Preview
                       type: string
-                    scaledown:
+                    scaleDown:
                       description: ScaleDown defines the policy to scale down the target resource.
                       properties:
                         rules:
@@ -750,7 +698,7 @@ spec:
                             - Disabled
                           type: string
                       type: object
-                    scaleup:
+                    scaleUp:
                       description: ScaleUp defines the policy to scale up the target resource.
                       properties:
                         rules:
@@ -892,12 +840,17 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
+                              type:
+                                description: Type specifies how the value is expressed (Absolute or Utilization).
+                                type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested resource
                                 format: int32
                                 maximum: 100
                                 minimum: 0
                                 type: integer
+                            required:
+                              - type
                             type: object
                         required:
                           - container
@@ -915,12 +868,17 @@ spec:
                           value:
                             description: Value is the value of the target.
                             properties:
+                              type:
+                                description: Type specifies how the value is expressed (Absolute or Utilization).
+                                type: string
                               utilization:
                                 description: Utilization defines a percentage of the target compared to requested resource
                                 format: int32
                                 maximum: 100
                                 minimum: 0
                                 type: integer
+                            required:
+                              - type
                             type: object
                         required:
                           - name

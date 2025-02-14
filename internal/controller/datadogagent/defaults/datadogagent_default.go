@@ -116,7 +116,7 @@ const (
 
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
-	defaultKubeletPodResourcesSocket = "/var/lib/kubelet/pod-resources/kubelet.sock"
+	defaultKubeletPodResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -198,8 +198,8 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
 	}
 
-	if ddaSpec.Global.Kubelet.PodResourcesSocket == "" {
-		ddaSpec.Global.Kubelet.PodResourcesSocket = defaultKubeletPodResourcesSocket
+	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
