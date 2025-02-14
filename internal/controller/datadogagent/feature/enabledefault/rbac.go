@@ -7,10 +7,10 @@ package enabledefault
 
 import (
 	"fmt"
-	"strings"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -317,27 +317,6 @@ func getDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 	return policyRule
 }
 
-// Used for kubernetesResourcesLabelsAsTags and kubernetesResourcesLabelsAsTags
-
-func extractGroupAndResource(groupResource string) (group string, resource string, ok bool) {
-	parts := strings.Split(groupResource, ".")
-
-	switch len(parts) {
-	case 1:
-		group = ""
-		resource = parts[0]
-		ok = true
-	case 2:
-		group = parts[1]
-		resource = parts[0]
-		ok = true
-	default:
-		ok = false
-	}
-
-	return group, resource, ok
-}
-
 func appendGroupResource(groupResourceAccumulator map[string]map[string]struct{}, group string, resource string) map[string]map[string]struct{} {
 	if _, exists := groupResourceAccumulator[group]; !exists {
 		groupResourceAccumulator[group] = map[string]struct{}{resource: {}}
@@ -354,15 +333,13 @@ func getKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resou
 	groupResourceAccumulator := map[string]map[string]struct{}{}
 
 	for groupResource := range resourcesLabelsAsTags {
-		if group, resource, ok := extractGroupAndResource(groupResource); ok {
-			groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, group, resource)
-		}
+		gr := schema.ParseGroupResource(groupResource)
+		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
 	}
 
 	for groupResource := range resourcesAnnotationsAsTags {
-		if group, resource, ok := extractGroupAndResource(groupResource); ok {
-			groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, group, resource)
-		}
+		gr := schema.ParseGroupResource(groupResource)
+		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
 	}
 
 	policyRules := make([]rbacv1.PolicyRule, 0)
