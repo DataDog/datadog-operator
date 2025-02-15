@@ -134,12 +134,33 @@ type DatadogMonitorOptions struct {
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
 	RequireFullWindow *bool `json:"requireFullWindow,omitempty"`
+	// Configuration options for scheduling.
+	SchedulingOptions *DatadogMonitorOptionsSchedulingOptions `json:"schedulingOptions,omitempty"`
 	// The number of hours of the monitor not reporting data before it automatically resolves from a triggered state.
 	TimeoutH *int64 `json:"timeoutH,omitempty"`
 	// A struct of the different monitor threshold values.
 	Thresholds *DatadogMonitorOptionsThresholds `json:"thresholds,omitempty"`
 	// A struct of the alerting time window options.
 	ThresholdWindows *DatadogMonitorOptionsThresholdWindows `json:"thresholdWindows,omitempty"`
+}
+
+// DatadogMonitorOptionsSchedulingOptions is a struct of the different scheduling options
+// +k8s:openapi-gen=true
+type DatadogMonitorOptionsSchedulingOptions struct {
+	// Configuration options for the evaluation window. If hour_starts is set, no other fields may be set.
+	// Otherwise, day_starts and month_starts must be set together.
+	EvaluationWindow *DatadogMonitorOptionsSchedulingOptionsEvaluationWindow `json:"evaluationWindow,omitempty"`
+}
+
+// DatadogMonitorOptionsSchedulingOptionsEvaluationWindow is a struct of the evaluation window options
+// +k8s:openapi-gen=true
+type DatadogMonitorOptionsSchedulingOptionsEvaluationWindow struct {
+	// The time of the day at which a one day cumulative evaluation window starts. Must be defined in UTC time in HH:mm format.
+	DayStarts *string `json:"dayStarts,omitempty"`
+	// The minute of the hour at which a one hour cumulative evaluation window starts.
+	HourStarts *int32 `json:"hourStarts,omitempty"`
+	// The day of the month at which a one month cumulative evaluation window starts.
+	MonthStarts *int32 `json:"monthStarts,omitempty"`
 }
 
 // DatadogMonitorOptionsThresholds is a struct of the different monitor threshold values
