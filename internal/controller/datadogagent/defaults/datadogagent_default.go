@@ -74,6 +74,8 @@ const (
 	defaultOTLPHTTPHostPortEnabled bool   = true
 	defaultOTLPHTTPEndpoint        string = "0.0.0.0:4318"
 
+	defaultOTLPLogsEnabled bool = false
+
 	defaultRemoteConfigurationEnabled bool = true
 
 	defaultCollectKubernetesEvents bool = true
@@ -452,6 +454,8 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Endpoint, defaultOTLPHTTPEndpoint)
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Logs.Enabled, defaultOTLPLogsEnabled)
 
 	// RemoteConfiguration feature
 	if ddaSpec.Features.RemoteConfiguration == nil {

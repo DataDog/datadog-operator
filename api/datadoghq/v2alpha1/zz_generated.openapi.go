@@ -38,6 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPFeatureConfig":                 schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPGRPCConfig":                    schema_datadog_operator_api_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPHTTPConfig":                    schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPLogsConfig":                    schema_datadog_operator_api_datadoghq_v2alpha1_OTLPLogsConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPProtocolsConfig":               schema_datadog_operator_api_datadoghq_v2alpha1_OTLPProtocolsConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig":                schema_datadog_operator_api_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema_datadog_operator_api_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
@@ -1194,11 +1195,18 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPFeatureConfig(ref common
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig"),
 						},
 					},
+					"logs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Logs contains configuration for the OTLP ingest logs.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPLogsConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPLogsConfig", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.OTLPReceiverConfig"},
 	}
 }
 
@@ -1269,6 +1277,26 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.Re
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HostPortConfig"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v2alpha1_OTLPLogsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPLogsConfig contains configuration for the OTLP ingest logs.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable logs support in the OTLP ingest endpoint. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

@@ -140,8 +140,13 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
-		"with OTLP",
-		testFunction(testutils.NewDatadogAgentWithOTLP(namespace, "with-otlp")),
+		"with OTLP receiver",
+		testFunction(testutils.NewDatadogAgentWithOTLPReceiver(namespace, "with-otlp-receiver")),
+	)
+
+	Context(
+		"with OTLP logs",
+		testFunction(testutils.NewDatadogAgentWithOTLPLogs(namespace, "with-otlp-logs")),
 	)
 
 	Context(
