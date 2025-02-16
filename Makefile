@@ -50,7 +50,7 @@ IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.24
+ENVTEST_K8S_VERSION = 1.30
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

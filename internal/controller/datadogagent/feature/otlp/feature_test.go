@@ -373,6 +373,21 @@ func TestOTLPFeature(t *testing.T) {
 				},
 			}),
 		},
+		{
+			Name: "Logs enabled",
+			DDA: newAgent(Settings{
+				Logs: true,
+			}),
+			WantConfigure: true,
+			Agent: testExpected(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  DDOTLPLogsEnabled,
+						Value: "true",
+					},
+				},
+			}),
+		},
 	}
 
 	tests.Run(t, buildOTLPFeature)
@@ -388,6 +403,8 @@ type Settings struct {
 	EnabledHTTPHostPort bool
 	EndpointHTTP        string
 
+	Logs bool
+
 	APM bool
 }
 
@@ -395,6 +412,7 @@ func newAgent(set Settings) *v2alpha1.DatadogAgent {
 	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
+		WithOTLPLogsSettings(set.Logs).
 		WithAPMEnabled(set.APM).
 		Build()
 }
@@ -403,6 +421,7 @@ func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
 	return testutils.NewDatadogAgentBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
+		WithOTLPLogsSettings(set.Logs).
 		WithAPMEnabled(set.APM).
 		WithSingleContainerStrategy(true).
 		Build()

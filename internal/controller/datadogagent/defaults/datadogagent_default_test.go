@@ -264,7 +264,11 @@ func Test_defaultFeatures(t *testing.T) {
 							HostPortConfig: nil,
 							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
 						},
-					}}},
+					}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
+						},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -371,10 +375,17 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &v2alpha1.USMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
-						HTTP: &v2alpha1.OTLPHTTPConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
-					}}},
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{
+							Protocols: v2alpha1.OTLPProtocolsConfig{
+								GRPC: &v2alpha1.OTLPGRPCConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+								HTTP: &v2alpha1.OTLPHTTPConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+							},
+						},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
+						},
+					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -472,18 +483,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					EventCollection: &v2alpha1.EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -614,18 +630,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -765,18 +786,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -911,18 +937,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1059,18 +1090,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1121,16 +1157,21 @@ func Test_defaultFeatures(t *testing.T) {
 			name: "OTLP is enabled",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:  apiutils.NewBoolPointer(true),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:  apiutils.NewBoolPointer(true),
+								Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:  apiutils.NewBoolPointer(true),
+								Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(true),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:  apiutils.NewBoolPointer(true),
-							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
@@ -1212,18 +1253,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(valueTrue),
-							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(valueTrue),
+								HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(valueTrue),
+								HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(valueTrue),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(valueTrue),
-							HostPortConfig: &v2alpha1.HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultOTLPGRPCHostPortEnabled)},
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1358,18 +1404,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1507,18 +1558,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1666,18 +1722,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1814,18 +1875,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -1961,18 +2027,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -2130,18 +2201,23 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
+							GRPC: &v2alpha1.OTLPGRPCConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+							},
+							HTTP: &v2alpha1.OTLPHTTPConfig{
+								Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+								HostPortConfig: nil,
+								Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+							},
+						}},
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
-						},
-					}}},
+					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -2289,19 +2365,24 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
-					OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-						GRPC: &v2alpha1.OTLPGRPCConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+					OTLP: &v2alpha1.OTLPFeatureConfig{
+						Receiver: v2alpha1.OTLPReceiverConfig{
+							Protocols: v2alpha1.OTLPProtocolsConfig{
+								GRPC: &v2alpha1.OTLPGRPCConfig{
+									Enabled:        apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+									HostPortConfig: nil,
+									Endpoint:       apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+								},
+								HTTP: &v2alpha1.OTLPHTTPConfig{
+									Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+									HostPortConfig: nil,
+									Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+								},
+							},
 						},
-						HTTP: &v2alpha1.OTLPHTTPConfig{
-							Enabled:        apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
-							HostPortConfig: nil,
-							Endpoint:       apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						Logs: v2alpha1.OTLPLogsConfig{
+							Enabled: apiutils.NewBoolPointer(defaultOTLPLogsEnabled),
 						},
-					},
-					},
 					},
 					RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
