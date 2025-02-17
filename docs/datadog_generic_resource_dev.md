@@ -26,7 +26,7 @@ Example pull request: https://github.com/DataDog/datadog-operator/pull/1635.
 1. `internal/controller/datadoggenericresource/controller.go`:
     * Add the new API client to the `Reconciler` struct.
 	* Reference it in the `NewReconciler` function.
-2. Create a new `internal/controller/datadoggenericresource/<your_resource>.go`file:
+2. Create a new `internal/controller/datadoggenericresource/<your_resource>.go` file:
     * Define an empty `<Resource>Handler` struct for the `ResourceHandler` interface.
 	* Define the 4 operations functions:
 	    * create<Resource>: unmarshal the `jsonSpec` from the `DatadogGenericResource` instance into the struct expected by the API client, call its Create method, return the response (resource).
