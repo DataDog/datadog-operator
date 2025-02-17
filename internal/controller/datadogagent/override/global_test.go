@@ -32,16 +32,17 @@ import (
 )
 
 const (
-	hostCAPath           = "/host/ca/path/ca.crt"
-	agentCAPath          = "/agent/ca/path/ca.crt"
-	podResourcesSocket   = "/var/lib/kubelet/pod-resources/kubelet.sock"
-	dockerSocketPath     = "/docker/socket/path/docker.sock"
-	secretBackendCommand = "foo.sh"
-	secretBackendArgs    = "bar baz"
-	secretBackendTimeout = 60
-	ddaName              = "datadog"
-	ddaNamespace         = "system"
-	secretNamespace      = "postgres"
+	hostCAPath            = "/host/ca/path/ca.crt"
+	agentCAPath           = "/agent/ca/path/ca.crt"
+	podResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
+	podResourcesSocket    = podResourcesSocketDir + "kubelet.sock"
+	dockerSocketPath      = "/docker/socket/path/docker.sock"
+	secretBackendCommand  = "foo.sh"
+	secretBackendArgs     = "bar baz"
+	secretBackendTimeout  = 60
+	ddaName               = "datadog"
+	ddaNamespace          = "system"
+	secretNamespace       = "postgres"
 )
 
 var secretNames = []string{"db-username", "db-password"}
@@ -69,7 +70,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
@@ -98,7 +99,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
@@ -341,7 +342,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 			Name: common.KubeletPodResourcesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: podResourcesSocket,
+					Path: podResourcesSocketDir,
 				},
 			},
 		})
@@ -361,16 +362,6 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	return volumes
 }
 
-func getDefaultVolumeMounts() []*corev1.VolumeMount {
-	return []*corev1.VolumeMount{
-		{
-			Name:      common.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocket,
-			ReadOnly:  false,
-		},
-	}
-}
-
 func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 	mounts := []*corev1.VolumeMount{}
 
@@ -385,7 +376,7 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 	if slices.Contains(configs, defaultVolumes) {
 		mounts = append(mounts, &corev1.VolumeMount{
 			Name:      common.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocket,
+			MountPath: podResourcesSocketDir,
 			ReadOnly:  false,
 		})
 	}

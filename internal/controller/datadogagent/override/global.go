@@ -8,6 +8,7 @@ package override
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strconv"
 
@@ -285,13 +286,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					Value: agentCAPath,
 				})
 			}
-			if config.Kubelet.PodResourcesSocket != "" {
+			if config.Kubelet.PodResourcesSocketPath != "" {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  DDKubernetesPodResourcesSocket,
-					Value: config.Kubelet.PodResourcesSocket,
+					Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
 				})
 
-				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocket, config.Kubelet.PodResourcesSocket, false)
+				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketPath, config.Kubelet.PodResourcesSocketPath, false)
 				if singleContainerStrategyEnabled {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&podResourcesMount,
