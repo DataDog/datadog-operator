@@ -24,16 +24,16 @@ Example pull request: https://github.com/DataDog/datadog-operator/pull/1635.
 ## Adding the resource-CRUD operations and referencing them
 
 1. `internal/controller/datadoggenericresource/controller.go`:
-    * Add the new API client to the `Reconciler` struct.
-	* Reference it in the `NewReconciler` function.
+    1. Add the new API client to the `Reconciler` struct.
+	2. Reference it in the `NewReconciler` function.
 2. Create a new `internal/controller/datadoggenericresource/<your_resource>.go` file:
-    * Define an empty `<Resource>Handler` struct for the `ResourceHandler` interface.
-	* Define the 4 operations functions:
+    1. Define an empty `<Resource>Handler` struct for the `ResourceHandler` interface.
+	2. Define the 4 operations functions:
 	    * create<Resource>: unmarshal the `jsonSpec` from the `DatadogGenericResource` instance into the struct expected by the API client, call its Create method, return the response (resource).
 		* get<Resource>: call the Get method of your API client, using the ID of the `DatadogGenericResource` instance (optionally: convert it from string to the expected type).
 		* update<Resource>: unmarshal the `jsonSpec` from the instance, call the API client Update method, return the updated resource.
 		* delete<Resource>: call the API client Delete method, using the ID of the instance.
-	* Define the 4 methods of `<Resource>Handler` with their respective signatures:
+	3. Define the 4 methods of `<Resource>Handler` with their respective signatures:
 	    * `createResourcefunc(r *Reconciler, logger logr.Logger, instance *v1alpha1.DatadogGenericResource, status *v1alpha1.DatadogGenericResourceStatus, now metav1.Time, hash string)`: call your `create<Resource>` function, extract the different fields to update the status of the `DatadogGenericResource` instance.
 		* `getResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource)`: call your `get<Resource>` function.
 		* `updateResourcefunc(r *Reconciler, instance *v1alpha1.DatadogGenericResource)`: call your `update<Resource>` function.
