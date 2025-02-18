@@ -365,12 +365,12 @@ const minInstrumentationTargetsVersion = "7.64.0-0"
 
 func supportsInstrumentationTargets(dda *v2alpha1.DatadogAgent) bool {
 	// Agent version must >= 7.64.0 to run feature in core agent
-	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+	if nodeAgent, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
 			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
 		}
 	}
-	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, minInstrumentationTargetsVersion)
+	return utils.IsAboveMinVersion(defaulting.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
