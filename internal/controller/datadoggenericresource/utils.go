@@ -6,11 +6,11 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/go-logr/logr"
-
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 // mockSubresource is used to mock the subresource in tests
@@ -56,6 +56,8 @@ func apiCreateAndUpdateStatus(r *Reconciler, logger logr.Logger, instance *v1alp
 
 func getHandler(resourceType v1alpha1.SupportedResourcesType) ResourceHandler {
 	switch resourceType {
+	case v1alpha1.Monitor:
+		return &MonitorHandler{}
 	case v1alpha1.Notebook:
 		return &NotebookHandler{}
 	case v1alpha1.SyntheticsAPITest:

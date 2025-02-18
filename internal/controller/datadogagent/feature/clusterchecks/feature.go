@@ -6,21 +6,22 @@
 package clusterchecks
 
 import (
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func init() {
@@ -90,7 +91,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 					{
 						Port: &intstr.IntOrString{
 							Type:   intstr.Int,
-							IntVal: v2alpha1.DefaultClusterAgentServicePort,
+							IntVal: common.DefaultClusterAgentServicePort,
 						},
 					},
 				},
@@ -150,7 +151,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  DDExtraConfigProviders,
-			Value: v2alpha1.KubeServicesAndEndpointsConfigProviders,
+			Value: kubeServicesAndEndpointsConfigProviders,
 		},
 	)
 
@@ -158,7 +159,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{
 			Name:  DDExtraListeners,
-			Value: v2alpha1.KubeServicesAndEndpointsListeners,
+			Value: kubeServicesAndEndpointsListeners,
 		},
 	)
 
@@ -188,7 +189,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  DDExtraConfigProviders,
-				Value: v2alpha1.EndpointsChecksConfigProvider,
+				Value: endpointsChecksConfigProvider,
 			},
 		)
 	} else {
@@ -196,7 +197,7 @@ func (f *clusterChecksFeature) manageNodeAgent(agentContainerName apicommon.Agen
 			agentContainerName,
 			&corev1.EnvVar{
 				Name:  DDExtraConfigProviders,
-				Value: v2alpha1.ClusterAndEndpointsConfigProviders,
+				Value: clusterAndEndpointsConfigProviders,
 			},
 		)
 	}
@@ -218,7 +219,7 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 			apicommon.ClusterChecksRunnersContainerName,
 			&corev1.EnvVar{
 				Name:  DDExtraConfigProviders,
-				Value: ClusterChecksConfigProvider,
+				Value: clusterChecksConfigProvider,
 			},
 		)
 	}

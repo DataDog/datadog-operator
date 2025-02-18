@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -31,16 +32,17 @@ import (
 )
 
 const (
-	hostCAPath           = "/host/ca/path/ca.crt"
-	agentCAPath          = "/agent/ca/path/ca.crt"
-	podResourcesSocket   = "/var/lib/kubelet/pod-resources/kubelet.sock"
-	dockerSocketPath     = "/docker/socket/path/docker.sock"
-	secretBackendCommand = "foo.sh"
-	secretBackendArgs    = "bar baz"
-	secretBackendTimeout = 60
-	ddaName              = "datadog"
-	ddaNamespace         = "system"
-	secretNamespace      = "postgres"
+	hostCAPath            = "/host/ca/path/ca.crt"
+	agentCAPath           = "/agent/ca/path/ca.crt"
+	podResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
+	podResourcesSocket    = podResourcesSocketDir + "kubelet.sock"
+	dockerSocketPath      = "/docker/socket/path/docker.sock"
+	secretBackendCommand  = "foo.sh"
+	secretBackendArgs     = "bar baz"
+	secretBackendTimeout  = 60
+	ddaName               = "datadog"
+	ddaNamespace          = "system"
+	secretNamespace       = "postgres"
 )
 
 var secretNames = []string{"db-username", "db-password"}
@@ -68,24 +70,24 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDKubeletTLSVerify,
+					Name:  DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDKubeletCAPath,
+					Name:  DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Name:  DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 				{
-					Name:  v2alpha1.DockerHost,
+					Name:  DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -97,24 +99,24 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
 			dda: testutils.NewDatadogAgentBuilder().
-				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocket).
+				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDKubeletTLSVerify,
+					Name:  DDKubeletTLSVerify,
 					Value: "true",
 				},
 				{
-					Name:  v2alpha1.DDKubeletCAPath,
+					Name:  DDKubeletCAPath,
 					Value: agentCAPath,
 				},
 				{
-					Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+					Name:  DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 				{
-					Name:  v2alpha1.DockerHost,
+					Name:  DockerHost,
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
@@ -129,7 +131,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  v2alpha1.DDChecksTagCardinality,
+				Name:  DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
 			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
@@ -143,7 +145,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  v2alpha1.DDOriginDetectionUnified,
+				Name:  DDOriginDetectionUnified,
 				Value: "true",
 			}),
 			wantVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
@@ -191,15 +193,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDSecretBackendCommand,
+					Name:  DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendArguments,
+					Name:  DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendTimeout,
+					Name:  DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -220,15 +222,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDSecretBackendCommand,
+					Name:  DDSecretBackendCommand,
 					Value: secretBackendCommand,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendArguments,
+					Name:  DDSecretBackendArguments,
 					Value: secretBackendArgs,
 				},
 				{
-					Name:  v2alpha1.DDSecretBackendTimeout,
+					Name:  DDSecretBackendTimeout,
 					Value: "60",
 				},
 			}...),
@@ -291,22 +293,22 @@ func assertAllAgentSingleContainer(t testing.TB, mgrInterface feature.PodTemplat
 func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 	defaultEnvVars := []*corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDSite,
+			Name:  constants.DDSite,
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  v2alpha1.DDLogLevel,
+			Name:  DDLogLevel,
 			Value: "info",
 		},
 	}
 
 	containsPodResourcesEnvVar := slices.ContainsFunc(addedEnvVars, func(envVar *corev1.EnvVar) bool {
-		return envVar.Name == v2alpha1.DDKubernetesPodResourcesSocket
+		return envVar.Name == DDKubernetesPodResourcesSocket
 	})
 
 	if !containsPodResourcesEnvVar {
 		defaultEnvVars = append(defaultEnvVars, &corev1.EnvVar{
-			Name:  v2alpha1.DDKubernetesPodResourcesSocket,
+			Name:  DDKubernetesPodResourcesSocket,
 			Value: podResourcesSocket,
 		})
 	}
@@ -326,7 +328,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	// Order is important for the comparisons in the assertion, so respect that
 	if slices.Contains(configs, kubeletCAVolumes) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.KubeletCAVolumeName,
+			Name: kubeletCAVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
@@ -337,10 +339,10 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 
 	if slices.Contains(configs, defaultVolumes) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.KubeletPodResourcesVolumeName,
+			Name: common.KubeletPodResourcesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: podResourcesSocket,
+					Path: podResourcesSocketDir,
 				},
 			},
 		})
@@ -348,7 +350,7 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 
 	if slices.Contains(configs, criSocketVolume) {
 		volumes = append(volumes, &corev1.Volume{
-			Name: v2alpha1.CriSocketVolumeName,
+			Name: common.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: dockerSocketPath,
@@ -360,22 +362,12 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 	return volumes
 }
 
-func getDefaultVolumeMounts() []*corev1.VolumeMount {
-	return []*corev1.VolumeMount{
-		{
-			Name:      v2alpha1.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocket,
-			ReadOnly:  false,
-		},
-	}
-}
-
 func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 	mounts := []*corev1.VolumeMount{}
 
 	if slices.Contains(configs, kubeletCAVolumes) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.KubeletCAVolumeName,
+			Name:      kubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
 		})
@@ -383,15 +375,15 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 
 	if slices.Contains(configs, defaultVolumes) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocket,
+			Name:      common.KubeletPodResourcesVolumeName,
+			MountPath: podResourcesSocketDir,
 			ReadOnly:  false,
 		})
 	}
 
 	if slices.Contains(configs, criSocketVolume) {
 		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      v2alpha1.CriSocketVolumeName,
+			Name:      common.CriSocketVolumeName,
 			MountPath: "/host" + dockerSocketPath,
 			ReadOnly:  true,
 		})

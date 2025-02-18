@@ -6,10 +6,11 @@
 package eventcollection
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 func buildDefaultConfigMap(namespace, name string, unbundleEvents bool, collectedEventTypes []v2alpha1.EventTypes) (*corev1.ConfigMap, error) {

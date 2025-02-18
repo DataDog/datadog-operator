@@ -230,7 +230,7 @@ spec:
 | global.kubelet.host.secretKeyRef.name | Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names |
 | global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
-| global.kubelet.podResourcesSocket | PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments Default: `/var/lib/kubelet/pod-resources/kubelet.sock` |
+| global.kubelet.podResourcesSocketPath | PodResourcesSocketPath is the host path where the pod resources socket is stored. Default: `/var/lib/kubelet/pod-resources/` |
 | global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
 | global.kubernetesResourcesAnnotationsAsTags | Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
 | global.kubernetesResourcesLabelsAsTags | Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
