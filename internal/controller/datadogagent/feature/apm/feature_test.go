@@ -11,7 +11,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -257,7 +256,7 @@ func TestAPMFeature(t *testing.T) {
 					[]v2alpha1.SSITarget{
 						{
 							Name: "sometarget",
-							PodSelector: v2alpha1.PodSelector{
+							PodSelector: &v2alpha1.PodSelector{
 								MatchLabels: map[string]string{
 									"key": "value",
 								},
@@ -269,7 +268,7 @@ func TestAPMFeature(t *testing.T) {
 									},
 								},
 							},
-							NamespaceSelector: v2alpha1.NamespaceSelector{
+							NamespaceSelector: &v2alpha1.NamespaceSelector{
 								MatchNames: []string{"name1", "name2"},
 								MatchLabels: map[string]string{
 									"key1": "val1",
@@ -744,7 +743,7 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 					},
 					{
 						Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
-						Value: utils.BoolToString(&processChecksInCoreAgent),
+						Value: apiutils.BoolToString(&processChecksInCoreAgent),
 					},
 				}
 			}

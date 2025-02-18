@@ -180,69 +180,69 @@ type SingleStepInstrumentation struct {
 }
 
 // SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
-// Full config key: apm_config.instrumentation.targets to get the list of targets.
 type SSITarget struct {
 	// Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
-	// Full config key: apm_config.instrumentation.targets[].name
-	Name string `json:"name"`
+	// +optional
+	Name string `json:"name,omitempty"`
 	// PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
-	// conjunction with the NamespaceSelector to match the pods. Full config key:
-	// apm_config.instrumentation.targets[].selector
-	PodSelector PodSelector `json:"podSelector"`
+	// conjunction with the NamespaceSelector to match the pods.
+	// +optional
+	PodSelector *PodSelector `json:"podSelector,omitempty"`
 	// NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
-	// be used in conjunction with the Selector to match the pods. Full config key:
-	// apm_config.instrumentation.targets[].namespaceSelector
-	NamespaceSelector NamespaceSelector `json:"namespaceSelector"`
+	// be used in conjunction with the Selector to match the pods.
+	// +optional
+	NamespaceSelector *NamespaceSelector `json:"namespaceSelector,omitempty"`
 	// TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer
-	// name and the value is the version to inject. Full config key:
-	// apm_config.instrumentation.targets[].ddTraceVersions
-	TracerVersions map[string]string `json:"ddTraceVersions"`
+	// name and the value is the version to inject.
+	// +optional
+	TracerVersions map[string]string `json:"ddTraceVersions,omitempty"`
 	// TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
-	// as environment variables in addition to the injected tracer. Full config key:
-	// apm_config.instrumentation.targets[].ddTraceConfigs
-	TracerConfigs []TracerConfig `json:"ddTraceConfigs"`
+	// as environment variables in addition to the injected tracer.
+	// +optional
+	TracerConfigs []TracerConfig `json:"ddTraceConfigs,omitempty"`
 }
 
 // PodSelector is a reconstruction of the metav1.LabelSelector struct to be able to unmarshal the configuration. It
-// can be converted to a metav1.LabelSelector using the AsLabelSelector method. Full config key:
-// apm_config.instrumentation.targets[].selector
+// can be converted to a metav1.LabelSelector using the AsLabelSelector method.
 type PodSelector struct {
 	// MatchLabels is a map of key-value pairs to match the labels of the pod. The labels and expressions are ANDed.
-	// Full config key: apm_config.instrumentation.targets[].podSelector.matchLabels
-	MatchLabels map[string]string `json:"matchLabels"`
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 	// MatchExpressions is a list of label selector requirements to match the labels of the pod. The labels and
-	// expressions are ANDed. Full config key: apm_config.instrumentation.targets[].podSelector.matchExpressions
-	MatchExpressions []SelectorMatchExpression `json:"matchExpressions"`
+	// expressions are ANDed.
+	// +optional
+	MatchExpressions []SelectorMatchExpression `json:"matchExpressions,omitempty"`
 }
 
 // SelectorMatchExpression is a reconstruction of the metav1.LabelSelectorRequirement struct to be able to unmarshal
-// the configuration. Full config key: apm_config.instrumentation.targets[].selector.matchExpressions
+// the configuration.
 type SelectorMatchExpression struct {
-	// Key is the key of the label to match. Full config key:
-	// apm_config.instrumentation.targets[].selector.matchExpressions[].key
-	Key string `json:"key"`
+	// Key is the key of the label to match.
+	// +optional
+	Key string `json:"key,omitempty"`
 	// Operator is the operator to use to match the label. Valid values are In, NotIn, Exists, DoesNotExist.
-	Operator metav1.LabelSelectorOperator `json:"operator"`
+	// +optional
+	Operator metav1.LabelSelectorOperator `json:"operator,omitempty"`
 	// Values is a list of values to match the label against. If the operator is Exists or DoesNotExist, the values
 	// should be empty. If the operator is In or NotIn, the values should be non-empty.
-	Values []string `json:"values"`
+	// +optional
+	Values []string `json:"values,omitempty"`
 }
 
 // NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
-// namespaces to apply the auto instrumentation to. Full config key:
-// apm_config.instrumentation.targets[].namespaceSelector
+// namespaces to apply the auto instrumentation to.
 type NamespaceSelector struct {
-	// MatchNames is a list of namespace names to match. If empty, all namespaces are matched. Full config key:
-	// apm_config.instrumentation.targets[].namespaceSelector.matchNames
-	MatchNames []string `json:"matchNames"`
+	// MatchNames is a list of namespace names to match. If empty, all namespaces are matched.
+	// +optional
+	MatchNames []string `json:"matchNames,omitempty"`
 	// MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are
-	// ANDed. This cannot be used with MatchNames. Full config key:
-	// apm_config.instrumentation.targets[].namespaceSelector.matchLabels
-	MatchLabels map[string]string `json:"matchLabels"`
+	// ANDed. This cannot be used with MatchNames.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 	// MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
-	// expressions are ANDed. This cannot be used with MatchNames. Full config key:
-	// apm_config.instrumentation.targets[].selector.matchExpressions
-	MatchExpressions []SelectorMatchExpression `json:"matchExpressions"`
+	// expressions are ANDed. This cannot be used with MatchNames.
+	// +optional
+	MatchExpressions []SelectorMatchExpression `json:"matchExpressions,omitempty"`
 }
 
 // TracerConfig is a struct that stores configuration options for a tracer. These will be injected as environment
