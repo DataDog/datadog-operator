@@ -116,6 +116,7 @@ type options struct {
 	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
+	datadogAgentInternalEnabled            bool
 	datadogMonitorEnabled                  bool
 	datadogSLOEnabled                      bool
 	operatorMetricsEnabled                 bool
@@ -160,6 +161,9 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
 	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
+
+	// DatadogAgentInternal
+	flag.BoolVar(&opts.datadogAgentInternalEnabled, "datadogAgentInternalEnabled", false, "Enable the DatadogAgentInternal controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -256,6 +260,7 @@ func run(opts *options) error {
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
 			DatadogAgentEnabled:           opts.datadogAgentEnabled,
+			DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 			DatadogSLOEnabled:             opts.datadogSLOEnabled,
 			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
@@ -307,6 +312,7 @@ func run(opts *options) error {
 		SupportCilium:                 opts.supportCilium,
 		Creds:                         creds,
 		DatadogAgentEnabled:           opts.datadogAgentEnabled,
+		DatadogAgentInternalEnabled:   opts.datadogAgentInternalEnabled,
 		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
 		DatadogSLOEnabled:             opts.datadogSLOEnabled,
 		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
