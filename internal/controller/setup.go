@@ -27,6 +27,7 @@ import (
 
 const (
 	agentControllerName           = "DatadogAgent"
+	agentInternalControllerName   = "DatadogAgentInternal"
 	monitorControllerName         = "DatadogMonitor"
 	sloControllerName             = "DatadogSLO"
 	profileControllerName         = "DatadogAgentProfile"
@@ -40,6 +41,7 @@ type SetupOptions struct {
 	SupportCilium                 bool
 	Creds                         config.Creds
 	DatadogAgentEnabled           bool
+	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	OperatorMetricsEnabled        bool
@@ -71,6 +73,7 @@ type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, Set
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:           startDatadogAgent,
+	agentInternalControllerName:   startDatadogAgentInternal,
 	monitorControllerName:         startDatadogMonitor,
 	sloControllerName:             startDatadogSLO,
 	profileControllerName:         startDatadogAgentProfiles,
@@ -165,6 +168,20 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
+}
+
+func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+	if !options.DatadogAgentInternalEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", agentInternalControllerName)
+		return nil
+	}
+
+	return (&DatadogAgentInternalReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(agentInternalControllerName),
+	}).SetupWithManager(mgr)
 }
 
 func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
