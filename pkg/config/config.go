@@ -58,6 +58,7 @@ var (
 
 type WatchOptions struct {
 	DatadogAgentEnabled           bool
+	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	DatadogAgentProfileEnabled    bool
