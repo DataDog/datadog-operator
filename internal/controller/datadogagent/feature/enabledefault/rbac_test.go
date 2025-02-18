@@ -45,7 +45,6 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{""},
 			Resources: []string{"pods"},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},
@@ -54,7 +53,6 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{"apps"},
 			Resources: []string{"deployments"},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},
@@ -63,7 +61,6 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{"custom.metrics.group"},
 			Resources: []string{"metrics"},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},

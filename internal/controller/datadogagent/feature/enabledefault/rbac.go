@@ -350,7 +350,6 @@ func getKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resou
 				APIGroups: []string{group},
 				Resources: []string{resource},
 				Verbs: []string{
-					rbac.GetVerb,
 					rbac.ListVerb,
 					rbac.WatchVerb,
 				},
