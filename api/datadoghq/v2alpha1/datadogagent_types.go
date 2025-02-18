@@ -172,8 +172,7 @@ type SingleStepInstrumentation struct {
 	Injector *InjectorConfig `json:"injector,omitempty"`
 
 	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
-	// used. If no target matches, the auto instrumentation will not be applied. Full config key:
-	// apm_config.instrumentation.targets
+	// used. If no target matches, the auto instrumentation will not be applied.
 	// (Requires Cluster Agent 7.64.0+)
 	// +optional
 	Targets []SSITarget `json:"targets,omitempty"`
