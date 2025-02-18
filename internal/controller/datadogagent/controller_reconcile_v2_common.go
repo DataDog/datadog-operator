@@ -47,8 +47,19 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	var result reconcile.Result
 	var err error
 
+	var owner metav1.Object
+	owner = dda
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	// temporary workaround to get DDAI object
+	if err = r.client.Get(context.TODO(), types.NamespacedName{
+		Name:      dda.GetName(),
+		Namespace: dda.GetNamespace(),
+	}, ddai); err == nil {
+		owner = ddai
+	}
+
 	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dda, deployment, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(owner, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -134,8 +145,19 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	var result reconcile.Result
 	var err error
 
+	var owner metav1.Object
+	owner = dda
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	// temporary workaround to get DDAI object
+	if err = r.client.Get(context.TODO(), types.NamespacedName{
+		Name:      dda.GetName(),
+		Namespace: dda.GetNamespace(),
+	}, ddai); err == nil {
+		owner = ddai
+	}
+
 	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dda, daemonset, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(owner, daemonset, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 

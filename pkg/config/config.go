@@ -52,6 +52,7 @@ var (
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
+	ddaiObj            = &datadoghqv1alpha1.DatadogAgentInternal{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
@@ -76,6 +77,15 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
 		logger.Info("DatadogAgent Enabled", "watching namespaces", maps.Keys(agentNamespaces))
 		byObject[agentObj] = cache.ByObject{
+			Namespaces: agentNamespaces,
+		}
+	}
+
+	if opts.DatadogAgentInternalEnabled {
+		// TODO: add DDAI watch ns env var. Temporary workaround uses DDA watch ns to prevent cache errors
+		agentNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
+		logger.Info("DatadogAgentInternal", "watching namespaces", maps.Keys(agentNamespaces))
+		byObject[ddaiObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
 		}
 	}

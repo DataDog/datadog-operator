@@ -175,11 +175,31 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 	}
 
 	return (&DatadogAgentInternalReconciler{
-		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(agentInternalControllerName),
-	}).SetupWithManager(mgr)
+		Client:       mgr.GetClient(),
+		PlatformInfo: pInfo,
+		Log:          ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
+		Options: datadogagent.ReconcilerOptions{
+			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+				Enabled:                             options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
+				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
+				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
+				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
+				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
+				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
+			},
+			SupportCilium:              options.SupportCilium,
+			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
+			IntrospectionEnabled:       false, // handled by DDA controller
+			DatadogAgentProfileEnabled: false, // handled by DDA controller
+		},
+	}).SetupWithManager(mgr, metricForwardersMgr)
+
 }
 
 func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {

@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -92,10 +93,10 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	// Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
 	defaults.DefaultDatadogAgent(instanceCopy)
-	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
+	return r.ReconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
-func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+func (r *Reconciler) ReconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
@@ -112,7 +113,19 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := store.NewStore(instance, storeOptions)
+
+	// temporary workaround to get DDAI object to set as ownerref in store
+	var owner metav1.Object
+	owner = instance
+	ddai := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{
+		Name:      instance.GetName(),
+		Namespace: instance.GetNamespace(),
+	}, ddai); err == nil {
+		owner = ddai
+	}
+
+	depsStore := store.NewStore(owner, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
@@ -264,9 +277,15 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
+
+		// TODO: DDAI status
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
+				return reconcile.Result{RequeueAfter: time.Second}, nil
+			}
+			if apierrors.IsNotFound(err) {
+				logger.V(1).Info("workaround for DDAI until status is implemented", "status", updateAgentDeployment.Status)
 				return reconcile.Result{RequeueAfter: time.Second}, nil
 			}
 			logger.Error(err, "unable to update DatadogAgent status")

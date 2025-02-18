@@ -13,18 +13,24 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	ddai "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // DatadogAgentInternalReconciler reconciles a DatadogAgentInternal object.
 type DatadogAgentInternalReconciler struct {
-	Client   client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
-	internal *ddai.Reconciler
+	client.Client
+	PlatformInfo kubernetes.PlatformInfo
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	Options      datadogagent.ReconcilerOptions
+	internal     *ddai.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals,verbs=get;list;watch;create;update;patch;delete
@@ -37,15 +43,18 @@ func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, req ctrl
 }
 
 // SetupWithManager creates a new DatadogAgentInternal controller.
-func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = ddai.NewReconciler(r.Client, r.Scheme, r.Log)
+func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricForwardersManager) error {
+	internal, err := ddai.NewReconciler(r.Options, r.Client, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwardersMgr)
+	if err != nil {
+		return err
+	}
+	r.internal = internal
 
 	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.DatadogAgentInternal{})
-		// TODO: Possibly only watch for spec changes, not status changes.
-		// .WithEventFilter(predicate.GenerationChangedPredicate{})
+		For(&v1alpha1.DatadogAgentInternal{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{})
 
-	err := builder.Complete(r)
+	err = builder.Complete(r)
 	if err != nil {
 		return err
 	}
