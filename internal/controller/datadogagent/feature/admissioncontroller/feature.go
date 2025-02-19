@@ -85,10 +85,7 @@ func (f *admissionControllerFeature) ID() feature.IDType {
 	return feature.AdmissionControllerIDType
 }
 func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInjectionConfig) bool {
-	if sidecarInjectionConf != nil && sidecarInjectionConf.Enabled != nil && apiutils.NewDeref(sidecarInjectionConf.Enabled, false) {
-		return true
-	}
-	return false
+	return sidecarInjectionConf != nil && sidecarInjectionConf.Enabled != nil && apiutils.NewDeref(sidecarInjectionConf.Enabled, false)
 }
 
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {

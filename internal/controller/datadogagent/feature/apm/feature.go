@@ -97,11 +97,7 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	}
 
 	// SingleStepInstrumentation requires APM Enabled
-	if apmConf.SingleStepInstrumentation != nil && apiutils.NewDeref(apmConf.SingleStepInstrumentation.Enabled, false) {
-		return true
-	}
-
-	return false
+	return apmConf.SingleStepInstrumentation != nil && apiutils.NewDeref(apmConf.SingleStepInstrumentation.Enabled, false)
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
