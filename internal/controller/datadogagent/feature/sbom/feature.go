@@ -64,21 +64,21 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 	sbomConfig := dda.Spec.Features.SBOM
 
-	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
+	if sbomConfig != nil && apiutils.NewDeref(sbomConfig.Enabled, false) {
 		f.enabled = true
-		if sbomConfig.ContainerImage != nil && apiutils.BoolValue(sbomConfig.ContainerImage.Enabled) {
+		if sbomConfig.ContainerImage != nil && apiutils.NewDeref(sbomConfig.ContainerImage.Enabled, false) {
 			f.containerImageEnabled = true
 			f.containerImageAnalyzers = sbomConfig.ContainerImage.Analyzers
 			f.containerImageUncompressedLayersSupport = sbomConfig.ContainerImage.UncompressedLayersSupport
 			f.containerImageOverlayFSDirectScan = sbomConfig.ContainerImage.OverlayFSDirectScan
 		}
-		if sbomConfig.Host != nil && apiutils.BoolValue(sbomConfig.Host.Enabled) {
+		if sbomConfig.Host != nil && apiutils.NewDeref(sbomConfig.Host.Enabled, false) {
 			f.hostEnabled = true
 			f.hostAnalyzers = sbomConfig.Host.Analyzers
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},

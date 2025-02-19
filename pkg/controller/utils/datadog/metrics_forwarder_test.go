@@ -181,7 +181,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(apiKey),
+						APIKey: apiutils.NewPointer(apiKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -200,7 +200,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(apiKey),
+						APIKey: apiutils.NewPointer(apiKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -251,7 +251,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(encAPIKey),
+						APIKey: apiutils.NewPointer(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -279,7 +279,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(encAPIKey),
+						APIKey: apiutils.NewPointer(encAPIKey),
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
@@ -722,7 +722,7 @@ func Test_getbaseURL(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Endpoint: &v2alpha1.Endpoint{
-						URL: apiutils.NewStringPointer("https://test.url.com"),
+						URL: apiutils.NewPointer("https://test.url.com"),
 					},
 				}),
 			},
@@ -734,7 +734,7 @@ func Test_getbaseURL(t *testing.T) {
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
 					Site: &euSite,
 					Endpoint: &v2alpha1.Endpoint{
-						URL: apiutils.NewStringPointer("https://test.url.com"),
+						URL: apiutils.NewPointer("https://test.url.com"),
 					},
 				}),
 			},

@@ -65,7 +65,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 		podTemplate.Annotations[key] = val
 	}
 	deployment.Spec.Template = *podTemplate
-	deployment.Spec.Replicas = apiutils.NewInt32Pointer(defaultClusterAgentReplicas)
+	deployment.Spec.Replicas = apiutils.NewPointer[int32](defaultClusterAgentReplicas)
 
 	return deployment
 }
@@ -131,8 +131,8 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Command:        nil,
 				Args:           nil,
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem:   apiutils.NewPointer(true),
+					AllowPrivilegeEscalation: apiutils.NewPointer(false),
 				},
 			},
 		},
@@ -140,7 +140,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Volumes:  volumes,
 		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
 		// SecurityContext: &corev1.PodSecurityContext{
-		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+		// 	RunAsNonRoot: apiutils.NewPointer(true),
 		// },
 	}
 

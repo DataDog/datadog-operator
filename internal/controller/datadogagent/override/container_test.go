@@ -53,7 +53,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				Name: apiutils.NewStringPointer("my-container-name"),
+				Name: apiutils.NewPointer("my-container-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, "my-container-name", func(container corev1.Container) bool {
@@ -72,7 +72,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				LogLevel: apiutils.NewStringPointer("debug"),
+				LogLevel: apiutils.NewPointer("debug"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -360,7 +360,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				HealthPort: apiutils.NewInt32Pointer(1234),
+				HealthPort: apiutils.NewPointer[int32](1234),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				envs := manager.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
@@ -784,14 +784,14 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(12345),
+					RunAsUser: apiutils.NewPointer[int64](12345),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser: apiutils.NewInt64Pointer(12345),
+							RunAsUser: apiutils.NewPointer[int64](12345),
 						},
 						container.SecurityContext)
 				})
@@ -809,7 +809,7 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SeccompConfig: &v2alpha1.SeccompConfig{
-					CustomRootPath: apiutils.NewStringPointer("seccomp/path"),
+					CustomRootPath: apiutils.NewPointer("seccomp/path"),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
@@ -872,7 +872,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
+				AppArmorProfileName: apiutils.NewPointer("my-app-armor-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				annotation := fmt.Sprintf("%s/%s", common.AppArmorAnnotationKey, apicommon.CoreAgentContainerName)
@@ -890,7 +890,7 @@ func TestContainer(t *testing.T) {
 				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
-				Name: apiutils.NewStringPointer("my-initContainer-name"),
+				Name: apiutils.NewPointer("my-initContainer-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, "my-initContainer-name", func(container corev1.Container) bool {
@@ -1041,14 +1041,14 @@ func TestContainer(t *testing.T) {
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
-					RunAsUser: apiutils.NewInt64Pointer(12345),
+					RunAsUser: apiutils.NewPointer[int64](12345),
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.SecurityContext{
-							RunAsUser: apiutils.NewInt64Pointer(12345),
+							RunAsUser: apiutils.NewPointer[int64](12345),
 						},
 						container.SecurityContext)
 				})

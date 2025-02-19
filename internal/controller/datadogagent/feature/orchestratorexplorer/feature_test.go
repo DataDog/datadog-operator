@@ -141,7 +141,7 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 
 			// check annotation
 			customConfig := v2alpha1.CustomConfig{
-				ConfigData: apiutils.NewStringPointer(customConfDataV2),
+				ConfigData: apiutils.NewPointer(customConfDataV2),
 			}
 			trueValue := true
 			url := "https://foo.bar"

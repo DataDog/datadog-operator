@@ -23,7 +23,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -77,12 +77,12 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	f.owner = dda
 	em := dda.Spec.Features.ExternalMetricsServer
 
-	if em != nil && apiutils.BoolValue(em.Enabled) {
+	if em != nil && apiutils.NewDeref(em.Enabled, false) {
 		// By default, we register the external metrics endpoint
-		f.registerAPIService = em.RegisterAPIService == nil || apiutils.BoolValue(em.RegisterAPIService)
+		f.registerAPIService = em.RegisterAPIService == nil || apiutils.NewDeref(em.RegisterAPIService, false)
 
-		f.useWPA = apiutils.BoolValue(em.WPAController)
-		f.useDDM = apiutils.BoolValue(em.UseDatadogMetrics)
+		f.useWPA = apiutils.NewDeref(em.WPAController, false)
+		f.useDDM = apiutils.NewDeref(em.UseDatadogMetrics, false)
 		f.port = *em.Port
 		if em.Endpoint != nil {
 			if em.Endpoint.URL != nil {
@@ -135,7 +135,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 		}
 	}
 

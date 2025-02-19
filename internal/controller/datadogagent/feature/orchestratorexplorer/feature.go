@@ -79,8 +79,8 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
-	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
-		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+	if orchestratorExplorer != nil && apiutils.NewDeref(orchestratorExplorer.Enabled, false) {
+		reqComp.ClusterAgent.IsRequired = apiutils.NewPointer(true)
 		reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		// Process Agent is not required as of agent version 7.51.0
@@ -92,7 +92,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: apiutils.NewPointer(true),
 			Containers: reqContainers,
 		}
 
@@ -113,7 +113,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
 		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
-		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
+		f.scrubContainers = apiutils.NewDeref(orchestratorExplorer.ScrubContainers, false)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
@@ -125,7 +125,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
-				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewPointer(true)
 			}
 		}
 	}

@@ -48,8 +48,8 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
-	if prometheusScrape != nil && apiutils.BoolValue(prometheusScrape.Enabled) {
-		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.EnableServiceEndpoints)
+	if prometheusScrape != nil && apiutils.NewDeref(prometheusScrape.Enabled, false) {
+		f.enableServiceEndpoints = apiutils.NewDeref(prometheusScrape.EnableServiceEndpoints, false)
 		if prometheusScrape.AdditionalConfigs != nil {
 			f.additionalConfigs = *prometheusScrape.AdditionalConfigs
 		}
@@ -58,13 +58,13 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},
 			},
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.ClusterAgentContainerName,
 				},

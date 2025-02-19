@@ -146,12 +146,12 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 		if currentReplicas != nil {
 			// Do not overwrite the current value
 			// It's most likely managed by an autoscaler
-			return apiutils.NewInt32Pointer(*currentReplicas)
+			return apiutils.NewPointer[int32](*currentReplicas)
 		}
 
 		// Both new and current are nil
 		return nil
 	}
 
-	return apiutils.NewInt32Pointer(*newReplicas)
+	return apiutils.NewPointer[int32](*newReplicas)
 }

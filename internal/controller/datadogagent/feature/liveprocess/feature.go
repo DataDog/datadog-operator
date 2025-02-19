@@ -42,19 +42,19 @@ func (f *liveProcessFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
+	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.NewDeref(dda.Spec.Features.LiveProcessCollection.Enabled, false) {
 		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
-			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
+			f.scrubArgs = apiutils.NewPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
 		if dda.Spec.Features.LiveProcessCollection.StripProcessArguments != nil {
-			f.stripArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.StripProcessArguments)
+			f.stripArgs = apiutils.NewPointer(*dda.Spec.Features.LiveProcessCollection.StripProcessArguments)
 		}
 
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.NewDeref(dda.Spec.Global.RunProcessChecksInCoreAgent, false))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -62,7 +62,7 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: reqContainers,
 			},
 		}

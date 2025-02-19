@@ -36,12 +36,12 @@ func (f *gpuFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
+	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.NewDeref(dda.Spec.Features.GPU.Enabled, false) {
 		return reqComp
 	}
 
 	reqComp.Agent = feature.RequiredComponent{
-		IsRequired: apiutils.NewBoolPointer(true),
+		IsRequired: apiutils.NewPointer(true),
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 

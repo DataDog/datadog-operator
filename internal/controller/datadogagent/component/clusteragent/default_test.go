@@ -105,8 +105,8 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 				ReadinessProbe: defaultReadinessProbe(),
 				StartupProbe:   defaultStartupProbe(),
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					ReadOnlyRootFilesystem:   apiutils.NewPointer(true),
+					AllowPrivilegeEscalation: apiutils.NewPointer(false),
 				},
 			},
 		},

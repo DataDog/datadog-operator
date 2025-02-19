@@ -46,10 +46,10 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		return
 	}
 
-	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
+	if dda.Spec.Features.NPM != nil && apiutils.NewDeref(dda.Spec.Features.NPM.Enabled, false) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.ProcessAgentContainerName,
@@ -58,8 +58,8 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 		npm := dda.Spec.Features.NPM
-		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
-		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
+		f.collectDNSStats = apiutils.NewDeref(npm.CollectDNSStats, false)
+		f.enableConntrack = apiutils.NewDeref(npm.EnableConntrack, false)
 	}
 
 	return reqComp

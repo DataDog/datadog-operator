@@ -69,18 +69,18 @@ func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requi
 
 	if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil && dda.Spec.Features.RemoteConfiguration.Enabled != nil {
 		// If a value exists, explicitly enable or disable Remote Config and override the default
-		f.enabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
+		f.enabled = apiutils.NewDeref(dda.Spec.Features.RemoteConfiguration.Enabled, false)
 	}
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(f.enabled),
+			IsRequired: apiutils.NewPointer(f.enabled),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 			},
 		},
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(f.enabled),
+			IsRequired: apiutils.NewPointer(f.enabled),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},

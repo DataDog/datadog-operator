@@ -77,11 +77,11 @@ func (f *otlpFeature) ID() feature.IDType {
 func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	otlp := dda.Spec.Features.OTLP
 	f.owner = dda
-	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
+	if apiutils.NewDeref(otlp.Receiver.Protocols.GRPC.Enabled, false) {
 		f.grpcEnabled = true
 	}
 	if otlp.Receiver.Protocols.GRPC.HostPortConfig != nil {
-		f.grpcHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled)
+		f.grpcHostPortEnabled = apiutils.NewDeref(otlp.Receiver.Protocols.GRPC.HostPortConfig.Enabled, false)
 		if otlp.Receiver.Protocols.GRPC.HostPortConfig.Port != nil {
 			f.grpcCustomHostPort = *otlp.Receiver.Protocols.GRPC.HostPortConfig.Port
 		}
@@ -90,11 +90,11 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.grpcEndpoint = *otlp.Receiver.Protocols.GRPC.Endpoint
 	}
 
-	if apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.Enabled) {
+	if apiutils.NewDeref(otlp.Receiver.Protocols.HTTP.Enabled, false) {
 		f.httpEnabled = true
 	}
 	if otlp.Receiver.Protocols.HTTP.HostPortConfig != nil {
-		f.httpHostPortEnabled = apiutils.BoolValue(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled)
+		f.httpHostPortEnabled = apiutils.NewDeref(otlp.Receiver.Protocols.HTTP.HostPortConfig.Enabled, false)
 		if otlp.Receiver.Protocols.HTTP.HostPortConfig.Port != nil {
 			f.httpCustomHostPort = *otlp.Receiver.Protocols.HTTP.HostPortConfig.Port
 		}
@@ -105,18 +105,18 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 	apm := dda.Spec.Features.APM
 	if apm != nil {
-		f.usingAPM = apiutils.BoolValue(apm.Enabled)
+		f.usingAPM = apiutils.NewDeref(apm.Enabled, false)
 	}
 
 	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+		f.forceEnableLocalService = apiutils.NewDeref(dda.Spec.Global.LocalService.ForceEnableLocalService, false)
 	}
 	f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},
@@ -169,7 +169,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
-		//network policies for gRPC OTLP
+		// network policies for gRPC OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
@@ -248,7 +248,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
-		//network policies for HTTP OTLP
+		// network policies for HTTP OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP

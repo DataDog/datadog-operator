@@ -185,7 +185,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		if isSupportedMonitorType(instance.Spec.Type) {
 			logger.V(1).Info("Creating monitor in Datadog")
 			// Make sure required tags are present
-			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+			if !apiutils.NewDeref(instance.Spec.ControllerOptions.DisableRequiredTags, false) {
 				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 				}
@@ -200,7 +200,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	} else if shouldUpdate {
 		logger.V(1).Info("Updating monitor in Datadog")
 		// Make sure required tags are present
-		if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+		if !apiutils.NewDeref(instance.Spec.ControllerOptions.DisableRequiredTags, false) {
 			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 			}

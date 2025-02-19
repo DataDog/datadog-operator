@@ -146,26 +146,26 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Site == nil {
-		ddaSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
+		ddaSpec.Global.Site = apiutils.NewPointer(defaultSite)
 	}
 
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewPointer(defaulting.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewPointer(defaulting.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewPointer(defaulting.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewPointer(defaulting.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewPointer(defaulting.DefaultImageRegistry)
 		}
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
-		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+		ddaSpec.Global.LogLevel = apiutils.NewPointer(defaultLogLevel)
 	}
 
 	if ddaSpec.Global.ContainerStrategy == nil {
@@ -401,7 +401,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{
-			Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled),
+			Enabled: apiutils.NewPointer(defaultDogstatsdHostPortEnabled),
 		}
 	}
 
@@ -429,7 +429,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
 
-	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled) {
+	if apiutils.NewDeref(ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, false) {
 		if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig == nil {
 			ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.HostPortConfig = &v2alpha1.HostPortConfig{}
 		}
@@ -444,7 +444,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
 
-	if apiutils.BoolValue(ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled) {
+	if apiutils.NewDeref(ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, false) {
 		if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig == nil {
 			ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.HostPortConfig = &v2alpha1.HostPortConfig{}
 		}
@@ -466,7 +466,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EventCollection.CollectKubernetesEvents, defaultCollectKubernetesEvents)
-	if apiutils.BoolValue(ddaSpec.Features.EventCollection.UnbundleEvents) && ddaSpec.Features.EventCollection.CollectedEventTypes == nil {
+	if apiutils.NewDeref(ddaSpec.Features.EventCollection.UnbundleEvents, false) && ddaSpec.Features.EventCollection.CollectedEventTypes == nil {
 		ddaSpec.Features.EventCollection.CollectedEventTypes = []v2alpha1.EventTypes{
 			{
 				Kind:    "Pod",

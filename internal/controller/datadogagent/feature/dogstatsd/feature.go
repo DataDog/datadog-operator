@@ -66,16 +66,16 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd
 	f.owner = dda
-	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
+	if apiutils.NewDeref(dogstatsd.HostPortConfig.Enabled, false) {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
 	}
 	// UDS is enabled by default
-	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
+	if apiutils.NewDeref(dogstatsd.UnixDomainSocketConfig.Enabled, false) {
 		f.udsEnabled = true
 	}
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
-	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
+	if apiutils.NewDeref(dogstatsd.OriginDetectionEnabled, false) {
 		f.originDetectionEnabled = true
 	}
 	if dogstatsd.TagCardinality != nil {
@@ -87,7 +87,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	}
 
 	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+		f.forceEnableLocalService = apiutils.NewDeref(dda.Spec.Global.LocalService.ForceEnableLocalService, false)
 	}
 	f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
@@ -95,7 +95,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: apiutils.NewPointer(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.CoreAgentContainerName,
 			},

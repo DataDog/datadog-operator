@@ -95,10 +95,10 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	}
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
+	if apiutils.NewDeref(dda.Spec.Features.OtelCollector.Enabled, false) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.OtelAgent,

@@ -66,11 +66,11 @@ func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
 			Features: &v2alpha1.DatadogFeatures{
 				Autoscaling: &v2alpha1.AutoscalingFeatureConfig{
 					Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(enabled),
+						Enabled: apiutils.NewPointer(enabled),
 					},
 				},
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(admissionEnabled),
+					Enabled: apiutils.NewPointer(admissionEnabled),
 				},
 			},
 		},

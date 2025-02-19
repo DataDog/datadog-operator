@@ -27,14 +27,14 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
 	{
-		ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+		ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewPointer(true)
 	}
 
 	serviceDiscoveryAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

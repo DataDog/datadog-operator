@@ -41,12 +41,12 @@ func (f *liveContainerFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
+	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.NewDeref(dda.Spec.Features.LiveContainerCollection.Enabled, false) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.NewDeref(dda.Spec.Global.RunProcessChecksInCoreAgent, false))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -54,7 +54,7 @@ func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: reqContainers,
 			},
 		}

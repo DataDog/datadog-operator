@@ -62,7 +62,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 
 	// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		if apiutils.BoolValue(componentOverride.Disabled) {
+		if apiutils.NewDeref(componentOverride.Disabled, false) {
 			if dcaEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 				condition.UpdateDatadogAgentStatusConditions(

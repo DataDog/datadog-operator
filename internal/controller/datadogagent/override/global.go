@@ -98,7 +98,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// NetworkPolicy contains the network configuration.
 	if config.NetworkPolicy != nil {
-		if apiutils.BoolValue(config.NetworkPolicy.Create) {
+		if apiutils.NewDeref(config.NetworkPolicy.Create, false) {
 			var err error
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
@@ -368,13 +368,13 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		// Set secret backend command
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDSecretBackendCommand,
-			Value: apiutils.StringValue(config.SecretBackend.Command),
+			Value: apiutils.NewDeref(config.SecretBackend.Command, ""),
 		})
 
 		// Set secret backend arguments
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  DDSecretBackendArguments,
-			Value: apiutils.StringValue(config.SecretBackend.Args),
+			Value: apiutils.NewDeref(config.SecretBackend.Args, ""),
 		})
 
 		// Set secret backend timeout
@@ -400,7 +400,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		rbacSuffix := "secret-backend"
 
 		// Set global RBAC config (only if specific roles are not defined)
-		if apiutils.BoolValue(config.SecretBackend.EnableGlobalPermissions) && config.SecretBackend.Roles == nil {
+		if apiutils.NewDeref(config.SecretBackend.EnableGlobalPermissions, false) && config.SecretBackend.Roles == nil {
 
 			var secretBackendGlobalRBACPolicyRules = []rbacv1.PolicyRule{
 				{
@@ -420,7 +420,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		// Set specific roles for the secret backend
 		if config.SecretBackend.Roles != nil {
 			for _, role := range config.SecretBackend.Roles {
-				secretNs := apiutils.StringValue(role.Namespace)
+				secretNs := apiutils.NewDeref(role.Namespace, "")
 				roleName := fmt.Sprintf("%s-%s-%s", secretNs, agentName, rbacSuffix)
 				policyRule := []rbacv1.PolicyRule{
 					{
@@ -438,7 +438,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Apply FIPS config
-	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	if config.FIPS != nil && apiutils.NewDeref(config.FIPS.Enabled, false) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 

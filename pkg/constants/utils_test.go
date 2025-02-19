@@ -39,7 +39,7 @@ func Test_GetImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "7",
 			},
-			registry: apiutils.NewStringPointer("public.ecr.aws/datadog"),
+			registry: apiutils.NewPointer("public.ecr.aws/datadog"),
 			want:     "public.ecr.aws/datadog/agent:7",
 		},
 		{
@@ -48,7 +48,7 @@ func Test_GetImage(t *testing.T) {
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
-			registry: apiutils.NewStringPointer("gcr.io/datadoghq"),
+			registry: apiutils.NewPointer("gcr.io/datadoghq"),
 			want:     "docker.io/datadog/agent:7.28.1-rc.3",
 		},
 		{

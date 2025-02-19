@@ -20,7 +20,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
@@ -85,7 +85,7 @@ func (f *admissionControllerFeature) ID() feature.IDType {
 	return feature.AdmissionControllerIDType
 }
 func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInjectionConfig) bool {
-	if sidecarInjectionConf != nil && sidecarInjectionConf.Enabled != nil && apiutils.BoolValue(sidecarInjectionConf.Enabled) {
+	if sidecarInjectionConf != nil && sidecarInjectionConf.Enabled != nil && apiutils.NewDeref(sidecarInjectionConf.Enabled, false) {
 		return true
 	}
 	return false
@@ -97,15 +97,15 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 	ac := dda.Spec.Features.AdmissionController
 
-	if ac != nil && apiutils.BoolValue(ac.Enabled) {
+	if ac != nil && apiutils.NewDeref(ac.Enabled, false) {
 		if ac.Validation != nil && ac.Validation.Enabled != nil {
-			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.BoolValue(ac.Validation.Enabled)}
+			f.validationWebhookConfig = &ValidationConfig{enabled: apiutils.NewDeref(ac.Validation.Enabled, false)}
 		}
 		if ac.Mutation != nil && ac.Mutation.Enabled != nil {
-			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.BoolValue(ac.Mutation.Enabled)}
+			f.mutationWebhookConfig = &MutationConfig{enabled: apiutils.NewDeref(ac.Mutation.Enabled, false)}
 		}
 
-		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
+		f.mutateUnlabelled = apiutils.NewDeref(ac.MutateUnlabelled, false)
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
 		}
@@ -123,15 +123,15 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// use `socket` mode if either apm or dsd uses uds
 			apm := dda.Spec.Features.APM
 			dsd := dda.Spec.Features.Dogstatsd
-			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
-				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
+			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.NewDeref(apm.Enabled, false) && apiutils.NewDeref(apm.UnixDomainSocketConfig.Enabled, false)) ||
+				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.NewDeref(dsd.UnixDomainSocketConfig.Enabled, false)) {
 				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
 			}
 			// otherwise don't set to fall back to default agent setting `hostip`
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda)
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 		}
 		if ac.FailurePolicy != nil && *ac.FailurePolicy != "" {
 			f.failurePolicy = *ac.FailurePolicy
@@ -142,12 +142,12 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.webhookName = *ac.WebhookName
 		}
 
-		if ac.CWSInstrumentation != nil && apiutils.BoolValue(ac.CWSInstrumentation.Enabled) {
+		if ac.CWSInstrumentation != nil && apiutils.NewDeref(ac.CWSInstrumentation.Enabled, false) {
 			f.cwsInstrumentationEnabled = true
-			f.cwsInstrumentationMode = apiutils.StringValue(ac.CWSInstrumentation.Mode)
+			f.cwsInstrumentationMode = apiutils.NewDeref(ac.CWSInstrumentation.Mode, "")
 		}
 
-		if ac.KubernetesAdmissionEvents != nil && apiutils.BoolValue(ac.KubernetesAdmissionEvents.Enabled) {
+		if ac.KubernetesAdmissionEvents != nil && apiutils.NewDeref(ac.KubernetesAdmissionEvents.Enabled, false) {
 			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
 		}
 

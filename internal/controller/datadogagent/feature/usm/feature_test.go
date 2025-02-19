@@ -27,14 +27,14 @@ func Test_usmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				USM: &v2alpha1.USMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaUSMEnabled := ddaUSMDisabled.DeepCopy()
 	{
-		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
+		ddaUSMEnabled.Spec.Features.USM.Enabled = apiutils.NewPointer(true)
 	}
 
 	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

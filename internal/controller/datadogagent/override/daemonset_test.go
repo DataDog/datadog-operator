@@ -26,70 +26,70 @@ func TestDaemonSet(t *testing.T) {
 	}{
 		{
 			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("0%"),
+				apiutils.NewPointer("0%"),
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("0%"),
+				apiutils.NewPointer("0%"),
 			),
 		},
 		{
 			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
+				apiutils.NewPointer("OnDelete"),
 				nil,
 				nil,
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
+				apiutils.NewPointer("OnDelete"),
 				nil,
-				nil,
-			),
-		},
-		{
-			daemonSet: makeDaemonSet(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
-			),
-			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("50%"),
-				nil,
-			),
-			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("50%"),
 				nil,
 			),
 		},
 		{
 			daemonSet: makeDaemonSet(
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
+			),
+			override: makeOverride(
+				apiutils.NewPointer("OnDelete"),
+				apiutils.NewPointer("50%"),
+				nil,
+			),
+			expected: makeDaemonSet(
+				apiutils.NewPointer("OnDelete"),
+				apiutils.NewPointer("50%"),
+				nil,
+			),
+		},
+		{
+			daemonSet: makeDaemonSet(
 				nil,
 				nil,
 				nil,
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				apiutils.NewPointer("OnDelete"),
+				apiutils.NewPointer("25%"),
+				apiutils.NewPointer("25%"),
 			),
 			expected: makeDaemonSet(
-				apiutils.NewStringPointer("OnDelete"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				apiutils.NewPointer("OnDelete"),
+				apiutils.NewPointer("25%"),
+				apiutils.NewPointer("25%"),
 			),
 		},
 	}
@@ -107,7 +107,7 @@ func TestDaemonSet(t *testing.T) {
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name: apiutils.NewStringPointer("new-name"),
+		Name: apiutils.NewPointer("new-name"),
 	}
 
 	DaemonSet(&daemonSet, &override)
