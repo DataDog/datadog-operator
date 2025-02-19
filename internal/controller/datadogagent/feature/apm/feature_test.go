@@ -246,6 +246,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
+				WithClusterAgentTag(minInstrumentationTargetsVersion).
 				WithAPMSingleStepInstrumentationEnabled(true,
 					nil,
 					[]string{"foo", "bar"},
