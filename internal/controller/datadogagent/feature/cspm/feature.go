@@ -71,7 +71,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 	cspmConfig := dda.Spec.Features.CSPM
 
-	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
+	if cspmConfig != nil && apiutils.NewDeref(cspmConfig.Enabled, false) {
 		f.enable = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
@@ -92,14 +92,14 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCSPMConf)
 
-		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
+		if cspmConfig.HostBenchmarks != nil && apiutils.NewDeref(cspmConfig.HostBenchmarks.Enabled, false) {
 			f.hostBenchmarksEnabled = true
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.SecurityAgentContainerName,
 				},

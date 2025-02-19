@@ -43,11 +43,11 @@ func (f *asmFeature) ID() feature.IDType {
 
 func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
 	asm := dda.Spec.Features.ASM
-	if dda.Spec.Features.AdmissionController == nil || !apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled) {
+	if dda.Spec.Features.AdmissionController == nil || !apiutils.NewDeref(dda.Spec.Features.AdmissionController.Enabled, false) {
 		return false
 	}
 
-	return apiutils.BoolValue(asm.SCA.Enabled) || apiutils.BoolValue(asm.Threats.Enabled) || apiutils.BoolValue(asm.IAST.Enabled)
+	return apiutils.NewDeref(asm.SCA.Enabled, false) || apiutils.NewDeref(asm.Threats.Enabled, false) || apiutils.NewDeref(asm.IAST.Enabled, false)
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -58,14 +58,14 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 		return feature.RequiredComponents{}
 	}
 
-	f.threatsEnabled = apiutils.BoolValue(asm.Threats.Enabled)
-	f.iastEnabled = apiutils.BoolValue(asm.IAST.Enabled)
-	f.scaEnabled = apiutils.BoolValue(asm.SCA.Enabled)
+	f.threatsEnabled = apiutils.NewDeref(asm.Threats.Enabled, false)
+	f.iastEnabled = apiutils.NewDeref(asm.IAST.Enabled, false)
+	f.scaEnabled = apiutils.NewDeref(asm.SCA.Enabled, false)
 
 	// The cluster agent and the admission controller are required for the ASM feature.
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: apiutils.NewPointer(true),
 			Containers: []apicommon.AgentContainerName{
 				apicommon.ClusterAgentContainerName,
 			},

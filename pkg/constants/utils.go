@@ -85,7 +85,7 @@ func GetClusterChecksRunnerServiceAccountAnnotations(dda *v2alpha1.DatadogAgent)
 func IsHostNetworkEnabled(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) bool {
 	if dda.Spec.Override != nil {
 		if c, ok := dda.Spec.Override[component]; ok {
-			return apiutils.BoolValue(c.HostNetwork)
+			return apiutils.NewDeref(c.HostNetwork, false)
 		}
 	}
 	return false
@@ -93,12 +93,12 @@ func IsHostNetworkEnabled(dda *v2alpha1.DatadogAgent, component v2alpha1.Compone
 
 // IsClusterChecksEnabled returns whether the DDA should use cluster checks
 func IsClusterChecksEnabled(dda *v2alpha1.DatadogAgent) bool {
-	return dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
+	return dda.Spec.Features.ClusterChecks != nil && apiutils.NewDeref(dda.Spec.Features.ClusterChecks.Enabled, false)
 }
 
 // IsCCREnabled returns whether the DDA should use Cluster Checks Runners
 func IsCCREnabled(dda *v2alpha1.DatadogAgent) bool {
-	return dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+	return dda.Spec.Features.ClusterChecks != nil && apiutils.NewDeref(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners, false)
 }
 
 // GetLocalAgentServiceName returns the name used for the local agent service
@@ -111,7 +111,7 @@ func GetLocalAgentServiceName(dda *v2alpha1.DatadogAgent) string {
 
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
 func IsNetworkPolicyEnabled(dda *v2alpha1.DatadogAgent) (bool, v2alpha1.NetworkPolicyFlavor) {
-	if dda.Spec.Global != nil && dda.Spec.Global.NetworkPolicy != nil && apiutils.BoolValue(dda.Spec.Global.NetworkPolicy.Create) {
+	if dda.Spec.Global != nil && dda.Spec.Global.NetworkPolicy != nil && apiutils.NewDeref(dda.Spec.Global.NetworkPolicy.Create, false) {
 		if dda.Spec.Global.NetworkPolicy.Flavor != "" {
 			return true, dda.Spec.Global.NetworkPolicy.Flavor
 		}

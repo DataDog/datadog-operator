@@ -35,10 +35,10 @@ func TestBuildDashboard(t *testing.T) {
 	}
 	templateVariablePresets := []v1alpha1.DashboardTemplateVariablePreset{
 		{
-			Name: apiutils.NewStringPointer("test preset"),
+			Name: apiutils.NewPointer("test preset"),
 			TemplateVariables: []v1alpha1.DashboardTemplateVariablePresetValue{
 				{
-					Name: apiutils.NewStringPointer("foo-bar"),
+					Name: apiutils.NewPointer("foo-bar"),
 					Values: []string{
 						"foo",
 						"bar",
@@ -202,7 +202,7 @@ func genericDashboard(dbID string) datadogV1.Dashboard {
 	})
 	title := "Test dashboard"
 	handle := "test_user"
-	description := datadogapi.NewNullableString(apiutils.NewStringPointer("test description"))
+	description := datadogapi.NewNullableString(apiutils.NewPointer("test description"))
 	tags := datadogapi.NewNullableList(&[]string{
 		"team:test", "team:test2",
 	})

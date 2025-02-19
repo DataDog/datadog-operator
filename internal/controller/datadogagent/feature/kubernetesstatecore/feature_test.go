@@ -115,7 +115,7 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 
 			if hasCustomConfig {
 				customConfig := v2alpha1.CustomConfig{
-					ConfigData: apiutils.NewStringPointer(customData),
+					ConfigData: apiutils.NewPointer(customData),
 				}
 				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
 				assert.NoError(t, err)

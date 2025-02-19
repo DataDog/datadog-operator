@@ -30,12 +30,12 @@ const (
 func TestExternalMetricsFeature(t *testing.T) {
 
 	secret := v2alpha1.DatadogCredentials{
-		APIKey: apiutils.NewStringPointer("12345"),
+		APIKey: apiutils.NewPointer("12345"),
 		APISecret: &v2alpha1.SecretConfig{
 			SecretName: secretName,
 			KeyName:    apiKeyName,
 		},
-		AppKey: apiutils.NewStringPointer("09876"),
+		AppKey: apiutils.NewPointer("09876"),
 	}
 
 	tests := test.FeatureTestSuite{
@@ -108,11 +108,11 @@ func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-					Enabled:            apiutils.NewBoolPointer(enabled),
-					RegisterAPIService: apiutils.NewBoolPointer(registerAPIService),
-					WPAController:      apiutils.NewBoolPointer(wpaController),
-					UseDatadogMetrics:  apiutils.NewBoolPointer(useDDM),
-					Port:               apiutils.NewInt32Pointer(8443),
+					Enabled:            apiutils.NewPointer(enabled),
+					RegisterAPIService: apiutils.NewPointer(registerAPIService),
+					WPAController:      apiutils.NewPointer(wpaController),
+					UseDatadogMetrics:  apiutils.NewPointer(useDDM),
+					Port:               apiutils.NewPointer[int32](8443),
 					Endpoint: &v2alpha1.Endpoint{
 						Credentials: &secret,
 					},

@@ -25,7 +25,7 @@ import (
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -93,15 +93,11 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	}
 
 	if apmConf.Enabled != nil {
-		return apiutils.BoolValue(apmConf.Enabled)
+		return apiutils.NewDeref(apmConf.Enabled, false)
 	}
 
 	// SingleStepInstrumentation requires APM Enabled
-	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
-		return true
-	}
-
-	return false
+	return apmConf.SingleStepInstrumentation != nil && apiutils.NewDeref(apmConf.SingleStepInstrumentation.Enabled, false)
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -112,7 +108,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
-		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
+		f.hostPortEnabled = apiutils.NewDeref(apm.HostPortConfig.Enabled, false)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
 			if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
@@ -124,17 +120,17 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 		// UDS defaults to 'true' in the defaulting code
-		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
+		f.udsEnabled = apiutils.NewDeref(apm.UnixDomainSocketConfig.Enabled, false)
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
 		if dda.Spec.Global.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+			f.forceEnableLocalService = apiutils.NewDeref(dda.Spec.Global.LocalService.ForceEnableLocalService, false)
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.TraceAgentContainerName,
@@ -143,24 +139,24 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 
 		if apm.SingleStepInstrumentation != nil &&
-			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
+			(dda.Spec.Features.AdmissionController != nil && apiutils.NewDeref(dda.Spec.Features.AdmissionController.Enabled, false)) {
 			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
 			f.singleStepInstrumentation = &instrumentationConfig{}
-			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
+			f.singleStepInstrumentation.enabled = apiutils.NewDeref(apm.SingleStepInstrumentation.Enabled, false)
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
-			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
+			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.NewDeref(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, false)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
 			reqComp.ClusterAgent = feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.ClusterAgentContainerName,
 				},
 			}
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.NewDeref(dda.Spec.Global.RunProcessChecksInCoreAgent, false))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}

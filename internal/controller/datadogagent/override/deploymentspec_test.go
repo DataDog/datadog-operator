@@ -25,70 +25,70 @@ func TestDeployment(t *testing.T) {
 	}{
 		{
 			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("0%"),
+				apiutils.NewPointer("0%"),
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("0%"),
-				apiutils.NewStringPointer("0%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("0%"),
+				apiutils.NewPointer("0%"),
 			),
 		},
 		{
 			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
+				apiutils.NewPointer("Recreate"),
 				nil,
 				nil,
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
+				apiutils.NewPointer("Recreate"),
 				nil,
-				nil,
-			),
-		},
-		{
-			deployment: makeDeployment(
-				apiutils.NewStringPointer("RollingUpdate"),
-				apiutils.NewStringPointer("50%"),
-				apiutils.NewStringPointer("50%"),
-			),
-			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("50%"),
-				nil,
-			),
-			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("50%"),
 				nil,
 			),
 		},
 		{
 			deployment: makeDeployment(
+				apiutils.NewPointer("RollingUpdate"),
+				apiutils.NewPointer("50%"),
+				apiutils.NewPointer("50%"),
+			),
+			override: makeOverride(
+				apiutils.NewPointer("Recreate"),
+				apiutils.NewPointer("50%"),
+				nil,
+			),
+			expected: makeDeployment(
+				apiutils.NewPointer("Recreate"),
+				apiutils.NewPointer("50%"),
+				nil,
+			),
+		},
+		{
+			deployment: makeDeployment(
 				nil,
 				nil,
 				nil,
 			),
 			override: makeOverride(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				apiutils.NewPointer("Recreate"),
+				apiutils.NewPointer("25%"),
+				apiutils.NewPointer("25%"),
 			),
 			expected: makeDeployment(
-				apiutils.NewStringPointer("Recreate"),
-				apiutils.NewStringPointer("25%"),
-				apiutils.NewStringPointer("25%"),
+				apiutils.NewPointer("Recreate"),
+				apiutils.NewPointer("25%"),
+				apiutils.NewPointer("25%"),
 			),
 		},
 	}
@@ -103,13 +103,13 @@ func TestDeployment(t *testing.T) {
 			Name: "current-name",
 		},
 		Spec: v1.DeploymentSpec{
-			Replicas: apiutils.NewInt32Pointer(1),
+			Replicas: apiutils.NewPointer[int32](1),
 		},
 	}
 
 	override := v2alpha1.DatadogAgentComponentOverride{
-		Name:     apiutils.NewStringPointer("new-name"),
-		Replicas: apiutils.NewInt32Pointer(2),
+		Name:     apiutils.NewPointer("new-name"),
+		Replicas: apiutils.NewPointer[int32](2),
 	}
 
 	Deployment(&deployment, &override)

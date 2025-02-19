@@ -28,14 +28,14 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaTCPQLEnabled := ddaTCPQLDisabled.DeepCopy()
 	{
-		ddaTCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = apiutils.NewBoolPointer(true)
+		ddaTCPQLEnabled.Spec.Features.TCPQueueLength.Enabled = apiutils.NewPointer(true)
 	}
 
 	tcpQueueLengthAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

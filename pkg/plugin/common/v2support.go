@@ -24,7 +24,7 @@ func OverrideComponentImage(spec *v2alpha1.DatadogAgentSpec, cmpName v2alpha1.Co
 		return nil
 	}
 	cmpOverride := spec.Override[cmpName]
-	if !apiutils.BoolValue(cmpOverride.Disabled) {
+	if !apiutils.NewDeref(cmpOverride.Disabled, false) {
 
 		if cmpOverride.Image == nil {
 			cmpOverride.Image = &v2alpha1.AgentImageConfig{}

@@ -55,7 +55,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 
 	// If the Cluster Agent is disabled, then CCR should be disabled too
 	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		if apiutils.BoolValue(dcaOverride.Disabled) {
+		if apiutils.NewDeref(dcaOverride.Disabled, false) {
 			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 		}
 	} else if !dcaEnabled {
@@ -64,7 +64,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 
 	// If Override is defined for the CCR component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
-		if apiutils.BoolValue(componentOverride.Disabled) {
+		if apiutils.NewDeref(componentOverride.Disabled, false) {
 			if ccrEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 				condition.UpdateDatadogAgentStatusConditions(

@@ -166,7 +166,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 }
 
 func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogSLO) (bool, error) {
-	if instance.Spec.ControllerOptions != nil && apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+	if instance.Spec.ControllerOptions != nil && apiutils.NewDeref(instance.Spec.ControllerOptions.DisableRequiredTags, false) {
 		return false, nil
 	}
 

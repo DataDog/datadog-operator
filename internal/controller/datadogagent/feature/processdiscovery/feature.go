@@ -38,12 +38,12 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 
 func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
-	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled) {
+	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.NewDeref(dda.Spec.Features.ProcessDiscovery.Enabled, false) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.NewDeref(dda.Spec.Global.RunProcessChecksInCoreAgent, false))
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -51,7 +51,7 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: reqContainers,
 			},
 		}

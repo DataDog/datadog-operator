@@ -72,8 +72,8 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 	cwsConfig := dda.Spec.Features.CWS
 
-	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
-		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
+	if cwsConfig != nil && apiutils.NewDeref(cwsConfig.Enabled, false) {
+		f.syscallMonitorEnabled = apiutils.NewDeref(cwsConfig.SyscallMonitorEnabled, false)
 
 		if cwsConfig.CustomPolicies != nil {
 			f.customConfig = cwsConfig.CustomPolicies
@@ -89,22 +89,22 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCWSConf)
 
 		if cwsConfig.Network != nil {
-			f.networkEnabled = apiutils.BoolValue(cwsConfig.Network.Enabled)
+			f.networkEnabled = apiutils.NewDeref(cwsConfig.Network.Enabled, false)
 		}
 		if cwsConfig.SecurityProfiles != nil {
-			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
+			f.activityDumpEnabled = apiutils.NewDeref(cwsConfig.SecurityProfiles.Enabled, false)
 		}
 
 		if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil {
-			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
+			f.remoteConfigurationEnabled = apiutils.NewDeref(dda.Spec.Features.RemoteConfiguration.Enabled, false)
 			if cwsConfig.RemoteConfiguration != nil {
-				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cwsConfig.RemoteConfiguration.Enabled)
+				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.NewDeref(cwsConfig.RemoteConfiguration.Enabled, false)
 			}
 		}
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.SecurityAgentContainerName,
 					apicommon.SystemProbeContainerName,

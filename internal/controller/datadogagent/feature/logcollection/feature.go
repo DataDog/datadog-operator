@@ -54,12 +54,12 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 	logCollection := dda.Spec.Features.LogCollection
 
-	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
+	if logCollection != nil && apiutils.NewDeref(logCollection.Enabled, false) {
 		if logCollection.ContainerCollectAll != nil {
 			// fallback to agent default if not set
-			f.containerCollectAll = apiutils.BoolValue(logCollection.ContainerCollectAll)
+			f.containerCollectAll = apiutils.NewDeref(logCollection.ContainerCollectAll, false)
 		}
-		f.containerCollectUsingFiles = apiutils.BoolValue(logCollection.ContainerCollectUsingFiles)
+		f.containerCollectUsingFiles = apiutils.NewDeref(logCollection.ContainerCollectUsingFiles, false)
 		f.containerLogsPath = *logCollection.ContainerLogsPath
 		f.podLogsPath = *logCollection.PodLogsPath
 		f.containerSymlinksPath = *logCollection.ContainerSymlinksPath
@@ -70,7 +70,7 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 				},

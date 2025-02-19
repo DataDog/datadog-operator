@@ -44,10 +44,10 @@ func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 	usmConfig := dda.Spec.Features.USM
 
-	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
+	if usmConfig != nil && apiutils.NewDeref(usmConfig.Enabled, false) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
+				IsRequired: apiutils.NewPointer(true),
 				Containers: []apicommon.AgentContainerName{
 					apicommon.CoreAgentContainerName,
 					apicommon.ProcessAgentContainerName,

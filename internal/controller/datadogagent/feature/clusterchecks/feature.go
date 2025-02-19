@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -58,7 +58,7 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 }
 
 func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
+	if apiutils.NewDeref(dda.Spec.Features.ClusterChecks.Enabled, false) {
 		f.updateConfigHash(dda)
 		f.owner = dda
 
@@ -70,10 +70,10 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			}
 		}
 
-		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+		f.useClusterCheckRunners = apiutils.NewDeref(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners, false)
 		reqComp = feature.RequiredComponents{
-			Agent:               feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			Agent:               feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
+			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
 		}
 	}

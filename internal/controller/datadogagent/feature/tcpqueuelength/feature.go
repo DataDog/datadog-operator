@@ -43,9 +43,9 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 	if dda.Spec.Features == nil {
 		return
 	}
-	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
+	if dda.Spec.Features.TCPQueueLength != nil && apiutils.NewDeref(dda.Spec.Features.TCPQueueLength.Enabled, false) {
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: apiutils.NewPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}

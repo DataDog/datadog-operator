@@ -76,20 +76,20 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	f.owner = dda
 	var output feature.RequiredComponents
 
-	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
+	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.NewDeref(dda.Spec.Features.KubeStateMetricsCore.Enabled, false) {
+		output.ClusterAgent.IsRequired = apiutils.NewPointer(true)
+		output.Agent.IsRequired = apiutils.NewPointer(true)
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+		if dda.Spec.Features.ClusterChecks != nil && apiutils.NewDeref(dda.Spec.Features.ClusterChecks.Enabled, false) && apiutils.NewDeref(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners, false) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
-			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			output.ClusterChecksRunner.IsRequired = apiutils.NewPointer(true)
 
 			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {

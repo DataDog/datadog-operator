@@ -15,7 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
@@ -69,11 +69,11 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
-	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
+	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.NewDeref(dda.Spec.Features.EventCollection.CollectKubernetesEvents, false) {
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
-		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
+		if apiutils.NewDeref(dda.Spec.Features.EventCollection.UnbundleEvents, false) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
 				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
@@ -84,7 +84,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 		}
 	}
 

@@ -27,14 +27,14 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				OOMKill: &v2alpha1.OOMKillFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaOOMKillEnabled := ddaOOMKillDisabled.DeepCopy()
 	{
-		ddaOOMKillEnabled.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(true)
+		ddaOOMKillEnabled.Spec.Features.OOMKill.Enabled = apiutils.NewPointer(true)
 	}
 
 	oomKillAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

@@ -44,14 +44,14 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CSPM: &v2alpha1.CSPMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaCSPMEnabled := ddaCSPMDisabled.DeepCopy()
 	{
-		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddaCSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewPointer(true)
 		ddaCSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -64,7 +64,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddaCSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
-		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
+		ddaCSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewPointer(true)}
 	}
 
 	tests := test.FeatureTestSuite{

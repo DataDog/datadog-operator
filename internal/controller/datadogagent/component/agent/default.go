@@ -60,7 +60,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, agentComponent feature.Re
 		Spec: corev1.PodSpec{
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsUser: apiutils.NewInt64Pointer(0),
+				RunAsUser: apiutils.NewPointer[int64](0),
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers:     initContainers(dda, requiredContainers),
@@ -265,7 +265,7 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		SecurityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
-				LocalhostProfile: apiutils.NewStringPointer(common.SystemProbeSeccompProfileName),
+				LocalhostProfile: apiutils.NewPointer(common.SystemProbeSeccompProfileName),
 			},
 		},
 	}

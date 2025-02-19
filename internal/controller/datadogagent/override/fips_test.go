@@ -74,7 +74,7 @@ defaults
 			name: "FIPS enabled",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: apiutils.NewPointer(true),
 				}).
 				BuildWithDefaults(),
 			existingManager: func() *fake.PodTemplateManagers {
@@ -103,7 +103,7 @@ defaults
 			name: "FIPS custom image",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: apiutils.NewPointer(true),
 					Image: &v2alpha1.AgentImageConfig{
 						Name: "registry/custom:tag",
 					},
@@ -137,8 +137,8 @@ defaults
 			name: "FIPS custom port",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-					Port:    apiutils.NewInt32Pointer(2),
+					Enabled: apiutils.NewPointer(true),
+					Port:    apiutils.NewPointer[int32](2),
 				}).
 				BuildWithDefaults(),
 			existingManager: func() *fake.PodTemplateManagers {
@@ -167,7 +167,7 @@ defaults
 			name: "FIPS custom config - config map",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: apiutils.NewPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
 						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "foo",
@@ -178,7 +178,7 @@ defaults
 								},
 							},
 						},
-						ConfigData: apiutils.NewStringPointer("{foo:bar}"),
+						ConfigData: apiutils.NewPointer("{foo:bar}"),
 					},
 				}).
 				BuildWithDefaults(),
@@ -208,9 +208,9 @@ defaults
 			name: "FIPS custom config - config data",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					Enabled: apiutils.NewPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
-						ConfigData: apiutils.NewStringPointer(customConfig),
+						ConfigData: apiutils.NewPointer(customConfig),
 					},
 				}).
 				BuildWithDefaults(),

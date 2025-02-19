@@ -31,17 +31,17 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaCWSLiteEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewPointer(true)
 		ddaCWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
 				Name: "custom_test",
@@ -53,16 +53,16 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddaCWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddaCWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewPointer(true)
 	}
 	ddaCWSFullEnabled := ddaCWSDisabled.DeepCopy()
 	{
-		ddaCWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewPointer(true)
 		ddaCWSFullEnabled.Spec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{
-			Enabled: apiutils.NewBoolPointer(true),
+			Enabled: apiutils.NewPointer(true),
 		}
 		ddaCWSFullEnabled.Spec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{
-			Enabled: apiutils.NewBoolPointer(true),
+			Enabled: apiutils.NewPointer(true),
 		}
 		ddaCWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &v2alpha1.ConfigMapConfig{
@@ -75,8 +75,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
-		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
+		ddaCWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewPointer(true)
+		ddaCWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewPointer(true)
 	}
 
 	tests := test.FeatureTestSuite{

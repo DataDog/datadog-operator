@@ -342,7 +342,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
 					fipsConfig := v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(true),
+						Enabled: apiutils.NewPointer(true),
 					}
 					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithFIPS(fipsConfig).
@@ -374,11 +374,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
 						WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+							CreatePodDisruptionBudget: apiutils.NewPointer(true),
 						}).
 						WithClusterChecksUseCLCEnabled(true).
 						WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+							CreatePodDisruptionBudget: apiutils.NewPointer(true),
 						}).
 						Build()
 					_ = c.Create(context.TODO(), dda)

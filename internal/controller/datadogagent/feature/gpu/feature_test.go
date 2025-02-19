@@ -24,19 +24,19 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	ddaGPUMonitoringEnabled := ddaGPUMonitoringDisabled.DeepCopy()
-	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewBoolPointer(true)
+	ddaGPUMonitoringEnabled.Spec.Features.GPU.Enabled = apiutils.NewPointer(true)
 
 	ddaGPUMonitoringEnabledAlternativeRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer(alternativeRuntimeClass)
+	ddaGPUMonitoringEnabledAlternativeRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewPointer(alternativeRuntimeClass)
 
 	ddaGPUMonitoringEnabledANoRuntimeClass := ddaGPUMonitoringEnabled.DeepCopy()
-	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewStringPointer("")
+	ddaGPUMonitoringEnabledANoRuntimeClass.Spec.Features.GPU.PodRuntimeClassName = apiutils.NewPointer("")
 
 	GPUMonitoringAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedRuntimeClass string) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)

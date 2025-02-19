@@ -69,12 +69,12 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	f.owner = dda
 	helmCheck := dda.Spec.Features.HelmCheck
 
-	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
-		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
+	if helmCheck != nil && apiutils.NewDeref(helmCheck.Enabled, false) {
+		reqComp.ClusterAgent.IsRequired = apiutils.NewPointer(true)
+		reqComp.Agent.IsRequired = apiutils.NewPointer(true)
 
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
-		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
+		f.collectEvents = apiutils.NewDeref(helmCheck.CollectEvents, false)
 		f.valuesAsTags = helmCheck.ValuesAsTags
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
@@ -82,7 +82,7 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
-			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewPointer(true)
 		}
 
 		// Build configMap based on feature flags.

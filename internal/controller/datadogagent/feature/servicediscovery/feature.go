@@ -36,9 +36,9 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features != nil && dda.Spec.Features.ServiceDiscovery != nil && apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.Enabled) {
+	if dda.Spec.Features != nil && dda.Spec.Features.ServiceDiscovery != nil && apiutils.NewDeref(dda.Spec.Features.ServiceDiscovery.Enabled, false) {
 		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
+			IsRequired: apiutils.NewPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 		}
 	}

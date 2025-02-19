@@ -8,6 +8,7 @@ package utils
 import (
 	"encoding/json"
 	"math/rand"
+	"strconv"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/yaml"
@@ -18,55 +19,18 @@ func NewPointer[T any](v T) *T {
 	return &v
 }
 
-// NewInt32Pointer returns pointer on a new int32 value instance
-func NewInt32Pointer(i int32) *int32 {
-	return &i
-}
-
-// NewInt64Pointer returns pointer on a new int32 value instance
-func NewInt64Pointer(i int64) *int64 {
-	return &i
-}
-
-// NewIntPointer returns pointer to an int value
-func NewIntPointer(i int) *int {
-	return &i
-}
-
-// NewStringPointer returns pointer on a new string value instance
-func NewStringPointer(s string) *string {
-	return &s
-}
-
-// NewBoolPointer returns pointer on a new bool value instance
-func NewBoolPointer(b bool) *bool {
-	return &b
-}
-
-// BoolValue return the boolean value, false if nil
-func BoolValue(b *bool) bool {
-	if b == nil {
-		return false
+// NewDeref dereferences a pointer and returns the value it points to if it's not nil;
+// otherwise, it returns the default value
+func NewDeref[T any](ptr *T, def T) T {
+	if ptr != nil {
+		return *ptr
 	}
-
-	return *b
-}
-
-// StringValue return the string value, "" if nil
-func StringValue(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
+	return def
 }
 
 // BoolToString return "true" if b == true, else "false"
 func BoolToString(b *bool) string {
-	if BoolValue(b) {
-		return "true"
-	}
-
-	return "false"
+	return strconv.FormatBool(b != nil && *b)
 }
 
 // DefaultBooleanIfUnset sets default value d of a boolean if unset

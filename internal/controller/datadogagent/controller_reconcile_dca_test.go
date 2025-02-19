@@ -48,7 +48,7 @@ func Test_getDeploymentNameFromDCA(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Replicas: apiutils.NewInt32Pointer(10),
+							Replicas: apiutils.NewPointer[int32](10),
 						},
 					},
 				},
@@ -64,8 +64,8 @@ func Test_getDeploymentNameFromDCA(t *testing.T) {
 				Spec: datadoghqv2alpha1.DatadogAgentSpec{
 					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
 						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
+							Name:     apiutils.NewPointer("bar"),
+							Replicas: apiutils.NewPointer[int32](10),
 						},
 					},
 				},

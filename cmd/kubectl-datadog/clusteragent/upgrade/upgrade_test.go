@@ -103,7 +103,7 @@ package upgrade
 // 			name: "no image in the spec",
 // 			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
 // 				dd := buildDatadogAgent("")
-// 				dd.Spec.ClusterAgent.Enabled = apiutils.NewBoolPointer(true)
+// 				dd.Spec.ClusterAgent.Enabled = apiutils.NewPointer(true)
 // 				dd.Spec.ClusterAgent.Image = nil
 // 				_ = c.Create(context.TODO(), dd)
 // 				return dd

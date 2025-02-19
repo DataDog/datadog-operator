@@ -99,7 +99,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 
 		for _, componentOverride := range componentOverrides {
-			if apiutils.BoolValue(componentOverride.Disabled) {
+			if apiutils.NewDeref(componentOverride.Disabled, false) {
 				disabledByOverride = true
 			}
 			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
@@ -174,7 +174,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	for _, componentOverride := range componentOverrides {
-		if apiutils.BoolValue(componentOverride.Disabled) {
+		if apiutils.NewDeref(componentOverride.Disabled, false) {
 			disabledByOverride = true
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)

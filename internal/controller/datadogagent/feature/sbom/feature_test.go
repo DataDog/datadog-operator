@@ -27,29 +27,29 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				SBOM: &v2alpha1.SBOMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewPointer(false),
 				},
 			},
 		},
 	}
 	sbomEnabled := sbomDisabled.DeepCopy()
 	{
-		sbomEnabled.Spec.Features.SBOM.Enabled = apiutils.NewBoolPointer(true)
+		sbomEnabled.Spec.Features.SBOM.Enabled = apiutils.NewPointer(true)
 	}
 
 	sbomEnabledContainerImageEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewPointer(true)}
 	}
 
 	sbomEnabledContainerImageOverlayFSEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewBoolPointer(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
+		sbomEnabledContainerImageOverlayFSEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{Enabled: apiutils.NewPointer(true), UncompressedLayersSupport: true, OverlayFSDirectScan: true}
 	}
 
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: apiutils.NewBoolPointer(true)}
+		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{Enabled: apiutils.NewPointer(true)}
 	}
 
 	sbomNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {

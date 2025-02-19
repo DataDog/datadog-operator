@@ -204,7 +204,7 @@ func overrideSeccompProfile(containerName apicommon.AgentContainerName, manager 
 			// 	manager.PodTemplateSpec().Spec.InitContainers[id].SecurityContext = &corev1.SecurityContext{
 			// 		SeccompProfile: &corev1.SeccompProfile{
 			// 			Type:             corev1.SeccompProfileTypeLocalhost,
-			// 			LocalhostProfile: apiutils.NewStringPointer(containerName),
+			// 			LocalhostProfile: apiutils.NewPointer(containerName),
 			// 		},
 			// 	}
 			// }

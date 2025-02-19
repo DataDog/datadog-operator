@@ -349,8 +349,8 @@ func TestOverrideFromProfile(t *testing.T) {
 						},
 					},
 				},
-				PriorityClassName: apiutils.NewStringPointer("foo"),
-				RuntimeClassName:  apiutils.NewStringPointer("bar"),
+				PriorityClassName: apiutils.NewPointer("foo"),
+				RuntimeClassName:  apiutils.NewPointer("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{
@@ -384,7 +384,7 @@ func TestOverrideFromProfile(t *testing.T) {
 			name:    "default profile, no overrides applied",
 			profile: exampleDefaultProfile(),
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
-				Name: apiutils.NewStringPointer(""),
+				Name: apiutils.NewPointer(""),
 				Affinity: &v1.Affinity{
 					NodeAffinity: &v1.NodeAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -718,8 +718,8 @@ func configWithAllOverrides(cpuRequest string) *v1alpha1.Config {
 	return &v1alpha1.Config{
 		Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 			v1alpha1.NodeAgentComponentName: {
-				PriorityClassName: apiutils.NewStringPointer("foo"),
-				RuntimeClassName:  apiutils.NewStringPointer("bar"),
+				PriorityClassName: apiutils.NewPointer("foo"),
+				RuntimeClassName:  apiutils.NewPointer("bar"),
 				UpdateStrategy: &apicommon.UpdateStrategy{
 					Type: "RollingUpdate",
 					RollingUpdate: &apicommon.RollingUpdate{
@@ -905,7 +905,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
-							Name: apiutils.NewStringPointer("test"),
+							Name: apiutils.NewPointer("test"),
 						},
 					},
 				},
@@ -915,7 +915,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								PriorityClassName: apiutils.NewStringPointer("test"),
+								PriorityClassName: apiutils.NewPointer("test"),
 							},
 						},
 					},
@@ -950,7 +950,7 @@ func TestGetMaxUnavailable(t *testing.T) {
 					Config: &v1alpha1.Config{
 						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
 							v1alpha1.NodeAgentComponentName: {
-								PriorityClassName: apiutils.NewStringPointer("test"),
+								PriorityClassName: apiutils.NewPointer("test"),
 							},
 						},
 					},

@@ -55,7 +55,7 @@ type RequiredComponent struct {
 
 // IsEnabled returns true if the Feature needs the current RequiredComponent
 func (rc *RequiredComponent) IsEnabled() bool {
-	return apiutils.BoolValue(rc.IsRequired) || len(rc.Containers) > 0
+	return apiutils.NewDeref(rc.IsRequired, false) || len(rc.Containers) > 0
 }
 
 // IsConfigured returns true if the Feature does not require the RequiredComponent, but if it runs it needs to be configured appropriately.
@@ -95,10 +95,10 @@ func merge(a, b *bool) *bool {
 	} else if b == nil && a != nil {
 		return a
 	}
-	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return apiutils.NewBoolPointer(false)
+	if !apiutils.NewDeref(a, false) || !apiutils.NewDeref(b, false) {
+		return apiutils.NewPointer(false)
 	}
-	return apiutils.NewBoolPointer(true)
+	return apiutils.NewPointer(true)
 }
 
 func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {

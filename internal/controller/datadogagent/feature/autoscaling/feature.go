@@ -57,16 +57,16 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 	}
 
 	autoscaling := dda.Spec.Features.Autoscaling
-	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled) {
+	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.NewDeref(autoscaling.Workload.Enabled, false) {
 		return feature.RequiredComponents{}
 	}
 
 	admission := dda.Spec.Features.AdmissionController
-	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
+	f.admissionControllerActivated = apiutils.NewDeref(admission.Enabled, false)
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewPointer(true)},
 	}
 }
 
