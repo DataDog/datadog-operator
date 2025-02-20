@@ -490,7 +490,7 @@
                   "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                   "type": "boolean"
                 },
-                "errorTracking": {
+                "errorTrackingStandalone": {
                   "additionalProperties": false,
                   "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                   "properties": {
@@ -7337,7 +7337,7 @@
                       "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                       "type": "boolean"
                     },
-                    "errorTracking": {
+                    "errorTrackingStandalone": {
                       "additionalProperties": false,
                       "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                       "properties": {

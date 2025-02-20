@@ -141,14 +141,13 @@ type APMFeatureConfig struct {
 	// ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
 	// Feature is in beta.
 	// +optional
-	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTracking,omitempty"`
+	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
 }
 
 // ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
 // +k8s:openapi-gen=true
 type ErrorTrackingStandalone struct {
-	// Defines mode of operation of Error Tracking for backend services.
-	// It can be "disabled", "standalone", or "full".
+	// Enables Error Tracking for backend services.
 	// Default: disabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
