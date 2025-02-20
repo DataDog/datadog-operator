@@ -57,7 +57,7 @@ spec:
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enables Application Performance Monitoring. Default: true |
-| features.apm.errorTracking.mode | Defines mode of operation of Error Tracking for backend services. It can be "disabled", "standalone", or "full". Default: disabled |
+| features.apm.errorTracking.enabled | Defines mode of operation of Error Tracking for backend services. It can be "disabled", "standalone", or "full". Default: disabled |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |

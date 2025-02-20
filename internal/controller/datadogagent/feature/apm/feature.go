@@ -64,7 +64,7 @@ type apmFeature struct {
 
 	processCheckRunsInCoreAgent bool
 
-	errorTrackingMode string
+	errorTrackingStandalone bool
 }
 
 type instrumentationConfig struct {
@@ -103,8 +103,8 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 		return true
 	}
 
-	if apmConf.ErrorTracking != nil {
-		return apiutils.StringValue(apmConf.ErrorTracking.Mode) != "disabled"
+	if apmConf.ErrorTrackingStandalone != nil {
+		return apiutils.BoolValue(apmConf.DeepCopy().ErrorTrackingStandalone.Enabled)
 	}
 
 	return false
@@ -171,10 +171,8 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
 
-		if apm.ErrorTracking != nil {
-			f.errorTrackingMode = apiutils.StringValue(apm.ErrorTracking.Mode)
-		} else {
-			f.errorTrackingMode = "disabled"
+		if apm.ErrorTrackingStandalone != nil {
+			f.errorTrackingStandalone = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
 	}
 
@@ -433,17 +431,11 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 	}
 
 	// Error Tracking standalone
-	if f.errorTrackingMode != "disabled" {
+	if f.errorTrackingStandalone {
 		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
 			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
 			Value: "true",
 		})
-		if f.errorTrackingMode == "standalone" {
-			managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  common.DDCoreAgentEnabled,
-				Value: "false",
-			})
-		}
 	}
 
 	return nil

@@ -6,9 +6,18 @@ spec:
   features:
     apm:
       enabled: true
-      errorTracking:
-        mode: "standalone"
+      errorTrackingStandalone:
+        enabled: true
   global:
+    env:
+    - name: DD_ENABLE_PAYLOADS_EVENTS
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SERIES
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SERVICE_CHECKS
+      value: "false"
+    - name: DD_ENABLE_PAYLOADS_SKETCHES
+      value: "false"
     clusterName: local-k8s
     credentials:
       apiKey: <DATADOG_API_KEY>

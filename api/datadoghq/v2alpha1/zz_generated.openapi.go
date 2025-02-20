@@ -28,7 +28,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogFeatures":                   schema_datadog_operator_api_datadoghq_v2alpha1_DatadogFeatures(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus":                  schema_datadog_operator_api_datadoghq_v2alpha1_DeploymentStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
-		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTracking":                     schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTracking(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.ErrorTrackingStandalone":           schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema_datadog_operator_api_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.FIPSConfig":                        schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.HelmCheckFeatureConfig":            schema_datadog_operator_api_datadoghq_v2alpha1_HelmCheckFeatureConfig(ref),
@@ -882,17 +882,17 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref c
 	}
 }
 
-func schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTracking(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ErrorTracking contains the configuration for the Error Tracking product.",
+				Description: "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"mode": {
+					"enabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Defines mode of operation of Error Tracking for backend services. It can be \"disabled\", \"standalone\", or \"full\". Default: disabled",
-							Type:        []string{"string"},
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

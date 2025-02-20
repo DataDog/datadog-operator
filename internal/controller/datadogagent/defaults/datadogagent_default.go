@@ -55,7 +55,7 @@ const (
 	defaultCWSSyscallMonitorEnabled   bool   = false
 	defaultCWSNetworkEnabled          bool   = true
 	defaultCWSSecurityProfilesEnabled bool   = true
-	defaultErrorTrackingMode          string = "disabled"
+	defaultAPMErrorTrackingStandalone bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -324,11 +324,11 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
 
-		if ddaSpec.Features.APM.ErrorTracking == nil {
-			ddaSpec.Features.APM.ErrorTracking = &v2alpha1.ErrorTracking{}
+		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{}
 		}
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.ErrorTracking.Mode, defaultErrorTrackingMode)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultAPMErrorTrackingStandalone)
 	}
 
 	// ASM Features

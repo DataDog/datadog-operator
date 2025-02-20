@@ -647,10 +647,10 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithErrorTrackingMode(mode string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
-	builder.datadogAgent.Spec.Features.APM.ErrorTracking = &v2alpha1.ErrorTracking{
-		Mode: apiutils.NewStringPointer(mode),
+	builder.datadogAgent.Spec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{
+		Enabled: apiutils.NewBoolPointer(enabled),
 	}
 	return builder
 }

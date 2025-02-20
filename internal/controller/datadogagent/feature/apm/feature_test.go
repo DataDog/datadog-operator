@@ -372,21 +372,10 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithErrorTrackingMode("standalone").
+				WithErrorTrackingStandalone(true).
 				Build(),
 			WantConfigure: true,
 			Agent:         testAgentErrorTrackingStandalone(),
-		},
-		{
-			Name: "error tracking full",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithAPMEnabled(true).
-				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
-				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithErrorTrackingMode("full").
-				Build(),
-			WantConfigure: true,
-			Agent:         testAgentErrorTrackingFull(),
 		},
 		{
 			Name: "single step instrumentation with custom injector image",
@@ -506,49 +495,6 @@ func testAgentErrorTrackingStandalone() *test.ComponentTest {
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
 				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
-			coreAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-			expectedCoreAgentEnvs := []*corev1.EnvVar{
-				{
-					Name:  common.DDCoreAgentEnabled,
-					Value: "false",
-				},
-			}
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(coreAgentEnvs, expectedCoreAgentEnvs),
-				"Trace Agent ENVs \ndiff = %s", cmp.Diff(coreAgentEnvs, expectedCoreAgentEnvs),
-			)
-		},
-	)
-}
-
-func testAgentErrorTrackingFull() *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
-		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-			mgr := mgrInterface.(*fake.PodTemplateManagers)
-
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
-			expectedAgentEnvs := []*corev1.EnvVar{
-				{
-					Name:  common.DDAPMEnabled,
-					Value: "true",
-				},
-				{
-					Name:  DDAPMReceiverSocket,
-					Value: apmSocketLocalPath,
-				},
-				{
-					Name:  common.DDAPMErrorTrackingStandaloneEnabled,
-					Value: "true",
-				},
-			}
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
-			)
-			coreAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-			assert.Nil(t, coreAgentEnvs)
 		},
 	)
 }

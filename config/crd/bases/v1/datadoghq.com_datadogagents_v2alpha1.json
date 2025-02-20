@@ -492,11 +492,11 @@
                 },
                 "errorTracking": {
                   "additionalProperties": false,
-                  "description": "ErrorTracking contains the configuration for the Error Tracking product.\nFeature is in beta.",
+                  "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                   "properties": {
-                    "mode": {
+                    "enabled": {
                       "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
-                      "type": "string"
+                      "type": "boolean"
                     }
                   },
                   "type": "object"
@@ -7339,11 +7339,11 @@
                     },
                     "errorTracking": {
                       "additionalProperties": false,
-                      "description": "ErrorTracking contains the configuration for the Error Tracking product.\nFeature is in beta.",
+                      "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                       "properties": {
-                        "mode": {
+                        "enabled": {
                           "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
-                          "type": "string"
+                          "type": "boolean"
                         }
                       },
                       "type": "object"

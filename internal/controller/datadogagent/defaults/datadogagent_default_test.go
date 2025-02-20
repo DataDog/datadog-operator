@@ -218,8 +218,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -582,8 +582,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -736,8 +736,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -885,8 +885,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1034,8 +1034,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1192,8 +1192,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1341,8 +1341,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1493,8 +1493,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1637,8 +1637,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1806,8 +1806,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1956,8 +1956,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2128,8 +2128,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2280,8 +2280,8 @@ func Test_defaultFeatures(t *testing.T) {
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
 							Injector:          &v2alpha1.InjectorConfig{},
 						},
-						ErrorTracking: &v2alpha1.ErrorTracking{
-							Mode: apiutils.NewStringPointer(defaultErrorTrackingMode),
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
