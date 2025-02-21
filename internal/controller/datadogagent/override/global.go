@@ -287,31 +287,22 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				})
 			}
 			if config.Kubelet.PodResourcesSocketPath != "" {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				manager.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 					Name:  DDKubernetesPodResourcesSocket,
 					Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
 				})
 
 				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketPath, config.Kubelet.PodResourcesSocketPath, false)
 				if singleContainerStrategyEnabled {
-					manager.VolumeMount().AddVolumeMountToContainers(
+					manager.VolumeMount().AddVolumeMountToContainer(
 						&podResourcesMount,
-						[]apicommon.AgentContainerName{
-							apicommon.UnprivilegedSingleAgentContainerName,
-						},
+						apicommon.UnprivilegedSingleAgentContainerName,
 					)
 					manager.Volume().AddVolume(&podResourcesVol)
 				} else {
-					manager.VolumeMount().AddVolumeMountToContainers(
+					manager.VolumeMount().AddVolumeMountToContainer(
 						&podResourcesMount,
-						[]apicommon.AgentContainerName{
-							apicommon.CoreAgentContainerName,
-							apicommon.ProcessAgentContainerName,
-							apicommon.TraceAgentContainerName,
-							apicommon.SecurityAgentContainerName,
-							apicommon.AgentDataPlaneContainerName,
-							apicommon.SystemProbeContainerName,
-						},
+						apicommon.CoreAgentContainerName,
 					)
 					manager.Volume().AddVolume(&podResourcesVol)
 				}
