@@ -494,8 +494,7 @@ spec:
                           properties:
                             enabled:
                               description: |-
-                                Defines mode of operation of Error Tracking for backend services.
-                                It can be "disabled", "standalone", or "full".
+                                Enables Error Tracking for backend services.
                                 Default: disabled
                               type: boolean
                           type: object
@@ -7399,8 +7398,7 @@ spec:
                               properties:
                                 enabled:
                                   description: |-
-                                    Defines mode of operation of Error Tracking for backend services.
-                                    It can be "disabled", "standalone", or "full".
+                                    Enables Error Tracking for backend services.
                                     Default: disabled
                                   type: boolean
                               type: object

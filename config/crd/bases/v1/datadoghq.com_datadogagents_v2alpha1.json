@@ -495,7 +495,7 @@
                   "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                   "properties": {
                     "enabled": {
-                      "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
+                      "description": "Enables Error Tracking for backend services.\nDefault: disabled",
                       "type": "boolean"
                     }
                   },
@@ -7342,7 +7342,7 @@
                       "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in beta.",
                       "properties": {
                         "enabled": {
-                          "description": "Defines mode of operation of Error Tracking for backend services.\nIt can be \"disabled\", \"standalone\", or \"full\".\nDefault: disabled",
+                          "description": "Enables Error Tracking for backend services.\nDefault: disabled",
                           "type": "boolean"
                         }
                       },
