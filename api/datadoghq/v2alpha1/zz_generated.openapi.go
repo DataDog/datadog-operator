@@ -891,7 +891,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_ErrorTrackingStandalone(ref 
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables Error Tracking for backend services. Default: disabled",
+							Description: "Enables Error Tracking for backend services. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

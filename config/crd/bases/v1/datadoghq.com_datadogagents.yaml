@@ -490,12 +490,12 @@ spec:
                         errorTrackingStandalone:
                           description: |-
                             ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
-                            Feature is in beta.
+                            Feature is in preview.
                           properties:
                             enabled:
                               description: |-
                                 Enables Error Tracking for backend services.
-                                Default: disabled
+                                Default: false
                               type: boolean
                           type: object
                         hostPortConfig:
@@ -7394,12 +7394,12 @@ spec:
                             errorTrackingStandalone:
                               description: |-
                                 ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
-                                Feature is in beta.
+                                Feature is in preview.
                               properties:
                                 enabled:
                                   description: |-
                                     Enables Error Tracking for backend services.
-                                    Default: disabled
+                                    Default: false
                                   type: boolean
                               type: object
                             hostPortConfig:
