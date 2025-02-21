@@ -2,6 +2,8 @@ package datadogagent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -648,5 +650,166 @@ func defaultProfile() v1alpha1.DatadogAgentProfile {
 			Namespace: "",
 			Name:      "default",
 		},
+	}
+}
+
+func Test_updateSecretHash(t *testing.T) {
+	sch := runtime.NewScheme()
+	_ = scheme.AddToScheme(sch)
+	_ = v1alpha1.AddToScheme(sch)
+	_ = v2alpha1.AddToScheme(sch)
+
+	tests := []struct {
+		name          string
+		dda           *v2alpha1.DatadogAgent
+		secret        *corev1.Secret
+		expectedEnv   string
+		expectedValue string
+	}{
+		{
+			name: "API key secret present",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "test-secret",
+							},
+						},
+					},
+				},
+			},
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"api-key": []byte("test-api-key"),
+				},
+			},
+			expectedEnv:   "API_SECRET_HASH",
+			expectedValue: "test-api-key",
+		},
+		{
+			name: "API key secret not present",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{},
+					},
+				},
+			},
+			secret:        nil,
+			expectedEnv:   "",
+			expectedValue: "",
+		},
+		{
+			name: "API key secret was used but not anymore",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "API_SECRET_HASH",
+								Value: "old-hash",
+							},
+						},
+					},
+				},
+			},
+			secret:        nil,
+			expectedEnv:   "",
+			expectedValue: "",
+		},
+		{
+			name: "API key wasn't used, but now is",
+			dda: &v2alpha1.DatadogAgent{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dda",
+					Namespace: "default",
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						Credentials: &v2alpha1.DatadogCredentials{
+							APISecret: &v2alpha1.SecretConfig{
+								SecretName: "test-secret",
+							},
+						},
+					},
+				},
+			},
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: "default",
+				},
+				Data: map[string][]byte{
+					"api-key": []byte("test-api-key"),
+				},
+			},
+			expectedEnv:   "API_SECRET_HASH",
+			expectedValue: "test-api-key",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var objs []client.Object
+			objs = append(objs, tt.dda)
+			if tt.secret != nil {
+				objs = append(objs, tt.secret)
+			}
+
+			client := fake.NewClientBuilder().WithScheme(sch).WithObjects(objs...).Build()
+			reconciler := &Reconciler{
+				client: client,
+				log:    logf.Log.WithName("Test_updateSecretHash"),
+				options: ReconcilerOptions{
+					DatadogAgentProfileEnabled: true,
+				},
+			}
+
+			// Call the updateSecretHash function
+			reconciler.updateSecretHash(context.Background(), tt.dda)
+
+			// Verify that the secret hash was appended to spec.global.env if secret is present
+			if tt.secret != nil {
+				expectedHash := sha256.New()
+				expectedHash.Write([]byte(tt.expectedValue))
+				secretHash := hex.EncodeToString(expectedHash.Sum(nil))
+
+				found := false
+				for _, envVar := range tt.dda.Spec.Global.Env {
+					if envVar.Name == tt.expectedEnv && envVar.Value == secretHash {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, fmt.Sprintf("%s not found in spec.global.env", tt.expectedEnv))
+			} else {
+				found := false
+				for _, envVar := range tt.dda.Spec.Global.Env {
+					if envVar.Name == "API_SECRET_HASH" {
+						found = true
+						break
+					}
+				}
+				assert.False(t, found, "API_SECRET_HASH should not be present in spec.global.env")
+			}
+		})
 	}
 }
