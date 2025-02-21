@@ -7,7 +7,6 @@ package v1alpha1
 
 import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

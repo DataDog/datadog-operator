@@ -307,7 +307,7 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
-	bin/$(PLATFORM)/golangci-lint run ./...
+	bin/$(PLATFORM)/golangci-lint run ./... ./api/... ./test/e2e/...
 
 .PHONY: licenses
 licenses: bin/$(PLATFORM)/go-licenses
