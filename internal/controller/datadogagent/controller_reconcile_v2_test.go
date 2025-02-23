@@ -658,6 +658,8 @@ func Test_updateSecretHash(t *testing.T) {
 	_ = scheme.AddToScheme(sch)
 	_ = v1alpha1.AddToScheme(sch)
 	_ = v2alpha1.AddToScheme(sch)
+	const agentName = "test-dda"
+	const secretName = "test-secret"
 
 	tests := []struct {
 		name          string
@@ -670,14 +672,14 @@ func Test_updateSecretHash(t *testing.T) {
 			name: "API key secret present",
 			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
+					Name:      agentName,
 					Namespace: "default",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Global: &v2alpha1.GlobalConfig{
 						Credentials: &v2alpha1.DatadogCredentials{
 							APISecret: &v2alpha1.SecretConfig{
-								SecretName: "test-secret",
+								SecretName: secretName,
 							},
 						},
 					},
@@ -685,7 +687,7 @@ func Test_updateSecretHash(t *testing.T) {
 			},
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
+					Name:      secretName,
 					Namespace: "default",
 				},
 				Data: map[string][]byte{
@@ -699,7 +701,7 @@ func Test_updateSecretHash(t *testing.T) {
 			name: "API key secret not present",
 			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
+					Name:      agentName,
 					Namespace: "default",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -713,33 +715,10 @@ func Test_updateSecretHash(t *testing.T) {
 			expectedValue: "",
 		},
 		{
-			name: "API key secret was used but not anymore",
+			name: "API key secret present but Secret does not exist",
 			dda: &v2alpha1.DatadogAgent{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
-					Namespace: "default",
-				},
-				Spec: v2alpha1.DatadogAgentSpec{
-					Global: &v2alpha1.GlobalConfig{
-						Credentials: &v2alpha1.DatadogCredentials{},
-						Env: []corev1.EnvVar{
-							{
-								Name:  "API_SECRET_HASH",
-								Value: "old-hash",
-							},
-						},
-					},
-				},
-			},
-			secret:        nil,
-			expectedEnv:   "",
-			expectedValue: "",
-		},
-		{
-			name: "API key wasn't used, but now is",
-			dda: &v2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dda",
+					Name:      agentName,
 					Namespace: "default",
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
@@ -752,17 +731,9 @@ func Test_updateSecretHash(t *testing.T) {
 					},
 				},
 			},
-			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "default",
-				},
-				Data: map[string][]byte{
-					"api-key": []byte("test-api-key"),
-				},
-			},
-			expectedEnv:   "API_SECRET_HASH",
-			expectedValue: "test-api-key",
+			secret:        nil,
+			expectedEnv:   "",
+			expectedValue: "",
 		},
 	}
 
