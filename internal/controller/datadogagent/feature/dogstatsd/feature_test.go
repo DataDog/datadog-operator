@@ -300,7 +300,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: "adp enabled",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
-					utils.EnableADPAnnotation: "false",
+					utils.EnableADPAnnotation: "true",
 				}).
 				BuildWithDefaults(),
 			WantConfigure: true,
