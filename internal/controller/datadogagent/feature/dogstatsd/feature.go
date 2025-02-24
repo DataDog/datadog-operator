@@ -178,6 +178,11 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers,
 			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  common.DDADPEnabled,
+			Value: "true",
+		})
 	} else {
 		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
 	}

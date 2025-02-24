@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -292,6 +293,70 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					}
 					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getOriginDetectionClientEnvVar(), &wantTagCardinalityEnvVar)
 					assertWants(t, mgrInterface, "15", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVars(), getWantHostPorts())
+				},
+			),
+		},
+		{
+			Name:          "adp disabled (default)",
+			DDA:           testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					adpEnabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDADPEnabled,
+						Value: "true",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotContains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should not be set")
+				},
+			),
+		},
+		{
+			Name: "adp disabled (forced)",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					utils.EnableADPAnnotation: "false",
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					adpEnabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDADPEnabled,
+						Value: "true",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.NotContains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should not be set")
+				},
+			),
+		},
+		{
+			Name: "adp enabled",
+			DDA: testutils.NewDefaultDatadogAgentBuilder().
+				WithAnnotations(map[string]string{
+					utils.EnableADPAnnotation: "false",
+				}).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					dsdDisabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDDogstatsdEnabled,
+						Value: "false",
+					}
+					adpEnabledEnvVar := &corev1.EnvVar{
+						Name:  common.DDADPEnabled,
+						Value: "true",
+					}
+
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+					assert.Contains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should be set to true")
+					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false")
 				},
 			),
 		},

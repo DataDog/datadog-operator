@@ -14,17 +14,17 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
-const ProcessCongigRunInCoreAgentMinVersion = "7.60.0-0"
-const enableAdpAnnotation = "agent.datadoghq.com/adp-enabled"
+const ProcessConFigRunInCoreAgentMinVersion = "7.60.0-0"
+const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
 
 func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 	// Agent version must >= 7.60.0 to run feature in core agent
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessCongigRunInCoreAgentMinVersion)
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessConFigRunInCoreAgentMinVersion)
 		}
 	}
-	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, ProcessCongigRunInCoreAgentMinVersion)
+	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, ProcessConFigRunInCoreAgentMinVersion)
 }
 
 // OverrideProcessConfigRunInCoreAgent determines whether to respect the currentVal based on
@@ -57,5 +57,5 @@ func hasFeatureEnableAnnotation(dda *v2alpha1.DatadogAgent, annotation string) b
 
 // HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
 func HasAgentDataPlaneAnnotation(dda *v2alpha1.DatadogAgent) bool {
-	return hasFeatureEnableAnnotation(dda, enableAdpAnnotation)
+	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
 }

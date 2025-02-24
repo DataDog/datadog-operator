@@ -26,6 +26,7 @@ const (
 	DDSystemProbeEnabled                = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeExternal               = "DD_SYSTEM_PROBE_EXTERNAL"
 	DDSystemProbeSocket                 = "DD_SYSPROBE_SOCKET"
+	DDADPEnabled                        = "DD_ADP_ENABLED"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
