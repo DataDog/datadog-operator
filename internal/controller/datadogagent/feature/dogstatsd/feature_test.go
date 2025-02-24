@@ -297,44 +297,6 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			),
 		},
 		{
-			Name:          "adp disabled (default)",
-			DDA:           testutils.NewDefaultDatadogAgentBuilder().BuildWithDefaults(),
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					adpEnabledEnvVar := &corev1.EnvVar{
-						Name:  common.DDADPEnabled,
-						Value: "true",
-					}
-
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.NotContains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should not be set")
-				},
-			),
-		},
-		{
-			Name: "adp disabled (forced)",
-			DDA: testutils.NewDefaultDatadogAgentBuilder().
-				WithAnnotations(map[string]string{
-					utils.EnableADPAnnotation: "false",
-				}).
-				BuildWithDefaults(),
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					adpEnabledEnvVar := &corev1.EnvVar{
-						Name:  common.DDADPEnabled,
-						Value: "true",
-					}
-
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.NotContains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should not be set")
-				},
-			),
-		},
-		{
 			Name: "adp enabled",
 			DDA: testutils.NewDefaultDatadogAgentBuilder().
 				WithAnnotations(map[string]string{
@@ -348,14 +310,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						Name:  common.DDDogstatsdEnabled,
 						Value: "false",
 					}
-					adpEnabledEnvVar := &corev1.EnvVar{
-						Name:  common.DDADPEnabled,
-						Value: "true",
-					}
 
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-					assert.Contains(t, agentEnvVars, adpEnabledEnvVar, "DD_ADP_ENABLED should be set to true")
 					assert.Contains(t, agentEnvVars, dsdDisabledEnvVar, "DD_USE_DOGSTATSD should be set to false")
 				},
 			),
