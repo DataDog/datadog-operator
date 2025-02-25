@@ -242,8 +242,8 @@ publish_public_main:
     IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
 
-publish_public_tag_fips:
-  extends: publish_public_tag
+publish_public_main_fips:
+  extends: publish_public_main
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
     IMG_DESTINATIONS: operator:main-fips
