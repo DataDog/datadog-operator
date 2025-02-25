@@ -105,8 +105,8 @@ func agentImage() string {
 }
 
 func otelAgentImage() string {
-	// todo(mackjmr): make this dynamic once we have otel agent image which releases with regular agent.
-	return fmt.Sprintf("%s:%s", defaulting.AgentDevImageName, defaulting.OTelAgentNightlyTag)
+	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
+	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.OTelAgentBetaTag)
 
 }
 
