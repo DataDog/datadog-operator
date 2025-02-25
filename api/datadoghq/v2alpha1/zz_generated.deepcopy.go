@@ -921,6 +921,11 @@ func (in *DatadogAgentGenericContainer) DeepCopyInto(out *DatadogAgentGenericCon
 		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Image != nil {
+		in, out := &in.Image, &out.Image
+		*out = new(AgentImageConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Command != nil {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))
