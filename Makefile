@@ -68,8 +68,9 @@ all: build test ## Build test
 build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 .PHONY: fmt
-fmt: ## Run go fmt against code
+fmt: bin/$(PLATFORM)/golangci-lint ## Run formatters against code
 	go fmt ./...
+	bin/$(PLATFORM)/golangci-lint run ./... --fix
 
 .PHONY: vet
 vet: ## Run go vet against code
@@ -190,7 +191,7 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and integration tests
+test: build manifests generate lint verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and integration tests
 
 .PHONY: gotest
 gotest:
@@ -306,7 +307,7 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 	hack/patch-crds.sh
 
 .PHONY: lint
-lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
+lint: bin/$(PLATFORM)/golangci-lint vet ## Lint
 	bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: licenses
