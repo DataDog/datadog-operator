@@ -1710,6 +1710,10 @@ type DatadogAgentGenericContainer struct {
 	//+optional
 	Name *string `json:"name,omitempty"`
 
+	// Image override.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
 	// LogLevel sets logging verbosity (overrides global setting).
 	// Valid log levels are: trace, debug, info, warn, error, critical, and off.
 	// Default: 'info'
