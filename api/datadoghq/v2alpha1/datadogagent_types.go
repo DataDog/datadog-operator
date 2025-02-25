@@ -1787,6 +1787,10 @@ type DatadogAgentGenericContainer struct {
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// The container image of the container.
+	// +optional
+	Image *AgentImageConfig `json:"image,omitempty"`
+
 	// Command allows the specification of a custom entrypoint for container
 	// +listType=atomic
 	Command []string `json:"command,omitempty"`

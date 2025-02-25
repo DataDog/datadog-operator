@@ -3920,6 +3920,46 @@
                       "format": "int32",
                       "type": "integer"
                     },
+                    "image": {
+                      "additionalProperties": false,
+                      "description": "The container image of the container.",
+                      "properties": {
+                        "jmxEnabled": {
+                          "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                          "type": "boolean"
+                        },
+                        "name": {
+                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                          "type": "string"
+                        },
+                        "pullPolicy": {
+                          "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                          "type": "string"
+                        },
+                        "pullSecrets": {
+                          "description": "It is possible to specify Docker registry credentials.\nSee https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
+                            "properties": {
+                              "name": {
+                                "default": "",
+                                "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic"
+                          },
+                          "type": "array"
+                        },
+                        "tag": {
+                          "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "livenessProbe": {
                       "additionalProperties": false,
                       "description": "Configure the Liveness Probe of the container",
