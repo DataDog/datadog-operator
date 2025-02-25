@@ -39,8 +39,6 @@ const (
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	AgentDevImageName                   = "datadog/agent-dev"
-	// Nightly dev image tag for otel agent
 	OTelAgentBetaTag = "7.63.0-ot-beta-jmx"
 )
 
