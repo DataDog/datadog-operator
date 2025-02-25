@@ -258,11 +258,11 @@ func TestAPMFeature(t *testing.T) {
 					[]v2alpha1.SSITarget{
 						{
 							Name: "sometarget",
-							PodSelector: &v2alpha1.PodSelector{
+							PodSelector: &v1.LabelSelector{
 								MatchLabels: map[string]string{
 									"key": "value",
 								},
-								MatchExpressions: []v2alpha1.SelectorMatchExpression{
+								MatchExpressions: []v1.LabelSelectorRequirement{
 									{
 										Key:      "somekey",
 										Operator: v1.LabelSelectorOpIn,
@@ -276,7 +276,7 @@ func TestAPMFeature(t *testing.T) {
 									"key1": "val1",
 									"key2": "val2",
 								},
-								MatchExpressions: []v2alpha1.SelectorMatchExpression{
+								MatchExpressions: []v1.LabelSelectorRequirement{
 									{
 										Key:      "somekey1",
 										Operator: v1.LabelSelectorOpIn,
@@ -288,7 +288,7 @@ func TestAPMFeature(t *testing.T) {
 								"dotnet": "2",
 								"java":   "1",
 							},
-							TracerConfigs: []v2alpha1.TracerConfig{
+							TracerConfigs: []corev1.EnvVar{
 								{
 									Name:  "DD_PROFILING_ENABLED",
 									Value: "true",

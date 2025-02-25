@@ -186,7 +186,7 @@ type SSITarget struct {
 	// PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
 	// conjunction with the NamespaceSelector to match the pods.
 	// +optional
-	PodSelector *PodSelector `json:"podSelector,omitempty"`
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
 	// NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
 	// be used in conjunction with the Selector to match the pods.
 	// +optional
@@ -198,34 +198,9 @@ type SSITarget struct {
 	// TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
 	// as environment variables in addition to the injected tracer.
 	// +optional
-	TracerConfigs []TracerConfig `json:"ddTraceConfigs,omitempty"`
-}
-
-// PodSelector is a reconstruction of the metav1.LabelSelector struct to be able to unmarshal the configuration. It
-// can be converted to a metav1.LabelSelector using the AsLabelSelector method.
-type PodSelector struct {
-	// MatchLabels is a map of key-value pairs to match the labels of the pod. The labels and expressions are ANDed.
-	// +optional
-	MatchLabels map[string]string `json:"matchLabels,omitempty"`
-	// MatchExpressions is a list of label selector requirements to match the labels of the pod. The labels and
-	// expressions are ANDed.
-	// +optional
-	MatchExpressions []SelectorMatchExpression `json:"matchExpressions,omitempty"`
-}
-
-// SelectorMatchExpression is a reconstruction of the metav1.LabelSelectorRequirement struct to be able to unmarshal
-// the configuration.
-type SelectorMatchExpression struct {
-	// Key is the key of the label to match.
-	// +optional
-	Key string `json:"key,omitempty"`
-	// Operator is the operator to use to match the label. Valid values are In, NotIn, Exists, DoesNotExist.
-	// +optional
-	Operator metav1.LabelSelectorOperator `json:"operator,omitempty"`
-	// Values is a list of values to match the label against. If the operator is Exists or DoesNotExist, the values
-	// should be empty. If the operator is In or NotIn, the values should be non-empty.
-	// +optional
-	Values []string `json:"values,omitempty"`
+	// +listType=map
+	// +listMapKey=name
+	TracerConfigs []corev1.EnvVar `json:"ddTraceConfigs,omitempty"`
 }
 
 // NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
@@ -241,16 +216,7 @@ type NamespaceSelector struct {
 	// MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
 	// expressions are ANDed. This cannot be used with MatchNames.
 	// +optional
-	MatchExpressions []SelectorMatchExpression `json:"matchExpressions,omitempty"`
-}
-
-// TracerConfig is a struct that stores configuration options for a tracer. These will be injected as environment
-// variables to the workload that matches targeting.
-type TracerConfig struct {
-	// Name is the name of the environment variable.
-	Name string `json:"name"`
-	// Value is the value to use.
-	Value string `json:"value"`
+	MatchExpressions []metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.
