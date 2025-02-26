@@ -39,7 +39,7 @@ const (
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	OTelAgentBetaTag = "7.63.0-ot-beta-jmx"
+	OTelAgentBetaTag                    = "7.63.0-ot-beta-jmx"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
