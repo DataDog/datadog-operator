@@ -16,9 +16,9 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.62.2"
+	AgentLatestVersion = "7.63.0"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.62.2"
+	ClusterAgentLatestVersion = "7.63.0"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
 	FIPSProxyLatestVersion = "1.1.7"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
@@ -39,9 +39,7 @@ const (
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	AgentDevImageName                   = "datadog/agent-dev"
-	// Nightly dev image tag for otel agent
-	OTelAgentNightlyTag = "nightly-ot-beta-main"
+	OTelAgentBetaTag                    = "7.63.0-ot-beta-jmx"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix

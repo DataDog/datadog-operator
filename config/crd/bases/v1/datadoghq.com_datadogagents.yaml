@@ -487,6 +487,17 @@ spec:
                             Enabled enables Application Performance Monitoring.
                             Default: true
                           type: boolean
+                        errorTrackingStandalone:
+                          description: |-
+                            ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+                            Feature is in preview.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables Error Tracking for backend services.
+                                Default: false
+                              type: boolean
+                          type: object
                         hostPortConfig:
                           description: |-
                             HostPortConfig contains host port configuration.
@@ -7610,6 +7621,17 @@ spec:
                                 Enabled enables Application Performance Monitoring.
                                 Default: true
                               type: boolean
+                            errorTrackingStandalone:
+                              description: |-
+                                ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+                                Feature is in preview.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enables Error Tracking for backend services.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             hostPortConfig:
                               description: |-
                                 HostPortConfig contains host port configuration.

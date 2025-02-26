@@ -490,6 +490,17 @@
                   "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                   "type": "boolean"
                 },
+                "errorTrackingStandalone": {
+                  "additionalProperties": false,
+                  "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in preview.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables Error Tracking for backend services.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "hostPortConfig": {
                   "additionalProperties": false,
                   "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8126",
@@ -7578,6 +7589,17 @@
                     "enabled": {
                       "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                       "type": "boolean"
+                    },
+                    "errorTrackingStandalone": {
+                      "additionalProperties": false,
+                      "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in preview.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enables Error Tracking for backend services.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     },
                     "hostPortConfig": {
                       "additionalProperties": false,
