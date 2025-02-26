@@ -14,13 +14,14 @@ IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
-LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
+LDFLAGS=-X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
 CHANNELS=stable
 DEFAULT_CHANNEL=stable
 GOARCH?=
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
+FIPS_ENABLED?=false
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -157,7 +158,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
 # For local use
 .PHONY: docker-build-check-ci
@@ -168,7 +169,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
