@@ -22,6 +22,9 @@ func buildDashboard(logger logr.Logger, ddb *v1alpha1.DatadogDashboard) *datadog
 	json.Unmarshal([]byte(ddb.Spec.Widgets), widgetList)
 
 	dashboard := datadogV1.NewDashboard(layoutType, ddb.Spec.Title, *widgetList)
+	// isReadOnly is deprecated
+	// TODO: remove once NewDashboard in datadog-api-client-go is updated
+	dashboard.IsReadOnly = nil
 
 	if ddb.Spec.Description != "" {
 		dashboard.SetDescription(ddb.Spec.Description)
