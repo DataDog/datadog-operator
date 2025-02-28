@@ -819,6 +819,220 @@ spec:
                   required:
                     - maxReplicas
                   type: object
+                fallbackApplyPolicy:
+                  default: {}
+                  description: FallbackApplyPolicy defines how recommendations should be applied when in fallback mode.
+                  properties:
+                    mode:
+                      default: Apply
+                      description: |-
+                        Mode determines recommendations that should be applied by the controller:
+                        - Apply: Apply all recommendations.
+                        - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
+                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
+                      enum:
+                        - Apply
+                        - Preview
+                      type: string
+                    scaleDown:
+                      description: ScaleDown defines the policy to scale down the target resource.
+                      properties:
+                        rules:
+                          description: |-
+                            Rules is a list of potential scaling polices which can be used during scaling.
+                            At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
+                          items:
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
+                            properties:
+                              periodSeconds:
+                                description: |-
+                                  PeriodSeconds specifies the window of time for which the policy should hold true.
+                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                format: int32
+                                maximum: 1800
+                                minimum: 1
+                                type: integer
+                              type:
+                                description: Type is used to specify the scaling policy.
+                                enum:
+                                  - Pods
+                                  - Percent
+                                type: string
+                              value:
+                                description: |-
+                                  Value contains the amount of change which is permitted by the policy.
+                                  Setting it to 0 will prevent any scaling in this direction.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                            required:
+                              - periodSeconds
+                              - type
+                              - value
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        stabilizationWindowSeconds:
+                          description: |-
+                            StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
+                            before deciding to apply a new one. Defaults to 0.
+                          format: int32
+                          maximum: 1800
+                          minimum: 0
+                          type: integer
+                        strategy:
+                          description: |-
+                            Strategy is used to specify which policy should be used.
+                            If not set, the default value Max is used.
+                          enum:
+                            - Max
+                            - Min
+                            - Disabled
+                          type: string
+                      type: object
+                    scaleUp:
+                      description: ScaleUp defines the policy to scale up the target resource.
+                      properties:
+                        rules:
+                          description: |-
+                            Rules is a list of potential scaling polices which can be used during scaling.
+                            At least one policy must be specified, otherwise the DatadogPodAutoscalerScalingPolicy will be discarded as invalid
+                          items:
+                            description: DatadogPodAutoscalerScalingRule defines rules for horizontal scaling that should be true for a certain amount of time.
+                            properties:
+                              periodSeconds:
+                                description: |-
+                                  PeriodSeconds specifies the window of time for which the policy should hold true.
+                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                format: int32
+                                maximum: 1800
+                                minimum: 1
+                                type: integer
+                              type:
+                                description: Type is used to specify the scaling policy.
+                                enum:
+                                  - Pods
+                                  - Percent
+                                type: string
+                              value:
+                                description: |-
+                                  Value contains the amount of change which is permitted by the policy.
+                                  Setting it to 0 will prevent any scaling in this direction.
+                                format: int32
+                                minimum: 0
+                                type: integer
+                            required:
+                              - periodSeconds
+                              - type
+                              - value
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        stabilizationWindowSeconds:
+                          description: |-
+                            StabilizationWindowSeconds is the number of seconds the controller should lookback at previous recommendations
+                            before deciding to apply a new one. Defaults to 0.
+                          format: int32
+                          maximum: 1800
+                          minimum: 0
+                          type: integer
+                        strategy:
+                          description: |-
+                            Strategy is used to specify which policy should be used.
+                            If not set, the default value Max is used.
+                          enum:
+                            - Max
+                            - Min
+                            - Disabled
+                          type: string
+                      type: object
+                    update:
+                      description: Update defines the policy for updating the target resource.
+                      properties:
+                        strategy:
+                          description: Strategy defines the mode of the update policy.
+                          enum:
+                            - Auto
+                            - Disabled
+                          type: string
+                      type: object
+                  type: object
+                fallbackObjectives:
+                  description: |-
+                    Objectives are the objectives to reach and maintain for the target resource when in fallback mode.
+                    Default to a single objective to maintain 80% POD CPU utilization.
+                  items:
+                    description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
+                    properties:
+                      containerResource:
+                        description: ContainerResource allows to set a container-level resource objective.
+                        properties:
+                          container:
+                            description: Container is the name of the container.
+                            type: string
+                          name:
+                            description: Name is the name of the resource.
+                            enum:
+                              - cpu
+                            type: string
+                          value:
+                            description: Value is the value of the objective
+                            properties:
+                              type:
+                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                type: string
+                              utilization:
+                                description: Utilization defines a percentage of the target compared to requested workload
+                                format: int32
+                                maximum: 100
+                                minimum: 0
+                                type: integer
+                            required:
+                              - type
+                            type: object
+                        required:
+                          - container
+                          - name
+                          - value
+                        type: object
+                      podResource:
+                        description: PodResource allows to set a pod-level resource objective.
+                        properties:
+                          name:
+                            description: Name is the name of the resource.
+                            enum:
+                              - cpu
+                            type: string
+                          value:
+                            description: Value is the value of the objective.
+                            properties:
+                              type:
+                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
+                                type: string
+                              utilization:
+                                description: Utilization defines a percentage of the target compared to requested workload
+                                format: int32
+                                maximum: 100
+                                minimum: 0
+                                type: integer
+                            required:
+                              - type
+                            type: object
+                        required:
+                          - name
+                          - value
+                        type: object
+                      type:
+                        description: Type sets the type of the objective.
+                        enum:
+                          - PodResource
+                          - ContainerResource
+                        type: string
+                    required:
+                      - type
+                    type: object
+                  type: array
+                  x-kubernetes-list-type: atomic
                 objectives:
                   description: |-
                     Objectives are the objectives to reach and maintain for the target resource.
