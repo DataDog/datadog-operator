@@ -11,7 +11,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
@@ -24,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -233,7 +233,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil).
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
@@ -246,6 +246,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
 				WithAdmissionControllerEnabled(true).
+				WithClusterAgentTag(minInstrumentationTargetsVersion).
 				WithAPMSingleStepInstrumentationEnabled(true,
 					nil,
 					[]string{"foo", "bar"},
@@ -253,7 +254,52 @@ func TestAPMFeature(t *testing.T) {
 						"java": "1.2.4",
 					},
 					false,
-					"").
+					"",
+					[]v2alpha1.SSITarget{
+						{
+							Name: "sometarget",
+							PodSelector: &v1.LabelSelector{
+								MatchLabels: map[string]string{
+									"key": "value",
+								},
+								MatchExpressions: []v1.LabelSelectorRequirement{
+									{
+										Key:      "somekey",
+										Operator: v1.LabelSelectorOpIn,
+										Values:   []string{"value1", "value2"},
+									},
+								},
+							},
+							NamespaceSelector: &v2alpha1.NamespaceSelector{
+								MatchNames: []string{"name1", "name2"},
+								MatchLabels: map[string]string{
+									"key1": "val1",
+									"key2": "val2",
+								},
+								MatchExpressions: []v1.LabelSelectorRequirement{
+									{
+										Key:      "somekey1",
+										Operator: v1.LabelSelectorOpIn,
+										Values:   []string{"value1", "value2"},
+									},
+								},
+							},
+							TracerVersions: map[string]string{
+								"dotnet": "2",
+								"java":   "1",
+							},
+							TracerConfigs: []corev1.EnvVar{
+								{
+									Name:  "DD_PROFILING_ENABLED",
+									Value: "true",
+								},
+								{
+									Name:  "DD_DATA_JOBS_ENABLED",
+									Value: "true",
+								},
+							},
+						},
+					}).
 				WithSingleContainerStrategy(false).
 				Build(),
 			WantConfigure: true,
@@ -271,7 +317,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(false).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: false,
@@ -282,7 +328,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil).
 				WithAdmissionControllerEnabled(false).
 				WithSingleContainerStrategy(false).
 				Build(),
@@ -296,7 +342,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false, "").
+				WithAPMSingleStepInstrumentationEnabled(false, []string{"foo", "bar"}, nil, map[string]string{"java": "1.2.4"}, false, "", nil).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -308,7 +354,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -327,7 +373,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "", nil).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -346,7 +392,7 @@ func TestAPMFeature(t *testing.T) {
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, true, "", nil).
 				WithAdmissionControllerEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -367,12 +413,23 @@ func TestAPMFeature(t *testing.T) {
 			},
 		},
 		{
+			Name: "error tracking standalone",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, apiutils.NewInt32Pointer(8126)).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithErrorTrackingStandalone(true).
+				Build(),
+			WantConfigure: true,
+			Agent:         testAgentErrorTrackingStandalone(),
+		},
+		{
 			Name: "single step instrumentation with custom injector image",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				WithAPMHostPortEnabled(true, apiutils.NewInt32Pointer(8126)).
 				WithAPMUDSEnabled(true, apmSocketHostPath).
-				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "0.27.0").
+				WithAPMSingleStepInstrumentationEnabled(true, nil, nil, nil, false, "0.27.0", nil).
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -454,6 +511,35 @@ func testAgentHostPortOnly() *test.ComponentTest {
 				t,
 				apiutils.IsEqualStruct(agentPorts, expectedPorts),
 				"Trace Agent Ports \ndiff = %s", cmp.Diff(agentPorts, expectedPorts),
+			)
+		},
+	)
+}
+
+func testAgentErrorTrackingStandalone() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.TraceAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  common.DDAPMEnabled,
+					Value: "true",
+				},
+				{
+					Name:  DDAPMReceiverSocket,
+					Value: apmSocketLocalPath,
+				},
+				{
+					Name:  common.DDAPMErrorTrackingStandaloneEnabled,
+					Value: "true",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 		},
 	)
@@ -549,6 +635,10 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 				{
 					Name:  DDAPMInstrumentationLibVersions,
 					Value: "{\"java\":\"1.2.4\"}",
+				},
+				{
+					Name:  DDAPMInstrumentationTargets,
+					Value: `[{"name":"sometarget","podSelector":{"matchLabels":{"key":"value"},"matchExpressions":[{"key":"somekey","operator":"In","values":["value1","value2"]}]},"namespaceSelector":{"matchNames":["name1","name2"],"matchLabels":{"key1":"val1","key2":"val2"},"matchExpressions":[{"key":"somekey1","operator":"In","values":["value1","value2"]}]},"ddTraceVersions":{"dotnet":"2","java":"1"},"ddTraceConfigs":[{"name":"DD_PROFILING_ENABLED","value":"true"},{"name":"DD_DATA_JOBS_ENABLED","value":"true"}]}]`,
 				},
 			}
 			assert.True(
@@ -695,7 +785,7 @@ func testAPMInstrumentationWithLanguageDetectionForNodeAgent(languageDetectionEn
 					},
 					{
 						Name:  common.DDProcessConfigRunInCoreAgent,
-						Value: utils.BoolToString(&processChecksInCoreAgent),
+						Value: apiutils.BoolToString(&processChecksInCoreAgent),
 					},
 				}
 			}

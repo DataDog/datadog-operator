@@ -55,6 +55,7 @@ const (
 	defaultCWSSyscallMonitorEnabled   bool   = false
 	defaultCWSNetworkEnabled          bool   = true
 	defaultCWSSecurityProfilesEnabled bool   = true
+	defaultAPMErrorTrackingStandalone bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -116,7 +117,7 @@ const (
 
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
-	defaultKubeletPodResourcesSocket = "/var/lib/kubelet/pod-resources/kubelet.sock"
+	defaultKubeletPodResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -198,8 +199,8 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
 	}
 
-	if ddaSpec.Global.Kubelet.PodResourcesSocket == "" {
-		ddaSpec.Global.Kubelet.PodResourcesSocket = defaultKubeletPodResourcesSocket
+	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
@@ -322,6 +323,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
+
+		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{}
+		}
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultAPMErrorTrackingStandalone)
 	}
 
 	// ASM Features

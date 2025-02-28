@@ -647,6 +647,14 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{
+		Enabled: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
@@ -667,7 +675,14 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithClusterAgentTag(tag string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
+		Image: &v2alpha1.AgentImageConfig{Tag: tag},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -678,6 +693,7 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
+		Targets: targets,
 	}
 	return builder
 }
@@ -838,12 +854,12 @@ func (builder *DatadogAgentBuilder) WithHelmCheckValuesAsTags(valuesAsTags map[s
 
 // Global Kubelet
 
-func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocket string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool, podResourcesSocketDir string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.Kubelet = &v2alpha1.KubeletConfig{
-		TLSVerify:          apiutils.NewBoolPointer(tlsVerify),
-		HostCAPath:         hostCAPath,
-		AgentCAPath:        agentCAPath,
-		PodResourcesSocket: podResourcesSocket,
+		TLSVerify:              apiutils.NewBoolPointer(tlsVerify),
+		HostCAPath:             hostCAPath,
+		AgentCAPath:            agentCAPath,
+		PodResourcesSocketPath: podResourcesSocketDir,
 	}
 	return builder
 }
