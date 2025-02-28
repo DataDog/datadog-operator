@@ -948,6 +948,10 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// SecurityContext specifies the security context for the profile.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KubernetesAdmissionEventsConfig struct {
