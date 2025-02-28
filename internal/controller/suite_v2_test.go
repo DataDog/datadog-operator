@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build integration_v2 && !integration
-// +build integration_v2,!integration
+//go:build integration
+// +build integration
 
 // Note: This is very similar to "suite_test.go". The only differences are that
 // here we patch the CRDs to store and serve v2alpha1 and configure the
