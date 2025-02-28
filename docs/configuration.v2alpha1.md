@@ -57,6 +57,7 @@ spec:
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enables Application Performance Monitoring. Default: true |
+| features.apm.errorTrackingStandalone.enabled | Enables Error Tracking for backend services. Default: false |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
@@ -65,6 +66,7 @@ spec:
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
+| features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
@@ -229,7 +231,7 @@ spec:
 | global.kubelet.host.secretKeyRef.name | Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names |
 | global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
-| global.kubelet.podResourcesSocket | PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments Default: `/var/lib/kubelet/pod-resources/kubelet.sock` |
+| global.kubelet.podResourcesSocketPath | PodResourcesSocketPath is the host path where the pod resources socket is stored. Default: `/var/lib/kubelet/pod-resources/` |
 | global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
 | global.kubernetesResourcesAnnotationsAsTags | Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
 | global.kubernetesResourcesLabelsAsTags | Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
