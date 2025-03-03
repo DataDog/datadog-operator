@@ -79,13 +79,11 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	defaultAdmissionControllerAgentSidecarClusterAgentEnabled bool   = true
-	defaultAdmissionControllerEnabled                         bool   = true
-	defaultAdmissionControllerValidationEnabled               bool   = true
-	defaultAdmissionControllerMutationEnabled                 bool   = true
-	defaultAdmissionControllerMutateUnlabelled                bool   = false
-	defaultAdmissionServiceName                               string = "datadog-admission-controller"
-
+	defaultAdmissionControllerAgentSidecarClusterAgentEnabled  bool = true
+	defaultAdmissionControllerEnabled                          bool = true
+	defaultAdmissionControllerValidationEnabled                bool = true
+	defaultAdmissionControllerMutationEnabled                  bool = true
+	defaultAdmissionControllerMutateUnlabelled                 bool = false
 	defaultAdmissionControllerKubernetesAdmissionEventsEnabled bool = false
 
 	// DefaultAdmissionControllerCWSInstrumentationEnabled default CWS Instrumentation enabled value
@@ -515,7 +513,6 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if *ddaSpec.Features.AdmissionController.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
 	}
 
 	// AdmissionControllerValidation Feature
