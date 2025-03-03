@@ -149,8 +149,6 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	if override.SecurityContext != nil {
 		container.SecurityContext = override.SecurityContext
 	}
-
-	overrideContainerImage(container, override)
 }
 
 func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
@@ -168,17 +166,6 @@ func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.D
 
 	if override.SecurityContext != nil {
 		initContainer.SecurityContext = override.SecurityContext
-	}
-
-	overrideContainerImage(initContainer, override)
-}
-
-func overrideContainerImage(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
-	if override.Image != nil {
-		container.Image = overrideImage(container.Image, override.Image)
-		if override.Image.PullPolicy != nil {
-			container.ImagePullPolicy = *override.Image.PullPolicy
-		}
 	}
 }
 

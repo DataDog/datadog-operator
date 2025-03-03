@@ -8,7 +8,6 @@ package override
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -36,13 +35,12 @@ func TestContainer(t *testing.T) {
 	systemProbeContainer := &corev1.Container{
 		Name: string(apicommon.SystemProbeContainerName),
 	}
-	agentDataPlaneContainer := &corev1.Container{
-		Name: string(apicommon.AgentDataPlaneContainerName),
-	}
+
 	tests := []struct {
 		name            string
 		containerName   apicommon.AgentContainerName
 		existingManager func() *fake.PodTemplateManagers
+		overrideDda     func(*v2alpha1.DatadogAgent)
 		override        v2alpha1.DatadogAgentGenericContainer
 		validateManager func(t *testing.T, manager *fake.PodTemplateManagers, containerName string)
 	}{
@@ -1058,33 +1056,12 @@ func TestContainer(t *testing.T) {
 				})
 			},
 		},
-		{
-			name:          "override per-container image",
-			containerName: apicommon.AgentDataPlaneContainerName,
-			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentDataPlaneContainer},
-					},
-				})
-			},
-			override: v2alpha1.DatadogAgentGenericContainer{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "datadog/agent-data-plane",
-					Tag:  "1.2.3",
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
-					return strings.HasSuffix(container.Image, "datadog/agent-data-plane:1.2.3")
-				})
-			},
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := test.existingManager()
+
 			Container(test.containerName, manager, &test.override)
 
 			test.validateManager(t, manager, string(test.containerName))

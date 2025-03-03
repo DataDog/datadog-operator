@@ -25,6 +25,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -106,6 +107,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
+		experimental.ProcessExperimentalOverrides(logger, dda, podManagers)
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -180,6 +183,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
+
+	experimental.ProcessExperimentalOverrides(logger, dda, podManagers)
 
 	if disabledByOverride {
 		if agentEnabled {
