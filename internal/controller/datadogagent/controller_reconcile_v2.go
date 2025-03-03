@@ -7,6 +7,8 @@ package datadogagent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -95,6 +97,49 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
+func (r *Reconciler) updateSecretHash(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) {
+	// Check if a secret is configured
+	if instance.Spec.Global.Credentials != nil && instance.Spec.Global.Credentials.APISecret != nil {
+		secret := &corev1.Secret{}
+		err := r.client.Get(ctx, types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.Global.Credentials.APISecret.SecretName,
+		}, secret)
+		if err != nil {
+			r.log.Error(err, "Failed to get secret", "namespace", instance.Namespace, "secretName", instance.Spec.Global.Credentials.APISecret.SecretName)
+			// Remove the API_SECRET_HASH env variable if the secret can't be found
+			r.removeSecretHashEnv(instance)
+			return
+		}
+
+		// Compute the hash of the secret
+		hash := sha256.New()
+		for _, value := range secret.Data {
+			hash.Write(value)
+		}
+		secretHash := hex.EncodeToString(hash.Sum(nil))
+
+		// Append the hash to spec.global.env
+		instance.Spec.Global.Env = append(instance.Spec.Global.Env, corev1.EnvVar{
+			Name:  "API_SECRET_HASH",
+			Value: secretHash,
+		})
+	} else {
+		// Remove the API_SECRET_HASH env variable if no APISecret is configured
+		r.removeSecretHashEnv(instance)
+	}
+}
+
+func (r *Reconciler) removeSecretHashEnv(instance *datadoghqv2alpha1.DatadogAgent) {
+	var newEnv []corev1.EnvVar
+	for _, envVar := range instance.Spec.Global.Env {
+		if envVar.Name != "API_SECRET_HASH" {
+			newEnv = append(newEnv, envVar)
+		}
+	}
+	instance.Spec.Global.Env = newEnv
+}
+
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
@@ -102,6 +147,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, features)
+	// update the secret hash in the instance
+	r.updateSecretHash(ctx, instance)
 
 	// -----------------------
 	// Manage dependencies
