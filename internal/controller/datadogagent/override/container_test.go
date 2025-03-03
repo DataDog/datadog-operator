@@ -35,12 +35,10 @@ func TestContainer(t *testing.T) {
 	systemProbeContainer := &corev1.Container{
 		Name: string(apicommon.SystemProbeContainerName),
 	}
-
 	tests := []struct {
 		name            string
 		containerName   apicommon.AgentContainerName
 		existingManager func() *fake.PodTemplateManagers
-		overrideDda     func(*v2alpha1.DatadogAgent)
 		override        v2alpha1.DatadogAgentGenericContainer
 		validateManager func(t *testing.T, manager *fake.PodTemplateManagers, containerName string)
 	}{
@@ -1061,7 +1059,6 @@ func TestContainer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := test.existingManager()
-
 			Container(test.containerName, manager, &test.override)
 
 			test.validateManager(t, manager, string(test.containerName))

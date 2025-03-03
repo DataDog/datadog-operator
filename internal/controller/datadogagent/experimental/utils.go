@@ -22,9 +22,9 @@ func getExperimentalAnnotation(dda *v2alpha1.DatadogAgent, annotationSubkey stri
 	annotationKey := getExperimentalAnnotationKey(annotationSubkey)
 	if annotationValue, ok := dda.Annotations[annotationKey]; ok {
 		return annotationValue
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 // ProcessExperimentalOverrides processes all experimental overrides for the the given DatadogAgent resource.
