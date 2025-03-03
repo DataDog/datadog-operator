@@ -94,6 +94,7 @@ func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceName = getACServiceName(dda)
 
 	ac := dda.Spec.Features.AdmissionController
 
@@ -106,6 +107,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		}
 
 		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
+		// set service name from feature config to override default if provided
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
 		}
@@ -137,8 +139,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.failurePolicy = *ac.FailurePolicy
 		}
 
-		f.webhookName = defaultAdmissionControllerWebhookName
-		if ac.WebhookName != nil {
+		f.webhookName = getACWebhookName(dda)
+		if ac.WebhookName != nil && *ac.WebhookName != "" {
 			f.webhookName = *ac.WebhookName
 		}
 
