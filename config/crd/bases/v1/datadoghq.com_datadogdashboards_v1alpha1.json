@@ -23,6 +23,10 @@
         },
         "layoutType": {
           "description": "LayoutType is the layout type of the dashboard.",
+          "enum": [
+            "ordered",
+            "free"
+          ],
           "type": "string"
         },
         "notifyList": {
@@ -140,6 +144,7 @@
         },
         "title": {
           "description": "Title is the title of the dashboard.",
+          "minLength": 1,
           "type": "string"
         },
         "widgets": {
@@ -147,6 +152,10 @@
           "type": "string"
         }
       },
+      "required": [
+        "layoutType",
+        "title"
+      ],
       "type": "object"
     },
     "status": {
