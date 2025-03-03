@@ -47,7 +47,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				admissionControllerWantFunc(datadogACServiceName, datadogACWebhookName, false, false, "", "", false)),
 		},
 		{
-			Name: "Admission Controller enabled with provided service name, no webhook name",
+			Name: "Admission Controller enabled with valid provided service name, no webhook name",
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithName("datadog").
 				WithAdmissionControllerEnabled(true).
@@ -56,6 +56,18 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
 				admissionControllerWantFunc("foo-ac-service", datadogACWebhookName, false, false, "", "", false)),
+		},
+		{
+			Name: "Admission Controller enabled with invalid (empty) provided service name, no webhook name",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithName("datadog").
+				WithAdmissionControllerEnabled(true).
+				WithAdmissionControllerServiceName("").
+				Build(),
+			WantConfigure: true,
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				// Expect the service name from DDA to be used as the provided service name is invalid
+				admissionControllerWantFunc(datadogACServiceName, datadogACWebhookName, false, false, "", "", false)),
 		},
 		{
 			Name: "Admission Controller enabled with provided service and webhook name",
