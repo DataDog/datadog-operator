@@ -1,4 +1,6 @@
-# Installation
+# Installing the Datadog Operator
+
+This document contains detailed information about installing the Datadog Operator. For basic installation instructions for the Datadog Agent on Kubernetes, see [Install the Datadog Agent on Kubernetes][10].
 
 ## Prerequisites
 
@@ -27,7 +29,7 @@ datadogMonitor:
   enabled: true
 ```
 
-The Helm release can be updated with
+Then, to update the Helm release, run:
 
 ```shell
 helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
@@ -63,7 +65,7 @@ helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 ```
 
 
-### Install the Datadog Operator with Operator Lifecycle Manager
+## Install the Datadog Operator with Operator Lifecycle Manager
 
 Instructions for deploying the Datadog Operator with [Operator Lifecycle Manager][4] are available at [operatorhub.io][5].
 
@@ -240,8 +242,7 @@ See instructions to build a Datadog Operator custom container image based on an 
 
 To install a custom Datadog Operator image using the Helm chart, run the following:
 
-
-```console
+```shell
 helm install my-datadog-operator --set image.repository=<custom-image-repository> --set image.tag=<custom-image-tag> datadog/datadog-operator
 ```
 
@@ -251,9 +252,10 @@ helm install my-datadog-operator --set image.repository=<custom-image-repository
 The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog`.
 
 ```shell
-$ kubectl delete datadogagent datadog
-datadogagent.datadoghq.com/datadog deleted
+kubectl delete datadogagent datadog
 ```
+
+This command outputs `datadogagent.datadoghq.com/datadog deleted`.
 
 You can then remove the Datadog Operator with the `helm delete` command:
 
@@ -270,3 +272,4 @@ helm delete my-datadog-operator
 [7]: https://app.datadoghq.com/account/settings#api
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
+[10]: https://docs.datadoghq.com/containers/kubernetes/installation?tab=datadogoperator
