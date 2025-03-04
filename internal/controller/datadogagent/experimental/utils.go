@@ -27,10 +27,10 @@ func getExperimentalAnnotation(dda *v2alpha1.DatadogAgent, annotationSubkey stri
 	return ""
 }
 
-// ProcessExperimentalOverrides processes all experimental overrides for the the given DatadogAgent resource.
-func ProcessExperimentalOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
+// ApplyExperimentalOverrides applies any configured experimental overrides for the the given DatadogAgent resource.
+func ApplyExperimentalOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
 	elogger := logger.WithName("ExperimentalOverrides")
-	elogger.V(2).Info("Processing experimental overrides")
+	elogger.V(2).Info("Applying experimental overrides")
 
-	processExperimentalImageOverrides(elogger, dda, manager)
+	applyExperimentalImageOverrides(elogger, dda, manager)
 }

@@ -6,8 +6,7 @@
 package experimental
 
 import (
-	"fmt"
-	"strings"
+	"encoding/json"
 
 	"github.com/go-logr/logr"
 
@@ -16,51 +15,74 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 )
 
-func imageOverrideAnnotationSubkey(containerName string) string {
-	return fmt.Sprintf("%s.%s", ExperimentalImageOverrideSuffix, containerName)
+type imageOverrides map[string]imageOverride
+
+type imageOverride struct {
+	// Image name to use.
+	//
+	// This field supports the following formats:
+	// * `<NAME>` - Override the image name. The registry and tag from the original image are preserved.
+	// * `<NAME>:<TAG>` - Override the entire image without specifying a registry. The default registry for underlying
+	// container runtime will be used. `Tag` is ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - Override the entire image. `Tag` is ignored.
+	Name string `json:"name,omitempty"`
+
+	// Image tag to use.
+	//
+	// Used only when non-empty and `Name` does not specify a tag.
+	Tag string `json:"tag,omitempty"`
 }
 
-func getImageOverrideValue(dda *v2alpha1.DatadogAgent, containerName string) string {
-	// The annotation for overriding a container's image is specified in the form of `image-override.<container-name>:
-	// <image>` where the container name is the name of the container in the pod spec, so `trace-agent` for the Trace
-	// Agent, and so on.
-	return getExperimentalAnnotation(dda, imageOverrideAnnotationSubkey(containerName))
-}
-
-func overrideImage(currentImg, overrideImg string) string {
-	// We build an `AgentImageConfig` to feed to `overrideImage`. A little hacky, but it lets us preserve all the other
-	// existing logic around image path handling.
-	overrideName := ""
-	overrideTag := ""
-
-	splitImg := strings.Split(overrideImg, ":")
-	if len(splitImg) == 1 {
-		overrideName = splitImg[0]
-	} else if len(splitImg) == 2 {
-		overrideName = splitImg[0]
-		overrideTag = splitImg[1]
-	} else {
-		// Image has more than one colon, or none, which is wrong, so we just use the current image.
-		return currentImg
+func (i imageOverrides) JSON() (string, error) {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return "", err
 	}
 
+	return string(b), nil
+}
+
+func getImageOverrideConfig(dda *v2alpha1.DatadogAgent) (imageOverrides, error) {
+	imageOverrideConfigRaw := getExperimentalAnnotation(dda, ExperimentalImageOverrideConfigSubkey)
+	if imageOverrideConfigRaw == "" {
+		return nil, nil
+	}
+
+	imageOverrideConfig := imageOverrides{}
+	if err := json.Unmarshal([]byte(imageOverrideConfigRaw), &imageOverrideConfig); err != nil {
+		return nil, err
+	}
+
+	return imageOverrideConfig, nil
+}
+
+func overrideImage(currentImg string, overrideImg imageOverride) string {
+	// We build an `AgentImageConfig` to feed to `overrideImage`. A little hacky, but it lets us preserve all the other
+	// existing logic around image path handling.
 	overrideImgConfig := &v2alpha1.AgentImageConfig{
-		Name: overrideName,
-		Tag:  overrideTag,
+		Name: overrideImg.Name,
+		Tag:  overrideImg.Tag,
 	}
 
 	return common.OverrideAgentImage(currentImg, overrideImgConfig)
 }
 
-func processExperimentalImageOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
-	// We support overriding the image used for any non-init container in the Agent's pod spec. For each container that
-	// is defined for the pod, we check if iti has an image override annotation. If it does, we update the container's
-	// image to the value specified in the annotation.
-	for i, container := range manager.PodTemplateSpec().Spec.Containers {
-		imageOverride := getImageOverrideValue(dda, container.Name)
-		if imageOverride != "" {
-			logger.V(2).Info("Overriding container image", "container", container.Name, "image", imageOverride)
-			manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, imageOverride)
+func applyExperimentalImageOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
+	// We support overriding the image used for any non-init container in the Agent's pod spec.
+	//
+	// We grab the image override configuration from the `image-override-config` experimental annotation, and for each
+	// container defined in the pod template's spec, we see if there is a defined override. If so, we apply it.
+	imageOverrides, err := getImageOverrideConfig(dda)
+	if err != nil {
+		logger.Error(err, "Failed to deserialize image override config")
+		return
+	}
+
+	podTemplateSpec := manager.PodTemplateSpec()
+	for i, container := range podTemplateSpec.Spec.Containers {
+		if imageOverride, ok := imageOverrides[container.Name]; ok {
+			logger.V(2).Info("Overriding container image", "container", container.Name, "image_name", imageOverride.Name, "image_tag", imageOverride.Tag)
+			podTemplateSpec.Spec.Containers[i].Image = overrideImage(container.Image, imageOverride)
 		}
 	}
 }

@@ -107,7 +107,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
-		experimental.ProcessExperimentalOverrides(logger, dda, podManagers)
+		experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
 
 		if disabledByOverride {
 			if agentEnabled {
@@ -184,7 +184,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		override.DaemonSet(daemonset, componentOverride)
 	}
 
-	experimental.ProcessExperimentalOverrides(logger, dda, podManagers)
+	experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
 
 	if disabledByOverride {
 		if agentEnabled {

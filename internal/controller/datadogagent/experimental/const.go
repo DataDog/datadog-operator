@@ -6,4 +6,4 @@
 package experimental
 
 const ExperimentalAnnotationPrefix = "experimental.agent.datadoghq.com"
-const ExperimentalImageOverrideSuffix = "image-override"
+const ExperimentalImageOverrideConfigSubkey = "image-override-config"
