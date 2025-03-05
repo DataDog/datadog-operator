@@ -86,7 +86,7 @@ type DatadogPodAutoscalerSpec struct {
 	// FallbackApplyPolicy defines how recommendations should be applied when in fallback mode.
 	// +optional
 	// +kubebuilder:default={}
-	FallbackApplyPolicyApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"fallbackApplyPolicy,omitempty"`
+	FallbackApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"fallbackApplyPolicy,omitempty"`
 
 	// Objectives are the objectives to reach and maintain for the target resource when in fallback mode.
 	// Default to a single objective to maintain 80% POD CPU utilization.
@@ -110,7 +110,7 @@ const (
 	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
 )
 
-// DatadogPodAutoscalerFallbackMode specifies if the controller should apply/generate recommendations in fallback.
+// DatadogPodAutoscalerFallbackMode specifies if the controller should apply/generate recommendations in fallback mode.
 // +kubebuilder:validation:Enum:=Apply;Preview;Disabled
 type DatadogPodAutoscalerFallbackMode string
 
@@ -118,7 +118,7 @@ const (
 	// DatadogPodAutoscalerFallbackModeApply allows the controller to apply all recommendations in fallback mode
 	DatadogPodAutoscalerFallbackModeApply DatadogPodAutoscalerFallbackMode = "Apply"
 
-	// DatadogPodAutoscalerFallbackModePreview doesn't allow the controller to apply any recommendations in fallback mode
+	// DatadogPodAutoscalerFallbackModePreview generates recommendations but doesn't allow the controller to apply any in fallback mode
 	DatadogPodAutoscalerFallbackModePreview DatadogPodAutoscalerFallbackMode = "Preview"
 
 	// DatadogPodAutoscalerFallbackModeDisabled doesn't allow the controller to apply any recommendations in fallback mode
