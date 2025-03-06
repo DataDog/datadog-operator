@@ -488,8 +488,6 @@ trigger_custom_operator_check_image_staging:
 trigger_e2e_operator_image:
   stage: e2e
   rules: 
-    - if: '$CI_COMMIT_BRANCH == "swang392/enable-e2e-ci"' # TODO remove after testing
-      when: always
     - if: $CI_COMMIT_TAG
       when: always
   trigger:
@@ -507,8 +505,6 @@ e2e:
   needs:
     - "trigger_e2e_operator_image"
   rules:
-    - if: '$CI_COMMIT_BRANCH == "swang392/enable-e2e-ci"' # TODO remove after testing
-      when: always
     - if: $CI_COMMIT_TAG
       when: always
   parallel:
