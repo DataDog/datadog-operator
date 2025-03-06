@@ -4,7 +4,7 @@ To run a [custom check][1], you can configure the `DatadogAgent` resource to pro
 
 This page explains how to set up a custom check, `hello`, that submits a `hello.world` metric to Datadog.
 
-To learn more about checks in the Datadog ecosystem, see [Introduction to Integrations][2]. To configure a [Datadog integration][3], see [Kubernetes and Integrations][4]
+To learn more about checks in the Datadog ecosystem, see [Introduction to Integrations][2]. To configure a [Datadog Integration][3], see [Kubernetes and Integrations][4]
 
 ## Create the check files
 

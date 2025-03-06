@@ -103,16 +103,16 @@ spec:
 ```
 ## Use the secret backend
 
-The Datatog Operator is compatible with the [secret backend][1] implemented.
+The Datatog Operator is compatible with the [secret backend][1].
 
 ### Deploy the Datadog Operator with the secret backend
 
-1. Create a `datadog/operator` container image that contains the secret backend command.
+1. Create a Datadog Operator container image that contains the secret backend command.
 
-   If you'd like to build your own, the following Dockerfile example takes the `datadog/operator:latest` image as the base image and copies the `my-secret-backend.sh` script file:
+   If you'd like to build your own, the following Dockerfile example takes the `latest` image as the base image and copies the `my-secret-backend.sh` script file:
 
    ```Dockerfile
-   FROM datadog/operator:latest
+   FROM gcr.io/datadoghq/operator:latest
    COPY ./my-secret-backend.sh /my-secret-backend.sh
    RUN chmod 755 /my-secret-backend.sh
    ```
@@ -136,7 +136,7 @@ The Datatog Operator is compatible with the [secret backend][1] implemented.
 
 Kubernetes supports exposing Secrets as files inside a pod. Datadog provides a helper script in the Datadog Operator image to read the Secrets from files.
 
-1. Mount the Secret in the Operator container. For example, at `/etc/secret-volume`. 
+1. Mount the Secret in the Operator container. For example, you can mount it at `/etc/secret-volume`. 
 
 2. Install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`.
 

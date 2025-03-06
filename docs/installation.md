@@ -268,4 +268,4 @@ helm delete my-datadog-operator
 [7]: https://app.datadoghq.com/account/settings#api
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
-[10]: https://docs.datadoghq.com/containers/kubernetes/installation?tab=datadogoperator
+[10]: https://docs.datadoghq.com/containers/kubernetes/installation
