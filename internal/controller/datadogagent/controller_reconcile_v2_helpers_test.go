@@ -126,7 +126,7 @@ func Test_fetchAndValidateDatadogAgent(t *testing.T) {
 	reqInv := reconcile.Request{NamespacedName: types.NamespacedName{Name: "invalid", Namespace: "default"}}
 	inst, res, err = r2.fetchAndValidateDatadogAgent(context.TODO(), reqInv)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "credentials not configured")
+	require.Contains(t, err.Error(), "error validating DatadogAgent: global not configured in the DatadogAgent, can't reconcile")
 }
 
 // Test_setupDependencies verifies that store and resource managers are initialized.

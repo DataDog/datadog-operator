@@ -16,6 +16,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
@@ -37,10 +38,11 @@ func (r *Reconciler) fetchAndValidateDatadogAgent(ctx context.Context, req recon
 		}
 		return nil, result, err
 	}
-	// Ensure required credentials are configured.
-	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
-		return nil, result, fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
+
+	if err := datadoghqv2alpha1.ValidateDatadogAgent(instance); err != nil {
+		return nil, result, fmt.Errorf("error validating DatadogAgent: %w", err)
 	}
+
 	return instance, result, nil
 }
 
@@ -77,6 +79,15 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 // overrideDependencies wraps the dependency override logic.
 func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv2alpha1.DatadogAgent) error {
 	errs := override.Dependencies(logger, resourceManagers, instance)
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
+}
+
+// manageGlobalDependencies wraps the global dependency logic.
+func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv2alpha1.DatadogAgent, components feature.RequiredComponents) error {
+	errs := global.Dependencies(logger, instance, resourceManagers, components)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}

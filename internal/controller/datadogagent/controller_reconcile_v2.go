@@ -39,8 +39,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		return result, err
 	}
 
-	// err = datadoghqv2alpha1.ValidateDatadogAgent(instance)
-
 	// 2. Handle finalizer logic.
 	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
@@ -63,6 +61,10 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
+
+	if err := r.manageGlobalDependencies(logger, resourceManagers, instance, requiredComponents); err != nil {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	}
 
 	if err := r.manageFeatureDependencies(logger, configuredFeatures, requiredComponents, resourceManagers); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)

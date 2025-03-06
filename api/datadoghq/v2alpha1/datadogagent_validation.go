@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-// ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
+// ValidateDatadogAgent is used to check if a DatadogAgent is valid
 func ValidateDatadogAgent(dda *DatadogAgent) error {
 	// global
 	if dda.Spec.Global == nil {
@@ -19,12 +19,6 @@ func ValidateDatadogAgent(dda *DatadogAgent) error {
 	// creds
 	// add more validation from features
 	if dda.Spec.Global.Credentials == nil {
-		return fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
-	}
-
-	// token
-	// add more validation from features
-	if dda.Spec.Global.ClusterAgentToken == nil || dda.Spec.Global.ClusterAgentTokenSecret == nil {
 		return fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
 	}
 

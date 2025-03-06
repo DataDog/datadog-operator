@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"fmt"
@@ -343,7 +343,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  DDLogLevel,
+			Name:  constants.DDLogLevel,
 			Value: "info",
 		},
 	}
