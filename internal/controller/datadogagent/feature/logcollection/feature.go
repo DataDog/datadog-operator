@@ -32,6 +32,7 @@ func buildLogCollectionFeature(options *feature.Options) feature.Feature {
 }
 
 type logCollectionFeature struct {
+	enabled                    bool
 	containerCollectAll        bool
 	containerCollectUsingFiles bool
 	containerLogsPath          string
@@ -46,6 +47,11 @@ func (f *logCollectionFeature) ID() feature.IDType {
 	return feature.LogCollectionIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *logCollectionFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil {
@@ -55,6 +61,7 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	logCollection := dda.Spec.Features.LogCollection
 
 	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
+		f.enabled = true
 		if logCollection.ContainerCollectAll != nil {
 			// fallback to agent default if not set
 			f.containerCollectAll = apiutils.BoolValue(logCollection.ContainerCollectAll)

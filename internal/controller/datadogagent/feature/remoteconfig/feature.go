@@ -63,29 +63,26 @@ func (f *rcFeature) ID() feature.IDType {
 	return feature.RemoteConfigurationIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *rcFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil && dda.Spec.Features.RemoteConfiguration.Enabled != nil {
 		// If a value exists, explicitly enable or disable Remote Config and override the default
-		f.enabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
+		if apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled) {
+			f.enabled = true
+			reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
+			reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		}
 	}
 
-	reqComp = feature.RequiredComponents{
-		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(f.enabled),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.CoreAgentContainerName,
-			},
-		},
-		ClusterAgent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(f.enabled),
-			Containers: []apicommon.AgentContainerName{
-				apicommon.ClusterAgentContainerName,
-			},
-		},
-	}
+	reqComp.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 
 	return reqComp
 }

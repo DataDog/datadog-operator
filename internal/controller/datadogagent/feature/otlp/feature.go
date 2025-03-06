@@ -73,6 +73,11 @@ func (f *otlpFeature) ID() feature.IDType {
 	return feature.OTLPIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *otlpFeature) IsEnabled() bool {
+	return f.grpcEnabled || f.httpEnabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	otlp := dda.Spec.Features.OTLP

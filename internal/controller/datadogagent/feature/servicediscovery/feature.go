@@ -27,16 +27,24 @@ func buildFeature(*feature.Options) feature.Feature {
 	return &serviceDiscoveryFeature{}
 }
 
-type serviceDiscoveryFeature struct{}
+type serviceDiscoveryFeature struct {
+	enabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *serviceDiscoveryFeature) ID() feature.IDType {
 	return feature.ServiceDiscoveryType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *serviceDiscoveryFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.ServiceDiscovery != nil && apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.Enabled) {
+		f.enabled = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},

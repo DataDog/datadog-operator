@@ -122,6 +122,11 @@ func (f *defaultFeature) ID() feature.IDType {
 	return feature.DefaultIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *defaultFeature) IsEnabled() bool {
+	return true
+}
+
 func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	trueValue := true
 	f.owner = dda

@@ -39,6 +39,8 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		return result, err
 	}
 
+	// err = datadoghqv2alpha1.ValidateDatadogAgent(instance)
+
 	// 2. Handle finalizer logic.
 	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
@@ -57,18 +59,15 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instance, features)
+	configuredFeatures, requiredComponents := r.buildRequirements(instance)
 
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
-	var err error
-	if err = r.manageFeatureDependencies(logger, features, requiredComponents, resourceManagers); err != nil {
+	if err := r.manageFeatureDependencies(logger, configuredFeatures, requiredComponents, resourceManagers); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
+	if err := r.overrideDependencies(logger, resourceManagers, instance); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 
@@ -81,22 +80,25 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
-	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	var err error
+
+	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
+
 	// Update the status to make it the ClusterAgentReconcileConditionType successful
 	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.b. Node Agent and profiles
 	// TODO: ignore profiles and introspection for DDAI
 
-	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, features, resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
+	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, configuredFeatures, resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
 	// 2.c. Cluster Checks Runner
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}

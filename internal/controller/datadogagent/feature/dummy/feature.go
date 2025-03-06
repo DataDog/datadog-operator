@@ -33,6 +33,11 @@ func (f *dummyFeature) ID() feature.IDType {
 	return feature.DummyIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *dummyFeature) IsEnabled() bool {
+	return true
+}
+
 func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	return feature.RequiredComponents{}
 }

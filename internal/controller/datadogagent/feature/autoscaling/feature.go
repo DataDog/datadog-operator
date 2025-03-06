@@ -38,6 +38,7 @@ func buildAutoscalingFeature(options *feature.Options) feature.Feature {
 }
 
 type autoscalingFeature struct {
+	enabled                      bool
 	serviceAccountName           string
 	owner                        metav1.Object
 	logger                       logr.Logger
@@ -47,6 +48,11 @@ type autoscalingFeature struct {
 // ID returns the ID of the Feature
 func (f *autoscalingFeature) ID() feature.IDType {
 	return feature.AutoscalingIDType
+}
+
+// IsEnabled returns true if the feature is enabled
+func (f *autoscalingFeature) IsEnabled() bool {
+	return f.enabled
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -60,6 +66,8 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		return feature.RequiredComponents{}
 	}
+
+	f.enabled = true
 
 	admission := dda.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)

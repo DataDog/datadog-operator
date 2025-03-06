@@ -31,6 +31,7 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 }
 
 type npmFeature struct {
+	enabled         bool
 	collectDNSStats bool
 	enableConntrack bool
 }
@@ -40,6 +41,11 @@ func (f *npmFeature) ID() feature.IDType {
 	return feature.NPMIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *npmFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil {
@@ -47,6 +53,7 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	}
 
 	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
+		f.enabled = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

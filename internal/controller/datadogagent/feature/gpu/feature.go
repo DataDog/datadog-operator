@@ -23,6 +23,7 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type gpuFeature struct {
+	enabled bool
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
@@ -34,11 +35,18 @@ func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *gpuFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
 		return reqComp
 	}
+
+	f.enabled = true
 
 	reqComp.Agent = feature.RequiredComponent{
 		IsRequired: apiutils.NewBoolPointer(true),

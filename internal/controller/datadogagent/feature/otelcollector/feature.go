@@ -40,6 +40,7 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 }
 
 type otelCollectorFeature struct {
+	enabled         bool
 	customConfig    *v2alpha1.CustomConfig
 	owner           metav1.Object
 	configMapName   string
@@ -60,6 +61,11 @@ type coreAgentConfig struct {
 
 func (o *otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
+}
+
+// IsEnabled returns true if the feature is enabled
+func (f *otelCollectorFeature) IsEnabled() bool {
+	return f.enabled
 }
 
 func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
@@ -96,6 +102,7 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 
 	var reqComp feature.RequiredComponents
 	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
+		o.enabled = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

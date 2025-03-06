@@ -107,7 +107,8 @@ func runTest(t *testing.T, tt FeatureTest) {
 	}
 	featureOptions.Logger = logger
 	if tt.DDA != nil {
-		features, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		var disabledComponents feature.RequiredComponents
+		features, gotConfigure = feature.BuildFeatures(tt.DDA, disabledComponents, featureOptions)
 		dda = tt.DDA
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")

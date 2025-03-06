@@ -33,6 +33,7 @@ func init() {
 }
 
 type admissionControllerFeature struct {
+	enabled                 bool
 	validationWebhookConfig *ValidationConfig
 	mutationWebhookConfig   *MutationConfig
 	mutateUnlabelled        bool
@@ -84,6 +85,12 @@ func buildAdmissionControllerFeature(options *feature.Options) feature.Feature {
 func (f *admissionControllerFeature) ID() feature.IDType {
 	return feature.AdmissionControllerIDType
 }
+
+// IsEnabled returns true if the feature is enabled
+func (f *admissionControllerFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInjectionConfig) bool {
 	if sidecarInjectionConf != nil && sidecarInjectionConf.Enabled != nil && apiutils.BoolValue(sidecarInjectionConf.Enabled) {
 		return true

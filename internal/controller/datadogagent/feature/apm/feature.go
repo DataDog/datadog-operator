@@ -50,6 +50,7 @@ func buildAPMFeature(options *feature.Options) feature.Feature {
 }
 
 type apmFeature struct {
+	enabled          bool
 	hostPortEnabled  bool
 	hostPortHostPort int32
 	useHostNetwork   bool
@@ -99,6 +100,11 @@ func (f *apmFeature) ID() feature.IDType {
 	return feature.APMIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *apmFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	if apmConf == nil {
 		return false
@@ -125,6 +131,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	f.owner = dda
 	apm := dda.Spec.Features.APM
 	if shouldEnableAPM(apm) {
+		f.enabled = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code

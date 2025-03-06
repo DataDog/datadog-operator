@@ -22,6 +22,7 @@ import (
 // dummyFeature is a simple implementation of the Feature interface for testing purposes.
 type dummyFeature struct {
 	IDValue                         string
+	IsEnabledValue                  bool
 	ConfigureReturn                 feature.RequiredComponents
 	ManageDependenciesError         error
 	ManageClusterAgentError         error
@@ -33,6 +34,11 @@ type dummyFeature struct {
 // ID returns the dummy feature's ID.
 func (df *dummyFeature) ID() feature.IDType {
 	return feature.IDType(df.IDValue)
+}
+
+// IsEnabled returns a predefined value to indicate whether it is enabled.
+func (df *dummyFeature) IsEnabled() bool {
+	return df.IsEnabledValue
 }
 
 // Configure returns a predefined RequiredComponents value.

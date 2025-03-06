@@ -44,6 +44,7 @@ func buildEventCollectionFeature(options *feature.Options) feature.Feature {
 }
 
 type eventCollectionFeature struct {
+	enabled            bool
 	serviceAccountName string
 	rbacSuffix         string
 	owner              metav1.Object
@@ -63,6 +64,11 @@ func (f *eventCollectionFeature) ID() feature.IDType {
 	return feature.EventCollectionIDType
 }
 
+// ID returns the ID of the Feature
+func (f *eventCollectionFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -70,6 +76,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
+		f.enabled = true
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 		f.rbacSuffix = common.ClusterAgentSuffix
 

@@ -55,6 +55,11 @@ func (f *sbomFeature) ID() feature.IDType {
 	return feature.SBOMIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *sbomFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda

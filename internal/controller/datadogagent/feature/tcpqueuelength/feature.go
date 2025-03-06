@@ -31,11 +31,18 @@ func buildTCPQueueLengthFeature(options *feature.Options) feature.Feature {
 	return tcpQueueLengthFeat
 }
 
-type tcpQueueLengthFeature struct{}
+type tcpQueueLengthFeature struct {
+	enabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *tcpQueueLengthFeature) ID() feature.IDType {
 	return feature.TCPQueueLengthIDType
+}
+
+// IsEnabled returns true if the feature is enabled
+func (f *tcpQueueLengthFeature) IsEnabled() bool {
+	return f.enabled
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -44,6 +51,7 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 		return
 	}
 	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
+		f.enabled = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},

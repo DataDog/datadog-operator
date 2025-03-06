@@ -46,6 +46,7 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 }
 
 type ksmFeature struct {
+	enabled                  bool
 	runInClusterChecksRunner bool
 	collectCRDMetrics        bool
 	collectAPIServiceMetrics bool
@@ -71,12 +72,18 @@ func (f *ksmFeature) ID() feature.IDType {
 	return feature.KubernetesStateCoreIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *ksmFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
 	var output feature.RequiredComponents
 
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+		f.enabled = true
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
 

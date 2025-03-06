@@ -62,6 +62,11 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 	return feature.DogstatsdIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *dogstatsdFeature) IsEnabled() bool {
+	return f.hostPortEnabled || f.udsEnabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd

@@ -30,6 +30,7 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
+	enabled        bool
 	scrubArgs      *bool
 	stripArgs      *bool
 	runInCoreAgent bool
@@ -40,9 +41,15 @@ func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *liveProcessFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
+		f.enabled = true
 		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
 			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
