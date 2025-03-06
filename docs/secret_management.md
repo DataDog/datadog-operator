@@ -37,7 +37,7 @@ The credentials provided here are stored in a Secret created by the Operator. By
    metadata:
      name: datadog-api-secret
    data:
-     api_key: <api-key>
+     api_key: <DATADOG_API_KEY>
 
    ---
    apiVersion: v1
@@ -45,11 +45,10 @@ The credentials provided here are stored in a Secret created by the Operator. By
    metadata:
      name: datadog-app-secret
    data:
-     app_key: <app-key>
+     app_key: <DATADOG_APP_KEY>
    ```
 
 2. Provide the names of these Secrets in your `DatadogAgent` resource:
-Another solution is to provide the name of the Secret(s) that contains the credentials:
 
    ```yaml
    apiVersion: datadoghq.com/v2alpha1
@@ -125,9 +124,8 @@ The Datatog Operator is compatible with the [secret backend][1].
 
 2. Install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to the secret backend command path (inside the container). If you are using a custom image, update the image.
 
-   ```console
+   ```shell
    $ helm [install|upgrade] dd-operator --set "secretBackend.command=/my-secret-backend.sh" --set "image.repository=datadog-operator-with-secret-backend" ./chart/datadog-operator
-   success
    ```
 
 ### Using the secret helper
@@ -144,22 +142,9 @@ Kubernetes supports exposing Secrets as files inside a pod. Datadog provides a h
 
 **Note**: Requires Datadog Operator v1.11+.
 
-1. If you are using a custom script, create a Datadog Agent (or Cluster Agent) image and specify credentials using `ENC[<placeholder>]`:
+#### With a custom script
 
-   ```yaml
-   apiVersion: datadoghq.com/v2alpha1
-   kind: DatadogAgent
-   metadata:
-     name: datadog
-   spec:
-     global:
-       credentials:
-         apiKey: ENC[<api-key-secret-id>]
-         appKey: ENC[<app-key-secret-id>]
-     # ...
-   ```
-
-2. Specify the secret backend command in `spec.global.secretBackend.command`:
+If you are using a custom script, create a Datadog Agent (or Cluster Agent) image and specify credentials using `ENC[<placeholder>]`, and specify the secret backend command in `spec.global.secretBackend.command`:
 
    ```yaml
    apiVersion: datadoghq.com/v2alpha1
@@ -177,6 +162,8 @@ Kubernetes supports exposing Secrets as files inside a pod. Datadog provides a h
    ```
 
 The environment variable `DD_SECRET_BACKEND_COMMAND` from this configuration is automatically applied to all the deployed components: node Agent, Cluster Agent, and Cluster Checks Runners. Ensure the image you are using for all the components includes your command.
+
+#### With the helper function
 
 For convenience, the Datadog Agent and its sibling Cluster Agent images include a `readsecret_multiple_providers.sh` [helper function][2] that can be used to read from both files as well as Kubernetes Secrets. After you create the Secret, set `spec.global.secretBackend.command` to `"/readsecret_multiple_providers.sh"`.
 
