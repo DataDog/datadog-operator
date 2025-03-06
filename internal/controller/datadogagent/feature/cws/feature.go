@@ -283,10 +283,12 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommon.SystemProbeContainerName)
 	volMgr.AddVolume(&procdirVol)
 
-	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SystemProbeContainerName)
-	volMgr.AddVolume(&passwdVol)
+	if provider != kubernetes.TalosProvider {
+		// passwd volume mount
+		passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SystemProbeContainerName)
+		volMgr.AddVolume(&passwdVol)
+	}
 
 	// group volume mount
 	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)

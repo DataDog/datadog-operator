@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -20,26 +21,34 @@ var (
 func Test_determineProvider(t *testing.T) {
 	tests := []struct {
 		name     string
-		labels   map[string]string
+		node     corev1.Node
 		provider string
 	}{
 		{
 			name: "random provider",
-			labels: map[string]string{
-				"foo": "bar",
+			node: corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo": "bar",
+					},
+				},
 			},
 			provider: defaultProvider,
 		},
 		{
 			name:     "empty labels",
-			labels:   map[string]string{},
+			node:     corev1.Node{},
 			provider: defaultProvider,
 		},
 		{
 			name: "gke provider",
-			labels: map[string]string{
-				"foo":            "bar",
-				GKEProviderLabel: GKECosType,
+			node: corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"foo":            "bar",
+						GKEProviderLabel: GKECosType,
+					},
+				},
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
@@ -47,7 +56,7 @@ func Test_determineProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := determineProvider(tt.labels)
+			p := determineProvider(&tt.node)
 			assert.Equal(t, tt.provider, p)
 		})
 	}
