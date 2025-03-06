@@ -29,6 +29,7 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 }
 
 type processDiscoveryFeature struct {
+	enabled        bool
 	runInCoreAgent bool
 }
 
@@ -36,9 +37,15 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 	return feature.ProcessDiscoveryIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *processDiscoveryFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
 	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled) {
+		p.enabled = true
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}

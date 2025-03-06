@@ -32,6 +32,7 @@ func init() {
 }
 
 type clusterChecksFeature struct {
+	enabled                bool
 	useClusterCheckRunners bool
 	owner                  metav1.Object
 
@@ -57,8 +58,14 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 	return feature.ClusterChecksIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *clusterChecksFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
+		f.enabled = true
 		f.updateConfigHash(dda)
 		f.owner = dda
 

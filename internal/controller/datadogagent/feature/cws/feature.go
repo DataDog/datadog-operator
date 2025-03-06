@@ -44,6 +44,7 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 }
 
 type cwsFeature struct {
+	enabled                    bool
 	syscallMonitorEnabled      bool
 	networkEnabled             bool
 	activityDumpEnabled        bool
@@ -63,6 +64,11 @@ func (f *cwsFeature) ID() feature.IDType {
 	return feature.CWSIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *cwsFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -73,6 +79,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	cwsConfig := dda.Spec.Features.CWS
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
+		f.enabled = true
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
 
 		if cwsConfig.CustomPolicies != nil {

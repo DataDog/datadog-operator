@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -53,9 +52,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		return result, err
 	}
 
-	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
-		return result, fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
-	}
+	err = datadoghqv2alpha1.ValidateDatadogAgent(instance)
 
 	// check it the resource was properly decoded in v2
 	// if not it means it was a v1
@@ -99,9 +96,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
-	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instance, features)
+
+	configuredFeatures, requiredComponents := r.buildRequirements(instance)
 
 	// -----------------------
 	// Manage dependencies
@@ -118,10 +114,14 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var errs []error
 
 	// Set up dependencies required by enabled features
-	for _, feat := range features {
-		logger.V(1).Info("Dependency ManageDependencies", "featureID", feat.ID())
-		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
-			errs = append(errs, featErr)
+	for _, feat := range configuredFeatures {
+		// only log if enabled, not configured
+		if feat.IsEnabled() {
+			// TODO: update list of enabled features for metrics forwarder
+			// r.updateMetricsForwardersFeatures(instance, features)
+			if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
+				errs = append(errs, featErr)
+			}
 		}
 	}
 	if len(errs) > 0 {
@@ -145,7 +145,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	var err error
 
-	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	} else {
@@ -189,7 +189,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	for _, profile := range profiles {
 		for provider := range providerList {
-			result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
+			result, err = r.reconcileV2Agent(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus, provider, providerList, &profile)
 			if utils.ShouldReturn(result, err) {
 				// If the agent reconcile failed, we should not continue with the other profiles
 				errs = append(errs, err)
@@ -204,7 +204,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	}
 
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	} else {

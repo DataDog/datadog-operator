@@ -45,6 +45,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
+	enabled                  bool
 	runInClusterChecksRunner bool
 	scrubContainers          bool
 	extraTags                []string
@@ -70,6 +71,11 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 	return feature.OrchestratorExplorerIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *orchestratorExplorerFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -79,9 +85,11 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
+	var reqContainers []apicommon.AgentContainerName
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
+		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+		reqContainers = append(reqContainers, apicommon.CoreAgentContainerName)
 
 		// Process Agent is not required as of agent version 7.51.0
 		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
@@ -90,11 +98,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 				reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
 			}
 		}
-
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: reqContainers,
-		}
+		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
@@ -119,15 +123,17 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	}
 
-		if constants.IsClusterChecksEnabled(dda) {
-			if constants.IsCCREnabled(dda) {
-				f.runInClusterChecksRunner = true
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
-				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-			}
-		}
+	reqComp.Agent.Containers = reqContainers
+	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+
+	if constants.IsClusterChecksEnabled(dda) && constants.IsCCREnabled(dda) {
+		f.runInClusterChecksRunner = true
+		f.rbacSuffix = common.ChecksRunnerSuffix
+		f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+		reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	}
 
 	return reqComp
@@ -181,37 +187,38 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	// Manage orchestrator config in configmap
-	var vol corev1.Volume
-	var volMount corev1.VolumeMount
-	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
-		// Custom config is referenced via ConfigMap
-		vol, volMount = volume.GetVolumesFromConfigMap(
-			f.customConfig.ConfigMap,
-			orchestratorExplorerVolumeName,
-			f.configConfigMapName,
-			orchestratorExplorerFolderName,
-		)
-	} else {
-		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
-		vol = volume.GetBasicVolume(f.configConfigMapName, orchestratorExplorerVolumeName)
-
-		volMount = corev1.VolumeMount{
-			Name:      orchestratorExplorerVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, orchestratorExplorerFolderName),
-			ReadOnly:  true,
-		}
-	}
-
-	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
-	managers.Volume().AddVolume(&vol)
-
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-	}
-
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVar(env)
+	}
+	if f.enabled {
+		// Manage orchestrator config in configmap
+		var vol corev1.Volume
+		var volMount corev1.VolumeMount
+		if f.customConfig != nil && f.customConfig.ConfigMap != nil {
+			// Custom config is referenced via ConfigMap
+			vol, volMount = volume.GetVolumesFromConfigMap(
+				f.customConfig.ConfigMap,
+				orchestratorExplorerVolumeName,
+				f.configConfigMapName,
+				orchestratorExplorerFolderName,
+			)
+		} else {
+			// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
+			vol = volume.GetBasicVolume(f.configConfigMapName, orchestratorExplorerVolumeName)
+
+			volMount = corev1.VolumeMount{
+				Name:      orchestratorExplorerVolumeName,
+				MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, orchestratorExplorerFolderName),
+				ReadOnly:  true,
+			}
+		}
+
+		managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.ClusterAgentContainerName)
+		managers.Volume().AddVolume(&vol)
+
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+		}
 	}
 
 	return nil

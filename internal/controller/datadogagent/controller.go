@@ -106,8 +106,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
-		Logger:                   logger,
+		Logger: logger,
 	}
 }
 

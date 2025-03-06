@@ -25,27 +25,28 @@ func (f *orchestratorExplorerFeature) getEnvVars() []*corev1.EnvVar {
 	envVarsList := []*corev1.EnvVar{
 		{
 			Name:  DDOrchestratorExplorerEnabled,
-			Value: "true",
+			Value: apiutils.BoolToString(&f.enabled),
 		},
-		{
+	}
+	if f.enabled {
+		envVarsList = append(envVarsList, &corev1.EnvVar{
 			Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
 			Value: apiutils.BoolToString(&f.scrubContainers),
-		},
-	}
-
-	if len(f.extraTags) > 0 {
-		tags, _ := json.Marshal(f.extraTags)
-		envVarsList = append(envVarsList, &corev1.EnvVar{
-			Name:  DDOrchestratorExplorerExtraTags,
-			Value: string(tags),
 		})
-	}
+		if len(f.extraTags) > 0 {
+			tags, _ := json.Marshal(f.extraTags)
+			envVarsList = append(envVarsList, &corev1.EnvVar{
+				Name:  DDOrchestratorExplorerExtraTags,
+				Value: string(tags),
+			})
+		}
 
-	if f.ddURL != "" {
-		envVarsList = append(envVarsList, &corev1.EnvVar{
-			Name:  DDOrchestratorExplorerDDUrl,
-			Value: f.ddURL,
-		})
+		if f.ddURL != "" {
+			envVarsList = append(envVarsList, &corev1.EnvVar{
+				Name:  DDOrchestratorExplorerDDUrl,
+				Value: f.ddURL,
+			})
+		}
 	}
 
 	return envVarsList

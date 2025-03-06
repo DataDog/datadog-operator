@@ -30,16 +30,24 @@ func buildEBPFCheckFeature(options *feature.Options) feature.Feature {
 	return ebpfCheckFeat
 }
 
-type ebpfCheckFeature struct{}
+type ebpfCheckFeature struct {
+	enabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *ebpfCheckFeature) ID() feature.IDType {
 	return feature.EBPFCheckIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *ebpfCheckFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ebpfCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.EBPFCheck != nil && apiutils.BoolValue(dda.Spec.Features.EBPFCheck.Enabled) {
+		f.enabled = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},

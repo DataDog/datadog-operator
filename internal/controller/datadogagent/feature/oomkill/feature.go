@@ -31,16 +31,24 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 	return oomKillFeat
 }
 
-type oomKillFeature struct{}
+type oomKillFeature struct {
+	enabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *oomKillFeature) ID() feature.IDType {
 	return feature.OOMKillIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *oomKillFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
+		f.enabled = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},

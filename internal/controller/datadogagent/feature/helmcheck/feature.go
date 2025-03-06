@@ -43,6 +43,7 @@ func buildHelmCheckFeature(options *feature.Options) feature.Feature {
 }
 
 type helmCheckFeature struct {
+	enabled                  bool
 	runInClusterChecksRunner bool
 	collectEvents            bool
 	valuesAsTags             map[string]string
@@ -64,12 +65,18 @@ func (f *helmCheckFeature) ID() feature.IDType {
 	return feature.HelmCheckIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *helmCheckFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	helmCheck := dda.Spec.Features.HelmCheck
 
 	if helmCheck != nil && apiutils.BoolValue(helmCheck.Enabled) {
+		f.enabled = true
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 

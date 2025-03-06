@@ -47,6 +47,7 @@ func buildExternalMetricsFeature(options *feature.Options) feature.Feature {
 }
 
 type externalMetricsFeature struct {
+	enabled            bool
 	useWPA             bool
 	useDDM             bool
 	port               int32
@@ -72,12 +73,18 @@ func (f *externalMetricsFeature) ID() feature.IDType {
 	return feature.ExternalMetricsIDType
 }
 
+// IsEnabled returns true if the feature is enabled
+func (f *externalMetricsFeature) IsEnabled() bool {
+	return f.enabled
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	em := dda.Spec.Features.ExternalMetricsServer
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
+		f.enabled = true
 		// By default, we register the external metrics endpoint
 		f.registerAPIService = em.RegisterAPIService == nil || apiutils.BoolValue(em.RegisterAPIService)
 

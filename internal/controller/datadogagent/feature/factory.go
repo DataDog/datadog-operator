@@ -19,6 +19,7 @@ func init() {
 }
 
 // Register use to register a Feature to the Feature factory.
+// register called in feature init() function
 func Register(id IDType, buildFunc BuildFunc) error {
 	builderMutex.Lock()
 	defer builderMutex.Unlock()
@@ -31,7 +32,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, disabledComponents RequiredComponents, options *Options) ([]Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -39,6 +40,7 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 	var requiredComponents RequiredComponents
 
 	// to always return in feature in the same order we need to sort the map keys
+	// TODO: add sort util
 	sortedkeys := make([]IDType, 0, len(featureBuilders))
 	for key := range featureBuilders {
 		sortedkeys = append(sortedkeys, key)
@@ -50,10 +52,27 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
 		reqComponents := feat.Configure(dda)
+		featureID := feat.ID()
+
+		// merge disabled components into feature reqComponents to disable component-specific features
+		reqComponents.Merge(&disabledComponents)
+
 		// only add feature to the output if one of the components is configured (but not necessarily required)
 		if reqComponents.IsConfigured() {
+			if feat.IsEnabled() {
+				options.Logger.V(1).Info("Feature enabled", "featureID", featureID)
+			} else {
+				options.Logger.V(1).Info("Feature configured", "featureID", featureID)
+			}
 			output = append(output, feat)
 		}
+
+		// temporary workaround for enabledefault feature
+		// to be removed along with enabledefault feature
+		if featureID == DefaultIDType {
+			output = append(output, feat)
+		}
+
 		requiredComponents.Merge(&reqComponents)
 	}
 

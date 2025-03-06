@@ -30,6 +30,7 @@ func buildPrometheusScrapeFeature(options *feature.Options) feature.Feature {
 }
 
 type prometheusScrapeFeature struct {
+	enabled                bool
 	enableServiceEndpoints bool
 	additionalConfigs      string
 	openmetricsVersion     int
@@ -38,6 +39,11 @@ type prometheusScrapeFeature struct {
 // ID returns the ID of the Feature
 func (f *prometheusScrapeFeature) ID() feature.IDType {
 	return feature.PrometheusScrapeIDType
+}
+
+// IsEnabled returns true if the feature is enabled
+func (f *prometheusScrapeFeature) IsEnabled() bool {
+	return f.enabled
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -49,6 +55,7 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
 	if prometheusScrape != nil && apiutils.BoolValue(prometheusScrape.Enabled) {
+		f.enabled = true
 		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.EnableServiceEndpoints)
 		if prometheusScrape.AdditionalConfigs != nil {
 			f.additionalConfigs = *prometheusScrape.AdditionalConfigs

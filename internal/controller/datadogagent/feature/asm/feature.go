@@ -30,6 +30,7 @@ func buildASMFeature(options *feature.Options) feature.Feature {
 }
 
 type asmFeature struct {
+	enabled        bool
 	owner          metav1.Object
 	threatsEnabled bool
 	iastEnabled    bool
@@ -39,6 +40,11 @@ type asmFeature struct {
 // ID returns the ID of the Feature
 func (f *asmFeature) ID() feature.IDType {
 	return feature.ASMIDType
+}
+
+// IsEnabled returns true if the feature is enabled
+func (f *asmFeature) IsEnabled() bool {
+	return f.enabled
 }
 
 func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
@@ -58,6 +64,7 @@ func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 		return feature.RequiredComponents{}
 	}
 
+	f.enabled = true
 	f.threatsEnabled = apiutils.BoolValue(asm.Threats.Enabled)
 	f.iastEnabled = apiutils.BoolValue(asm.IAST.Enabled)
 	f.scaEnabled = apiutils.BoolValue(asm.SCA.Enabled)
