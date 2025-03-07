@@ -314,10 +314,12 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.SecurityAgentContainerName)
 	VolMgr.AddVolume(&hostRootVol)
 
-	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
-	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
-	VolMgr.AddVolume(&groupVol)
+	if provider != kubernetes.TalosProvider {
+		// group volume mount
+		groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
+		VolMgr.AddVolume(&groupVol)
+	}
 
 	// env vars
 	enabledEnvVar := &corev1.EnvVar{
