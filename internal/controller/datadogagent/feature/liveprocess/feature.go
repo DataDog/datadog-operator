@@ -120,9 +120,9 @@ func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommon.AgentC
 
 	if provider != kubernetes.TalosProvider {
 		// passwd volume mount
-		passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
-		managers.Volume().AddVolume(&passwdVol)
+		//passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+		//managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+		//managers.Volume().AddVolume(&passwdVol)
 	}
 
 	// cgroups volume mount

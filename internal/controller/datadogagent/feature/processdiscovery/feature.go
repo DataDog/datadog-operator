@@ -98,9 +98,9 @@ func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature
 func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 	// passwd volume mount
 	if provider != kubernetes.TalosProvider {
-		passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
-		managers.Volume().AddVolume(&passwdVol)
+		//passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+		//managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
+		//managers.Volume().AddVolume(&passwdVol)
 	}
 
 	// cgroups volume mount

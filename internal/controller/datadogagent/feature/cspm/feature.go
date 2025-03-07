@@ -299,9 +299,9 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	if provider != kubernetes.TalosProvider {
 		// passwd volume mount
-		passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
-		VolMgr.AddVolume(&passwdVol)
+		//passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
+		//volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommon.SecurityAgentContainerName)
+		//VolMgr.AddVolume(&passwdVol)
 	}
 
 	// procdir volume mount
@@ -316,9 +316,9 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 
 	if provider != kubernetes.TalosProvider {
 		// group volume mount
-		groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
-		VolMgr.AddVolume(&groupVol)
+		//groupVol, groupVolMount := volume.GetVolumes(common.GroupVolumeName, common.GroupHostPath, common.GroupMountPath, true)
+		//volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommon.SecurityAgentContainerName)
+		//VolMgr.AddVolume(&groupVol)
 	}
 
 	// env vars
