@@ -6,11 +6,11 @@
 package clusteragent
 
 import (
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/leader"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/upgrade"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/leader"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/upgrade"
 )
 
 // options provides information required by clusteragent command

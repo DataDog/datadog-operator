@@ -14,11 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
-
 	"github.com/go-logr/logr"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
@@ -28,6 +23,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 const (
@@ -65,6 +65,16 @@ var (
 	ErrEmptyAPIKey = errors.New("empty api key")
 	// errInitValue used to initialize lastReconcileErr
 	errInitValue = errors.New("last error init value")
+)
+
+// datadogForwarderConditionType type use to represent a Datadog Metrics Forwarder condition.
+type datadogForwarderConditionType string
+
+const (
+	// datadogMetricsActive forwarding metrics and events to Datadog is active.
+	datadogMetricsActive datadogForwarderConditionType = "ActiveDatadogMetrics"
+	// datadogMetricsError cannot forward deployment metrics and events to Datadog.
+	datadogMetricsError datadogForwarderConditionType = "DatadogMetricsError"
 )
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
@@ -577,7 +587,7 @@ func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, 
 		return "", fmt.Errorf("credentials not configured in the DatadogAgent")
 	}
 
-	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 
 	var err error
 	apiKey := ""
@@ -585,7 +595,7 @@ func (mf *metricsForwarder) getCredentials(dda *v2alpha1.DatadogAgent) (string, 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
-		_, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
+		_, secretName, secretKeyName := secrets.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
 			return "", err
@@ -668,13 +678,13 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	conditionStatus := true
 	message := "Datadog metrics forwarding ok"
 	reason := "MetricsForwardingSucceeded"
-	conditionType := string(v2alpha1.DatadogMetricsActive)
+	conditionType := string(datadogMetricsActive)
 
 	if err != nil {
 		conditionStatus = false
 		message = "Datadog metrics forwarding error"
 		reason = "MetricsForwardingError"
-		conditionType = string(v2alpha1.DatadogMetricsError)
+		conditionType = string(datadogMetricsError)
 	}
 
 	newConditionStatus := &ConditionCommon{

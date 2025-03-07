@@ -9,19 +9,7 @@ import (
 	"context"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +18,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
@@ -93,7 +95,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 			componentOverrides = append(componentOverrides, &overrideFromProvider)
 		} else {
-			eds.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
 		for _, componentOverride := range componentOverrides {
@@ -107,10 +109,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				condition.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
-					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
 					"Agent component is set to disabled",
@@ -168,7 +170,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
 		componentOverrides = append(componentOverrides, &overrideFromProvider)
 	} else {
-		daemonset.Labels[datadoghqv2alpha1.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
+		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
 	for _, componentOverride := range componentOverrides {
@@ -182,10 +184,10 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+			condition.UpdateDatadogAgentStatusConditions(
 				newStatus,
 				metav1.NewTime(time.Now()),
-				datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+				common.OverrideReconcileConflictConditionType,
 				metav1.ConditionTrue,
 				"OverrideConflict",
 				"Agent component is set to disabled",
@@ -202,16 +204,16 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent, profile)
 }
 
-func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.AgentList, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.AgentList = condition.UpdateDaemonSetStatus(dsName, ds, newStatus.AgentList, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+	newStatus.AgentList = condition.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
 }
 
 func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
@@ -242,7 +244,7 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 
 func deleteStatusWithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.Agent = nil
-	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.AgentReconcileConditionType)
+	condition.DeleteDatadogAgentStatusCondition(newStatus, common.AgentReconcileConditionType)
 }
 
 // removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
@@ -378,7 +380,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 					Name:      agentPod.Name,
 				},
 			}
-			if err = r.client.Delete(ctx, &toDelete); err != nil {
+			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
 		}

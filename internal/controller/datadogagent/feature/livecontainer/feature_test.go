@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -48,7 +49,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "true"}},
 					},
 				).
@@ -63,7 +64,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 					},
 				).
 				WithProcessChecksInCoreAgent(true).
@@ -93,7 +94,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
 					v2alpha1.DatadogAgentComponentOverride{
-						Image: &v2alpha1.AgentImageConfig{Tag: "7.57.0"},
+						Image: &v2alpha1.AgentImageConfig{Tag: "7.60.0"},
 						Env:   []corev1.EnvVar{{Name: "DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED", Value: "false"}},
 					},
 				).
@@ -115,11 +116,11 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
-					Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+					Name:  common.DDProcessConfigRunInCoreAgent,
 					Value: utils.BoolToString(&runInCoreAgent),
 				},
 				{
-					Name:  v2alpha1.DDContainerCollectionEnabled,
+					Name:  common.DDContainerCollectionEnabled,
 					Value: "true",
 				},
 			}
@@ -133,13 +134,13 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
-					Name:      v2alpha1.CgroupsVolumeName,
-					MountPath: v2alpha1.CgroupsMountPath,
+					Name:      common.CgroupsVolumeName,
+					MountPath: common.CgroupsMountPath,
 					ReadOnly:  true,
 				},
 				{
-					Name:      v2alpha1.ProcdirVolumeName,
-					MountPath: v2alpha1.ProcdirMountPath,
+					Name:      common.ProcdirVolumeName,
+					MountPath: common.ProcdirMountPath,
 					ReadOnly:  true,
 				},
 			}
@@ -152,18 +153,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, runInCor
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []corev1.Volume{
 				{
-					Name: v2alpha1.CgroupsVolumeName,
+					Name: common.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.CgroupsHostPath,
+							Path: common.CgroupsHostPath,
 						},
 					},
 				},
 				{
-					Name: v2alpha1.ProcdirVolumeName,
+					Name: common.ProcdirVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: v2alpha1.ProcdirHostPath,
+							Path: common.ProcdirHostPath,
 						},
 					},
 				},

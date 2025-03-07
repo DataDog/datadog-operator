@@ -9,16 +9,6 @@ import (
 	"context"
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +17,18 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/condition"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -63,10 +65,10 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			if dcaEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				condition.UpdateDatadogAgentStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
-					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+					common.OverrideReconcileConflictConditionType,
 					metav1.ConditionTrue,
 					"OverrideConflict",
 					"ClusterAgent component is set to disabled",
@@ -88,13 +90,13 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 }
 
 func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.ClusterAgent = datadoghqv2alpha1.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
+	newStatus.ClusterAgent = condition.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
+	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.ClusterAgentReconcileConditionType, status, reason, message, true)
 }
 
 func deleteStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
 	newStatus.ClusterAgent = nil
-	datadoghqv2alpha1.DeleteDatadogAgentStatusCondition(newStatus, datadoghqv2alpha1.ClusterAgentReconcileConditionType)
+	condition.DeleteDatadogAgentStatusCondition(newStatus, common.ClusterAgentReconcileConditionType)
 }
 
 func (r *Reconciler) cleanupV2ClusterAgent(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {

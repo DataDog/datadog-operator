@@ -303,6 +303,191 @@ spec:
                                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                         type: object
                                     type: object
+                                  securityContext:
+                                    description: SecurityContext specifies the security context for the profile.
+                                    properties:
+                                      allowPrivilegeEscalation:
+                                        description: |-
+                                          AllowPrivilegeEscalation controls whether a process can gain more
+                                          privileges than its parent process. This bool directly controls if
+                                          the no_new_privs flag will be set on the container process.
+                                          AllowPrivilegeEscalation is true always when the container is:
+                                          1) run as Privileged
+                                          2) has CAP_SYS_ADMIN
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        type: boolean
+                                      appArmorProfile:
+                                        description: |-
+                                          appArmorProfile is the AppArmor options to use by this container. If set, this profile
+                                          overrides the pod's appArmorProfile.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        properties:
+                                          localhostProfile:
+                                            description: |-
+                                              localhostProfile indicates a profile loaded on the node that should be used.
+                                              The profile must be preconfigured on the node to work.
+                                              Must match the loaded name of the profile.
+                                              Must be set if and only if type is "Localhost".
+                                            type: string
+                                          type:
+                                            description: |-
+                                              type indicates which kind of AppArmor profile will be applied.
+                                              Valid options are:
+                                                Localhost - a profile pre-loaded on the node.
+                                                RuntimeDefault - the container runtime's default profile.
+                                                Unconfined - no AppArmor enforcement.
+                                            type: string
+                                        required:
+                                          - type
+                                        type: object
+                                      capabilities:
+                                        description: |-
+                                          The capabilities to add/drop when running containers.
+                                          Defaults to the default set of capabilities granted by the container runtime.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        properties:
+                                          add:
+                                            description: Added capabilities
+                                            items:
+                                              description: Capability represent POSIX capabilities type
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          drop:
+                                            description: Removed capabilities
+                                            items:
+                                              description: Capability represent POSIX capabilities type
+                                              type: string
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                        type: object
+                                      privileged:
+                                        description: |-
+                                          Run container in privileged mode.
+                                          Processes in privileged containers are essentially equivalent to root on the host.
+                                          Defaults to false.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        type: boolean
+                                      procMount:
+                                        description: |-
+                                          procMount denotes the type of proc mount to use for the containers.
+                                          The default value is Default which uses the container runtime defaults for
+                                          readonly paths and masked paths.
+                                          This requires the ProcMountType feature flag to be enabled.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        type: string
+                                      readOnlyRootFilesystem:
+                                        description: |-
+                                          Whether this container has a read-only root filesystem.
+                                          Default is false.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        type: boolean
+                                      runAsGroup:
+                                        description: |-
+                                          The GID to run the entrypoint of the container process.
+                                          Uses runtime default if unset.
+                                          May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                          PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        format: int64
+                                        type: integer
+                                      runAsNonRoot:
+                                        description: |-
+                                          Indicates that the container must run as a non-root user.
+                                          If true, the Kubelet will validate the image at runtime to ensure that it
+                                          does not run as UID 0 (root) and fail to start the container if it does.
+                                          If unset or false, no such validation will be performed.
+                                          May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                          PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                        type: boolean
+                                      runAsUser:
+                                        description: |-
+                                          The UID to run the entrypoint of the container process.
+                                          Defaults to user specified in image metadata if unspecified.
+                                          May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                          PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        format: int64
+                                        type: integer
+                                      seLinuxOptions:
+                                        description: |-
+                                          The SELinux context to be applied to the container.
+                                          If unspecified, the container runtime will allocate a random SELinux context for each
+                                          container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                          PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        properties:
+                                          level:
+                                            description: Level is SELinux level label that applies to the container.
+                                            type: string
+                                          role:
+                                            description: Role is a SELinux role label that applies to the container.
+                                            type: string
+                                          type:
+                                            description: Type is a SELinux type label that applies to the container.
+                                            type: string
+                                          user:
+                                            description: User is a SELinux user label that applies to the container.
+                                            type: string
+                                        type: object
+                                      seccompProfile:
+                                        description: |-
+                                          The seccomp options to use by this container. If seccomp options are
+                                          provided at both the pod & container level, the container options
+                                          override the pod options.
+                                          Note that this field cannot be set when spec.os.name is windows.
+                                        properties:
+                                          localhostProfile:
+                                            description: |-
+                                              localhostProfile indicates a profile defined in a file on the node should be used.
+                                              The profile must be preconfigured on the node to work.
+                                              Must be a descending path, relative to the kubelet's configured seccomp profile location.
+                                              Must be set if type is "Localhost". Must NOT be set for any other type.
+                                            type: string
+                                          type:
+                                            description: |-
+                                              type indicates which kind of seccomp profile will be applied.
+                                              Valid options are:
+
+                                              Localhost - a profile defined in a file on the node should be used.
+                                              RuntimeDefault - the container runtime default profile should be used.
+                                              Unconfined - no profile should be applied.
+                                            type: string
+                                        required:
+                                          - type
+                                        type: object
+                                      windowsOptions:
+                                        description: |-
+                                          The Windows specific settings applied to all containers.
+                                          If unspecified, the options from the PodSecurityContext will be used.
+                                          If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                          Note that this field cannot be set when spec.os.name is linux.
+                                        properties:
+                                          gmsaCredentialSpec:
+                                            description: |-
+                                              GMSACredentialSpec is where the GMSA admission webhook
+                                              (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+                                              GMSA credential spec named by the GMSACredentialSpecName field.
+                                            type: string
+                                          gmsaCredentialSpecName:
+                                            description: GMSACredentialSpecName is the name of the GMSA credential spec to use.
+                                            type: string
+                                          hostProcess:
+                                            description: |-
+                                              HostProcess determines if a container should be run as a 'Host Process' container.
+                                              All of a Pod's containers must have the same effective HostProcess value
+                                              (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+                                              In addition, if HostProcess is true then HostNetwork must also be set to true.
+                                            type: boolean
+                                          runAsUserName:
+                                            description: |-
+                                              The UserName in Windows to run the entrypoint of the container process.
+                                              Defaults to the user specified in image metadata if unspecified.
+                                              May also be set in PodSecurityContext. If set in both SecurityContext and
+                                              PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                            type: string
+                                        type: object
+                                    type: object
                                 type: object
                               type: array
                               x-kubernetes-list-type: atomic
@@ -487,6 +672,17 @@ spec:
                             Enabled enables Application Performance Monitoring.
                             Default: true
                           type: boolean
+                        errorTrackingStandalone:
+                          description: |-
+                            ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+                            Feature is in preview.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables Error Tracking for backend services.
+                                Default: false
+                              type: boolean
+                          type: object
                         hostPortConfig:
                           description: |-
                             HostPortConfig contains host port configuration.
@@ -527,6 +723,15 @@ spec:
                                 type: string
                               type: array
                               x-kubernetes-list-type: set
+                            injector:
+                              description: Injector configures the APM Injector.
+                              properties:
+                                imageTag:
+                                  description: |-
+                                    Set the image tag to use for the APM Injector.
+                                    (Requires Cluster Agent 7.57.0+)
+                                  type: string
+                              type: object
                             languageDetection:
                               description: |-
                                 LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
@@ -547,6 +752,236 @@ spec:
                                 <Library>: <Version>
                                 ex: "java": "v1.18.0"
                               type: object
+                            targets:
+                              description: |-
+                                Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
+                                used. If no target matches, the auto instrumentation will not be applied.
+                                (Requires Cluster Agent 7.64.0+)
+                              items:
+                                description: SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+                                properties:
+                                  ddTraceConfigs:
+                                    description: |-
+                                      TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+                                      as environment variables in addition to the injected tracer.
+                                    items:
+                                      description: EnvVar represents an environment variable present in a Container.
+                                      properties:
+                                        name:
+                                          description: Name of the environment variable. Must be a C_IDENTIFIER.
+                                          type: string
+                                        value:
+                                          description: |-
+                                            Variable references $(VAR_NAME) are expanded
+                                            using the previously defined environment variables in the container and
+                                            any service environment variables. If a variable cannot be resolved,
+                                            the reference in the input string will be unchanged. Double $$ are reduced
+                                            to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+                                            "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+                                            Escaped references will never be expanded, regardless of whether the variable
+                                            exists or not.
+                                            Defaults to "".
+                                          type: string
+                                        valueFrom:
+                                          description: Source for the environment variable's value. Cannot be used if value is not empty.
+                                          properties:
+                                            configMapKeyRef:
+                                              description: Selects a key of a ConfigMap.
+                                              properties:
+                                                key:
+                                                  description: The key to select.
+                                                  type: string
+                                                name:
+                                                  default: ""
+                                                  description: |-
+                                                    Name of the referent.
+                                                    This field is effectively required, but due to backwards compatibility is
+                                                    allowed to be empty. Instances of this type with an empty value here are
+                                                    almost certainly wrong.
+                                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                  type: string
+                                                optional:
+                                                  description: Specify whether the ConfigMap or its key must be defined
+                                                  type: boolean
+                                              required:
+                                                - key
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            fieldRef:
+                                              description: |-
+                                                Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+                                                spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+                                              properties:
+                                                apiVersion:
+                                                  description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
+                                                  type: string
+                                                fieldPath:
+                                                  description: Path of the field to select in the specified API version.
+                                                  type: string
+                                              required:
+                                                - fieldPath
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            resourceFieldRef:
+                                              description: |-
+                                                Selects a resource of the container: only resources limits and requests
+                                                (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+                                              properties:
+                                                containerName:
+                                                  description: 'Container name: required for volumes, optional for env vars'
+                                                  type: string
+                                                divisor:
+                                                  anyOf:
+                                                    - type: integer
+                                                    - type: string
+                                                  description: Specifies the output format of the exposed resources, defaults to "1"
+                                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                  x-kubernetes-int-or-string: true
+                                                resource:
+                                                  description: 'Required: resource to select'
+                                                  type: string
+                                              required:
+                                                - resource
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            secretKeyRef:
+                                              description: Selects a key of a secret in the pod's namespace
+                                              properties:
+                                                key:
+                                                  description: The key of the secret to select from.  Must be a valid secret key.
+                                                  type: string
+                                                name:
+                                                  default: ""
+                                                  description: |-
+                                                    Name of the referent.
+                                                    This field is effectively required, but due to backwards compatibility is
+                                                    allowed to be empty. Instances of this type with an empty value here are
+                                                    almost certainly wrong.
+                                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                  type: string
+                                                optional:
+                                                  description: Specify whether the Secret or its key must be defined
+                                                  type: boolean
+                                              required:
+                                                - key
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                          type: object
+                                      required:
+                                        - name
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-map-keys:
+                                      - name
+                                    x-kubernetes-list-type: map
+                                  ddTraceVersions:
+                                    additionalProperties:
+                                      type: string
+                                    description: |-
+                                      TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer
+                                      name and the value is the version to inject.
+                                    type: object
+                                  name:
+                                    description: Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
+                                    type: string
+                                  namespaceSelector:
+                                    description: |-
+                                      NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
+                                      be used in conjunction with the Selector to match the pods.
+                                    properties:
+                                      matchExpressions:
+                                        description: |-
+                                          MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
+                                          expressions are ANDed. This cannot be used with MatchNames.
+                                        items:
+                                          description: |-
+                                            A label selector requirement is a selector that contains values, a key, and an operator that
+                                            relates the key and values.
+                                          properties:
+                                            key:
+                                              description: key is the label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |-
+                                                operator represents a key's relationship to a set of values.
+                                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |-
+                                                values is an array of string values. If the operator is In or NotIn,
+                                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                the values array must be empty. This array is replaced during a strategic
+                                                merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                      matchLabels:
+                                        additionalProperties:
+                                          type: string
+                                        description: |-
+                                          MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are
+                                          ANDed. This cannot be used with MatchNames.
+                                        type: object
+                                      matchNames:
+                                        description: MatchNames is a list of namespace names to match. If empty, all namespaces are matched.
+                                        items:
+                                          type: string
+                                        type: array
+                                    type: object
+                                  podSelector:
+                                    description: |-
+                                      PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
+                                      conjunction with the NamespaceSelector to match the pods.
+                                    properties:
+                                      matchExpressions:
+                                        description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                        items:
+                                          description: |-
+                                            A label selector requirement is a selector that contains values, a key, and an operator that
+                                            relates the key and values.
+                                          properties:
+                                            key:
+                                              description: key is the label key that the selector applies to.
+                                              type: string
+                                            operator:
+                                              description: |-
+                                                operator represents a key's relationship to a set of values.
+                                                Valid operators are In, NotIn, Exists and DoesNotExist.
+                                              type: string
+                                            values:
+                                              description: |-
+                                                values is an array of string values. If the operator is In or NotIn,
+                                                the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                the values array must be empty. This array is replaced during a strategic
+                                                merge patch.
+                                              items:
+                                                type: string
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          required:
+                                            - key
+                                            - operator
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                      matchLabels:
+                                        additionalProperties:
+                                          type: string
+                                        description: |-
+                                          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                          map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                          operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                        type: object
+                                    type: object
+                                    x-kubernetes-map-type: atomic
+                                type: object
+                              type: array
                           type: object
                         unixDomainSocketConfig:
                           description: |-
@@ -1019,6 +1454,21 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    gpu:
+                      description: GPU monitoring
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables GPU monitoring.
+                            Default: false
+                          type: boolean
+                        requiredRuntimeClassName:
+                          description: |-
+                            PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                            If the value is an empty string, the runtime class is not set.
+                            Default: nvidia
+                          type: string
+                      type: object
                     helmCheck:
                       description: HelmCheck configuration.
                       properties:
@@ -1352,12 +1802,12 @@ spec:
                             enabled:
                               description: Enabled marks otelcollector as enabled in core agent.
                               type: boolean
-                            extension_timeout:
+                            extensionTimeout:
                               description: |-
                                 Extension URL provides the timout of the ddflareextension to
                                 the core agent.
                               type: integer
-                            extension_url:
+                            extensionURL:
                               description: |-
                                 Extension URL provides the URL of the ddflareextension to
                                 the core agent.
@@ -1411,6 +1861,7 @@ spec:
                               - containerPort
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                       type: object
                     otlp:
                       description: OTLP ingest configuration
@@ -2133,6 +2584,11 @@ spec:
                         hostCAPath:
                           description: HostCAPath is the host path where the kubelet CA certificate is stored.
                           type: string
+                        podResourcesSocketPath:
+                          description: |-
+                            PodResourcesSocketPath is the host path where the pod resources socket is stored.
+                            Default: `/var/lib/kubelet/pod-resources/`
+                          type: string
                         tlsVerify:
                           description: |-
                             TLSVerify toggles kubelet TLS verification.
@@ -2300,9 +2756,9 @@ spec:
                     runProcessChecksInCoreAgent:
                       description: |-
                         Configure whether the Process Agent or core Agent collects process and/or container information (Linux only).
-                        The Process Agent container won't spin up if there are no other running checks as a result.
-                        (Requires Agent 7.57.0+)
-                        Default: 'false'
+                        If no other checks are running, the Process Agent container will not initialize.
+                        (Requires Agent 7.60.0+)
+                        Default: 'true'
                       type: boolean
                     secretBackend:
                       description: |-
@@ -7166,6 +7622,191 @@ spec:
                                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                                             type: object
                                         type: object
+                                      securityContext:
+                                        description: SecurityContext specifies the security context for the profile.
+                                        properties:
+                                          allowPrivilegeEscalation:
+                                            description: |-
+                                              AllowPrivilegeEscalation controls whether a process can gain more
+                                              privileges than its parent process. This bool directly controls if
+                                              the no_new_privs flag will be set on the container process.
+                                              AllowPrivilegeEscalation is true always when the container is:
+                                              1) run as Privileged
+                                              2) has CAP_SYS_ADMIN
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            type: boolean
+                                          appArmorProfile:
+                                            description: |-
+                                              appArmorProfile is the AppArmor options to use by this container. If set, this profile
+                                              overrides the pod's appArmorProfile.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            properties:
+                                              localhostProfile:
+                                                description: |-
+                                                  localhostProfile indicates a profile loaded on the node that should be used.
+                                                  The profile must be preconfigured on the node to work.
+                                                  Must match the loaded name of the profile.
+                                                  Must be set if and only if type is "Localhost".
+                                                type: string
+                                              type:
+                                                description: |-
+                                                  type indicates which kind of AppArmor profile will be applied.
+                                                  Valid options are:
+                                                    Localhost - a profile pre-loaded on the node.
+                                                    RuntimeDefault - the container runtime's default profile.
+                                                    Unconfined - no AppArmor enforcement.
+                                                type: string
+                                            required:
+                                              - type
+                                            type: object
+                                          capabilities:
+                                            description: |-
+                                              The capabilities to add/drop when running containers.
+                                              Defaults to the default set of capabilities granted by the container runtime.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            properties:
+                                              add:
+                                                description: Added capabilities
+                                                items:
+                                                  description: Capability represent POSIX capabilities type
+                                                  type: string
+                                                type: array
+                                                x-kubernetes-list-type: atomic
+                                              drop:
+                                                description: Removed capabilities
+                                                items:
+                                                  description: Capability represent POSIX capabilities type
+                                                  type: string
+                                                type: array
+                                                x-kubernetes-list-type: atomic
+                                            type: object
+                                          privileged:
+                                            description: |-
+                                              Run container in privileged mode.
+                                              Processes in privileged containers are essentially equivalent to root on the host.
+                                              Defaults to false.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            type: boolean
+                                          procMount:
+                                            description: |-
+                                              procMount denotes the type of proc mount to use for the containers.
+                                              The default value is Default which uses the container runtime defaults for
+                                              readonly paths and masked paths.
+                                              This requires the ProcMountType feature flag to be enabled.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            type: string
+                                          readOnlyRootFilesystem:
+                                            description: |-
+                                              Whether this container has a read-only root filesystem.
+                                              Default is false.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            type: boolean
+                                          runAsGroup:
+                                            description: |-
+                                              The GID to run the entrypoint of the container process.
+                                              Uses runtime default if unset.
+                                              May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                              PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            format: int64
+                                            type: integer
+                                          runAsNonRoot:
+                                            description: |-
+                                              Indicates that the container must run as a non-root user.
+                                              If true, the Kubelet will validate the image at runtime to ensure that it
+                                              does not run as UID 0 (root) and fail to start the container if it does.
+                                              If unset or false, no such validation will be performed.
+                                              May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                              PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                            type: boolean
+                                          runAsUser:
+                                            description: |-
+                                              The UID to run the entrypoint of the container process.
+                                              Defaults to user specified in image metadata if unspecified.
+                                              May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                              PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            format: int64
+                                            type: integer
+                                          seLinuxOptions:
+                                            description: |-
+                                              The SELinux context to be applied to the container.
+                                              If unspecified, the container runtime will allocate a random SELinux context for each
+                                              container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+                                              PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            properties:
+                                              level:
+                                                description: Level is SELinux level label that applies to the container.
+                                                type: string
+                                              role:
+                                                description: Role is a SELinux role label that applies to the container.
+                                                type: string
+                                              type:
+                                                description: Type is a SELinux type label that applies to the container.
+                                                type: string
+                                              user:
+                                                description: User is a SELinux user label that applies to the container.
+                                                type: string
+                                            type: object
+                                          seccompProfile:
+                                            description: |-
+                                              The seccomp options to use by this container. If seccomp options are
+                                              provided at both the pod & container level, the container options
+                                              override the pod options.
+                                              Note that this field cannot be set when spec.os.name is windows.
+                                            properties:
+                                              localhostProfile:
+                                                description: |-
+                                                  localhostProfile indicates a profile defined in a file on the node should be used.
+                                                  The profile must be preconfigured on the node to work.
+                                                  Must be a descending path, relative to the kubelet's configured seccomp profile location.
+                                                  Must be set if type is "Localhost". Must NOT be set for any other type.
+                                                type: string
+                                              type:
+                                                description: |-
+                                                  type indicates which kind of seccomp profile will be applied.
+                                                  Valid options are:
+
+                                                  Localhost - a profile defined in a file on the node should be used.
+                                                  RuntimeDefault - the container runtime default profile should be used.
+                                                  Unconfined - no profile should be applied.
+                                                type: string
+                                            required:
+                                              - type
+                                            type: object
+                                          windowsOptions:
+                                            description: |-
+                                              The Windows specific settings applied to all containers.
+                                              If unspecified, the options from the PodSecurityContext will be used.
+                                              If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                              Note that this field cannot be set when spec.os.name is linux.
+                                            properties:
+                                              gmsaCredentialSpec:
+                                                description: |-
+                                                  GMSACredentialSpec is where the GMSA admission webhook
+                                                  (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+                                                  GMSA credential spec named by the GMSACredentialSpecName field.
+                                                type: string
+                                              gmsaCredentialSpecName:
+                                                description: GMSACredentialSpecName is the name of the GMSA credential spec to use.
+                                                type: string
+                                              hostProcess:
+                                                description: |-
+                                                  HostProcess determines if a container should be run as a 'Host Process' container.
+                                                  All of a Pod's containers must have the same effective HostProcess value
+                                                  (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+                                                  In addition, if HostProcess is true then HostNetwork must also be set to true.
+                                                type: boolean
+                                              runAsUserName:
+                                                description: |-
+                                                  The UserName in Windows to run the entrypoint of the container process.
+                                                  Defaults to the user specified in image metadata if unspecified.
+                                                  May also be set in PodSecurityContext. If set in both SecurityContext and
+                                                  PodSecurityContext, the value specified in SecurityContext takes precedence.
+                                                type: string
+                                            type: object
+                                        type: object
                                     type: object
                                   type: array
                                   x-kubernetes-list-type: atomic
@@ -7350,6 +7991,17 @@ spec:
                                 Enabled enables Application Performance Monitoring.
                                 Default: true
                               type: boolean
+                            errorTrackingStandalone:
+                              description: |-
+                                ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+                                Feature is in preview.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enables Error Tracking for backend services.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             hostPortConfig:
                               description: |-
                                 HostPortConfig contains host port configuration.
@@ -7390,6 +8042,15 @@ spec:
                                     type: string
                                   type: array
                                   x-kubernetes-list-type: set
+                                injector:
+                                  description: Injector configures the APM Injector.
+                                  properties:
+                                    imageTag:
+                                      description: |-
+                                        Set the image tag to use for the APM Injector.
+                                        (Requires Cluster Agent 7.57.0+)
+                                      type: string
+                                  type: object
                                 languageDetection:
                                   description: |-
                                     LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.
@@ -7410,6 +8071,236 @@ spec:
                                     <Library>: <Version>
                                     ex: "java": "v1.18.0"
                                   type: object
+                                targets:
+                                  description: |-
+                                    Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
+                                    used. If no target matches, the auto instrumentation will not be applied.
+                                    (Requires Cluster Agent 7.64.0+)
+                                  items:
+                                    description: SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+                                    properties:
+                                      ddTraceConfigs:
+                                        description: |-
+                                          TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+                                          as environment variables in addition to the injected tracer.
+                                        items:
+                                          description: EnvVar represents an environment variable present in a Container.
+                                          properties:
+                                            name:
+                                              description: Name of the environment variable. Must be a C_IDENTIFIER.
+                                              type: string
+                                            value:
+                                              description: |-
+                                                Variable references $(VAR_NAME) are expanded
+                                                using the previously defined environment variables in the container and
+                                                any service environment variables. If a variable cannot be resolved,
+                                                the reference in the input string will be unchanged. Double $$ are reduced
+                                                to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+                                                "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+                                                Escaped references will never be expanded, regardless of whether the variable
+                                                exists or not.
+                                                Defaults to "".
+                                              type: string
+                                            valueFrom:
+                                              description: Source for the environment variable's value. Cannot be used if value is not empty.
+                                              properties:
+                                                configMapKeyRef:
+                                                  description: Selects a key of a ConfigMap.
+                                                  properties:
+                                                    key:
+                                                      description: The key to select.
+                                                      type: string
+                                                    name:
+                                                      default: ""
+                                                      description: |-
+                                                        Name of the referent.
+                                                        This field is effectively required, but due to backwards compatibility is
+                                                        allowed to be empty. Instances of this type with an empty value here are
+                                                        almost certainly wrong.
+                                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                      type: string
+                                                    optional:
+                                                      description: Specify whether the ConfigMap or its key must be defined
+                                                      type: boolean
+                                                  required:
+                                                    - key
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                                fieldRef:
+                                                  description: |-
+                                                    Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+                                                    spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+                                                  properties:
+                                                    apiVersion:
+                                                      description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
+                                                      type: string
+                                                    fieldPath:
+                                                      description: Path of the field to select in the specified API version.
+                                                      type: string
+                                                  required:
+                                                    - fieldPath
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                                resourceFieldRef:
+                                                  description: |-
+                                                    Selects a resource of the container: only resources limits and requests
+                                                    (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+                                                  properties:
+                                                    containerName:
+                                                      description: 'Container name: required for volumes, optional for env vars'
+                                                      type: string
+                                                    divisor:
+                                                      anyOf:
+                                                        - type: integer
+                                                        - type: string
+                                                      description: Specifies the output format of the exposed resources, defaults to "1"
+                                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                      x-kubernetes-int-or-string: true
+                                                    resource:
+                                                      description: 'Required: resource to select'
+                                                      type: string
+                                                  required:
+                                                    - resource
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                                secretKeyRef:
+                                                  description: Selects a key of a secret in the pod's namespace
+                                                  properties:
+                                                    key:
+                                                      description: The key of the secret to select from.  Must be a valid secret key.
+                                                      type: string
+                                                    name:
+                                                      default: ""
+                                                      description: |-
+                                                        Name of the referent.
+                                                        This field is effectively required, but due to backwards compatibility is
+                                                        allowed to be empty. Instances of this type with an empty value here are
+                                                        almost certainly wrong.
+                                                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                                      type: string
+                                                    optional:
+                                                      description: Specify whether the Secret or its key must be defined
+                                                      type: boolean
+                                                  required:
+                                                    - key
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                          required:
+                                            - name
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-map-keys:
+                                          - name
+                                        x-kubernetes-list-type: map
+                                      ddTraceVersions:
+                                        additionalProperties:
+                                          type: string
+                                        description: |-
+                                          TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer
+                                          name and the value is the version to inject.
+                                        type: object
+                                      name:
+                                        description: Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
+                                        type: string
+                                      namespaceSelector:
+                                        description: |-
+                                          NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
+                                          be used in conjunction with the Selector to match the pods.
+                                        properties:
+                                          matchExpressions:
+                                            description: |-
+                                              MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
+                                              expressions are ANDed. This cannot be used with MatchNames.
+                                            items:
+                                              description: |-
+                                                A label selector requirement is a selector that contains values, a key, and an operator that
+                                                relates the key and values.
+                                              properties:
+                                                key:
+                                                  description: key is the label key that the selector applies to.
+                                                  type: string
+                                                operator:
+                                                  description: |-
+                                                    operator represents a key's relationship to a set of values.
+                                                    Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                  type: string
+                                                values:
+                                                  description: |-
+                                                    values is an array of string values. If the operator is In or NotIn,
+                                                    the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                    the values array must be empty. This array is replaced during a strategic
+                                                    merge patch.
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                                - key
+                                                - operator
+                                              type: object
+                                            type: array
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            description: |-
+                                              MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are
+                                              ANDed. This cannot be used with MatchNames.
+                                            type: object
+                                          matchNames:
+                                            description: MatchNames is a list of namespace names to match. If empty, all namespaces are matched.
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      podSelector:
+                                        description: |-
+                                          PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
+                                          conjunction with the NamespaceSelector to match the pods.
+                                        properties:
+                                          matchExpressions:
+                                            description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                                            items:
+                                              description: |-
+                                                A label selector requirement is a selector that contains values, a key, and an operator that
+                                                relates the key and values.
+                                              properties:
+                                                key:
+                                                  description: key is the label key that the selector applies to.
+                                                  type: string
+                                                operator:
+                                                  description: |-
+                                                    operator represents a key's relationship to a set of values.
+                                                    Valid operators are In, NotIn, Exists and DoesNotExist.
+                                                  type: string
+                                                values:
+                                                  description: |-
+                                                    values is an array of string values. If the operator is In or NotIn,
+                                                    the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                                    the values array must be empty. This array is replaced during a strategic
+                                                    merge patch.
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                                - key
+                                                - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            description: |-
+                                              matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                              map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                              operator is "In", and the values array contains only "value". The requirements are ANDed.
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               type: object
                             unixDomainSocketConfig:
                               description: |-
@@ -7882,6 +8773,21 @@ spec:
                                 Default: false
                               type: boolean
                           type: object
+                        gpu:
+                          description: GPU monitoring
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables GPU monitoring.
+                                Default: false
+                              type: boolean
+                            requiredRuntimeClassName:
+                              description: |-
+                                PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.
+                                If the value is an empty string, the runtime class is not set.
+                                Default: nvidia
+                              type: string
+                          type: object
                         helmCheck:
                           description: HelmCheck configuration.
                           properties:
@@ -8215,12 +9121,12 @@ spec:
                                 enabled:
                                   description: Enabled marks otelcollector as enabled in core agent.
                                   type: boolean
-                                extension_timeout:
+                                extensionTimeout:
                                   description: |-
                                     Extension URL provides the timout of the ddflareextension to
                                     the core agent.
                                   type: integer
-                                extension_url:
+                                extensionURL:
                                   description: |-
                                     Extension URL provides the URL of the ddflareextension to
                                     the core agent.
@@ -8274,6 +9180,7 @@ spec:
                                   - containerPort
                                 type: object
                               type: array
+                              x-kubernetes-list-type: atomic
                           type: object
                         otlp:
                           description: OTLP ingest configuration

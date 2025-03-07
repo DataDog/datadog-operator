@@ -8,8 +8,9 @@ package merger
 import (
 	"sort"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 // SecurityContextManager use to add Security Context settings to containers.

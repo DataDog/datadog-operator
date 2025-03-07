@@ -6,16 +6,16 @@
 package oomkill
 
 import (
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -76,29 +76,29 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(v2alpha1.ModulesVolumeName, v2alpha1.ModulesVolumePath, v2alpha1.ModulesVolumePath, true)
+	modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
 	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(v2alpha1.SrcVolumeName, v2alpha1.SrcVolumePath, v2alpha1.SrcVolumePath, true)
+		srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
 		managers.Volume().AddVolume(&srcVol)
 	}
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(v2alpha1.DebugfsVolumeName, v2alpha1.DebugfsPath, v2alpha1.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommon.AgentContainerName{apicommon.ProcessAgentContainerName, apicommon.SystemProbeContainerName})
 
 	// socket volume mount (needs write perms for the system probe container but not the others)
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, false)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(v2alpha1.SystemProbeSocketVolumeName, v2alpha1.SystemProbeSocketVolumePath, true)
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
 	// env vars
@@ -110,7 +110,7 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDSystemProbeEnabled,
+		Name:  common.DDSystemProbeEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainers(
@@ -119,8 +119,8 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 	)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  v2alpha1.DDSystemProbeSocket,
-		Value: v2alpha1.DefaultSystemProbeSocketPath,
+		Name:  common.DDSystemProbeSocket,
+		Value: common.DefaultSystemProbeSocketPath,
 	}
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, socketEnvVar)
 

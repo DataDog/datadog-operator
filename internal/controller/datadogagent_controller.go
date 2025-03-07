@@ -9,6 +9,7 @@ import (
 	"context"
 	"reflect"
 
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,8 +33,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -66,7 +65,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
@@ -74,8 +73,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get
-// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create;get
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create;get
+// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=get;create;list;watch
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=get;create
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
 
@@ -83,7 +82,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=watermarkpodautoscalers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=external.metrics.k8s.io,resources=*,verbs=get;list;watch
-// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics,verbs=list;watch;create;delete
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics/status,verbs=update
 
 // Configure Autoscaling product
@@ -94,7 +93,7 @@ type DatadogAgentReconciler struct {
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get;list;watch
 
 // Use CiliumNetworkPolicy
 // +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -124,20 +123,24 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
+// EKS control plane metrics
+// +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=kcm/metrics,verbs=get
+// +kubebuilder:rbac:groups="metrics.eks.amazonaws.com",resources=ksh/metrics,verbs=get
+
 // Orchestrator explorer
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=deployments,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=limitranges,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=list;watch
@@ -149,13 +152,13 @@ type DatadogAgentReconciler struct {
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=limitranges,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=limitranges,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=services,verbs=list;watch
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=list;watch
@@ -163,14 +166,14 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch
 // +kubebuilder:rbac:groups=apps,resources=replicationcontrollers,verbs=list;watch
 // +kubebuilder:rbac:groups=apps;extensions,resources=daemonsets;deployments;replicasets,verbs=list;watch
-// +kubebuilder:rbac:groups="",resources=replicationcontrollers,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=replicationcontrollers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=list;watch
-// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=list;watch
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=list;watch
-// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=extensions,resources=customresourcedefinitions,verbs=list;watch

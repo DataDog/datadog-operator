@@ -9,32 +9,30 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
-
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
-const RunInCoreAgentMinVersion = "7.57.0-0"
-const enableOtelAnnotation = "agent.datadoghq.com/otel-agent-enabled"
-const enableAdpAnnotation = "agent.datadoghq.com/adp-enabled"
+const ProcessConfigRunInCoreAgentMinVersion = "7.60.0-0"
+const EnableADPAnnotation = "agent.datadoghq.com/adp-enabled"
 
 func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
-	// Agent version must >= 7.53.0 to run feature in core agent
+	// Agent version must >= 7.60.0 to run feature in core agent
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
-			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), RunInCoreAgentMinVersion)
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessConfigRunInCoreAgentMinVersion)
 		}
 	}
-	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, RunInCoreAgentMinVersion)
+	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion)
 }
 
-// OverrideRunInCoreAgent determines whether to respect the currentVal based on
+// OverrideProcessConfigRunInCoreAgent determines whether to respect the currentVal based on
 // environment variables and the agent version.
-func OverrideRunInCoreAgent(dda *v2alpha1.DatadogAgent, currentVal bool) bool {
+func OverrideProcessConfigRunInCoreAgent(dda *v2alpha1.DatadogAgent, currentVal bool) bool {
 	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		for _, env := range nodeAgent.Env {
-			if env.Name == v2alpha1.DDProcessConfigRunInCoreAgent {
+			if env.Name == common.DDProcessConfigRunInCoreAgent {
 				val, err := strconv.ParseBool(env.Value)
 				if err == nil {
 					return val
@@ -57,13 +55,7 @@ func hasFeatureEnableAnnotation(dda *v2alpha1.DatadogAgent, annotation string) b
 	return false
 }
 
-// HasOtelAgentAnnotation returns true if the OpenTelemetry Agent is enabled via the dedicated
-// `agent.datadoghq.com/otel-agent-enabled` annotation
-func HasOtelAgentAnnotation(dda *v2alpha1.DatadogAgent) bool {
-	return hasFeatureEnableAnnotation(dda, enableOtelAnnotation)
-}
-
 // HasAgentDataPlaneAnnotation returns true if the Agent Data Plane is enabled via the dedicated `agent.datadoghq.com/adp-enabled` annotation
 func HasAgentDataPlaneAnnotation(dda *v2alpha1.DatadogAgent) bool {
-	return hasFeatureEnableAnnotation(dda, enableAdpAnnotation)
+	return hasFeatureEnableAnnotation(dda, EnableADPAnnotation)
 }

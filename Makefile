@@ -21,6 +21,7 @@ GOARCH?=
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
+FIPS_ENABLED?=false
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -86,7 +87,7 @@ $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v5@v5.4.3)
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v5@v5.6.0)
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
@@ -109,14 +110,10 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
+manager: sync generate lint managergobuild ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
 managergobuild: ## Builds only manager go binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager cmd/main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -161,7 +158,7 @@ docker-build: generate docker-build-ci docker-build-check-ci
 # For local use
 .PHONY: docker-build-ci
 docker-build-ci:
-	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+	docker build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
 # For local use
 .PHONY: docker-build-check-ci
@@ -172,7 +169,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --provenance=false --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci
@@ -291,12 +288,14 @@ install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1
-	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v1alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v1alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v1alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
+	@set -o pipefail; \
+	bin/$(PLATFORM)/openapi-gen --logtostderr --output-dir api/datadoghq/v2alpha1 --output-file zz_generated.openapi.go --output-pkg api/datadoghq/v2alpha1 --go-header-file ./hack/boilerplate.go.txt ./api/datadoghq/v2alpha1 2>&1 | tee /dev/stderr | grep -q "violation" && { echo "Error: Warnings detected"; exit 1; } || true
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json
+	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json --loglevel debug
 
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit
@@ -324,9 +323,9 @@ verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
 update-golang:
 	hack/update-golang.sh
 
-.PHONY: tidy
-tidy: ## Run go tidy
-	go mod tidy -v
+.PHONY: sync
+sync: ## Run go work sync
+	go work sync
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
@@ -359,7 +358,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.10.1
+	hack/install-openshift-preflight.sh 1.11.1
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)

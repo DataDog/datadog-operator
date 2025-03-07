@@ -12,6 +12,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
@@ -27,10 +28,24 @@ func TestBuilder(t *testing.T) {
 		wantAgentContainer     map[common.AgentContainerName]bool
 	}{
 		{
-			// This test relies on the fact that by default Live Container feature is enabled
-			// in the default settings which enables process agent.
-			name: "Default DDA, Core and Process agent enabled",
+			name: "Default DDA",
 			dda: testutils.NewDatadogAgentBuilder().
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "Container monitoring on Process agent",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithProcessChecksInCoreAgent(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
@@ -60,14 +75,14 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM enabled, 3 agents",
+			name: "APM enabled, 2 agents",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithAPMEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -165,63 +180,14 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA, default feature Option, otel-agent-enabled annotation true",
+			name: "Default DDA, otel collector feature enabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, default feature Option, otel-agent-enabled annotation false",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            false,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, no otel annotation, Operator option enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            false,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, otel annotation false, otel collector feature enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "false"}).
 				WithOTelCollectorEnabled(true).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -230,36 +196,18 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA, otel annotation true, otel collector feature disabled",
+			name: "Default DDA, otel collector feature disabled",
 			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
 				WithOTelCollectorEnabled(false).
 				BuildWithDefaults(),
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
-				common.AgentDataPlaneContainerName:          false,
-			},
-		},
-		{
-			name: "Default DDA, otel annotation true, otel collector feature enabled",
-			dda: testutils.NewDatadogAgentBuilder().
-				WithAnnotations(map[string]string{"agent.datadoghq.com/otel-agent-enabled": "true"}).
-				WithOTelCollectorEnabled(true).
-				BuildWithDefaults(),
-			wantAgentContainer: map[common.AgentContainerName]bool{
-				common.UnprivilegedSingleAgentContainerName: false,
-				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
-				common.TraceAgentContainerName:              true,
-				common.SystemProbeContainerName:             false,
-				common.SecurityAgentContainerName:           false,
-				common.OtelAgent:                            true,
+				common.OtelAgent:                            false,
 				common.AgentDataPlaneContainerName:          false,
 			},
 		},
@@ -271,7 +219,7 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
 				common.SecurityAgentContainerName:           false,
@@ -287,9 +235,25 @@ func TestBuilder(t *testing.T) {
 			wantAgentContainer: map[common.AgentContainerName]bool{
 				common.UnprivilegedSingleAgentContainerName: false,
 				common.CoreAgentContainerName:               true,
-				common.ProcessAgentContainerName:            true,
+				common.ProcessAgentContainerName:            false,
 				common.TraceAgentContainerName:              true,
 				common.SystemProbeContainerName:             false,
+				common.SecurityAgentContainerName:           false,
+				common.OtelAgent:                            false,
+				common.AgentDataPlaneContainerName:          false,
+			},
+		},
+		{
+			name: "GPU monitoring enabled, 3 agents",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithGPUMonitoringEnabled(true).
+				BuildWithDefaults(),
+			wantAgentContainer: map[common.AgentContainerName]bool{
+				common.UnprivilegedSingleAgentContainerName: false,
+				common.CoreAgentContainerName:               true,
+				common.ProcessAgentContainerName:            false,
+				common.TraceAgentContainerName:              true,
+				common.SystemProbeContainerName:             true,
 				common.SecurityAgentContainerName:           false,
 				common.OtelAgent:                            false,
 				common.AgentDataPlaneContainerName:          false,
@@ -304,7 +268,7 @@ func TestBuilder(t *testing.T) {
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 
 			for name, required := range tt.wantAgentContainer {
-				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "Check", name)
+				assert.Equal(t, required, wantAgentContainer(name, requiredComponents), "container %s", name)
 			}
 		})
 	}

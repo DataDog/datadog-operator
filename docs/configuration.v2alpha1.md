@@ -57,13 +57,16 @@ spec:
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enables Application Performance Monitoring. Default: true |
+| features.apm.errorTrackingStandalone.enabled | Enables Error Tracking for backend services. Default: false |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
 | features.apm.instrumentation.enabled | Enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
 | features.apm.instrumentation.enabledNamespaces | EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces. |
+| features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
+| features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
@@ -111,6 +114,8 @@ spec:
 | features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
+| features.gpu.enabled | Enables GPU monitoring. Default: false |
+| features.gpu.requiredRuntimeClassName | PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature. If the value is an empty string, the runtime class is not set. Default: nvidia |
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
@@ -146,8 +151,8 @@ spec:
 | features.otelCollector.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.otelCollector.conf.configMap.name | Is the name of the ConfigMap. |
 | features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
-| features.otelCollector.coreConfig.extension_timeout | Extension URL provides the timout of the ddflareextension to the core agent. |
-| features.otelCollector.coreConfig.extension_url | Extension URL provides the URL of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extensionTimeout | Extension URL provides the timout of the ddflareextension to the core agent. |
+| features.otelCollector.coreConfig.extensionURL | Extension URL provides the URL of the ddflareextension to the core agent. |
 | features.otelCollector.enabled | Enables the OTel Agent. Default: true |
 | features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
@@ -226,6 +231,7 @@ spec:
 | global.kubelet.host.secretKeyRef.name | Of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names |
 | global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
+| global.kubelet.podResourcesSocketPath | PodResourcesSocketPath is the host path where the pod resources socket is stored. Default: `/var/lib/kubelet/pod-resources/` |
 | global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
 | global.kubernetesResourcesAnnotationsAsTags | Provide a mapping of Kubernetes Resource Groups to annotations mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_ANNOTATION>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
 | global.kubernetesResourcesLabelsAsTags | Provide a mapping of Kubernetes Resource Groups to labels mapping to Datadog Tags. <KUBERNETES_RESOURCE_GROUP>: 		<KUBERNETES_LABEL>: <DATADOG_TAG_KEY> KUBERNETES_RESOURCE_GROUP should be in the form `{resource}.{group}` or `{resource}` (example: deployments.apps, pods) |
@@ -242,7 +248,7 @@ spec:
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | global.registry | Is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'datadoghq.azurecr.io' for Azure Container Registry. Use 'gcr.io/datadoghq' for Google Container Registry. Use 'eu.gcr.io/datadoghq' for Google Container Registry in the EU region. Use 'asia.gcr.io/datadoghq' for Google Container Registry in the Asia region. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
-| global.runProcessChecksInCoreAgent | Configure whether the Process Agent or core Agent collects process and/or container information (Linux only). The Process Agent container won't spin up if there are no other running checks as a result. (Requires Agent 7.57.0+) Default: 'false' |
+| global.runProcessChecksInCoreAgent | Configure whether the Process Agent or core Agent collects process and/or container information (Linux only). If no other checks are running, the Process Agent container will not initialize. (Requires Agent 7.60.0+) Default: 'true' |
 | global.secretBackend.args | List of arguments to pass to the command (space-separated strings). |
 | global.secretBackend.command | The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers. |
 | global.secretBackend.enableGlobalPermissions | Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`. |

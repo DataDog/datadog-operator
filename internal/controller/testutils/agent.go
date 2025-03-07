@@ -25,6 +25,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -351,6 +352,19 @@ func NewDatadogAgentWithUSM(namespace string, name string) v2alpha1.DatadogAgent
 	)
 }
 
+// NewDatadogAgentWithGPUMonitoring returns an agent with GPU monitoring enabled
+func NewDatadogAgentWithGPUMonitoring(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			GPU: &v2alpha1.GPUFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithGlobalConfigSettings returns an agent with some global
 // settings set
 func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2alpha1.DatadogAgent {
@@ -409,7 +423,7 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		Kubelet: &v2alpha1.KubeletConfig{
 			Host: &v1.EnvVarSource{
 				FieldRef: &v1.ObjectFieldSelector{
-					FieldPath: v2alpha1.FieldPathSpecNodeName,
+					FieldPath: common.FieldPathSpecNodeName,
 				},
 			},
 			TLSVerify:  apiutils.NewBoolPointer(true),
@@ -456,7 +470,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				LogLevel: apiutils.NewStringPointer("debug"),
 				Env: []v1.EnvVar{
 					{
-						Name:  v2alpha1.DDLogLevel,
+						Name:  "DD_LOG_LEVEL",
 						Value: "debug",
 					},
 				},

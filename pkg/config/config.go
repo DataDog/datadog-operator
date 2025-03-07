@@ -10,53 +10,60 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"golang.org/x/exp/maps"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/apimachinery/pkg/labels"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 // These constants are only used within pkg/config
 const (
 	// AgentWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgent controller.
 	agentWatchNamespaceEnvVar = "DD_AGENT_WATCH_NAMESPACE"
-	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
-	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
+	// DashboardWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogDashboard controller.
+	dashboardWatchNamespaceEnvVar = "DD_DASHBOARD_WATCH_NAMESPACE"
+	// GenericResourceWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogGenericResource controller.
+	genericResourceWatchNamespaceEnvVar = "DD_GENERIC_RESOURCE_WATCH_NAMESPACE"
 	// MonitorWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogMonitor controller.
 	monitorWatchNamespaceEnvVar = "DD_MONITOR_WATCH_NAMESPACE"
 	// ProfilesWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogAgentProfile controller.
 	profileWatchNamespaceEnvVar = "DD_AGENT_PROFILE_WATCH_NAMESPACE"
+	// SLOWatchNamespaceEnvVar is a comma-separated list of namespaces watched by the DatadogSLO controller.
+	sloWatchNamespaceEnvVar = "DD_SLO_WATCH_NAMESPACE"
 	// WatchNamespaceEnvVar is a comma-separated list of namespaces watched by all controllers, unless a controller-specific configuration is provided.
 	// An empty value means the operator is running with cluster scope.
 	watchNamespaceEnvVar = "WATCH_NAMESPACE"
 )
 
 var (
-	agentObj   = &datadoghqv2alpha1.DatadogAgent{}
-	monitorObj = &datadoghqv1alpha1.DatadogMonitor{}
-	sloObj     = &datadoghqv1alpha1.DatadogSLO{}
-	profileObj = &datadoghqv1alpha1.DatadogAgentProfile{}
-	podObj     = &corev1.Pod{}
-	nodeObj    = &corev1.Node{}
+	agentObj           = &datadoghqv2alpha1.DatadogAgent{}
+	dashboardObj       = &datadoghqv1alpha1.DatadogDashboard{}
+	genericResourceObj = &datadoghqv1alpha1.DatadogGenericResource{}
+	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
+	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
+	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
+	podObj             = &corev1.Pod{}
+	nodeObj            = &corev1.Node{}
 )
 
 type WatchOptions struct {
-	DatadogAgentEnabled        bool
-	DatadogMonitorEnabled      bool
-	DatadogSLOEnabled          bool
-	DatadogAgentProfileEnabled bool
-	IntrospectionEnabled       bool
+	DatadogAgentEnabled           bool
+	DatadogMonitorEnabled         bool
+	DatadogSLOEnabled             bool
+	DatadogAgentProfileEnabled    bool
+	IntrospectionEnabled          bool
+	DatadogDashboardEnabled       bool
+	DatadogGenericResourceEnabled bool
 }
 
 // CacheOptions function configures Controller Runtime cache options on a resource level (supported in v0.16+).
@@ -69,6 +76,22 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 		logger.Info("DatadogAgent Enabled", "watching namespaces", maps.Keys(agentNamespaces))
 		byObject[agentObj] = cache.ByObject{
 			Namespaces: agentNamespaces,
+		}
+	}
+
+	if opts.DatadogDashboardEnabled {
+		dashboardNamespaces := getWatchNamespacesFromEnv(logger, dashboardWatchNamespaceEnvVar)
+		logger.Info("DatadogDashboard Enabled", "watching namespaces", maps.Keys(dashboardNamespaces))
+		byObject[dashboardObj] = cache.ByObject{
+			Namespaces: dashboardNamespaces,
+		}
+	}
+
+	if opts.DatadogGenericResourceEnabled {
+		genericResourceNamespaces := getWatchNamespacesFromEnv(logger, genericResourceWatchNamespaceEnvVar)
+		logger.Info("DatadogGenericResource Enabled", "watching namespaces", maps.Keys(genericResourceNamespaces))
+		byObject[genericResourceObj] = cache.ByObject{
+			Namespaces: genericResourceNamespaces,
 		}
 	}
 

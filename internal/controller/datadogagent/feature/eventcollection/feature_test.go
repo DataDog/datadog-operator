@@ -13,6 +13,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -77,7 +78,7 @@ func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 			Value: "true",
 		},
 		{
-			Name:  v2alpha1.DDLeaderElection,
+			Name:  common.DDLeaderElection,
 			Value: "true",
 		},
 		{
@@ -85,7 +86,7 @@ func eventCollectionClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodT
 			Value: "ddaDCA-leader-election",
 		},
 		{
-			Name:  v2alpha1.DDClusterAgentTokenName,
+			Name:  common.DDClusterAgentTokenName,
 			Value: "ddaDCA-token",
 		},
 	}

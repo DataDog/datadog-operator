@@ -30,7 +30,7 @@ func TestLocalKindSuite(t *testing.T) {
 	if strings.ToLower(os.Getenv("GITLAB_CI")) == "true" {
 		t.Skip("Skipping LocalKindSuite test in CI")
 	}
-	
+
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),

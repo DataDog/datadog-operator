@@ -6,8 +6,9 @@
 package apm
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	rbacv1 "k8s.io/api/rbac/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 func getLanguageDetectionRBACPolicyRules() []rbacv1.PolicyRule {

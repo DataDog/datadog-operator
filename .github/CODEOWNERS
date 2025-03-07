@@ -3,14 +3,14 @@
 # and another the rest of the directory.
 
 # All your base
-*                   @DataDog/container-ecosystems
+*                       @DataDog/container-ecosystems
 
 # Dev Container
 /.devcontainer          @DataDog/container-ecosystems @DataDog/container-platform
 
 # Documentation
-README.md             @DataDog/documentation @DataDog/container-ecosystems
-/docs/                @DataDog/documentation @DataDog/container-ecosystems
+README.md               @DataDog/documentation @DataDog/container-ecosystems
+/docs/                  @DataDog/documentation @DataDog/container-ecosystems
 
 
 # Features owners
@@ -19,3 +19,6 @@ README.md             @DataDog/documentation @DataDog/container-ecosystems
 /internal/controller/datadogagent/feature/clusterchecks/*          @DataDog/container-platform
 /internal/controller/datadogagent/feature/kubernetesstatecore/*    @DataDog/container-integrations
 /internal/controller/datadogagent/feature/helmcheck/*              @DataDog/container-integrations
+
+
+/api/**/datadogpodautoscaler*.go              @DataDog/container-autoscaling

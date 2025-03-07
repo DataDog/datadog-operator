@@ -10,6 +10,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -34,7 +36,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -49,7 +51,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultEuropeSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultEuropeImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -64,7 +66,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAsiaSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultAsiaImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -79,7 +81,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultAzureSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultAzureImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -94,7 +96,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultGovSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultGovImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -110,7 +112,7 @@ func Test_defaultGlobal(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -138,7 +140,7 @@ func Test_defaultGlobal(t *testing.T) {
 						UseHTTPS:     apiutils.NewBoolPointer(defaultFIPSUseHTTPS),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry),
+					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -198,6 +200,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -211,6 +216,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -333,6 +342,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -422,6 +434,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
@@ -549,6 +564,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -562,6 +580,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -673,7 +695,7 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
 						PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						TempStoragePath:            apiutils.NewStringPointer(v2alpha1.DefaultLogTempStoragePath),
+						TempStoragePath:            apiutils.NewStringPointer(common.DefaultLogTempStoragePath),
 					},
 					LiveProcessCollection: &v2alpha1.LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
@@ -696,6 +718,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -709,6 +734,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -838,6 +867,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -851,6 +883,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -980,6 +1016,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -993,6 +1032,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1131,6 +1174,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1144,6 +1190,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1273,6 +1323,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1286,6 +1339,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1418,6 +1475,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1431,6 +1491,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1571,6 +1635,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1601,6 +1669,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
+					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
 					},
 					CSPM: &v2alpha1.CSPMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
@@ -1717,6 +1788,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1730,6 +1804,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1860,6 +1938,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -1873,6 +1954,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -1979,6 +2064,7 @@ func Test_defaultFeatures(t *testing.T) {
 					OOMKill:                 &v2alpha1.OOMKillFeatureConfig{},
 					TCPQueueLength:          &v2alpha1.TCPQueueLengthFeatureConfig{},
 					EBPFCheck:               &v2alpha1.EBPFCheckFeatureConfig{},
+					GPU:                     &v2alpha1.GPUFeatureConfig{},
 					ServiceDiscovery:        &v2alpha1.ServiceDiscoveryFeatureConfig{},
 					APM:                     &v2alpha1.APMFeatureConfig{},
 					ASM:                     &v2alpha1.ASMFeatureConfig{},
@@ -2024,6 +2110,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -2037,6 +2126,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{
@@ -2169,6 +2262,9 @@ func Test_defaultFeatures(t *testing.T) {
 					ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultServiceDiscoveryEnabled),
 					},
+					GPU: &v2alpha1.GPUFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultGPUMonitoringEnabled),
+					},
 					APM: &v2alpha1.APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
 						HostPortConfig: &v2alpha1.HostPortConfig{
@@ -2182,6 +2278,10 @@ func Test_defaultFeatures(t *testing.T) {
 						SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
 							Enabled:           apiutils.NewBoolPointer(defaultAPMSingleStepInstrEnabled),
 							LanguageDetection: &v2alpha1.LanguageDetectionConfig{Enabled: apiutils.NewBoolPointer(defaultLanguageDetectionEnabled)},
+							Injector:          &v2alpha1.InjectorConfig{},
+						},
+						ErrorTrackingStandalone: &v2alpha1.ErrorTrackingStandalone{
+							Enabled: apiutils.NewBoolPointer(defaultAPMErrorTrackingStandalone),
 						},
 					},
 					OtelCollector: &v2alpha1.OtelCollectorFeatureConfig{

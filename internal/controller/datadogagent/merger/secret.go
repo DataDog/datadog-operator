@@ -8,12 +8,12 @@ package merger
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/go-logr/logr"
 )
 
 // SecretManager Kubernetes Secret Manager interface

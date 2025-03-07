@@ -9,45 +9,46 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
-
-	"github.com/go-logr/logr"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
 )
 
 const (
-	agentControllerName     = "DatadogAgent"
-	monitorControllerName   = "DatadogMonitor"
-	sloControllerName       = "DatadogSLO"
-	profileControllerName   = "DatadogAgentProfile"
-	dashboardControllerName = "DatadogDashboard"
+	agentControllerName           = "DatadogAgent"
+	monitorControllerName         = "DatadogMonitor"
+	sloControllerName             = "DatadogSLO"
+	profileControllerName         = "DatadogAgentProfile"
+	dashboardControllerName       = "DatadogDashboard"
+	genericResourceControllerName = "DatadogGenericResource"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset   ExtendedDaemonsetOptions
-	SupportCilium              bool
-	Creds                      config.Creds
-	DatadogAgentEnabled        bool
-	DatadogMonitorEnabled      bool
-	DatadogSLOEnabled          bool
-	OperatorMetricsEnabled     bool
-	V2APIEnabled               bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
-	DatadogDashboardEnabled    bool
+	SupportExtendedDaemonset      ExtendedDaemonsetOptions
+	SupportCilium                 bool
+	Creds                         config.Creds
+	DatadogAgentEnabled           bool
+	DatadogMonitorEnabled         bool
+	DatadogSLOEnabled             bool
+	OperatorMetricsEnabled        bool
+	V2APIEnabled                  bool
+	IntrospectionEnabled          bool
+	DatadogAgentProfileEnabled    bool
+	OtelAgentEnabled              bool
+	DatadogDashboardEnabled       bool
+	DatadogGenericResourceEnabled bool
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -68,11 +69,12 @@ type ExtendedDaemonsetOptions struct {
 type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricForwardersManager) error
 
 var controllerStarters = map[string]starterFunc{
-	agentControllerName:     startDatadogAgent,
-	monitorControllerName:   startDatadogMonitor,
-	sloControllerName:       startDatadogSLO,
-	profileControllerName:   startDatadogAgentProfiles,
-	dashboardControllerName: startDatadogDashboard,
+	agentControllerName:           startDatadogAgent,
+	monitorControllerName:         startDatadogMonitor,
+	sloControllerName:             startDatadogSLO,
+	profileControllerName:         startDatadogAgentProfiles,
+	dashboardControllerName:       startDatadogDashboard,
+	genericResourceControllerName: startDatadogGenericResource,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -201,6 +203,26 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 		Log:      ctrl.Log.WithName("controllers").WithName(dashboardControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(dashboardControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+	if !options.DatadogGenericResourceEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", genericResourceControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogGenericClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	return (&DatadogGenericResourceReconciler{
+		Client:   mgr.GetClient(),
+		DDClient: ddClient,
+		Log:      ctrl.Log.WithName("controllers").WithName(genericResourceControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(genericResourceControllerName),
 	}).SetupWithManager(mgr)
 }
 

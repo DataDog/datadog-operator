@@ -8,6 +8,7 @@ package defaults
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
@@ -30,12 +31,14 @@ const (
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
-	defaultRunProcessChecksInCoreAgent    bool = false
+	defaultRunProcessChecksInCoreAgent    bool = true
 
 	defaultOOMKillEnabled        bool = false
 	defaultTCPQueueLengthEnabled bool = false
 
 	defaultEBPFCheckEnabled bool = false
+
+	defaultGPUMonitoringEnabled bool = false
 
 	defaultServiceDiscoveryEnabled bool = false
 
@@ -43,7 +46,7 @@ const (
 	defaultAPMHostPortEnabled         bool   = false
 	defaultAPMHostPort                int32  = 8126
 	defaultAPMSocketEnabled           bool   = true
-	defaultAPMSocketHostPath          string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.APMSocketName
+	defaultAPMSocketHostPath          string = common.DogstatsdAPMSocketHostPath + "/" + common.APMSocketName
 	defaultAPMSingleStepInstrEnabled  bool   = false
 	defaultLanguageDetectionEnabled   bool   = true
 	defaultCSPMEnabled                bool   = false
@@ -52,6 +55,7 @@ const (
 	defaultCWSSyscallMonitorEnabled   bool   = false
 	defaultCWSNetworkEnabled          bool   = true
 	defaultCWSSecurityProfilesEnabled bool   = true
+	defaultAPMErrorTrackingStandalone bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -62,7 +66,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = v2alpha1.DogstatsdAPMSocketHostPath + "/" + v2alpha1.DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = common.DogstatsdAPMSocketHostPath + "/" + common.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled         bool   = false
 	defaultOTLPGRPCHostPortEnabled bool   = true
@@ -113,6 +117,7 @@ const (
 
 	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	defaultKubeletPodResourcesSocketDir = "/var/lib/kubelet/pod-resources/"
 
 	defaultContainerStrategy = v2alpha1.OptimizedContainerStrategy
 
@@ -148,15 +153,15 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(v2alpha1.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
 		}
 	}
 
@@ -190,6 +195,14 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
 
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
+	}
+
+	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
+		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
+	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
@@ -215,7 +228,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, v2alpha1.DefaultLogTempStoragePath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, common.DefaultLogTempStoragePath)
 	}
 
 	// LiveContainerCollection Feature
@@ -265,6 +278,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
 
+	// GPU monitoring feature
+	if ddaSpec.Features.GPU == nil {
+		ddaSpec.Features.GPU = &v2alpha1.GPUFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.GPU.Enabled, defaultGPUMonitoringEnabled)
+
 	// APM Feature
 	// APM is enabled by default
 	if ddaSpec.Features.APM == nil {
@@ -298,8 +317,18 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 			ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection = &v2alpha1.LanguageDetectionConfig{}
 		}
 
+		if ddaSpec.Features.APM.SingleStepInstrumentation.Injector == nil {
+			ddaSpec.Features.APM.SingleStepInstrumentation.Injector = &v2alpha1.InjectorConfig{}
+		}
+
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
+
+		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{}
+		}
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultAPMErrorTrackingStandalone)
 	}
 
 	// ASM Features
@@ -384,7 +413,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, v2alpha1.DefaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, common.DefaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {

@@ -14,37 +14,35 @@ import (
 	"strings"
 	"time"
 
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	"github.com/go-logr/logr"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	klog "k8s.io/klog/v2"
+	"k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
-
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	"github.com/go-logr/logr"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	// nolint:gci
 	// +kubebuilder:scaffold:imports
 )
 
@@ -126,6 +124,7 @@ type options struct {
 	datadogAgentProfileEnabled             bool
 	remoteConfigEnabled                    bool
 	datadogDashboardEnabled                bool
+	datadogGenericResourceEnabled          bool
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -160,6 +159,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.datadogAgentProfileEnabled, "datadogAgentProfileEnabled", false, "Enable DatadogAgentProfile controller (beta)")
 	flag.BoolVar(&opts.remoteConfigEnabled, "remoteConfigEnabled", false, "Enable RemoteConfig capabilities in the Operator (beta)")
 	flag.BoolVar(&opts.datadogDashboardEnabled, "datadogDashboardEnabled", false, "Enable the DatadogDashboard controller")
+	flag.BoolVar(&opts.datadogGenericResourceEnabled, "datadogGenericResourceEnabled", false, "Enable the DatadogGenericResource controller")
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
@@ -203,7 +203,7 @@ func run(opts *options) error {
 	}
 	version.PrintVersionLogs(setupLog)
 
-	//submits the maximum go routine setting as a metric
+	// submits the maximum go routine setting as a metric
 	metrics.MaxGoroutines.Set(float64(opts.maximumGoroutines))
 
 	if opts.profilingEnabled {
@@ -255,11 +255,13 @@ func run(opts *options) error {
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
 		Cache: config.CacheOptions(setupLog, config.WatchOptions{
-			DatadogAgentEnabled:        opts.datadogAgentEnabled,
-			DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
-			DatadogSLOEnabled:          opts.datadogSLOEnabled,
-			DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-			IntrospectionEnabled:       opts.introspectionEnabled,
+			DatadogAgentEnabled:           opts.datadogAgentEnabled,
+			DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
+			DatadogSLOEnabled:             opts.datadogSLOEnabled,
+			DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
+			IntrospectionEnabled:          opts.introspectionEnabled,
+			DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
+			DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 		}),
 	})
 	if err != nil {
@@ -302,16 +304,17 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
 			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
-		SupportCilium:              opts.supportCilium,
-		Creds:                      creds,
-		DatadogAgentEnabled:        opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:      opts.datadogMonitorEnabled,
-		DatadogSLOEnabled:          opts.datadogSLOEnabled,
-		OperatorMetricsEnabled:     opts.operatorMetricsEnabled,
-		V2APIEnabled:               true,
-		IntrospectionEnabled:       opts.introspectionEnabled,
-		DatadogAgentProfileEnabled: opts.datadogAgentProfileEnabled,
-		DatadogDashboardEnabled:    opts.datadogDashboardEnabled,
+		SupportCilium:                 opts.supportCilium,
+		Creds:                         creds,
+		DatadogAgentEnabled:           opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:         opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:             opts.datadogSLOEnabled,
+		OperatorMetricsEnabled:        opts.operatorMetricsEnabled,
+		V2APIEnabled:                  true,
+		IntrospectionEnabled:          opts.introspectionEnabled,
+		DatadogAgentProfileEnabled:    opts.datadogAgentProfileEnabled,
+		DatadogDashboardEnabled:       opts.datadogDashboardEnabled,
+		DatadogGenericResourceEnabled: opts.datadogGenericResourceEnabled,
 	}
 
 	if err = controller.SetupControllers(setupLog, mgr, options); err != nil {

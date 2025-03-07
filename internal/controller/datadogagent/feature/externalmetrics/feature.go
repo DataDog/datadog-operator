@@ -9,6 +9,13 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -19,13 +26,7 @@ import (
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	netv1 "k8s.io/api/networking/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func init() {
@@ -90,18 +91,18 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			creds := em.Endpoint.Credentials
 			if creds != nil {
 				f.keySecret = make(map[string]secret)
-				if !v2alpha1.CheckAPIKeySufficiency(creds, DDExternalMetricsProviderAPIKey) ||
-					!v2alpha1.CheckAppKeySufficiency(creds, DDExternalMetricsProviderAppKey) {
+				if !secrets.CheckAPIKeySufficiency(creds, DDExternalMetricsProviderAPIKey) ||
+					!secrets.CheckAppKeySufficiency(creds, DDExternalMetricsProviderAppKey) {
 					// for one of api or app keys, neither secrets nor external metrics key env vars
 					// are defined, so store key data to create secret later
-					for keyType, keyData := range v2alpha1.GetKeysFromCredentials(creds) {
+					for keyType, keyData := range secrets.GetKeysFromCredentials(creds) {
 						f.keySecret[keyType] = secret{
 							data: keyData,
 						}
 					}
 				}
 				if creds.APISecret != nil {
-					_, secretName, secretKey := v2alpha1.GetAPIKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
+					_, secretName, secretKey := secrets.GetAPIKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
 					if secretName != "" && secretKey != "" {
 						// api key secret exists; store secret name and key instead
 						f.keySecret[v2alpha1.DefaultAPIKeyKey] = secret{
@@ -111,7 +112,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 					}
 				}
 				if creds.AppSecret != nil {
-					_, secretName, secretKey := v2alpha1.GetAppKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
+					_, secretName, secretKey := secrets.GetAppKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
 					if secretName != "" && secretKey != "" {
 						// app key secret exists; store secret name and key instead
 						f.keySecret[v2alpha1.DefaultAPPKeyKey] = secret{

@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -78,9 +79,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}
@@ -152,9 +152,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profileDaemonSetName: {
@@ -190,8 +189,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}
@@ -252,7 +250,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Name: "two",
 											ValueFrom: &v1.EnvVarSource{
 												FieldRef: &v1.ObjectFieldSelector{
-													FieldPath: v2alpha1.FieldPathStatusPodIP,
+													FieldPath: common.FieldPathStatusPodIP,
 												},
 											},
 										},
@@ -279,9 +277,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profileDaemonSetName: {
@@ -317,8 +314,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 				envVars: []v1.EnvVar{
 					{
@@ -329,7 +325,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						Name: "two",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: common.FieldPathStatusPodIP,
 							},
 						},
 					},
@@ -411,9 +407,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profileDaemonSetName: {
@@ -449,8 +444,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}
@@ -575,9 +569,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profile1DaemonSetName: {
@@ -613,8 +606,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profile2DaemonSetName: {
@@ -650,8 +642,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("3"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}
@@ -770,9 +761,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profile1DaemonSetName: {
@@ -808,8 +798,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			// Don't expect a DaemonSet for the conflicting profile
@@ -917,8 +906,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceMemory: resource.MustParse("128Mi"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profileDaemonSetName: {
@@ -956,8 +944,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceMemory: resource.MustParse("128Mi"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}
@@ -1040,9 +1027,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			defaultDaemonSetNamespacedName(namespace, &agent): {
 				affinity: affinityForDefaultProfile(),
 				containerResources: map[apicommon.AgentContainerName]v1.ResourceRequirements{
-					apicommon.CoreAgentContainerName:    {},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.CoreAgentContainerName:  {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 			profileDaemonSetName: {
@@ -1083,8 +1069,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							v1.ResourceCPU: resource.MustParse("1"),
 						},
 					},
-					apicommon.TraceAgentContainerName:   {},
-					apicommon.ProcessAgentContainerName: {},
+					apicommon.TraceAgentContainerName: {},
 				},
 			},
 		}

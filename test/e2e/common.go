@@ -3,6 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build e2e
+// +build e2e
+
 package e2e
 
 import (
@@ -11,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,8 +23,6 @@ import (
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/resid"
 	"sigs.k8s.io/yaml"
-
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 const (
@@ -185,7 +187,7 @@ func updateKustomization(kustomizeDirPath string, kustomizeResourcePaths []strin
 
 	// Update image
 	if os.Getenv("IMG") != "" {
-		imgName, imgTag = common.SplitImageString(os.Getenv("IMG"))
+		imgName, imgTag = splitImageString(os.Getenv("IMG"))
 	} else {
 		imgName = defaultMgrImageName
 		imgTag = defaultMgrImgTag
@@ -222,4 +224,15 @@ func parseCollectorJson(collectorOutput string) map[string]interface{} {
 		return map[string]interface{}{}
 	}
 	return jsonObject
+}
+
+func splitImageString(in string) (name string, tag string) {
+	imageSplit := strings.Split(in, ":")
+	if len(imageSplit) > 0 {
+		name = imageSplit[0]
+	}
+	if len(imageSplit) > 1 {
+		tag = imageSplit[1]
+	}
+	return name, tag
 }
