@@ -63,9 +63,11 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, requiredComponents feature.RequiredComponents, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
-		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers, requiredComponents); err != nil {
-			errs = append(errs, err)
+		if feat.IsEnabled() {
+			logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
+			if err := feat.ManageDependencies(resourceManagers, requiredComponents); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 	if len(errs) > 0 {
