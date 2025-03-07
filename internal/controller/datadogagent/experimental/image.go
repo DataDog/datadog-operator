@@ -33,15 +33,6 @@ type imageOverride struct {
 	Tag string `json:"tag,omitempty"`
 }
 
-func (i imageOverrides) JSON() (string, error) {
-	b, err := json.Marshal(i)
-	if err != nil {
-		return "", err
-	}
-
-	return string(b), nil
-}
-
 func getImageOverrideConfig(dda *v2alpha1.DatadogAgent) (imageOverrides, error) {
 	imageOverrideConfigRaw := getExperimentalAnnotation(dda, ExperimentalImageOverrideConfigSubkey)
 	if imageOverrideConfigRaw == "" {
