@@ -221,6 +221,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
 			IsRequired: &trueValue,
+			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
 		},
 		Agent: feature.RequiredComponent{
 			IsRequired: &trueValue,

@@ -85,7 +85,9 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		f.enabled = true
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
+		output.Agent.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
@@ -97,6 +99,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
 			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {

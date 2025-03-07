@@ -181,11 +181,11 @@ func verifyFeatures(t *testing.T, tt FeatureTest, features []feature.Feature, go
 			"it should be 1 if when features is enabled, 0 otherwise. Check code")
 	}
 
-	if tt.WantConfigure && len(features) == 0 {
+	if tt.WantConfigure && gotConfigure.IsEnabled() && len(features) == 0 {
 		t.Errorf("feature wanted but feature.BuildFeatures() return empty slice")
 	}
 
-	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
+	if gotConfigure.IsConfigured() != tt.WantConfigure {
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsConfigured(), tt.WantConfigure)
 	}
 }

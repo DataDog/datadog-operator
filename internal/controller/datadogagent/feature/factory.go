@@ -67,12 +67,6 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, disabledComponents RequiredCompon
 			output = append(output, feat)
 		}
 
-		// temporary workaround for enabledefault feature
-		// to be removed along with enabledefault feature
-		if featureID == DefaultIDType {
-			output = append(output, feat)
-		}
-
 		requiredComponents.Merge(&reqComponents)
 	}
 
