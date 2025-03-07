@@ -34,5 +34,5 @@ jobs:
       - uses: codecov/codecov-action@13ce06bfc6bbe3ecf90edbbf1bc32fe5978ca1d3 # v5.3.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: cover.out,cover_integration_v1.out,cover_integration_v2.out
+          files: cover.out,cover_integration.out
           flags: unittests
