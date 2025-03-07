@@ -271,6 +271,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -289,6 +290,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 						},
 					},
@@ -306,6 +308,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -325,6 +328,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 						},
 					},
@@ -343,6 +347,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -371,6 +376,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -391,6 +397,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -420,6 +427,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -438,6 +446,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						}},
 				},
 				&appsv1.DaemonSet{
@@ -447,6 +456,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -458,6 +468,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -486,6 +497,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -505,6 +517,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -515,6 +528,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -526,6 +540,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -537,6 +552,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -548,6 +564,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -576,6 +593,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -592,6 +610,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -610,6 +629,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						}},
 				},
 				&appsv1.DaemonSet{
@@ -620,6 +640,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						}},
 				},
 				&appsv1.DaemonSet{
@@ -629,6 +650,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -640,6 +662,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -668,6 +691,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -687,6 +711,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -697,6 +722,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -708,6 +734,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -719,6 +746,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -730,6 +758,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -761,6 +790,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 								constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 								apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -779,6 +809,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						}},
 				},
 				&appsv1.DaemonSet{
@@ -788,6 +819,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -799,6 +831,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -832,6 +865,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -843,6 +877,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -862,6 +897,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -872,6 +908,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -883,6 +920,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -894,6 +932,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -905,6 +944,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							constants.MD5AgentDeploymentProviderLabelKey: gkeCosProvider,
 							apicommon.AgentDeploymentComponentLabelKey:   constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:     "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:       "ns--1-dda--foo",
 						},
 					},
 				},
@@ -915,6 +955,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -948,6 +989,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
@@ -963,6 +1005,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 							ResourceVersion: "999",
 						},
