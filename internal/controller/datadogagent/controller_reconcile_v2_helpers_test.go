@@ -157,10 +157,12 @@ func Test_manageFeatureDependencies(t *testing.T) {
 
 	// One feature succeeds and one fails.
 	f1 := &dummyFeature{
-		IDValue: "f1",
+		IDValue:        "f1",
+		IsEnabledValue: true,
 	}
 	f2 := &dummyFeature{
 		IDValue:                 "f2",
+		IsEnabledValue:          true,
 		ManageDependenciesError: fmt.Errorf("fail dependency"),
 	}
 

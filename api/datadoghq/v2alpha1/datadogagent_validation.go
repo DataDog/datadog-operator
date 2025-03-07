@@ -22,11 +22,5 @@ func ValidateDatadogAgent(dda *DatadogAgent) error {
 		return fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
 	}
 
-	// token
-	// add more validation from features
-	if dda.Spec.Global.ClusterAgentToken == nil || dda.Spec.Global.ClusterAgentTokenSecret == nil {
-		return fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
-	}
-
 	return nil
 }

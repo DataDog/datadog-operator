@@ -39,8 +39,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		return result, err
 	}
 
-	// err = datadoghqv2alpha1.ValidateDatadogAgent(instance)
-
 	// 2. Handle finalizer logic.
 	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
@@ -79,9 +77,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
-
 	var err error
-
 	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, configuredFeatures, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
