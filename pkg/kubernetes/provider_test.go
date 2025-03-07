@@ -52,6 +52,17 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
+		{
+			name: "talos provider",
+			node: corev1.Node{
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						OSImage: "Talos (v1.9.4)",
+					},
+				},
+			},
+			provider: TalosProvider,
+		},
 	}
 
 	for _, tt := range tests {
