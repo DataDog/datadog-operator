@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -143,6 +144,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 	deploymentName := getDeploymentNameFromDCA(dda)
 	deploymentList := appsv1.DeploymentList{}
