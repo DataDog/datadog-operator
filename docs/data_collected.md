@@ -1,6 +1,8 @@
-# Data collected
+# Data Collected
 
 The Datadog Operator sends metrics and events to Datadog to monitor the Datadog Agent components deployment in the cluster.
+
+For a list of all Kubernetes metrics collected by Datadog, see [Kubernetes Data Collected][4].
 
 ## Metrics
 
@@ -13,9 +15,11 @@ The Datadog Operator sends metrics and events to Datadog to monitor the Datadog 
 
 **Note:** The [Datadog API and app keys][1] are required to forward metrics to Datadog. They must be provided in the `credentials` field in the Custom Resource definition.
 
-The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration][2]. A Datadog integration will be available in the future.
+## OpenMetrics
 
-The OpenMetrics check is activated by default via [Autodiscovery annotations][3] and is scheduled by the Agent running on the same node as the Datadog Operator Pod.
+The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. You can collect them with the [OpenMetrics integration][2].
+
+The OpenMetrics check is enabled by default through [Autodiscovery annotations][3] and is scheduled by the Agent running on the same node as the Datadog Operator Pod. See [Kubernetes and Integrations][5].
 
 ## Events
 
@@ -36,3 +40,5 @@ The OpenMetrics check is activated by default via [Autodiscovery annotations][3]
 [1]: https://docs.datadoghq.com/account_management/api-app-keys/
 [2]: https://docs.datadoghq.com/integrations/openmetrics/
 [3]: ./chart/datadog-operator/templates/deployment.yaml
+[4]: https://docs.datadoghq.com/containers/kubernetes/data_collected/
+[5]: https://docs.datadoghq.com/containers/kubernetes/integrations/?tab=annotations
