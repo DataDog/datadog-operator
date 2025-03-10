@@ -14,14 +14,14 @@ import (
 	"strconv"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/go-logr/logr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
-	monitorType := datadogV1.MonitorType(string(dm.Spec.Type))
+	monitorType := datadogV1.MonitorType(dm.Spec.Type)
 	name := dm.Spec.Name
 	msg := dm.Spec.Message
 	priority := dm.Spec.Priority
@@ -157,16 +157,34 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetRenotifyStatuses(options.RenotifyStatuses)
 	}
 
+	if so := options.SchedulingOptions; so != nil {
+		sops := datadogV1.MonitorOptionsSchedulingOptions{}
+		if ew := options.SchedulingOptions.EvaluationWindow; ew != nil {
+			ewops := datadogV1.MonitorOptionsSchedulingOptionsEvaluationWindow{}
+			if ew.DayStarts != nil {
+				ewops.DayStarts = ew.DayStarts
+			}
+			if ew.HourStarts != nil {
+				ewops.HourStarts = ew.HourStarts
+			}
+			if ew.MonthStarts != nil {
+				ewops.MonthStarts = ew.MonthStarts
+			}
+			sops.SetEvaluationWindow(ewops)
+		}
+		o.SetSchedulingOptions(sops)
+	}
+
 	if options.TimeoutH != nil {
 		o.SetTimeoutH(*options.TimeoutH)
 	}
 
 	if options.NotificationPresetName != "" {
-		o.SetNotificationPresetName(datadogV1.MonitorOptionsNotificationPresets(string(options.NotificationPresetName)))
+		o.SetNotificationPresetName(datadogV1.MonitorOptionsNotificationPresets(options.NotificationPresetName))
 	}
 
 	if options.OnMissingData != "" {
-		o.SetOnMissingData(datadogV1.OnMissingDataOption(string(options.OnMissingData)))
+		o.SetOnMissingData(datadogV1.OnMissingDataOption(options.OnMissingData))
 	}
 
 	m := datadogV1.NewMonitor(query, monitorType)
