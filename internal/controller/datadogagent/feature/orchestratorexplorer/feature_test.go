@@ -58,7 +58,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
-			WantConfigure: false,
+			WantConfigure: true,
 		},
 		{
 			Name: "orchestrator explorer enabled",

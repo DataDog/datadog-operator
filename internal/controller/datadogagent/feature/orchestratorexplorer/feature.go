@@ -81,20 +81,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
-
-		// Process Agent is not required as of agent version 7.51.0
-		if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
-				f.processAgentRequired = true
-				reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
-			}
-		}
-
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: reqContainers,
-		}
+		reqComp.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if orchestratorExplorer.Conf != nil || len(orchestratorExplorer.CustomResources) > 0 {
 			f.customConfig = orchestratorExplorer.Conf
@@ -128,6 +115,21 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
+	}
+
+	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+	reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
+	// Process Agent is not required as of agent version 7.51.0
+	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
+			f.processAgentRequired = true
+			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
+		}
+	}
+	reqComp.Agent.Containers = reqContainers
+
+	if f.runInClusterChecksRunner {
+		reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	}
 
 	return reqComp

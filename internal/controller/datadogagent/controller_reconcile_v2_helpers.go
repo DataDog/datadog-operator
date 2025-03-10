@@ -12,6 +12,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -35,6 +36,34 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 	depsStore := store.NewStore(instance, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 	return depsStore, resourceManagers
+}
+
+func (r *Reconciler) buildRequirements(dda *datadoghqv2alpha1.DatadogAgent) ([]feature.Feature, []feature.Feature, feature.RequiredComponents) {
+	var disabledComponents feature.RequiredComponents
+	disabledComponent := feature.RequiredComponent{
+		IsRequired: apiutils.NewBoolPointer(false),
+	}
+
+	// check for overrides
+	if isComponentDisabledInOverride(dda, datadoghqv2alpha1.ClusterAgentComponentName) {
+		disabledComponents.ClusterAgent = disabledComponent
+	}
+	if isComponentDisabledInOverride(dda, datadoghqv2alpha1.NodeAgentComponentName) {
+		disabledComponents.Agent = disabledComponent
+	}
+	if isComponentDisabledInOverride(dda, datadoghqv2alpha1.ClusterChecksRunnerComponentName) {
+		disabledComponents.ClusterChecksRunner = disabledComponent
+	}
+
+	// check features
+	return feature.BuildFeatures(dda, reconcilerOptionsToFeatureOptions(&r.options, r.log), disabledComponents)
+}
+
+func isComponentDisabledInOverride(dda *datadoghqv2alpha1.DatadogAgent, componentName datadoghqv2alpha1.ComponentName) bool {
+	if override, ok := dda.Spec.Override[componentName]; ok {
+		return apiutils.BoolValue(override.Disabled)
+	}
+	return false
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.

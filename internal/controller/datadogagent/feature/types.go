@@ -29,6 +29,8 @@ func (rc *RequiredComponents) IsEnabled() bool {
 }
 
 // IsConfigured returns true if any of the components need to be configured even if not enabled
+// Can be used for features that may require configuration even when disabled
+// Example: setting an env var to false to disable the feature
 func (rc *RequiredComponents) IsConfigured() bool {
 	return rc.ClusterAgent.IsConfigured() || rc.Agent.IsConfigured() || rc.ClusterChecksRunner.IsConfigured()
 }
@@ -36,18 +38,33 @@ func (rc *RequiredComponents) IsConfigured() bool {
 // Merge use to merge 2 RequiredComponents
 // merge priority: false > true > nil
 // *
-func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
+func (rc *RequiredComponents) Merge(in *RequiredComponents, mergeFunction RequiredComponentsMergeFunction) *RequiredComponents {
+	return mergeFunction(rc, in)
+}
+
+type RequiredComponentsMergeFunction func(rc, in *RequiredComponents) *RequiredComponents
+
+func DefaultRequiredComponentsMergeFunction(rc, in *RequiredComponents) *RequiredComponents {
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
 	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
 	return rc
 }
 
+func IgnoreNilRequiredComponentsMergeFunction(rc, in *RequiredComponents) *RequiredComponents {
+	rc.ignoreNilByComponent(&rc.Agent, &in.Agent)
+	rc.ignoreNilByComponent(&rc.ClusterAgent, &in.ClusterAgent)
+	rc.ignoreNilByComponent(&rc.ClusterChecksRunner, &in.ClusterChecksRunner)
+	return rc
+}
+
 // RequiredComponent is used to know if a component is required and which containers are required.
 // If isRequired is set to:
-//   - nil: the feature doesn't need the corresponding component.
+//   - nil: the feature doesn't need the corresponding component. If the feature is disabled, isRequired should be nil.
 //   - true: the feature needs the corresponding component.
-//   - false: the feature does not need the corresponding component, but if it runs the feature needs to be configured (e.g. explicitly disabled).
+//   - false: the component is disabled (only set in overrides).
+//
+// If a feature is not enabled but needs to be configured, require at least one container.
 type RequiredComponent struct {
 	IsRequired *bool
 	Containers []common.AgentContainerName
@@ -55,12 +72,12 @@ type RequiredComponent struct {
 
 // IsEnabled returns true if the Feature needs the current RequiredComponent
 func (rc *RequiredComponent) IsEnabled() bool {
-	return apiutils.BoolValue(rc.IsRequired) || len(rc.Containers) > 0
+	return apiutils.BoolValue(rc.IsRequired)
 }
 
 // IsConfigured returns true if the Feature does not require the RequiredComponent, but if it runs it needs to be configured appropriately.
 func (rc *RequiredComponent) IsConfigured() bool {
-	return rc.IsRequired != nil || len(rc.Containers) > 0
+	return len(rc.Containers) > 0
 }
 
 // IsPrivileged checks whether component requires privileged access.
@@ -84,6 +101,27 @@ func (rc *RequiredComponent) SingleContainerStrategyEnabled() bool {
 func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 	rc.IsRequired = merge(rc.IsRequired, in.IsRequired)
 	rc.Containers = mergeSlices(rc.Containers, in.Containers)
+	return rc
+}
+
+// ignoreNilByComponent is used to merge 2 RequiredComponents
+// merge priority: false > true
+// nil values are unchanged
+// containers are not merged
+func (rc *RequiredComponents) ignoreNilByComponent(reqc *RequiredComponent, in *RequiredComponent) *RequiredComponents {
+	if reqc.IsRequired != nil && in.IsRequired != nil {
+		if *reqc.IsRequired != *in.IsRequired {
+			if rc.Agent.IsRequired != nil {
+				*rc.Agent.IsRequired = *in.IsRequired
+			}
+			if rc.ClusterAgent.IsRequired != nil {
+				*rc.ClusterAgent.IsRequired = *in.IsRequired
+			}
+			if rc.ClusterChecksRunner.IsRequired != nil {
+				*rc.ClusterChecksRunner.IsRequired = *in.IsRequired
+			}
+		}
+	}
 	return rc
 }
 
@@ -120,7 +158,6 @@ func mergeSlices(a, b []common.AgentContainerName) []common.AgentContainerName {
 }
 
 // Feature interface
-// It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
 	// ID returns the ID of the Feature
 	ID() IDType
@@ -147,8 +184,6 @@ type Feature interface {
 
 // Options option that can be pass to the Interface.Configure function
 type Options struct {
-	SupportExtendedDaemonset bool
-
 	Logger logr.Logger
 }
 
