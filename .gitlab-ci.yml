@@ -239,6 +239,7 @@ publish_public_main:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_main_fips:
   extends: publish_public_main
@@ -262,6 +263,7 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX: ':v'
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_tag_fips:
   extends: publish_public_tag
@@ -286,6 +288,7 @@ publish_redhat_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
 
 publish_redhat_public_tag_fips:
   extends: publish_redhat_public_tag
@@ -307,6 +310,7 @@ publish_public_latest:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
 
 publish_public_latest_fips:
   extends: publish_public_latest
@@ -329,6 +333,7 @@ publish_redhat_public_latest:
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
 
 publish_redhat_public_latest_fips:
   extends: publish_redhat_public_latest
