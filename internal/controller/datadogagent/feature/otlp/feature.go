@@ -57,7 +57,9 @@ type otlpFeature struct {
 	httpCustomHostPort  int32
 	httpEndpoint        string
 
-	usingAPM bool
+	logsEnabled bool
+
+	apmEnabled bool
 
 	forceEnableLocalService bool
 	localServiceName        string
@@ -74,7 +76,7 @@ func (f *otlpFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	otlp := dda.Spec.Features.OTLP
 	f.owner = dda
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
@@ -103,9 +105,11 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
 	}
 
+	f.logsEnabled = apiutils.BoolValue(otlp.Logs.Enabled)
+
 	apm := dda.Spec.Features.APM
 	if apm != nil {
-		f.usingAPM = apiutils.BoolValue(apm.Enabled)
+		f.apmEnabled = apiutils.BoolValue(apm.Enabled)
 	}
 
 	if dda.Spec.Global.LocalService != nil {
@@ -114,6 +118,17 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	f.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
+			}
+		}
+	}
+
+	var reqComp feature.RequiredComponents
+	if f.grpcEnabled || f.httpEnabled || f.logsEnabled {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -122,19 +137,10 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 				},
 			},
 		}
-		// if using APM, require the Trace Agent too.
-		if f.usingAPM {
-			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
-		}
 	}
-	if f.grpcEnabled || f.httpEnabled {
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
-			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
-				f.createCiliumNetworkPolicy = true
-			} else {
-				f.createKubernetesNetworkPolicy = true
-			}
-		}
+	if (f.grpcEnabled || f.httpEnabled) && f.apmEnabled {
+		// if using APM, require the Trace Agent too.
+		reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.TraceAgentContainerName)
 	}
 
 	return reqComp
@@ -169,7 +175,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
-		//network policies for gRPC OTLP
+		// network policies for gRPC OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
@@ -248,7 +254,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				return err
 			}
 		}
-		//network policies for HTTP OTLP
+		// network policies for HTTP OTLP
 		policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
 		if f.createKubernetesNetworkPolicy {
 			protocolTCP := corev1.ProtocolTCP
@@ -402,6 +408,14 @@ func (f *otlpFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplat
 		managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, envVar)
 	}
 
+	if f.logsEnabled {
+		envVar := &corev1.EnvVar{
+			Name:  DDOTLPLogsEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
+	}
+
 	return nil
 }
 
@@ -435,7 +449,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlpgrpcPort)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
-		if f.usingAPM {
+		if f.apmEnabled {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
 	}
@@ -463,9 +477,17 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		}
 		managers.Port().AddPortToContainer(apicommon.CoreAgentContainerName, otlphttpPort)
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
-		if f.usingAPM {
+		if f.apmEnabled {
 			managers.EnvVar().AddEnvVarToContainer(apicommon.TraceAgentContainerName, envVar)
 		}
+	}
+
+	if f.logsEnabled {
+		envVar := &corev1.EnvVar{
+			Name:  DDOTLPLogsEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, envVar)
 	}
 
 	return nil
