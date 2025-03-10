@@ -141,8 +141,8 @@ func (in *DatadogPodAutoscalerSpec) DeepCopyInto(out *DatadogPodAutoscalerSpec) 
 	}
 	if in.FallbackApplyPolicy != nil {
 		in, out := &in.FallbackApplyPolicy, &out.FallbackApplyPolicy
-		*out = new(DatadogPodAutoscalerApplyPolicy)
-		(*in).DeepCopyInto(*out)
+		*out = new(DatadogPodAutoscalerFallbackApplyPolicy)
+		**out = **in
 	}
 	if in.FallbackObjectives != nil {
 		in, out := &in.FallbackObjectives, &out.FallbackObjectives

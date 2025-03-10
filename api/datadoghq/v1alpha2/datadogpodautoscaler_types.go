@@ -86,7 +86,7 @@ type DatadogPodAutoscalerSpec struct {
 	// FallbackApplyPolicy defines how recommendations should be applied when in fallback mode.
 	// +optional
 	// +kubebuilder:default={}
-	FallbackApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"fallbackApplyPolicy,omitempty"`
+	FallbackApplyPolicy *DatadogPodAutoscalerFallbackApplyPolicy `json:"fallbackApplyPolicy,omitempty"`
 
 	// Objectives are the objectives to reach and maintain for the target resource when in fallback mode.
 	// Default to a single objective to maintain 80% POD CPU utilization.
