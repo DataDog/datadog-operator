@@ -136,7 +136,11 @@ Kubernetes supports exposing Secrets as files inside a pod. Datadog provides a h
 
 1. Mount the Secret in the Operator container. For example, you can mount it at `/etc/secret-volume`. 
 
-2. Install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`.
+2. Install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`:
+
+   ```shell
+   helm [install|upgrade] dd-operator --set "secretBackend.command=/readsecret.sh" --set "secretBackend.arguments=/etc/secret-volume" ./chart/datadog-operator
+   ```
 
 ### Deploying Agent components using the secret backend feature with the DatadogAgent 
 
