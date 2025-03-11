@@ -221,10 +221,9 @@ build_bundle_image:
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
     allow_failure: true
   # Temporarily disable on Conductor-triggered jobs
-  - if: '$DDR != "true"'
+  - if: '$DDR == "true"'
     when: manual
-    # Run e2e tests automatically otherwise
-  - when: on_success
+  # Run e2e tests automatically otherwise
 
 trigger_e2e_operator_image:
   stage: e2e
