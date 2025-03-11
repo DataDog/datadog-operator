@@ -27,9 +27,8 @@ stages:
   - build
   - test
   - image
-  - test-image
-  - release
   - e2e
+  - release
   - post-release
   - deploy
 
