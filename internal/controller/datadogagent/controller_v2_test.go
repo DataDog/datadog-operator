@@ -418,6 +418,34 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
+		{
+			name: "DatadogAgent with overrde.nodeAgent.disabled true",
+			fields: fields{
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+							Disabled: apiutils.NewBoolPointer(true),
+						}).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); client.IgnoreNotFound(err) != nil {
+					return err
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
