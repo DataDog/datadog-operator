@@ -1,6 +1,6 @@
 # Migrate DatadogAgent CRDs to v2alpha1
 
-This page discusses how to convert your DatadogAgent Custom Resources Definitions (CRDs) from `v1alpha1` to version `v2alpha1` used by the Datadog Operator v1.0.0.
+This page discusses how to convert your DatadogAgent Custom Resources Definitions (CRDs) from `v1alpha1` to version `v2alpha1` used by the Datadog Operator v1.0.0+.
 
 ## Prerequisites
 
