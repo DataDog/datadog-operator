@@ -223,6 +223,7 @@ build_bundle_image:
   # Temporarily disable on Conductor-triggered jobs
   - if: '$DDR == "true"'
     when: manual
+  - when: on_success
   # Run e2e tests automatically otherwise
 
 trigger_e2e_operator_image:
