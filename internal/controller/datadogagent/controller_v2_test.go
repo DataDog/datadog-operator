@@ -45,10 +45,6 @@ type fields struct {
 	platformInfo kubernetes.PlatformInfo
 	recorder     record.EventRecorder
 }
-type args struct {
-	request  reconcile.Request
-	loadFunc func(c client.Client)
-}
 
 func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
@@ -69,7 +65,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	tests := []struct {
 		name     string
 		fields   fields
-		args     args
+		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
 		want     reconcile.Result
 		wantErr  bool
 		wantFunc func(c client.Client) error
@@ -81,13 +77,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -107,14 +101,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithSingleContainerStrategy(false).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithSingleContainerStrategy(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -134,14 +126,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithSingleContainerStrategy(true).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithSingleContainerStrategy(true).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -160,15 +150,13 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithSingleContainerStrategy(false).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithSingleContainerStrategy(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -188,15 +176,13 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithSingleContainerStrategy(true).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithSingleContainerStrategy(true).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -215,16 +201,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithCWSEnabled(true).
-						WithSingleContainerStrategy(false).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithCWSEnabled(true).
+					WithSingleContainerStrategy(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -246,17 +230,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithCWSEnabled(true).
-						WithSingleContainerStrategy(true).
-						Build()
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithCWSEnabled(true).
+					WithSingleContainerStrategy(true).
+					Build()
 
-					_ = c.Create(context.TODO(), dda)
-				},
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -278,16 +260,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithOOMKillEnabled(true).
-						WithSingleContainerStrategy(false).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithOOMKillEnabled(true).
+					WithSingleContainerStrategy(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -308,16 +288,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithAPMEnabled(true).
-						WithOOMKillEnabled(true).
-						WithSingleContainerStrategy(true).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithAPMEnabled(true).
+					WithOOMKillEnabled(true).
+					WithSingleContainerStrategy(true).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -338,17 +316,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					fipsConfig := v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-					}
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithFIPS(fipsConfig).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				fipsConfig := v2alpha1.FIPSConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				}
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithFIPS(fipsConfig).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -369,20 +345,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
-						}).
-						WithClusterChecksUseCLCEnabled(true).
-						WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
-							CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
-						}).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+					}).
+					WithClusterChecksUseCLCEnabled(true).
+					WithComponentOverride(v2alpha1.ClusterChecksRunnerComponentName, v2alpha1.DatadogAgentComponentOverride{
+						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -397,14 +371,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithProcessChecksInCoreAgent(false).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithProcessChecksInCoreAgent(false).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -437,10 +409,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				},
 			}
 
-			if tt.args.loadFunc != nil {
-				tt.args.loadFunc(r.client)
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(r.client)
 			}
-			got, err := r.Reconcile(context.TODO(), tt.args.request)
+			got, err := r.Reconcile(context.TODO(), dda)
 			if tt.wantErr {
 				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
 			} else {
@@ -476,7 +449,7 @@ func Test_Introspection(t *testing.T) {
 	tests := []struct {
 		name     string
 		fields   fields
-		args     args
+		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
 		nodes    []client.Object
 		want     reconcile.Result
 		wantErr  bool
@@ -488,29 +461,27 @@ func Test_Introspection(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-							Affinity: &corev1.Affinity{
-								PodAntiAffinity: &corev1.PodAntiAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-										{
-											LabelSelector: &metav1.LabelSelector{
-												MatchLabels: map[string]string{
-													"foo": "bar",
-												},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Affinity: &corev1.Affinity{
+							PodAntiAffinity: &corev1.PodAntiAffinity{
+								RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+									{
+										LabelSelector: &metav1.LabelSelector{
+											MatchLabels: map[string]string{
+												"foo": "bar",
 											},
-											TopologyKey: "baz",
 										},
+										TopologyKey: "baz",
 									},
 								},
 							},
-						}).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+						},
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			nodes: []client.Object{
 				&corev1.Node{
@@ -561,10 +532,11 @@ func Test_Introspection(t *testing.T) {
 				},
 			}
 
-			if tt.args.loadFunc != nil {
-				tt.args.loadFunc(r.client)
+			var dda *v2alpha1.DatadogAgent
+			if tt.loadFunc != nil {
+				dda = tt.loadFunc(r.client)
 			}
-			got, err := r.Reconcile(context.TODO(), tt.args.request)
+			got, err := r.Reconcile(context.TODO(), dda)
 			if tt.wantErr {
 				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
 			} else {

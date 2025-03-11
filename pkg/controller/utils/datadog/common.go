@@ -25,8 +25,8 @@ func getObjID(obj MonitoredObject) string {
 	return fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 }
 
-// getNamespacedName builds a NamespacedName for a given monitored object
-func getNamespacedName(obj MonitoredObject) types.NamespacedName {
+// GetNamespacedName builds a NamespacedName for a given monitored object
+func GetNamespacedName(obj MonitoredObject) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),
