@@ -25,22 +25,23 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := r.log.WithValues("datadogagent", request.NamespacedName)
+func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+	reqLogger := r.log.WithValues("datadogagent", pkgutils.GetNamespacedName(instance))
 	reqLogger.Info("Reconciling DatadogAgent")
+	var result reconcile.Result
 
-	// 1. Fetch and validate the resource.
-	instance, result, err := r.fetchAndValidateDatadogAgent(ctx, request)
-	if utils.ShouldReturn(result, err) {
+	// 1. Validate the resource.
+	if err := datadoghqv2alpha1.ValidateDatadogAgent(instance); err != nil {
 		return result, err
 	}
 
 	// 2. Handle finalizer logic.
-	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

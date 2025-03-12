@@ -14,19 +14,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-func newRequest(ns, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Namespace: ns,
-			Name:      name,
-		},
-	}
-}
 
 func containsEnv(slice []corev1.EnvVar, name, value string) bool {
 	for _, element := range slice {

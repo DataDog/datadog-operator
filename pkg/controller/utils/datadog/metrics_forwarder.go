@@ -140,7 +140,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		monitoredObjectKind: kind.GroupVersionKind().Kind,
 		k8sClient:           k8sClient,
 		platformInfo:        platforminfo,
-		namespacedName:      getNamespacedName(obj),
+		namespacedName:      GetNamespacedName(obj),
 		retryInterval:       defaultMetricsRetryInterval,
 		sendMetricsInterval: defaultSendMetricsInterval,
 		metricsPrefix:       defaultMetricsNamespace,

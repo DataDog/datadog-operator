@@ -1,20 +1,14 @@
 package datadogagent
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/stretchr/testify/require"
 )
@@ -63,64 +57,6 @@ func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTempl
 // ManageClusterChecksRunner returns a predefined error (or nil for success).
 func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return df.ManageClusterChecksRunnerError
-}
-
-// Test_fetchAndValidateDatadogAgent tests the retrieval and basic validation of a DatadogAgent.
-func Test_fetchAndValidateDatadogAgent(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, datadoghqv2alpha1.AddToScheme(scheme))
-
-	// Create a valid DatadogAgent with credentials configured.
-	validAgent := &datadoghqv2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "valid",
-			Namespace: "default",
-		},
-		Spec: datadoghqv2alpha1.DatadogAgentSpec{
-			Global: &datadoghqv2alpha1.GlobalConfig{
-				Credentials: &datadoghqv2alpha1.DatadogCredentials{
-					APIKey: apiutils.NewStringPointer("dummy"),
-				},
-			},
-		},
-	}
-	// Create an invalid DatadogAgent (missing credentials).
-	invalidAgent := &datadoghqv2alpha1.DatadogAgent{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "invalid",
-			Namespace: "default",
-		},
-		Spec: datadoghqv2alpha1.DatadogAgentSpec{
-			Global: nil,
-		},
-	}
-
-	// --- Valid agent test ---
-	cli := fakeclient.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(validAgent).Build()
-	r := &Reconciler{
-		client: cli,
-	}
-	req := reconcile.Request{NamespacedName: types.NamespacedName{Name: "valid", Namespace: "default"}}
-	inst, res, err := r.fetchAndValidateDatadogAgent(context.TODO(), req)
-	require.NoError(t, err)
-	require.NotNil(t, inst)
-	require.Equal(t, reconcile.Result{}, res)
-
-	// --- Not found test ---
-	reqNF := reconcile.Request{NamespacedName: types.NamespacedName{Name: "nonexistent", Namespace: "default"}}
-	inst, res, err = r.fetchAndValidateDatadogAgent(context.TODO(), reqNF)
-	require.NoError(t, err)
-	require.Nil(t, inst)
-
-	// --- Invalid (missing credentials) test ---
-	cli2 := fakeclient.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(invalidAgent).Build()
-	r2 := &Reconciler{
-		client: cli2,
-	}
-	reqInv := reconcile.Request{NamespacedName: types.NamespacedName{Name: "invalid", Namespace: "default"}}
-	inst, res, err = r2.fetchAndValidateDatadogAgent(context.TODO(), reqInv)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "credentials not configured")
 }
 
 // Test_setupDependencies verifies that store and resource managers are initialized.
