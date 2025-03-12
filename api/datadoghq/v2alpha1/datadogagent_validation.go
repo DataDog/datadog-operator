@@ -8,6 +8,7 @@ package v2alpha1
 import "fmt"
 
 // ValidateDatadogAgent is used to check if a DatadogAgent is valid
+// ValidateDatadogAgent is used to check if a DatadogAgent is valid
 func ValidateDatadogAgent(dda *DatadogAgent) error {
 	// TODO
 	// Ensure required credentials are configured.

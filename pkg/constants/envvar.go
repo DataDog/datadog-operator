@@ -12,4 +12,5 @@ const (
 	DDURL         = "DD_URL"
 	DDSite        = "DD_SITE"
 	DDClusterName = "DD_CLUSTER_NAME"
+	DDLogLevel    = "DD_LOG_LEVEL"
 )

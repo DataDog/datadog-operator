@@ -7,8 +7,6 @@ package enabledefault
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -17,18 +15,13 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func init() {
@@ -39,18 +32,7 @@ func init() {
 }
 
 func buildDefaultFeature(options *feature.Options) feature.Feature {
-	dF := &defaultFeature{
-		credentialsInfo: credentialsInfo{
-			secretCreation: secretInfo{
-				data: make(map[string]string),
-			},
-		},
-		dcaTokenInfo: dcaTokenInfo{
-			secretCreation: secretInfo{
-				data: make(map[string]string),
-			},
-		},
-	}
+	dF := &defaultFeature{}
 
 	if options != nil {
 		dF.logger = options.Logger
@@ -62,8 +44,6 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 type defaultFeature struct {
 	owner metav1.Object
 
-	credentialsInfo         credentialsInfo
-	dcaTokenInfo            dcaTokenInfo
 	clusterAgent            clusterAgentConfig
 	agent                   agentConfig
 	clusterChecksRunner     clusterChecksRunnerConfig
@@ -76,28 +56,6 @@ type defaultFeature struct {
 
 	kubernetesResourcesLabelsAsTags      map[string]map[string]string
 	kubernetesResourcesAnnotationsAsTags map[string]map[string]string
-}
-
-type credentialsInfo struct {
-	apiKey         keyInfo
-	appKey         keyInfo
-	secretCreation secretInfo
-}
-
-type dcaTokenInfo struct {
-	token          keyInfo
-	secretCreation secretInfo
-}
-
-type keyInfo struct {
-	SecretName string
-	SecretKey  string
-}
-
-type secretInfo struct {
-	createSecret bool
-	name         string
-	data         map[string]string
 }
 
 type clusterAgentConfig struct {
@@ -142,68 +100,10 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		if dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules {
 			f.disableNonResourceRules = true
 		}
-		if dda.Spec.Global.Credentials != nil {
-			creds := dda.Spec.Global.Credentials
-
-			if creds.APIKey != nil || creds.AppKey != nil {
-				f.credentialsInfo.secretCreation.createSecret = true
-				f.credentialsInfo.secretCreation.name = secrets.GetDefaultCredentialsSecretName(dda)
-			}
-
-			if creds.APIKey != nil {
-				f.credentialsInfo.secretCreation.data[v2alpha1.DefaultAPIKeyKey] = *creds.APIKey
-				f.credentialsInfo.apiKey.SecretName = f.credentialsInfo.secretCreation.name
-				f.credentialsInfo.apiKey.SecretKey = v2alpha1.DefaultAPIKeyKey
-			} else if creds.APISecret != nil {
-				f.credentialsInfo.apiKey.SecretName = creds.APISecret.SecretName
-				f.credentialsInfo.apiKey.SecretKey = creds.APISecret.KeyName
-			}
-
-			if creds.AppKey != nil {
-				f.credentialsInfo.secretCreation.data[v2alpha1.DefaultAPPKeyKey] = *creds.AppKey
-				f.credentialsInfo.appKey.SecretName = f.credentialsInfo.secretCreation.name
-				f.credentialsInfo.appKey.SecretKey = v2alpha1.DefaultAPPKeyKey
-			} else if creds.AppSecret != nil {
-				f.credentialsInfo.appKey.SecretName = creds.AppSecret.SecretName
-				f.credentialsInfo.appKey.SecretKey = creds.AppSecret.KeyName
-			}
-		}
-
-		// DCA Token management
-		f.dcaTokenInfo.token.SecretName = secrets.GetDefaultDCATokenSecretName(dda)
-		f.dcaTokenInfo.token.SecretKey = common.DefaultTokenKey
-		if dda.Spec.Global.ClusterAgentToken != nil {
-			// User specifies token
-			f.dcaTokenInfo.secretCreation.createSecret = true
-			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
-			f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
-		} else if dda.Spec.Global.ClusterAgentTokenSecret != nil {
-			// User specifies token secret
-			f.dcaTokenInfo.token.SecretName = dda.Spec.Global.ClusterAgentTokenSecret.SecretName
-			f.dcaTokenInfo.token.SecretKey = dda.Spec.Global.ClusterAgentTokenSecret.KeyName
-		} else if dda.Spec.Global.ClusterAgentToken == nil {
-			// Token needs to be generated or read from status
-			f.dcaTokenInfo.secretCreation.createSecret = true
-			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
-			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
-				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = apiutils.GenerateRandomString(32)
-			} else {
-				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
-			}
-		}
 
 		f.kubernetesResourcesLabelsAsTags = dda.Spec.Global.KubernetesResourcesLabelsAsTags
 		f.kubernetesResourcesAnnotationsAsTags = dda.Spec.Global.KubernetesResourcesAnnotationsAsTags
 		f.clusterAgent.resourceMetadataAsTagsClusterRoleName = componentdca.GetResourceMetadataAsTagsClusterRoleName(dda)
-
-		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
-		if err != nil {
-			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
-		} else {
-			f.logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
-		}
-		f.customConfigAnnotationValue = hash
-		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
 	agentContainers := make([]apicommon.AgentContainerName, 0)
@@ -228,34 +128,6 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 // Feature's dependencies should be added in the store.
 func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	var errs []error
-	// manage credential secret
-	if f.credentialsInfo.secretCreation.createSecret {
-		for key, value := range f.credentialsInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.credentialsInfo.secretCreation.name, key, value); err != nil {
-				errs = append(errs, err)
-			}
-		}
-	}
-
-	if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
-		for key, value := range f.dcaTokenInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		// Adding Annotation containing data hash to secret.
-		if err := managers.SecretManager().AddAnnotations(f.logger, f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}); err != nil {
-			errs = append(errs, err)
-		}
-
-	}
-
-	// Create install-info configmap
-	installInfoCM := buildInstallInfoConfigMap(f.owner)
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, installInfoCM); err != nil {
-		return err
-	}
-
 	if components.Agent.IsEnabled() {
 		if err := f.agentDependencies(managers, components.Agent); err != nil {
 			errs = append(errs, err)
@@ -389,11 +261,8 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
-	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
-	}
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  DDClusterAgentServiceAccountName,
+		Name:  "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME", // temporary until service accounts are moved
 		Value: f.clusterAgent.serviceAccountName,
 	})
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -452,21 +321,6 @@ func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateM
 }
 
 func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
-	if f.dcaTokenInfo.token.SecretName != "" {
-		tokenEnvVar := common.BuildEnvVarFromSource(DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
-		managers.EnvVar().AddEnvVar(tokenEnvVar)
-	}
-
-	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
-		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
-	}
-
-	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
-		managers.EnvVar().AddEnvVar(appKeyEnvVar)
-	}
-
 	if len(f.kubernetesResourcesLabelsAsTags) > 0 {
 		kubernetesResourceLabelsAsTags, err := json.Marshal(f.kubernetesResourcesLabelsAsTags)
 		if err != nil {
@@ -491,33 +345,3 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 		}
 	}
 }
-
-func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.GetInstallInfoConfigMapName(dda),
-			Namespace: dda.GetNamespace(),
-		},
-		Data: map[string]string{
-			"install_info": getInstallInfoValue(),
-		},
-	}
-
-	return configMap
-}
-
-func getInstallInfoValue() string {
-	toolVersion := "unknown"
-	if envVar := os.Getenv(InstallInfoToolVersion); envVar != "" {
-		toolVersion = envVar
-	}
-
-	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
-}
-
-const installInfoDataTmpl = `---
-install_method:
-  tool: datadog-operator
-  tool_version: %s
-  installer_version: %s
-`

@@ -39,6 +39,7 @@ type StoreClient interface {
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetPlatformInfo() kubernetes.PlatformInfo
+	GetAnnotationValue(kind kubernetes.ObjectKind, namespace, name, key string) (string, bool)
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	Logger() logr.Logger
@@ -282,6 +283,15 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 // GetPlatformInfo returns api-resources info
 func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {
 	return ds.platformInfo
+}
+
+// GetAnnotation returns the annotation value for the given key
+func (ds *Store) GetAnnotationValue(kind kubernetes.ObjectKind, namespace, name, key string) (string, bool) {
+	obj, found := ds.Get(kind, namespace, name)
+	if !found {
+		return "", false
+	}
+	return obj.GetAnnotations()[key], true
 }
 
 // Logger returns the log client

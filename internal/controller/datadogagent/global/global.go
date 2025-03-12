@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"encoding/json"
@@ -23,10 +23,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
@@ -48,6 +51,12 @@ func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplat
 func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
 	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, singleContainerStrategyEnabled bool) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
+
+	// Credentials
+	addCredentialConfig(manager, dda, resourcesManager)
+
+	// Cluster agent token
+	addClusterAgentTokenConfig(manager, dda, resourcesManager)
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	if config.ClusterName != nil {
@@ -92,7 +101,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
 	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  DDLogLevel,
+		Name:  constants.DDLogLevel,
 		Value: *config.LogLevel,
 	})
 
@@ -146,18 +155,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if config.Env != nil {
 		for _, envVar := range config.Env {
 			manager.EnvVar().AddEnvVar(&envVar)
-		}
-	}
-
-	// Configure checks tag cardinality if provided
-	if componentName == v2alpha1.NodeAgentComponentName {
-		if config.ChecksTagCardinality != nil {
-			// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
-			// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  DDChecksTagCardinality,
-				Value: *config.ChecksTagCardinality,
-			})
 		}
 	}
 
@@ -233,127 +230,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
-	if componentName == v2alpha1.NodeAgentComponentName {
-		// Kubelet contains the kubelet configuration parameters.
-		// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
-		if config.Kubelet != nil {
-			if config.Kubelet.Host != nil {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:      common.DDKubeletHost,
-					ValueFrom: config.Kubelet.Host,
-				})
-			}
-			if config.Kubelet.TLSVerify != nil {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  DDKubeletTLSVerify,
-					Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
-				})
-			}
-			if config.Kubelet.HostCAPath != "" {
-				var agentCAPath string
-				// If the user configures a Kubelet CA certificate, it is mounted in AgentCAPath.
-				// The default mount value is `/var/run/host-kubelet-ca.crt`, which can be overriden by the user-provided parameter.
-				if config.Kubelet.AgentCAPath != "" {
-					agentCAPath = config.Kubelet.AgentCAPath
-				} else {
-					agentCAPath = common.KubeletAgentCAPath
-				}
-				kubeletVol, kubeletVolMount := volume.GetVolumes(kubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
-				if singleContainerStrategyEnabled {
-					manager.VolumeMount().AddVolumeMountToContainers(
-						&kubeletVolMount,
-						[]apicommon.AgentContainerName{
-							apicommon.UnprivilegedSingleAgentContainerName,
-						},
-					)
-					manager.Volume().AddVolume(&kubeletVol)
-				} else {
-					manager.VolumeMount().AddVolumeMountToContainers(
-						&kubeletVolMount,
-						[]apicommon.AgentContainerName{
-							apicommon.CoreAgentContainerName,
-							apicommon.ProcessAgentContainerName,
-							apicommon.TraceAgentContainerName,
-							apicommon.SecurityAgentContainerName,
-							apicommon.AgentDataPlaneContainerName,
-						},
-					)
-					manager.Volume().AddVolume(&kubeletVol)
-				}
-				// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  DDKubeletCAPath,
-					Value: agentCAPath,
-				})
-			}
-			if config.Kubelet.PodResourcesSocketPath != "" {
-				manager.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
-				})
-
-				podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketPath, config.Kubelet.PodResourcesSocketPath, false)
-				if singleContainerStrategyEnabled {
-					manager.VolumeMount().AddVolumeMountToContainer(
-						&podResourcesMount,
-						apicommon.UnprivilegedSingleAgentContainerName,
-					)
-					manager.Volume().AddVolume(&podResourcesVol)
-				} else {
-					manager.VolumeMount().AddVolumeMountToContainer(
-						&podResourcesMount,
-						apicommon.CoreAgentContainerName,
-					)
-					manager.Volume().AddVolume(&podResourcesVol)
-				}
-			}
-		}
-
-		var runtimeVol corev1.Volume
-		var runtimeVolMount corev1.VolumeMount
-		// Path to the docker runtime socket.
-		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.DockerSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  DockerHost,
-				Value: "unix://" + dockerMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-		} else if config.CriSocketPath != nil {
-			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.CriSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  DDCriSocketPath,
-				Value: criSocketMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-		}
-		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
-
-			if singleContainerStrategyEnabled {
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&runtimeVolMount,
-					[]apicommon.AgentContainerName{
-						apicommon.UnprivilegedSingleAgentContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&runtimeVol)
-			} else {
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&runtimeVolMount,
-					[]apicommon.AgentContainerName{
-						apicommon.CoreAgentContainerName,
-						apicommon.ProcessAgentContainerName,
-						apicommon.TraceAgentContainerName,
-						apicommon.SecurityAgentContainerName,
-						apicommon.AgentDataPlaneContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&runtimeVol)
-			}
-		}
-	}
-
 	// Apply SecretBackend config
 	if config.SecretBackend != nil {
 		// Set secret backend command
@@ -376,16 +252,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			})
 		}
 
-		var componentSaName string
-		switch componentName {
-		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = constants.GetClusterAgentServiceAccount(dda)
-		case v2alpha1.NodeAgentComponentName:
-			componentSaName = constants.GetAgentServiceAccount(dda)
-		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda)
-		}
-
+		componentSaName := constants.GetServiceAccountNameByComponent(dda, componentName)
 		agentName := dda.GetName()
 		agentNs := dda.GetNamespace()
 		rbacSuffix := "secret-backend"
@@ -433,5 +300,208 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
+	// Apply component-specific configs
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		nodeAgentGlobal(logger, manager, dda.Spec.Global, singleContainerStrategyEnabled)
+	}
+
 	return manager.PodTemplateSpec()
+}
+
+func addCredentialConfig(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
+	global := dda.Spec.Global
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
+	ns := dda.GetNamespace()
+
+	// api key
+	// token from generated secret
+	apiSecretName := defaultSecretName
+	apiSecretKey := v2alpha1.DefaultAPIKeyKey
+
+	// override token from user secret
+	if isValidSecretConfig(global.Credentials.APISecret) {
+		apiSecretName = global.Credentials.APISecret.SecretName
+		apiSecretKey = global.Credentials.APISecret.KeyName
+	}
+	apiKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAPIKey, common.BuildEnvVarFromSecret(apiSecretName, apiSecretKey))
+	manager.EnvVar().AddEnvVar(apiKeyEnvVar)
+
+	// checksum annotation
+	apiAnnotationKey := object.GetChecksumAnnotationKey(fmt.Sprintf("%s-%s", ns, apiSecretName))
+	if val, exists := resourcesManager.Store().GetAnnotationValue(kubernetes.SecretsKind, ns, apiSecretName, apiAnnotationKey); exists {
+		manager.Annotation().AddAnnotation(apiAnnotationKey, val)
+	}
+
+	// app key
+	// token from generated secret
+	appSecretName := defaultSecretName
+	appSecretKey := v2alpha1.DefaultAPPKeyKey
+
+	// override token from user secret
+	if isValidSecretConfig(global.Credentials.AppSecret) {
+		appSecretName = global.Credentials.AppSecret.SecretName
+		appSecretKey = global.Credentials.AppSecret.KeyName
+	}
+	appKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAppKey, common.BuildEnvVarFromSecret(appSecretName, appSecretKey))
+	manager.EnvVar().AddEnvVar(appKeyEnvVar)
+
+	// checksum annotation
+	appAnnotationKey := object.GetChecksumAnnotationKey(fmt.Sprintf("%s-%s", ns, appSecretName))
+	if val, exists := resourcesManager.Store().GetAnnotationValue(kubernetes.SecretsKind, ns, appSecretName, appAnnotationKey); exists {
+		manager.Annotation().AddAnnotation(appAnnotationKey, val)
+	}
+}
+
+func addClusterAgentTokenConfig(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
+	global := dda.Spec.Global
+	ns := dda.GetNamespace()
+
+	// token from generated secret
+	secretName := secrets.GetDefaultDCATokenSecretName(dda)
+	secretKey := common.DefaultTokenKey
+	// override token from user secret
+	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+		secretName = global.ClusterAgentTokenSecret.SecretName
+		secretKey = global.ClusterAgentTokenSecret.KeyName
+	}
+
+	tokenEnvVar := common.BuildEnvVarFromSource(DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(secretName, secretKey))
+	manager.EnvVar().AddEnvVar(tokenEnvVar)
+
+	// checksum annotation
+	annotationKey := object.GetChecksumAnnotationKey(fmt.Sprintf("%s-%s", ns, secretName))
+	if val, exists := resourcesManager.Store().GetAnnotationValue(kubernetes.SecretsKind, ns, secretName, annotationKey); exists {
+		manager.Annotation().AddAnnotation(annotationKey, val)
+	}
+}
+
+func nodeAgentGlobal(logger logr.Logger, manager feature.PodTemplateManagers, config *v2alpha1.GlobalConfig, singleContainerStrategyEnabled bool) {
+	if config.ChecksTagCardinality != nil {
+		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
+		// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDChecksTagCardinality,
+			Value: *config.ChecksTagCardinality,
+		})
+	}
+
+	// Kubelet contains the kubelet configuration parameters.
+	// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
+	if config.Kubelet != nil {
+		if config.Kubelet.Host != nil {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:      common.DDKubeletHost,
+				ValueFrom: config.Kubelet.Host,
+			})
+		}
+		if config.Kubelet.TLSVerify != nil {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDKubeletTLSVerify,
+				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+			})
+		}
+		if config.Kubelet.HostCAPath != "" {
+			var agentCAPath string
+			// If the user configures a Kubelet CA certificate, it is mounted in AgentCAPath.
+			// The default mount value is `/var/run/host-kubelet-ca.crt`, which can be overriden by the user-provided parameter.
+			if config.Kubelet.AgentCAPath != "" {
+				agentCAPath = config.Kubelet.AgentCAPath
+			} else {
+				agentCAPath = common.KubeletAgentCAPath
+			}
+			kubeletVol, kubeletVolMount := volume.GetVolumes(kubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
+			if singleContainerStrategyEnabled {
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&kubeletVolMount,
+					[]apicommon.AgentContainerName{
+						apicommon.UnprivilegedSingleAgentContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&kubeletVol)
+			} else {
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&kubeletVolMount,
+					[]apicommon.AgentContainerName{
+						apicommon.CoreAgentContainerName,
+						apicommon.ProcessAgentContainerName,
+						apicommon.TraceAgentContainerName,
+						apicommon.SecurityAgentContainerName,
+						apicommon.AgentDataPlaneContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&kubeletVol)
+			}
+			// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDKubeletCAPath,
+				Value: agentCAPath,
+			})
+		}
+		if config.Kubelet.PodResourcesSocketPath != "" {
+			manager.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  DDKubernetesPodResourcesSocket,
+				Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
+			})
+
+			podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, config.Kubelet.PodResourcesSocketPath, config.Kubelet.PodResourcesSocketPath, false)
+			if singleContainerStrategyEnabled {
+				manager.VolumeMount().AddVolumeMountToContainer(
+					&podResourcesMount,
+					apicommon.UnprivilegedSingleAgentContainerName,
+				)
+				manager.Volume().AddVolume(&podResourcesVol)
+			} else {
+				manager.VolumeMount().AddVolumeMountToContainer(
+					&podResourcesMount,
+					apicommon.CoreAgentContainerName,
+				)
+				manager.Volume().AddVolume(&podResourcesVol)
+			}
+		}
+	}
+
+	var runtimeVol corev1.Volume
+	var runtimeVolMount corev1.VolumeMount
+	// Path to the docker runtime socket.
+	if config.DockerSocketPath != nil {
+		dockerMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.DockerSocketPath)
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DockerHost,
+			Value: "unix://" + dockerMountPath,
+		})
+		runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+	} else if config.CriSocketPath != nil {
+		// Path to the container runtime socket (if different from Docker).
+		criSocketMountPath := filepath.Join(common.HostCriSocketPathPrefix, *config.CriSocketPath)
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  DDCriSocketPath,
+			Value: criSocketMountPath,
+		})
+		runtimeVol, runtimeVolMount = volume.GetVolumes(common.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+	}
+	if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
+
+		if singleContainerStrategyEnabled {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&runtimeVolMount,
+				[]apicommon.AgentContainerName{
+					apicommon.UnprivilegedSingleAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&runtimeVol)
+		} else {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&runtimeVolMount,
+				[]apicommon.AgentContainerName{
+					apicommon.CoreAgentContainerName,
+					apicommon.ProcessAgentContainerName,
+					apicommon.TraceAgentContainerName,
+					apicommon.SecurityAgentContainerName,
+					apicommon.AgentDataPlaneContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&runtimeVol)
+		}
+	}
 }

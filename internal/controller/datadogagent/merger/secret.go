@@ -8,7 +8,6 @@ package merger
 import (
 	"fmt"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -19,7 +18,7 @@ import (
 // SecretManager Kubernetes Secret Manager interface
 type SecretManager interface {
 	AddSecret(secretNamespace, secretName, key, value string) error
-	AddAnnotations(logger logr.Logger, secretNamespace, secretName string, extraAnnotations map[string]string) error
+	AddAnnotations(secretNamespace, secretName string, extraAnnotations map[string]string) error
 }
 
 // NewSecretManager return new SecretManager instance
@@ -46,10 +45,13 @@ func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value st
 	}
 	secret.Data[key] = []byte(value)
 
+	// Automatically add a checksum annotation to secrets
+	AddChecksumAnnotation(m.store.Logger(), secret.Data, secret)
+
 	return m.store.AddOrUpdate(kubernetes.SecretsKind, secret)
 }
 
-func (m *secretManagerImpl) AddAnnotations(logger logr.Logger, secretNamespace, secretName string, extraAnnotations map[string]string) error {
+func (m *secretManagerImpl) AddAnnotations(secretNamespace, secretName string, extraAnnotations map[string]string) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.SecretsKind, secretNamespace, secretName)
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
@@ -57,7 +59,7 @@ func (m *secretManagerImpl) AddAnnotations(logger logr.Logger, secretNamespace, 
 	}
 
 	if len(extraAnnotations) > 0 {
-		annotations := object.MergeAnnotationsLabels(logger, secret.GetAnnotations(), extraAnnotations, "*")
+		annotations := object.MergeAnnotationsLabels(m.store.Logger(), secret.GetAnnotations(), extraAnnotations, "*")
 		secret.SetAnnotations(annotations)
 	}
 
