@@ -571,6 +571,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enables the service discovery network stats collection.
+	// Default: true
+	// +optional
+	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
+}
+
+// ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats
+// collection feature.
+type ServiceDiscoveryNetworkStatsConfig struct {
+	// Enables the Service Discovery Network Stats feature.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // GPUFeatureConfig contains the GPU monitoring configuration.

@@ -27,7 +27,9 @@ func buildFeature(*feature.Options) feature.Feature {
 	return &serviceDiscoveryFeature{}
 }
 
-type serviceDiscoveryFeature struct{}
+type serviceDiscoveryFeature struct {
+	networkStatsEnabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *serviceDiscoveryFeature) ID() feature.IDType {
@@ -40,6 +42,11 @@ func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+		}
+
+		f.networkStatsEnabled = true
+		if dda.Spec.Features.ServiceDiscovery.NetworkStats != nil {
+			f.networkStatsEnabled = apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.NetworkStats.Enabled)
 		}
 	}
 
@@ -81,6 +88,12 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
+	if f.networkStatsEnabled {
+		debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+		managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
+		managers.Volume().AddVolume(&debugfsVol)
+	}
+
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
@@ -90,8 +103,17 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 		Value: "true",
 	}
 
+	netStatsEnvVar := &corev1.EnvVar{
+		Name:  DDServiceDiscoveryNetworkStatsEnabled,
+		Value: "false",
+	}
+	if f.networkStatsEnabled {
+		netStatsEnvVar.Value = "true"
+	}
+
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, netStatsEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  common.DDSystemProbeSocket,
