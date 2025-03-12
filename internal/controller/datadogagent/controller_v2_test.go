@@ -419,7 +419,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogAgent with overrde.nodeAgent.disabled true",
+			name: "DatadogAgent with override.nodeAgent.disabled true",
 			fields: fields{
 				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
 				scheme:   s,
