@@ -2,11 +2,9 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -23,26 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
-
-// STEP 1 of the reconcile loop: validate
-
-// fetchAndValidateDatadogAgent retrieves the DatadogAgent and performs basic validation.
-func (r *Reconciler) fetchAndValidateDatadogAgent(ctx context.Context, req reconcile.Request) (*datadoghqv2alpha1.DatadogAgent, reconcile.Result, error) {
-	instance := &datadoghqv2alpha1.DatadogAgent{}
-	var result reconcile.Result
-	if err := r.client.Get(ctx, req.NamespacedName, instance); err != nil {
-		if apierrors.IsNotFound(err) {
-			// Object not found; nothing to do.
-			return nil, result, nil
-		}
-		return nil, result, err
-	}
-	// Ensure required credentials are configured.
-	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
-		return nil, result, fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
-	}
-	return instance, result, nil
-}
 
 // STEP 2 of the reconcile loop: reconcile 3 components
 
