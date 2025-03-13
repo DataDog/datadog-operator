@@ -38,23 +38,10 @@ func (rc *RequiredComponents) IsConfigured() bool {
 // Merge use to merge 2 RequiredComponents
 // merge priority: false > true > nil
 // *
-func (rc *RequiredComponents) Merge(in *RequiredComponents, mergeFunction RequiredComponentsMergeFunction) *RequiredComponents {
-	return mergeFunction(rc, in)
-}
-
-type RequiredComponentsMergeFunction func(rc, in *RequiredComponents) *RequiredComponents
-
-func DefaultRequiredComponentsMergeFunction(rc, in *RequiredComponents) *RequiredComponents {
+func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
 	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
-	return rc
-}
-
-func IgnoreNilRequiredComponentsMergeFunction(rc, in *RequiredComponents) *RequiredComponents {
-	rc.ignoreNilByComponent(&rc.Agent, &in.Agent)
-	rc.ignoreNilByComponent(&rc.ClusterAgent, &in.ClusterAgent)
-	rc.ignoreNilByComponent(&rc.ClusterChecksRunner, &in.ClusterChecksRunner)
 	return rc
 }
 
@@ -101,27 +88,6 @@ func (rc *RequiredComponent) SingleContainerStrategyEnabled() bool {
 func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 	rc.IsRequired = merge(rc.IsRequired, in.IsRequired)
 	rc.Containers = mergeSlices(rc.Containers, in.Containers)
-	return rc
-}
-
-// ignoreNilByComponent is used to merge 2 RequiredComponents
-// merge priority: false > true
-// nil values are unchanged
-// containers are not merged
-func (rc *RequiredComponents) ignoreNilByComponent(reqc *RequiredComponent, in *RequiredComponent) *RequiredComponents {
-	if reqc.IsRequired != nil && in.IsRequired != nil {
-		if *reqc.IsRequired != *in.IsRequired {
-			if rc.Agent.IsRequired != nil {
-				*rc.Agent.IsRequired = *in.IsRequired
-			}
-			if rc.ClusterAgent.IsRequired != nil {
-				*rc.ClusterAgent.IsRequired = *in.IsRequired
-			}
-			if rc.ClusterChecksRunner.IsRequired != nil {
-				*rc.ClusterChecksRunner.IsRequired = *in.IsRequired
-			}
-		}
-	}
 	return rc
 }
 

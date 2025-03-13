@@ -58,7 +58,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	_, enabledFeatures, requiredComponents := r.buildRequirements(instance)
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, r.log))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
 
@@ -76,7 +76,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
-	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, enabledFeatures, instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
@@ -86,12 +86,12 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// 2.b. Node Agent and profiles
 	// TODO: ignore profiles and introspection for DDAI
 
-	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, enabledFeatures, resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
+	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 
 	// 2.c. Cluster Checks Runner
-	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, enabledFeatures, instance, resourceManagers, newStatus)
+	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}

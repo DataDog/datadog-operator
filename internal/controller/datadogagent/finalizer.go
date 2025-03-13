@@ -79,7 +79,8 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	// delete, we figure out its dependencies, store them in the dependencies
 	// store, and then call the DeleteAll function of the store.
 
-	_, enabledFeatures, requiredComponents := r.buildRequirements(dda)
+	_, enabledFeatures, requiredComponents := feature.BuildFeatures(
+		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
 
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,

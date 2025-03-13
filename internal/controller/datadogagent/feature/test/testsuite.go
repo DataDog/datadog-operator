@@ -107,10 +107,9 @@ func runTest(t *testing.T, tt FeatureTest) {
 	}
 	featureOptions.Logger = logger
 	if tt.DDA != nil {
-		var disabledComponents feature.RequiredComponents
 		var configuredFeatures []feature.Feature
 		var enabledFeatures []feature.Feature
-		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions, disabledComponents)
+		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
 		features = append(configuredFeatures, enabledFeatures...)
 		dda = tt.DDA
 	} else {
