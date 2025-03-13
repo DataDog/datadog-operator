@@ -1468,6 +1468,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CoreConfig"),
 						},
 					},
+					"featureGates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FeatureGates contains feature gates that are passed to the embedded Otel collector",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

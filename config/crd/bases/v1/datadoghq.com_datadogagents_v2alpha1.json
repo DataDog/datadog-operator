@@ -1856,6 +1856,10 @@
                   "description": "Enabled enables the OTel Agent.\nDefault: true",
                   "type": "boolean"
                 },
+                "featureGates": {
+                  "description": "FeatureGates contains feature gates that are passed to the embedded Otel collector",
+                  "type": "string"
+                },
                 "ports": {
                   "description": "Ports contains the ports for the otel-agent.\nDefaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317\nor 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).\nIf not, this will lead to a port conflict.\nThis limitation will be lifted once annotations support is removed.",
                   "items": {
@@ -9099,6 +9103,10 @@
                     "enabled": {
                       "description": "Enabled enables the OTel Agent.\nDefault: true",
                       "type": "boolean"
+                    },
+                    "featureGates": {
+                      "description": "FeatureGates contains feature gates that are passed to the embedded Otel collector",
+                      "type": "string"
                     },
                     "ports": {
                       "description": "Ports contains the ports for the otel-agent.\nDefaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317\nor 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).\nIf not, this will lead to a port conflict.\nThis limitation will be lifted once annotations support is removed.",

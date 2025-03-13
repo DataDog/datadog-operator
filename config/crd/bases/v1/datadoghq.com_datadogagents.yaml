@@ -1818,6 +1818,9 @@ spec:
                             Enabled enables the OTel Agent.
                             Default: true
                           type: boolean
+                        featureGates:
+                          description: FeatureGates contains feature gates that are passed to the embedded Otel collector
+                          type: string
                         ports:
                           description: |-
                             Ports contains the ports for the otel-agent.
@@ -9137,6 +9140,9 @@ spec:
                                 Enabled enables the OTel Agent.
                                 Default: true
                               type: boolean
+                            featureGates:
+                              description: FeatureGates contains feature gates that are passed to the embedded Otel collector
+                              type: string
                             ports:
                               description: |-
                                 Ports contains the ports for the otel-agent.

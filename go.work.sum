@@ -1546,6 +1546,7 @@ github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-devel h1:udcgko5
 github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-devel/go.mod h1:Rw0/dIF6VxluNeHt1Z+2gdmUWaIwqvtxEIfAJhM4Fp8=
 github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-devel.0.20241227161138-ebe3db6f6c5c h1:1X2RFDHw86B9L37XB0U3hR2CdJLtf8AfWAsXJ7SkEH0=
 github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-devel.0.20241227161138-ebe3db6f6c5c/go.mod h1:Rw0/dIF6VxluNeHt1Z+2gdmUWaIwqvtxEIfAJhM4Fp8=
+github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-rc.1 h1:/Y/qNXdVkSZ0WyeYGRtagVZCChvwnuEsksA/rWuMyzg=
 github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-rc.1/go.mod h1:MQxPuLGkCOdgrDw7P6nEgufur61+ifXUQ/OkF2HlnSc=
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.59.0 h1:fow1U+ZUl+AiGmf7KVZ9ulWbhDfm9vBC8DUAMoi6caM=
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.59.0/go.mod h1:bg2FvH6mbyN0XKHh8R4MY9nrIUNsva7UolbCe3vM3kQ=
@@ -1553,6 +1554,7 @@ github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.60.0 h1:2Je+kCIwQBWYd
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.60.0/go.mod h1:bg2FvH6mbyN0XKHh8R4MY9nrIUNsva7UolbCe3vM3kQ=
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.60.1 h1:pXUCBtg2oMk0CQ4RRNQL6+BnXLl95Scj7S1EPggehfI=
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.60.1/go.mod h1:bg2FvH6mbyN0XKHh8R4MY9nrIUNsva7UolbCe3vM3kQ=
+github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.63.0-rc.1 h1:0H4x+Yx24Amk1YVfbYVlzoqPbSeSV6TA2ekxjtLlk5g=
 github.com/DataDog/datadog-agent/comp/core/tagger/utils v0.63.0-rc.1/go.mod h1:Dsx/DPworzF825CKFUa63voyxkbukZT19xmnwWabvvQ=
 github.com/DataDog/datadog-agent/comp/core/telemetry v0.59.0 h1:ApJD+u0a5anQZkmCw3y2ljhMC56BcjlT6klAZaoXLYk=
 github.com/DataDog/datadog-agent/comp/core/telemetry v0.59.0/go.mod h1:mNPruKhnFUe7xiFMnPIMweb7O1HkTh0C78Llhd+Y9xA=
@@ -1572,6 +1574,7 @@ github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-devel
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-devel/go.mod h1:xz366xIGpmIfq0vXYuscpnqPyTr5fMVqO/Q+Kmcm+bo=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-devel.0.20241227161138-ebe3db6f6c5c h1:SUoa22cRCOoJMmkgSF1Bm3l3tGauEf1Z3AGvCQGAb+c=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-devel.0.20241227161138-ebe3db6f6c5c/go.mod h1:xz366xIGpmIfq0vXYuscpnqPyTr5fMVqO/Q+Kmcm+bo=
+github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-rc.1 h1:F0tmip+yd38HtgHeoIbCx+lekwWPsiW2Das9QgzNdow=
 github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-rc.1/go.mod h1:jCFmzEJDYFnjE6FNEXgr90mNoD0dIW4HiiLx2CaINig=
 github.com/DataDog/datadog-agent/comp/trace/compression/def v0.56.0-rc.3 h1:ZBcBOIyjNUDF0Gmihv7v2hh2QoWH6MvJo7eKLNmrJTc=
 github.com/DataDog/datadog-agent/comp/trace/compression/def v0.56.0-rc.3/go.mod h1:siVnIBJm5EpFZe6rQ0nMz5Iy7fEl8J99Ka2QaXIYA60=
@@ -1631,6 +1634,7 @@ github.com/DataDog/datadog-agent/pkg/trace v0.60.0 h1:o/AZ/TZQVubNRrn1adYxgW2mcV
 github.com/DataDog/datadog-agent/pkg/trace v0.60.0/go.mod h1:Gquzuf9xaqk1G6UwrRqPmDfpsaASvmLswlDC+lLzxjs=
 github.com/DataDog/datadog-agent/pkg/trace v0.60.1 h1:IHplgZDPC5AOpNhorzImlZ8YI5Yj22TtagSj1oKaELs=
 github.com/DataDog/datadog-agent/pkg/trace v0.60.1/go.mod h1:WsNG1kk+WMd4zPQuAfM9Zeg/wmqilr5S7Y21mjS1ypY=
+github.com/DataDog/datadog-agent/pkg/trace v0.63.0-rc.1 h1:8xSnvGrJoEr1vtsUG/FzDwvlL7RQR1ZjEtQAOyt1rz8=
 github.com/DataDog/datadog-agent/pkg/trace v0.63.0-rc.1/go.mod h1:107rqQNihdwkVbmF/DEIeJbGmQOrXns+xiOUnz4qAaU=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.3/go.mod h1:HcSwqoxWLfevi1vuDZuFeRHfSuHGakTN6/u42WbxQHE=
 github.com/DataDog/datadog-agent/pkg/util/backoff v0.55.0-rc.10 h1:+CizlqZ6JyXqH8KAy8NVTZaeZXu+Rfa/o+FPNxNSTFU=
@@ -1701,6 +1705,7 @@ github.com/DataDog/datadog-agent/pkg/util/testutil v0.60.0 h1:ks30k2NpT6cBHvUP3T
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.60.0/go.mod h1:m/uWLdpGEi3x/5gybZFeYNEnIdKhGtWW8kFZuM+GSFA=
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.60.1 h1:dwERp/zuud/dc7cTpCYN0Es4XJwaLCz2SYbA2a1139M=
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.60.1/go.mod h1:m/uWLdpGEi3x/5gybZFeYNEnIdKhGtWW8kFZuM+GSFA=
+github.com/DataDog/datadog-agent/pkg/util/testutil v0.63.0-rc.1 h1:3Ct/38ONls2/g/diTNkYHzwqc7xZsw7PFyNkuH/gdfE=
 github.com/DataDog/datadog-agent/pkg/util/testutil v0.63.0-rc.1/go.mod h1:y1l7iTMENfjfgV4L3a5RtsMiQAVeu6B/0SEo6A8XDFQ=
 github.com/DataDog/datadog-agent/pkg/util/uuid v0.55.0-rc.10 h1:Oquzgh5Hn1hynUnr+86CGFZrt3T+Ui/STqItw02X6JM=
 github.com/DataDog/datadog-agent/pkg/util/uuid v0.55.0-rc.10/go.mod h1:sG3rAM9BqgFpeqIu8U379YMACOxx1kjP2+kZ6WU1oDg=
@@ -1736,7 +1741,6 @@ github.com/DataDog/datadog-go v4.4.0+incompatible h1:R7WqXWP4fIOAqWJtUKmSfuc7eDs
 github.com/DataDog/datadog-go v4.4.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/DataDog/datadog-go/v5 v5.3.0/go.mod h1:XRDJk1pTc00gm+ZDiBKsjh7oOOtJfYfglVCmFb8C2+Q=
 github.com/DataDog/datadog-go/v5 v5.5.0/go.mod h1:K9kcYBlxkcPP8tvvjZZKs/m1edNAUFzBbdpTUKfCsuw=
-github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856/go.mod h1:Ef4llzn4c4p6FPZNjeYgIQFHa2va2JPC8Wf/kivrF2E=
 github.com/DataDog/extendeddaemonset v0.10.0-rc.4 h1:m88E+emuRHIqKgi7kHMd9N0S/NtruCCOISp3cjB7DNs=
 github.com/DataDog/extendeddaemonset v0.10.0-rc.4/go.mod h1:uqO05mxbfqPQ8cghfYN2Uhy/eUv4ZEx89cb4P1Z1uz4=
 github.com/DataDog/go-libddwaf v1.0.0 h1:C0cHE++wMFWf5/BDO8r/3dTDCj21U/UmPIT0PiFMvsA=
@@ -2776,6 +2780,7 @@ github.com/go-latex/latex v0.0.0-20210823091927-c0d11ff05a81/go.mod h1:SX0U8uGpx
 github.com/go-ldap/ldap/v3 v3.1.3/go.mod h1:3rbOH3jRS2u6jg2rJnKAMLE/xQyCKIveG2Sa/Cohzb8=
 github.com/go-ldap/ldap/v3 v3.1.10/go.mod h1:5Zun81jBTabRaI8lzN7E1JjyEl1g6zI6u9pd8luAK4Q=
 github.com/go-ldap/ldap/v3 v3.4.1/go.mod h1:iYS1MdmrmceOJ1QOTnRXrIs7i3kloqtmGQjRvjKpyMg=
+github.com/go-logfmt/logfmt v0.4.0 h1:MP4Eh7ZCb31lleYCFuwm0oe4/YGak+5l1vA2NOE80nA=
 github.com/go-logfmt/logfmt v0.5.0/go.mod h1:wCYkCAKZfumFQihp8CzCvQ3paCTfi41vtzG1KdI/P7A=
 github.com/go-logfmt/logfmt v0.5.1 h1:otpy5pqBCBZ1ng9RQ0dPu4PN7ba75Y/aA+UpowDyNVA=
 github.com/go-logfmt/logfmt v0.5.1/go.mod h1:WYhtIu8zTZfxdn5+rREduYbwxfcBr/Vr6KEVveWlfTs=
@@ -3698,6 +3703,7 @@ github.com/mattn/go-sqlite3 v1.14.18 h1:JL0eqdCOq6DJVNPSvArO/bIV9/P7fbGrV00LZHc+
 github.com/mattn/go-sqlite3 v1.14.18/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/matttproud/golang_protobuf_extensions v1.0.1 h1:4hp9jkHxhMHkqkrB3Ix0jegS5sx/RkqARlsWZ6pIwiU=
 github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zkfA9PSy5pEvNWRP0ET0TIVo=
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
@@ -4051,6 +4057,7 @@ github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.73.1 h1:miIJy4njnF
 github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.73.1/go.mod h1:LR1QBq0C1NIhmD9E0uKozCAu32j5qsamhrIsTSNVMS8=
 github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.79.0 h1:0ZNmd741+aVyJ15fdubhSv2z7JXjOST6zyJUH2Ang8o=
 github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.79.0/go.mod h1:Hcncrh9Yah64Sx7IIN4EAsjm5NfIuHXlE09Uje0YPVM=
+github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.81.0 h1:Njext/i2DuW6k9qMj7WJmIBuw7PLZ8ccTYEtU3PbX5s=
 github.com/pulumi/pulumi-azure-native-sdk/authorization/v2 v2.81.0/go.mod h1:ef8sOceyTKmnts+QOHAymAVLWXNtKljgl27oOYcq978=
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.30.0 h1:Zv5fc3sEUpTJs6CKGgq15p/V+qcpehPyBV0gt/v4Hjk=
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.30.0/go.mod h1:7qUlHbil4nHAX6L4uLMsZ2CLIOsIimpOfz2gYSjyTRc=
@@ -4060,6 +4067,7 @@ github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.73.1 h1:79HTKSE1uJQolCRU
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.73.1/go.mod h1:sN7rQ3n6T/KGaQqMXdoERPjiKzE8L89H6sFj1CSFk/U=
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.79.0 h1:4jOiVZnX8rWHz+4H3/RS0BV7kStZOFTbiD2RtNrQ0ps=
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.79.0/go.mod h1:7Jq1aSdc6CmmQiLs0qg7laLY7900nhHozAnRQdiNLsY=
+github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.81.0 h1:xvUrVxwjfhaZCeohnMQN/cTSFKfZGIXsneEWFbtdBXY=
 github.com/pulumi/pulumi-azure-native-sdk/compute/v2 v2.81.0/go.mod h1:1HK2Eltgq1lFSts/sI1RZE5Mw12qyKdBsszqcnTpbd4=
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.51.0 h1:TZoU7xP9qI3M6eunVmyPtfqxgf+egUzc7GXVIeJdp5A=
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.51.0/go.mod h1:J/ZpHh7KUmcMiki7fnrCYlA4YIdr2pG7yTWdrwlnedY=
@@ -4070,11 +4078,13 @@ github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.73.1 h1:8xyjq2n
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.73.1/go.mod h1:UYRkyT4qRuQ39GPtyxE509zTVwbfunE/32npB0bhr1E=
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.79.0 h1:QGI6oN9NSWrKiZi7XU8Ix2rgB0XovHLr0JYJa9Y559Q=
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.79.0/go.mod h1:mXs56iiHAblvBY/IpoJBrXYpsrPpEiowtq6k2A13qWs=
+github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.81.0 h1:eQ0/SzOhXcKwESbc0Ahujeo4kI/Y88ghAxblRrcYe6U=
 github.com/pulumi/pulumi-azure-native-sdk/containerservice/v2 v2.81.0/go.mod h1:vsCzO0onkZpFxJWaGsGtFxiD3nV08/P8pNK2wAkTe7w=
 github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.73.1 h1:rkNZDAik+qlIhbmFoa09ln/oJMXey5+olw8ShmljgXc=
 github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.73.1/go.mod h1:P/N/xG2lVxsHdspmKjH+d8d4ln+2arXBmOl3zhjWnnw=
 github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.79.0 h1:M1a4hG+aIY/KqhKF2R0GqjVWfBu4Yodu7hs4SQPfr9I=
 github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.79.0/go.mod h1:VftRajabjELBDM8ZJVq2vwZR9BVjWx/eQEtC4Qg3m0Q=
+github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.81.0 h1:bA2AUo2Mtpyitew41O24kw7wqBqVAhOkUx9Zj4gkTas=
 github.com/pulumi/pulumi-azure-native-sdk/managedidentity/v2 v2.81.0/go.mod h1:cH/JouDXyXfBGvPFBjedwNK9EDYTbWeJmEnoj13Pnpk=
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.30.0 h1:NseE+tCpYxQVp8SoMJdqF0C0YaIo695Uncj8KaPtLbk=
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.30.0/go.mod h1:tHHJMZxE7vR/iLzpd/YYkOCGw6mDOjK99WteVwzqIrs=
@@ -4085,6 +4095,7 @@ github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.73.1 h1:glI1LKNu/erhOZpH
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.73.1/go.mod h1:Ckfh040vb9BE28NMNQcjYleSYAhaFhz2+E9gFYEDUGc=
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.79.0 h1:6nJOld6siqPr+4ZoTQql+wVBeWlWifqGTERRXV+XEOg=
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.79.0/go.mod h1:jUdzlINMerWrXBqnYEpUEi/2vAFDRtZhoV12aCXiQO0=
+github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.81.0 h1:RST/rJXeyqqedEkYvS3QvipKwfimvfkbYTai51dz+sI=
 github.com/pulumi/pulumi-azure-native-sdk/network/v2 v2.81.0/go.mod h1:pGBaaI/HvyNybS+QVtr5r96IXMepBJpeKg4cXkcIt7U=
 github.com/pulumi/pulumi-azure-native-sdk/v2 v2.51.0 h1:vQX+s5eXRclZAc6LFOzlQy3n0Nsx2bP2mprzN6t1QT0=
 github.com/pulumi/pulumi-azure-native-sdk/v2 v2.51.0/go.mod h1:q5w1E1HPDtbzfWDEzIPuBmNVMEFR+IZ42y5hZFJmhyI=
@@ -4109,6 +4120,7 @@ github.com/pulumi/pulumi-libvirt/sdk v0.4.7 h1:/BBnqqx/Gbg2vINvJxXIVb58THXzw2lSq
 github.com/pulumi/pulumi-libvirt/sdk v0.4.7/go.mod h1:VKvjhAm1sGtzKZruYwIhgascabEx7+oVVRCoxp/cPi4=
 github.com/pulumi/pulumi-libvirt/sdk v0.5.3 h1:CiUGTweLLIxbAbADxxnwPv4BK8pxXfU8urokJvK1ihM=
 github.com/pulumi/pulumi-libvirt/sdk v0.5.3/go.mod h1:gAhyIZKtzs4rknrl8fu8BQnyqijAmViFbaUkyuHt4xY=
+github.com/pulumi/pulumi-libvirt/sdk v0.5.4 h1:7nS8ATK0Iml+yid80BrkW8WDynzwWYevx0cLpbPOYdM=
 github.com/pulumi/pulumi-libvirt/sdk v0.5.4/go.mod h1:HPx6S9mhaHpSHTKDVERTMaziKEpSqY8Trm+m2z1iJ3k=
 github.com/pulumi/pulumi-random/sdk/v4 v4.16.3/go.mod h1:yRfWJSLEAVZvkwgXajr3S9OmFkAZTxfO44Ef2HfixXQ=
 github.com/pulumi/pulumi-random/sdk/v4 v4.16.6/go.mod h1:l5ew7S/G1GspPLH9KeWXqxQ4ZmS2hh2sEMv3bW9M3yc=
@@ -4576,6 +4588,7 @@ go.opentelemetry.io/collector/component v0.114.0 h1:SVGbm5LvHGSTEDv7p92oPuBgK5tu
 go.opentelemetry.io/collector/component v0.114.0/go.mod h1:MLxtjZ6UVHjDxSdhGLuJfHBHvfl1iT/Y7IaQPD24Eww=
 go.opentelemetry.io/collector/component v0.115.0 h1:iLte1oCiXzjiCnaOBKdsXacfFiECecpWxW3/LeriMoo=
 go.opentelemetry.io/collector/component v0.115.0/go.mod h1:oIUFiH7w1eOimdeYhFI+gAIxYSiLDocKVJ0PTvX7d6s=
+go.opentelemetry.io/collector/component v0.118.0 h1:sSO/ObxJ+yH77Z4DmT1mlSuxhbgUmY1ztt7xCA1F/8w=
 go.opentelemetry.io/collector/component v0.118.0/go.mod h1:LUJ3AL2b+tmFr3hZol3hzKzCMvNdqNq0M5CF3SWdv4M=
 go.opentelemetry.io/collector/component/componentstatus v0.113.0 h1:iNlUi+vDo7OqQwg4UOjfqqY3Xram4SkdcSZAyxt6QfE=
 go.opentelemetry.io/collector/component/componentstatus v0.113.0/go.mod h1:NF/hVnP0kcsEqV9x14yMxN9GoehuOaVgMpO+s2KE+28=
@@ -4587,6 +4600,7 @@ go.opentelemetry.io/collector/config/configtelemetry v0.114.0 h1:kjLeyrumge6wsX6
 go.opentelemetry.io/collector/config/configtelemetry v0.114.0/go.mod h1:R0MBUxjSMVMIhljuDHWIygzzJWQyZHXXWIgQNxcFwhc=
 go.opentelemetry.io/collector/config/configtelemetry v0.115.0 h1:U07FinCDop+r2RjWQ3aP9ZWONC7r7kQIp1GkXQi6nsI=
 go.opentelemetry.io/collector/config/configtelemetry v0.115.0/go.mod h1:SlBEwQg0qly75rXZ6W1Ig8jN25KBVBkFIIAUI1GiAAE=
+go.opentelemetry.io/collector/config/configtelemetry v0.118.0 h1:UlN46EViG2X42odWtXgWaqY7Y01ZKpsnswSwXTWx5mM=
 go.opentelemetry.io/collector/config/configtelemetry v0.118.0/go.mod h1:SlBEwQg0qly75rXZ6W1Ig8jN25KBVBkFIIAUI1GiAAE=
 go.opentelemetry.io/collector/confmap v0.104.0 h1:d3yuwX+CHpoyCh0iMv3rqb/vwAekjSm4ZDL6UK1nZSA=
 go.opentelemetry.io/collector/confmap v0.104.0/go.mod h1:F8Lue+tPPn2oldXcfqI75PPMJoyzgUsKVtM/uHZLA4w=
@@ -4622,6 +4636,7 @@ go.opentelemetry.io/collector/extension v0.114.0 h1:9Qb92y8hD2WDC5aMDoj4JNQN+/5B
 go.opentelemetry.io/collector/extension v0.114.0/go.mod h1:Yk2/1ptVgfTr12t+22v93nYJpioP14pURv2YercSzU0=
 go.opentelemetry.io/collector/extension v0.115.0 h1:/cBb8AUdD0KMWC6V3lvCC16eP9Fg0wd1Upcp5rgvuGI=
 go.opentelemetry.io/collector/extension v0.115.0/go.mod h1:HI7Ak6loyi6ZrZPsQJW1OO1wbaAW8OqXLFNQlTZnreQ=
+go.opentelemetry.io/collector/extension v0.118.0 h1:9o5jLCTRvs0+rtFDx04zTBuB4WFrE0RvtVCPovYV0sA=
 go.opentelemetry.io/collector/extension v0.118.0/go.mod h1:BFwB0WOlse6JnrStO44+k9kwUVjjtseFEHhJLHD7lBg=
 go.opentelemetry.io/collector/featuregate v1.11.0 h1:Z7puIymKoQRm3oNM/NH8reWc2zRPz2PNaJvuokh0lQY=
 go.opentelemetry.io/collector/featuregate v1.11.0/go.mod h1:PsOINaGgTiFc+Tzu2K/X2jP+Ngmlp7YKGV1XrnBkH7U=
@@ -4637,6 +4652,7 @@ go.opentelemetry.io/collector/pdata v1.20.0 h1:ePcwt4bdtISP0loHaE+C9xYoU2ZkIvWv8
 go.opentelemetry.io/collector/pdata v1.20.0/go.mod h1:Ox1YVLe87cZDB/TL30i4SUz1cA5s6AM6SpFMfY61ICs=
 go.opentelemetry.io/collector/pdata v1.21.0 h1:PG+UbiFMJ35X/WcAR7Rf/PWmWtRdW0aHlOidsR6c5MA=
 go.opentelemetry.io/collector/pdata v1.21.0/go.mod h1:GKb1/zocKJMvxKbS+sl0W85lxhYBTFJ6h6I1tphVyDU=
+go.opentelemetry.io/collector/pdata v1.24.0 h1:D6j92eAzmAbQgivNBUnt8r9juOl8ugb+ihYynoFZIEg=
 go.opentelemetry.io/collector/pdata v1.24.0/go.mod h1:cf3/W9E/uIvPS4MR26SnMFJhraUCattzzM6qusuONuc=
 go.opentelemetry.io/collector/pdata/pprofile v0.104.0 h1:MYOIHvPlKEJbWLiBKFQWGD0xd2u22xGVLt4jPbdxP4Y=
 go.opentelemetry.io/collector/pdata/pprofile v0.104.0/go.mod h1:7WpyHk2wJZRx70CGkBio8klrYTTXASbyIhf+rH4FKnA=

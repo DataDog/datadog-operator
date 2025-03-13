@@ -799,6 +799,10 @@ type OtelCollectorFeatureConfig struct {
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
+
+	// FeatureGates contains feature gates that are passed to the embedded Otel collector
+	// +optional
+	FeatureGates *string `json:"featureGates,omitempty"`
 }
 
 // CoreConfig exposes the otel collector configs relevant to the core agent.
