@@ -192,16 +192,22 @@ build_bundle_image:
   stage: e2e
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
   tags: ["arch:amd64"]
+  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
   before_script:
     # Setup AWS Credentials
+    - echo "Starting setup for E2E testing..."
+    - set -x  
     - mkdir -p ~/.aws
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
     - export AWS_PROFILE=agent-qa-ci
     # Now all `aws` commands target the agent-qa profile
+    - echo "Retrieving SSH keys from AWS..."
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
     # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    - set +x
   variables:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
@@ -255,6 +261,7 @@ e2e:
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
+    - echo "Running e2e test with target image $TARGET_IMAGE"
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 publish_public_main:
