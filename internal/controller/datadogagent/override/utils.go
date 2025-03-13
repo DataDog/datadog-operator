@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 )
 
 func getDefaultConfigMapName(ddaName, fileName string) string {
@@ -22,4 +24,8 @@ func hasProbeHandler(probe *corev1.Probe) bool {
 		return true
 	}
 	return false
+}
+
+func getDCATokenChecksumAnnotationKey() string {
+	return object.GetChecksumAnnotationKey("dca-token")
 }

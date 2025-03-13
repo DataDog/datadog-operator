@@ -25,28 +25,31 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
-	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterAgentComponentName, false)
+	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterAgentComponentName, false, requiredComponents)
 }
 
 func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
-	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterChecksRunnerComponentName, false)
+	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterChecksRunnerComponentName, false, requiredComponents)
 }
 
 func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool) *corev1.PodTemplateSpec {
-	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.NodeAgentComponentName, singleContainerStrategyEnabled)
+	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.NodeAgentComponentName, singleContainerStrategyEnabled, requiredComponents)
 }
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, singleContainerStrategyEnabled bool) *corev1.PodTemplateSpec {
+func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers,
+	componentName v2alpha1.ComponentName, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -146,18 +149,6 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if config.Env != nil {
 		for _, envVar := range config.Env {
 			manager.EnvVar().AddEnvVar(&envVar)
-		}
-	}
-
-	// Configure checks tag cardinality if provided
-	if componentName == v2alpha1.NodeAgentComponentName {
-		if config.ChecksTagCardinality != nil {
-			// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
-			// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  DDChecksTagCardinality,
-				Value: *config.ChecksTagCardinality,
-			})
 		}
 	}
 
@@ -307,6 +298,15 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					manager.Volume().AddVolume(&podResourcesVol)
 				}
 			}
+			// Configure checks tag cardinality if provided
+			if config.ChecksTagCardinality != nil {
+				// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
+				// Ref: https://github.com/DataDog/datadog-agent/blob/1d08a6a9783fe271ea3813ddf9abf60244abdf2c/comp/core/tagger/taggerimpl/tagger.go#L173-L177
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  DDChecksTagCardinality,
+					Value: *config.ChecksTagCardinality,
+				})
+			}
 		}
 
 		var runtimeVol corev1.Volume
@@ -351,6 +351,19 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				)
 				manager.Volume().AddVolume(&runtimeVol)
 			}
+		}
+	}
+
+	// Credentials
+	if err := handleCredentials(dda, resourcesManager, manager); err != nil {
+		logger.Error(err, "Failed to create API and/or APP keys")
+	}
+
+	// DCA token
+	if requiredComponents.ClusterAgent.IsEnabled() {
+		// dca token
+		if err := handleDCAToken(logger, dda, resourcesManager, manager); err != nil {
+			logger.Error(err, "Failed to create DCA token")
 		}
 	}
 
@@ -434,4 +447,172 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	return manager.PodTemplateSpec()
+}
+
+// handleCredentials will be split between dependency and pod changes when global is refactored
+func handleCredentials(dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) error {
+	if err := credentialDependencies(dda, resourcesManager); err != nil {
+		return err
+	}
+	credentialResource(dda, podTemplateManager)
+	return nil
+}
+
+func credentialDependencies(dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) error {
+	// Prioritize existing secrets
+	// Credentials should be non-nil from validation
+	global := dda.Spec.Global
+	apiKeySecretValid := isValidSecretConfig(global.Credentials.APISecret)
+	appKeySecretValid := isValidSecretConfig(global.Credentials.AppSecret)
+
+	// User defined secret(s) exist for both keys, nothing to do
+	if apiKeySecretValid && appKeySecretValid {
+		return nil
+	}
+
+	// Secret needs to be created for at least one key
+	secretName := secrets.GetDefaultCredentialsSecretName(dda)
+	// Create API key secret
+	if !apiKeySecretValid {
+		if global.Credentials.APIKey == nil || *global.Credentials.APIKey == "" {
+			return fmt.Errorf("api key must be set")
+		}
+		if err := resourcesManager.SecretManager().AddSecret(dda.Namespace, secretName, v2alpha1.DefaultAPIKeyKey, *global.Credentials.APIKey); err != nil {
+			return err
+		}
+	}
+
+	// Create app key secret
+	// App key is optional
+	if !appKeySecretValid {
+		if global.Credentials.AppKey != nil && *global.Credentials.AppKey != "" {
+			if err := resourcesManager.SecretManager().AddSecret(dda.Namespace, secretName, v2alpha1.DefaultAPPKeyKey, *global.Credentials.AppKey); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.PodTemplateManagers) {
+	// Default credential names
+	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
+	apiKeySecretName := defaultSecretName
+	appKeySecretName := ""
+	apiKeySecretKey := v2alpha1.DefaultAPIKeyKey
+	appKeySecretKey := v2alpha1.DefaultAPPKeyKey
+
+	global := dda.Spec.Global
+	// App key is optional
+	if appKey := apiutils.StringValue(global.Credentials.AppKey); appKey != "" {
+		appKeySecretName = defaultSecretName
+	}
+
+	// User specified names
+	if isValidSecretConfig(global.Credentials.APISecret) {
+		apiKeySecretName = global.Credentials.APISecret.SecretName
+		apiKeySecretKey = global.Credentials.APISecret.KeyName
+	}
+	if isValidSecretConfig(global.Credentials.AppSecret) {
+		appKeySecretName = global.Credentials.AppSecret.SecretName
+		appKeySecretKey = global.Credentials.AppSecret.KeyName
+	}
+
+	// Add secret env vars to pod
+	apiKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAPIKey, common.BuildEnvVarFromSecret(apiKeySecretName, apiKeySecretKey))
+	podTemplateManager.EnvVar().AddEnvVar(apiKeyEnvVar)
+
+	if appKeySecretName != "" {
+		appKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAppKey, common.BuildEnvVarFromSecret(appKeySecretName, appKeySecretKey))
+		podTemplateManager.EnvVar().AddEnvVar(appKeyEnvVar)
+	}
+}
+
+// handleDCAToken will be split between dependency and pod changes when global is refactored
+func handleDCAToken(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) error {
+	if err := dcaTokenDependencies(logger, dda, resourcesManager); err != nil {
+		return err
+	}
+	dcaTokenResource(logger, dda, resourcesManager, podTemplateManager)
+	return nil
+}
+
+func dcaTokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) error {
+	global := dda.Spec.Global
+	var token string
+
+	// Prioritize existing secret
+	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+		return nil
+	}
+
+	// User specifies token
+	var key string
+	var hash string
+	var err error
+	if global.ClusterAgentToken != nil && *global.ClusterAgentToken != "" {
+		token = *global.ClusterAgentToken
+		// Generate hash
+		key = getDCATokenChecksumAnnotationKey()
+		hash, err = comparison.GenerateMD5ForSpec(map[string]string{common.DefaultTokenKey: token})
+		if err != nil {
+			logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
+		} else {
+			logger.Info("built Cluster Agent token hash", "hash", hash)
+			// logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
+		}
+	} else if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" { // no token specified
+		token = apiutils.GenerateRandomString(32)
+	} else {
+		token = dda.Status.ClusterAgent.GeneratedToken // token already generated
+	}
+
+	// Create secret
+	secretName := secrets.GetDefaultDCATokenSecretName(dda)
+	if err := resourcesManager.SecretManager().AddSecret(dda.Namespace, secretName, common.DefaultTokenKey, token); err != nil {
+		return err
+	}
+
+	if key != "" && hash != "" {
+		// Add annotation to secret
+		if err := resourcesManager.SecretManager().AddAnnotations(logger, dda.Namespace, secretName, map[string]string{key: hash}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func dcaTokenResource(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) {
+	secretName := secrets.GetDefaultDCATokenSecretName(dda)
+	secretKey := common.DefaultTokenKey
+
+	global := dda.Spec.Global
+	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+		secretName = global.ClusterAgentTokenSecret.SecretName
+		secretKey = global.ClusterAgentTokenSecret.KeyName
+	}
+	// Add secret env var to pod
+	tokenEnvVar := common.BuildEnvVarFromSource(DDClusterAgentAuthToken, common.BuildEnvVarFromSecret(secretName, secretKey))
+	podTemplateManager.EnvVar().AddEnvVar(tokenEnvVar)
+
+	// Add annotation to pod template if secret has annotation
+	if obj, exists := resourcesManager.Store().Get(kubernetes.SecretsKind, dda.Namespace, secretName); exists {
+		key := getDCATokenChecksumAnnotationKey()
+		if val, ok := obj.GetAnnotations()[key]; ok {
+			podTemplateManager.Annotation().AddAnnotation(key, val)
+		}
+	}
+}
+
+func isValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
+	if secretConfig == nil {
+		return false
+	}
+	if secretConfig.SecretName == "" || secretConfig.KeyName == "" {
+		return false
+	}
+
+	return true
 }

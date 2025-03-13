@@ -8,6 +8,7 @@ package override
 // This file tracks environment variables used in overrides
 const (
 	DDChecksTagCardinality         = "DD_CHECKS_TAG_CARDINALITY"
+	DDClusterAgentAuthToken        = "DD_CLUSTER_AGENT_AUTH_TOKEN"
 	DDCriSocketPath                = "DD_CRI_SOCKET_PATH"
 	DDFIPSEnabled                  = "DD_FIPS_ENABLED"
 	DDFIPSPortRangeStart           = "DD_FIPS_PORT_RANGE_START"
