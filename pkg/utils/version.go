@@ -17,6 +17,11 @@ var versionWithDashesRx = regexp.MustCompile(`(\d+\-\d+\-\d+)(\-[^\+]+)*(\+.+)*`
 
 // IsAboveMinVersion uses semver to check if `version` is >= minVersion
 func IsAboveMinVersion(version, minVersion string) bool {
+	// Special case: version containing "main" or "latest" is always considered above any version
+	if strings.Contains(version, "main") || strings.Contains(version, "latest") {
+		return true
+	}
+
 	version = formatVersionTag(version)
 	v, err := semver.NewVersion(version)
 	if err != nil {
