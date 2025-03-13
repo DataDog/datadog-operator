@@ -196,7 +196,6 @@ build_bundle_image:
   before_script:
     # Setup AWS Credentials
     - echo "Starting setup for E2E testing..."
-    - set -x  
     - mkdir -p ~/.aws
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
     - export AWS_PROFILE=agent-qa-ci
@@ -207,7 +206,6 @@ build_bundle_image:
     # Use S3 backend to store stack status
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
-    - set +x
   variables:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
