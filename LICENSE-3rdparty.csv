@@ -1,4 +1,5 @@
 Component,Origin,License
+core,cel.dev/expr,Apache-2.0
 core,github.com/DataDog/appsec-internal-go,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/model,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/config/remote,Apache-2.0
@@ -55,8 +56,8 @@ core,github.com/go-openapi/jsonreference,Apache-2.0
 core,github.com/go-openapi/swag,Apache-2.0
 core,github.com/gobwas/glob,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
-core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause
+core,github.com/google/btree,Apache-2.0
 core,github.com/google/cel-go,Apache-2.0
 core,github.com/google/gnostic-models,Apache-2.0
 core,github.com/google/go-cmp/cmp,BSD-3-Clause
@@ -67,7 +68,6 @@ core,github.com/grpc-ecosystem/go-grpc-middleware,Apache-2.0
 core,github.com/grpc-ecosystem/grpc-gateway,BSD-3-Clause
 core,github.com/grpc-ecosystem/grpc-gateway/v2,BSD-3-Clause
 core,github.com/hashicorp/hcl,MPL-2.0
-core,github.com/imdario/mergo,BSD-3-Clause
 core,github.com/josharian/intern,MIT
 core,github.com/json-iterator/go,MIT
 core,github.com/klauspost/compress,Apache-2.0
@@ -126,7 +126,7 @@ core,golang.org/x/exp,BSD-3-Clause
 core,golang.org/x/mod/semver,BSD-3-Clause
 core,golang.org/x/net,BSD-3-Clause
 core,golang.org/x/oauth2,BSD-3-Clause
-core,golang.org/x/sync/singleflight,BSD-3-Clause
+core,golang.org/x/sync,BSD-3-Clause
 core,golang.org/x/sys/unix,BSD-3-Clause
 core,golang.org/x/term,BSD-3-Clause
 core,golang.org/x/text,BSD-3-Clause
@@ -139,6 +139,7 @@ core,google.golang.org/genproto/protobuf/field_mask,Apache-2.0
 core,google.golang.org/grpc,Apache-2.0
 core,google.golang.org/protobuf,BSD-3-Clause
 core,gopkg.in/DataDog/dd-trace-go.v1,Apache-2.0
+core,gopkg.in/evanphx/json-patch.v4,BSD-3-Clause
 core,gopkg.in/inf.v0,BSD-3-Clause
 core,gopkg.in/yaml.v2,Apache-2.0
 core,gopkg.in/yaml.v3,MIT
