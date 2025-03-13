@@ -107,8 +107,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) 
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
-		Logger:                   logger,
+		Logger: logger,
 	}
 }
 
