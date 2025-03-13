@@ -31,7 +31,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options, disabledComponents RequiredComponents) ([]Feature, []Feature, RequiredComponents) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -52,8 +52,6 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options, disabledCompone
 		feat := featureBuilders[id](options)
 		featureID := feat.ID()
 		reqComponents := feat.Configure(dda)
-		// merge disabled components into feature components
-		reqComponents.Merge(&disabledComponents, IgnoreNilRequiredComponentsMergeFunction)
 		if reqComponents.IsEnabled() {
 			// enabled features
 			enabledFeatures = append(enabledFeatures, feat)
@@ -63,18 +61,7 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options, disabledCompone
 			configuredFeatures = append(configuredFeatures, feat)
 			options.Logger.V(1).Info("Feature configured", "featureID", featureID)
 		}
-		// if reqComponents.IsConfigured() {
-		// 	// enabled features + disabled due to a component being disabled, but still possibly needing configuration features
-		// 	configuredFeatures = append(configuredFeatures, feat)
-		// 	if reqComponents.IsEnabled() {
-		// 		// enabled features
-		// 		enabledFeatures = append(enabledFeatures, feat)
-		// 		options.Logger.V(1).Info("Feature enabled", "featureID", featureID)
-		// 	} else {
-		// 		options.Logger.V(1).Info("Feature configured", "featureID", featureID)
-		// 	}
-		// }
-		requiredComponents.Merge(&reqComponents, DefaultRequiredComponentsMergeFunction)
+		requiredComponents.Merge(&reqComponents)
 	}
 
 	if dda.Spec.Global != nil &&

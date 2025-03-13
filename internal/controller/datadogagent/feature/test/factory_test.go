@@ -263,8 +263,7 @@ func TestBuilder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var disabledComponents feature.RequiredComponents
-			_, _, requiredComponents := feature.BuildFeatures(tt.dda, &tt.featureOptions, disabledComponents)
+			_, _, requiredComponents := feature.BuildFeatures(tt.dda, &tt.featureOptions)
 
 			assert.True(t, *requiredComponents.Agent.IsRequired)
 
