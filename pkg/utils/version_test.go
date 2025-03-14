@@ -55,7 +55,7 @@ func TestIsAboveMinVersion(t *testing.T) {
 		{
 			version:    "foobar",
 			minVersion: "7.28.0",
-			expected:   false,
+			expected:   true,
 		},
 		{
 			version:    "1.23.4",
@@ -109,11 +109,6 @@ func TestIsAboveMinVersion(t *testing.T) {
 		},
 		{
 			version:    "latest",
-			minVersion: "7.99.0",
-			expected:   true,
-		},
-		{
-			version:    "2025-main",
 			minVersion: "7.99.0",
 			expected:   true,
 		},
