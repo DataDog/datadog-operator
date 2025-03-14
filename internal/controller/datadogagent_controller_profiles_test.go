@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build integration_v2
-// +build integration_v2
+//go:build integration
+// +build integration
 
 package controller
 
@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -249,7 +250,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 											Name: "two",
 											ValueFrom: &v1.EnvVarSource{
 												FieldRef: &v1.ObjectFieldSelector{
-													FieldPath: v2alpha1.FieldPathStatusPodIP,
+													FieldPath: common.FieldPathStatusPodIP,
 												},
 											},
 										},
@@ -324,7 +325,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						Name: "two",
 						ValueFrom: &v1.EnvVarSource{
 							FieldRef: &v1.ObjectFieldSelector{
-								FieldPath: v2alpha1.FieldPathStatusPodIP,
+								FieldPath: common.FieldPathStatusPodIP,
 							},
 						},
 					},

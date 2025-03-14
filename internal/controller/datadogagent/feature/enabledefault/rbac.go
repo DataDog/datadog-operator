@@ -7,15 +7,15 @@ package enabledefault
 
 import (
 	"fmt"
-	"strings"
+
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-
-	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // RBAC for Agent
@@ -26,6 +26,7 @@ func getDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv
 		getKubeletPolicyRule(),
 		getEndpointsPolicyRule(),
 		getLeaderElectionPolicyRule(),
+		getEKSControlPlaneMetricsPolicyRule(),
 	}
 
 	if !excludeNonResourceRules {
@@ -33,6 +34,19 @@ func getDefaultAgentClusterRolePolicyRules(excludeNonResourceRules bool) []rbacv
 	}
 
 	return policyRule
+}
+
+func getEKSControlPlaneMetricsPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.EKSMetricsAPIGroup},
+		Resources: []string{
+			rbac.EKSKubeControllerManagerMetrics,
+			rbac.EKSKubeSchedulerMetrics,
+		},
+		Verbs: []string{
+			rbac.GetVerb,
+		},
+	}
 }
 
 func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
@@ -286,6 +300,8 @@ func getDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 				rbac.GetVerb,
 			},
 		},
+		// EKS kube_scheduler and kube_controller_manager control plane metrics
+		getEKSControlPlaneMetricsPolicyRule(),
 	}
 
 	if !excludeNonResourceRules {
@@ -299,27 +315,6 @@ func getDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object, excl
 	}
 
 	return policyRule
-}
-
-// Used for kubernetesResourcesLabelsAsTags and kubernetesResourcesLabelsAsTags
-
-func extractGroupAndResource(groupResource string) (group string, resource string, ok bool) {
-	parts := strings.Split(groupResource, ".")
-
-	switch len(parts) {
-	case 1:
-		group = ""
-		resource = parts[0]
-		ok = true
-	case 2:
-		group = parts[1]
-		resource = parts[0]
-		ok = true
-	default:
-		ok = false
-	}
-
-	return group, resource, ok
 }
 
 func appendGroupResource(groupResourceAccumulator map[string]map[string]struct{}, group string, resource string) map[string]map[string]struct{} {
@@ -338,15 +333,13 @@ func getKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resou
 	groupResourceAccumulator := map[string]map[string]struct{}{}
 
 	for groupResource := range resourcesLabelsAsTags {
-		if group, resource, ok := extractGroupAndResource(groupResource); ok {
-			groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, group, resource)
-		}
+		gr := schema.ParseGroupResource(groupResource)
+		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
 	}
 
 	for groupResource := range resourcesAnnotationsAsTags {
-		if group, resource, ok := extractGroupAndResource(groupResource); ok {
-			groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, group, resource)
-		}
+		gr := schema.ParseGroupResource(groupResource)
+		groupResourceAccumulator = appendGroupResource(groupResourceAccumulator, gr.Group, gr.Resource)
 	}
 
 	policyRules := make([]rbacv1.PolicyRule, 0)
@@ -357,7 +350,6 @@ func getKubernetesResourceMetadataAsTagsPolicyRules(resourcesLabelsAsTags, resou
 				APIGroups: []string{group},
 				Resources: []string{resource},
 				Verbs: []string{
-					rbac.GetVerb,
 					rbac.ListVerb,
 					rbac.WatchVerb,
 				},

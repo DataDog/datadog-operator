@@ -6,8 +6,9 @@
 package merger
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 // PortManager use to manage adding ports to a container in a PodTemplateSpec

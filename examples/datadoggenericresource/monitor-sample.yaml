@@ -1,0 +1,19 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: ddgr-monitor-sample
+spec:
+    type: monitor
+    # For the query, 12345 and 67890 are the IDs of non-composite monitors.
+    jsonSpec: |-
+      {
+        "name": "Example Monitor",
+        "type": "composite",
+        "query": "12345 && 67890",
+        "message": "some message Notify: @hipchat-channel",
+        "tags": [
+          "test:examplemonitor",
+          "env:ci"
+        ],
+        "priority": 3
+      }

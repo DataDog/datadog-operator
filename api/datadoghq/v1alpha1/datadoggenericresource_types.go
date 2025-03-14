@@ -13,6 +13,7 @@ type SupportedResourcesType string
 
 // When adding a new type, make sure to update the kubebuilder validation enum marker
 const (
+	Monitor               SupportedResourcesType = "monitor"
 	Notebook              SupportedResourcesType = "notebook"
 	SyntheticsAPITest     SupportedResourcesType = "synthetics_api_test"
 	SyntheticsBrowserTest SupportedResourcesType = "synthetics_browser_test"
@@ -22,7 +23,7 @@ const (
 // +k8s:openapi-gen=true
 type DatadogGenericResourceSpec struct {
 	// Type is the type of the API object
-	// +kubebuilder:validation:Enum=notebook;synthetics_api_test;synthetics_browser_test
+	// +kubebuilder:validation:Enum=monitor;notebook;synthetics_api_test;synthetics_browser_test
 	Type SupportedResourcesType `json:"type"`
 	// JsonSpec is the specification of the API object
 	JsonSpec string `json:"jsonSpec"`

@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -51,26 +52,26 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.ProcdirVolumeName,
-				MountPath: v2alpha1.ProcdirMountPath,
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.CgroupsVolumeName,
-				MountPath: v2alpha1.CgroupsMountPath,
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
 		}
@@ -84,23 +85,23 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: v2alpha1.ProcdirVolumeName,
+				Name: common.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.ProcdirHostPath,
+						Path: common.ProcdirHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.CgroupsVolumeName,
+				Name: common.CgroupsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.CgroupsHostPath,
+						Path: common.CgroupsHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.SystemProbeSocketVolumeName,
+				Name: common.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -117,8 +118,8 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]

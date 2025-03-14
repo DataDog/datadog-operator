@@ -1,5 +1,8 @@
+# 
+ARG FIPS_ENABLED=false
+
 # Build the manager binary
-FROM golang:1.23.5 AS builder
+FROM golang:1.23.6 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -32,7 +35,14 @@ COPY cmd/helpers/ cmd/helpers/
 # Build
 ARG LDFLAGS
 ARG GOARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go
+ARG FIPS_ENABLED
+RUN echo "FIPS_ENABLED is: $FIPS_ENABLED"
+RUN if [ "$FIPS_ENABLED" = "true" ]; then \
+      CGO_ENABLED=1 GOEXPERIMENT=boringcrypto GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -tags fips -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+    else \
+      CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager cmd/main.go; \
+    fi
+
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 
 # Set permissions
@@ -51,6 +61,7 @@ LABEL summary="The Datadog Operator aims at providing a new way to deploy the Da
 LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
       metrics, logs and traces for full observability of your Kubernetes cluster with \
       Datadog Operator."
+LABEL maintainer="Datadog Inc."
 
 WORKDIR /
 COPY --from=builder /workspace/manager .

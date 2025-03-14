@@ -52,9 +52,9 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      defaultOrchestratorExplorerConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, []string{})),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, []string{})),
 		},
 		{
 			name: "override",
@@ -62,22 +62,22 @@ instances:
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
-				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      defaultOrchestratorExplorerConf,
 				customConfig: &v2alpha1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, overrideConf),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultOrchestratorExplorerConf, overrideConf),
 		}, {
 			name: "default config with crs",
 			fields: fields{
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: false,
-				configConfigMapName:      v2alpha1.DefaultOrchestratorExplorerConf,
+				configConfigMapName:      defaultOrchestratorExplorerConf,
 				crCollection:             crs,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), v2alpha1.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, crs)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), defaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, crs)),
 		},
 	}
 	for _, tt := range tests {

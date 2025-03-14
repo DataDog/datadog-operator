@@ -3,7 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v2alpha1
+//go:build fips
 
-// Hub defines this CRD version as being the Hub version
-func (*DatadogAgent) Hub() {}
+package controller
+
+import _ "crypto/tls/fipsonly"

@@ -137,6 +137,20 @@ type APMFeatureConfig struct {
 	// Enabled Default: false
 	// +optional
 	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
+
+	// ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+	// Feature is in preview.
+	// +optional
+	ErrorTrackingStandalone *ErrorTrackingStandalone `json:"errorTrackingStandalone,omitempty"`
+}
+
+// ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.
+// +k8s:openapi-gen=true
+type ErrorTrackingStandalone struct {
+	// Enables Error Tracking for backend services.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.
@@ -166,6 +180,57 @@ type SingleStepInstrumentation struct {
 	// (Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)
 	// +optional
 	LanguageDetection *LanguageDetectionConfig `json:"languageDetection,omitempty"`
+
+	// Injector configures the APM Injector.
+	// +optional
+	Injector *InjectorConfig `json:"injector,omitempty"`
+
+	// Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be
+	// used. If no target matches, the auto instrumentation will not be applied.
+	// (Requires Cluster Agent 7.64.0+)
+	// +optional
+	Targets []SSITarget `json:"targets,omitempty"`
+}
+
+// SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.
+type SSITarget struct {
+	// Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.
+	// +optional
+	Name string `json:"name,omitempty"`
+	// PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in
+	// conjunction with the NamespaceSelector to match the pods.
+	// +optional
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
+	// NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will
+	// be used in conjunction with the Selector to match the pods.
+	// +optional
+	NamespaceSelector *NamespaceSelector `json:"namespaceSelector,omitempty"`
+	// TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer
+	// name and the value is the version to inject.
+	// +optional
+	TracerVersions map[string]string `json:"ddTraceVersions,omitempty"`
+	// TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added
+	// as environment variables in addition to the injected tracer.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	TracerConfigs []corev1.EnvVar `json:"ddTraceConfigs,omitempty"`
+}
+
+// NamespaceSelector is a struct to store the configuration for the namespace selector. It can be used to match the
+// namespaces to apply the auto instrumentation to.
+type NamespaceSelector struct {
+	// MatchNames is a list of namespace names to match. If empty, all namespaces are matched.
+	// +optional
+	MatchNames []string `json:"matchNames,omitempty"`
+	// MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are
+	// ANDed. This cannot be used with MatchNames.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+	// MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and
+	// expressions are ANDed. This cannot be used with MatchNames.
+	// +optional
+	MatchExpressions []metav1.LabelSelectorRequirement `json:"matchExpressions,omitempty"`
 }
 
 // LanguageDetectionConfig contains the config for Language Detection.
@@ -175,6 +240,14 @@ type LanguageDetectionConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// InjectorConfig contains the configuration for the APM Injector.
+type InjectorConfig struct {
+	// Set the image tag to use for the APM Injector.
+	// (Requires Cluster Agent 7.57.0+)
+	// +optional
+	ImageTag string `json:"imageTag,omitempty"`
 }
 
 // ASMFeatureConfig contains Application Security Management (ASM) configuration.
@@ -875,6 +948,10 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// SecurityContext specifies the security context for the profile.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KubernetesAdmissionEventsConfig struct {
@@ -1080,10 +1157,10 @@ type KubeletConfig struct {
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
 
-	// PodResourcesSocket is the path to the pod resources socket, to be used to read pod resource assignments
-	// Default: `/var/lib/kubelet/pod-resources/kubelet.sock`
+	// PodResourcesSocketPath is the host path where the pod resources socket is stored.
+	// Default: `/var/lib/kubelet/pod-resources/`
 	// +optional
-	PodResourcesSocket string `json:"podResourcesSocket,omitempty"`
+	PodResourcesSocketPath string `json:"podResourcesSocketPath,omitempty"`
 }
 
 // HostPortConfig contains host port configuration.
@@ -1295,7 +1372,7 @@ type GlobalConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	//Env contains a list of environment variables that are set for all Agents.
+	// Env contains a list of environment variables that are set for all Agents.
 	// +optional
 	// +listType=map
 	// +listMapKey=name

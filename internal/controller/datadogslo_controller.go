@@ -8,9 +8,6 @@ package controller
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-
-	"github.com/DataDog/datadog-operator/internal/controller/datadogslo"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -19,6 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogslo"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 

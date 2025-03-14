@@ -1,10 +1,10 @@
 package metrics
 
 import (
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics/get"
-
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics/get"
 )
 
 // options provides information required by agent command

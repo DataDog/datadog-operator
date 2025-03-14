@@ -8,10 +8,10 @@ package condition
 import (
 	"fmt"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 // SetErrorActiveConditions sets the Error and Active DatadogMonitorConditionTypes to True or False
