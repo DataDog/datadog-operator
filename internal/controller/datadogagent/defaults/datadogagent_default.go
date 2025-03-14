@@ -41,7 +41,7 @@ const (
 	defaultGPUMonitoringEnabled bool = false
 
 	defaultServiceDiscoveryEnabled             bool = false
-	defaultServiceDiscoveryNetworkStatsEnabled bool = false
+	defaultServiceDiscoveryNetworkStatsEnabled bool = true
 
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
