@@ -28,16 +28,52 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
+					NetworkStats: &v2alpha1.ServiceDiscoveryNetworkStatsConfig{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
 				},
 			},
 		},
 	}
-	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
+	ddaServiceDiscoveryEnabledNoNetStats := ddaServiceDiscoveryDisabled.DeepCopy()
 	{
-		ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+		ddaServiceDiscoveryEnabledNoNetStats.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+	}
+	ddaServiceDiscoveryEnabledWithNetStats := ddaServiceDiscoveryEnabledNoNetStats.DeepCopy()
+	{
+		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
 	}
 
-	serviceDiscoveryAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	tests := test.FeatureTestSuite{
+		{
+			Name:          "service discovery not enabled",
+			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
+			WantConfigure: false,
+		},
+		{
+			Name:          "service discovery enabled - no network stats",
+			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+		},
+		{
+			Name:          "service discovery enabled - with network stats",
+			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+		},
+	}
+
+	tests.Run(t, buildFeature)
+}
+
+const (
+	noNetStats   = false
+	withNetStats = true
+)
+
+func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 		// check security context capabilities
@@ -75,6 +111,13 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				ReadOnly:  false,
 			},
 		}
+		if withNetStats {
+			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts, corev1.VolumeMount{
+				Name:      common.DebugfsVolumeName,
+				MountPath: common.DebugfsPath,
+				ReadOnly:  false,
+			})
+		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
@@ -107,12 +150,22 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				},
 			},
 		}
+		if withNetStats {
+			wantVolumes = append(wantVolumes, corev1.Volume{
+				Name: common.DebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: common.DebugfsPath,
+					},
+				},
+			})
+		}
 
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 		// check env vars
-		wantEnvVars := []*corev1.EnvVar{
+		wantAgentEnvVars := []*corev1.EnvVar{
 			{
 				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
@@ -122,26 +175,34 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
+
+		// check env vars
+		wantSPEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDServiceDiscoveryEnabled,
+				Value: "true",
+			},
+			{
+				Name:  DDServiceDiscoveryNetworkStatsEnabled,
+				Value: boolToString(withNetStats),
+			},
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+		}
+
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
 	}
+}
 
-	tests := test.FeatureTestSuite{
-		{
-			Name:          "service discovery not enabled",
-			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "service discovery enabled",
-			DDA:           ddaServiceDiscoveryEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(serviceDiscoveryAgentNodeWantFunc),
-		},
+func boolToString(val bool) string {
+	if val {
+		return "true"
 	}
-
-	tests.Run(t, buildFeature)
+	return "false"
 }
