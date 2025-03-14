@@ -62,9 +62,8 @@ COPY --from=builder /workspace/helpers .
 COPY scripts/readsecret.sh .
 RUN chmod 550 readsecret.sh && chmod 550 helpers
 
-RUN mkdir -p /licences
 COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
-RUN chmod -R 755 /licences
+RUN chmod -R 755 /licenses
 
 USER 1001
 
