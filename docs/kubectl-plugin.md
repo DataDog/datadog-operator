@@ -1,10 +1,15 @@
-# Datadog Operator kubectl plugin
+# Datadog Operator Plugin for kubectl
 
-## Install the plugin with krew
+The Datadog Operator has a `kubectl` plugin, which provides a set of helper utilities that give visibility into certain internal components.
 
-The Datadog Operator comes with a kubectl plugin providing a set of helper utilities giving visibility into certain internal components which some users may find useful.
+## Install the plugin
 
-To install, use the [krew plugin manager](https://krew.sigs.k8s.io/).
+Run:
+```shell
+kubectl krew install datadog
+```
+
+This uses the [Krew plugin manager](https://krew.sigs.k8s.io/).
 
 ```console
 $ kubectl krew install datadog
