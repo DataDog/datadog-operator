@@ -19,7 +19,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -130,14 +129,14 @@ type metricsForwarder struct {
 	baseURL             string
 	status              *ConditionCommon
 	credsManager        *config.CredentialManager
-	sync.Mutex
+	sync.RWMutex
 }
 
-// newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, kind schema.ObjectKind, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
+// newMetricsForwarder returns a new Datadog MetricsForwarder instance
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj client.Object, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
-		monitoredObjectKind: kind.GroupVersionKind().Kind,
+		monitoredObjectKind: obj.GetObjectKind().GroupVersionKind().Kind,
 		k8sClient:           k8sClient,
 		platformInfo:        platforminfo,
 		namespacedName:      GetNamespacedName(obj),
@@ -153,6 +152,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		baseURL:             defaultbaseURL,
 		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
 		credsManager:        config.NewCredentialManager(),
+		EnabledFeatures:     make(map[string][]string),
 	}
 }
 
@@ -231,9 +231,10 @@ func (mf *metricsForwarder) stop() {
 	close(mf.stopChan)
 }
 
+// getStatus returns the status of the metrics forwarder
 func (mf *metricsForwarder) getStatus() *ConditionCommon {
-	mf.Lock()
-	defer mf.Unlock()
+	mf.RLock()
+	defer mf.RUnlock()
 	return mf.status
 }
 
@@ -247,7 +248,7 @@ func (mf *metricsForwarder) setup() error {
 	// get dda
 	dda, err := mf.getDatadogAgent()
 	if err != nil {
-		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials,  will retry later...")
+		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
 		return err
 	}
 
@@ -392,8 +393,8 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 
 // getLastReconcileError provides thread-safe read access to lastReconcileErr
 func (mf *metricsForwarder) getLastReconcileError() error {
-	mf.Lock()
-	defer mf.Unlock()
+	mf.RLock()
+	defer mf.RUnlock()
 	return mf.lastReconcileErr
 }
 
@@ -784,4 +785,16 @@ func getbaseURL(dda *v2alpha1.DatadogAgent) string {
 		return fmt.Sprintf("https://api.%s", *dda.Spec.Global.Site)
 	}
 	return defaultbaseURL
+}
+
+// setEnabledFeatures updates the list of enabled features for a namespaced object
+func (mf *metricsForwarder) setEnabledFeatures(features []string) {
+	mf.Lock()
+	defer mf.Unlock()
+
+	if len(mf.EnabledFeatures) == 0 {
+		mf.EnabledFeatures = make(map[string][]string)
+	}
+
+	mf.EnabledFeatures[mf.id] = features
 }
