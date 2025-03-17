@@ -6,7 +6,6 @@
 package enabledefault
 
 const (
-	DDClusterAgentAuthToken          = "DD_CLUSTER_AGENT_AUTH_TOKEN"
 	DDClusterAgentServiceAccountName = "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME"
 
 	// InstallInfoToolVersion is used by the Operator to override the tool
