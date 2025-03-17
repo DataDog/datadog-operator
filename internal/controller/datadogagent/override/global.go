@@ -584,7 +584,7 @@ func dcaTokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resour
 	return nil
 }
 
-func dcaTokenResource(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) {
+func dcaTokenResource(_ logr.Logger, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) {
 	secretName := secrets.GetDefaultDCATokenSecretName(dda)
 	secretKey := common.DefaultTokenKey
 
@@ -607,12 +607,5 @@ func dcaTokenResource(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourcesM
 }
 
 func isValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
-	if secretConfig == nil {
-		return false
-	}
-	if secretConfig.SecretName == "" || secretConfig.KeyName == "" {
-		return false
-	}
-
-	return true
+	return secretConfig != nil && secretConfig.SecretName != "" && secretConfig.KeyName != ""
 }
