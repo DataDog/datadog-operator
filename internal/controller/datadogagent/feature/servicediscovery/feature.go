@@ -105,10 +105,7 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 
 	netStatsEnvVar := &corev1.EnvVar{
 		Name:  DDServiceDiscoveryNetworkStatsEnabled,
-		Value: "false",
-	}
-	if f.networkStatsEnabled {
-		netStatsEnvVar.Value = "true"
+		Value: apiutils.BoolToString(networkStatsEnabled)
 	}
 
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
