@@ -504,6 +504,7 @@ trigger_e2e_operator_image:
 e2e:
   extends: .new_e2e_template
   stage: e2e
+  tags: ["arch:amd64", "ubuntu-20.04"]
   needs:
     - "trigger_e2e_operator_image"
   rules:
