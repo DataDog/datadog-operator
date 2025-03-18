@@ -2029,6 +2029,17 @@ spec:
                             Enables the service discovery check.
                             Default: false
                           type: boolean
+                        networkStats:
+                          description: |-
+                            Enables the service discovery network stats collection.
+                            Default: true
+                          properties:
+                            enabled:
+                              description: |-
+                                Enables the Service Discovery Network Stats feature.
+                                Default: true
+                              type: boolean
+                          type: object
                       type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
@@ -9351,6 +9362,17 @@ spec:
                                 Enables the service discovery check.
                                 Default: false
                               type: boolean
+                            networkStats:
+                              description: |-
+                                Enables the service discovery network stats collection.
+                                Default: true
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enables the Service Discovery Network Stats feature.
+                                    Default: true
+                                  type: boolean
+                              type: object
                           type: object
                         tcpQueueLength:
                           description: TCPQueueLength configuration.
