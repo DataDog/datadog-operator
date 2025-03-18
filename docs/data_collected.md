@@ -2,7 +2,7 @@
 
 The Datadog Operator sends metrics and events to Datadog to monitor the Datadog Agent components deployment in the cluster.
 
-For a list of all Kubernetes metrics collected by Datadog, see [Kubernetes Data Collected][4].
+For a list of all Kubernetes metrics collected by Datadog, see [Kubernetes Data Collected][1].
 
 ## Metrics
 
@@ -13,13 +13,13 @@ For a list of all Kubernetes metrics collected by Datadog, see [Kubernetes Data 
 | `datadog.operator.clusterchecksrunner.deployment.success` | gauge       | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise. |
 | `datadog.operator.reconcile.success`                     | gauge       | `1` if the last recorded reconcile error is null, `0` otherwise. The `reconcile_err` tag describes the last recorded error.         |
 
-**Note:** The [Datadog API and app keys][1] are required to forward metrics to Datadog. They must be provided in the `credentials` field in the Custom Resource definition.
+**Note:** The [Datadog API and app keys][2] are required to forward metrics to Datadog. They must be provided in the `credentials` field in the Custom Resource definition.
 
 ## OpenMetrics
 
-The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. You can collect them with the [OpenMetrics integration][2].
+The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. You can collect them with the [OpenMetrics integration][3].
 
-The OpenMetrics check is enabled by default through [Autodiscovery annotations][3] and is scheduled by the Agent running on the same node as the Datadog Operator Pod. See [Kubernetes and Integrations][5].
+The OpenMetrics check is enabled by default through Autodiscovery annotations and is scheduled by the Agent running on the same node as the Datadog Operator Pod. See [Kubernetes and Integrations][4].
 
 ## Events
 
@@ -37,8 +37,7 @@ The OpenMetrics check is enabled by default through [Autodiscovery annotations][
 - Create/Update/Delete PDB <Namespace/Name>
 - Create/Delete ServiceAccount <Namespace/Name>
 
-[1]: https://docs.datadoghq.com/account_management/api-app-keys/
-[2]: https://docs.datadoghq.com/integrations/openmetrics/
-[3]: ./chart/datadog-operator/templates/deployment.yaml
-[4]: https://docs.datadoghq.com/containers/kubernetes/data_collected/
-[5]: https://docs.datadoghq.com/containers/kubernetes/integrations/?tab=annotations
+[1]: https://docs.datadoghq.com/containers/kubernetes/data_collected/
+[2]: https://docs.datadoghq.com/account_management/api-app-keys/
+[3]: https://docs.datadoghq.com/integrations/openmetrics/
+[4]: https://docs.datadoghq.com/containers/kubernetes/integrations/?tab=annotations
