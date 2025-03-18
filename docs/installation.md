@@ -229,7 +229,7 @@ datadog-agent-zvdbw                          1/1     Running    0          8m1s
 
 ## Install the kubectl plugin
 
-See the [`kubectl` plugin documentation](/docs/kubectl-plugin.md).
+See the [`kubectl` plugin documentation][11].
 
 ## Use a custom Datadog Operator image
 
@@ -269,3 +269,4 @@ helm delete my-datadog-operator
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
 [10]: https://docs.datadoghq.com/containers/kubernetes/installation
+[11]: https://github.com/DataDog/datadog-operator/blob/main/docs/kubectl-plugin.md
