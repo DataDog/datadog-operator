@@ -1,4 +1,4 @@
-FROM scratch
+FROM registry.access.redhat.com/ubi9/ubi-micro:latest
 
 # Core bundle labels.
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
