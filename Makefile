@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
-TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
+TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
