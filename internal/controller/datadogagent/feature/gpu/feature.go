@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 )
 
 func init() {
@@ -112,7 +111,7 @@ func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateMan
 		return
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-		Name:  override.DDKubernetesPodResourcesSocket,
+		Name:  common.DDKubernetesPodResourcesSocket,
 		Value: path.Join(f.podResourcesSocketPath, "kubelet.sock"),
 	})
 
