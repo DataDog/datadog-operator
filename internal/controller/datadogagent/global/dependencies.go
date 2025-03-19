@@ -31,8 +31,10 @@ func dependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager featur
 	}
 
 	// DCA token
-	if err := dcaTokenDependencies(logger, dda, manager); err != nil {
-		errs = append(errs, err)
+	if componentName == v2alpha1.ClusterAgentComponentName {
+		if err := dcaTokenDependencies(logger, dda, manager); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	// Network policy
