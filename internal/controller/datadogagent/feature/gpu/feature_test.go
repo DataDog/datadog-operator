@@ -1,6 +1,7 @@
 package gpu
 
 import (
+	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -15,16 +16,24 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
 
 func Test_GPUMonitoringFeature_Configure(t *testing.T) {
+	podResourcesSocketPath := "/var/lib/kubelet/pod-resources/"
+
 	ddaGPUMonitoringDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
+				},
+			},
+			Global: &v2alpha1.GlobalConfig{
+				Kubelet: &v2alpha1.KubeletConfig{
+					PodResourcesSocketPath: podResourcesSocketPath,
 				},
 			},
 		},
@@ -51,7 +60,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		)
 
 		// check volume mounts
-		wantCoreAgentVolMounts := []corev1.VolumeMount{
+		wantCoreAgentVolMounts := []*corev1.VolumeMount{
 			{
 				Name:      common.SystemProbeSocketVolumeName,
 				MountPath: common.SystemProbeSocketVolumePath,
@@ -62,9 +71,14 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				MountPath: nvidiaDevicesMountPath,
 				ReadOnly:  true,
 			},
+			{
+				Name:      common.KubeletPodResourcesVolumeName,
+				MountPath: podResourcesSocketPath,
+				ReadOnly:  false,
+			},
 		}
 
-		wantSystemProbeVolMounts := []corev1.VolumeMount{
+		wantSystemProbeVolMounts := []*corev1.VolumeMount{
 			{
 				Name:      common.ProcdirVolumeName,
 				MountPath: common.ProcdirMountPath,
@@ -88,13 +102,13 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
+		assert.ElementsMatch(t, coreAgentVolumeMounts, wantCoreAgentVolMounts)
 
 		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantSystemProbeVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantSystemProbeVolMounts))
+		assert.ElementsMatch(t, systemProbeVolumeMounts, wantSystemProbeVolMounts)
 
 		// check volumes
-		wantVolumes := []corev1.Volume{
+		wantVolumes := []*corev1.Volume{
 			{
 				Name: common.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
@@ -125,13 +139,19 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 					},
 				},
 			},
+			{
+				Name: common.KubeletPodResourcesVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{Path: podResourcesSocketPath},
+				},
+			},
 		}
 
 		volumes := mgr.VolumeMgr.Volumes
-		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+		assert.ElementsMatch(t, volumes, wantVolumes)
 
 		// check env vars
-		wantEnvVars := []*corev1.EnvVar{
+		wantSystemProbeEnvVars := []*corev1.EnvVar{
 			{
 				Name:  common.DDSystemProbeSocket,
 				Value: common.DefaultSystemProbeSocketPath,
@@ -145,11 +165,19 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Value: "all",
 			},
 		}
+
+		wantAgentEnvVars := append([]*corev1.EnvVar{
+			{
+				Name:  override.DDKubernetesPodResourcesSocket,
+				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
+			},
+		}, wantSystemProbeEnvVars...)
+
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+		assert.ElementsMatch(t, agentEnvVars, wantAgentEnvVars)
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSystemProbeEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSystemProbeEnvVars))
 
 		// Check runtime class
 		if expectedRuntimeClass == "" {
