@@ -76,14 +76,15 @@ func (c *Client) TableQuery(query string) (*DDSQLTableResponse, error) {
 		return nil, err
 	}
 
+	// nolint: noctx
 	req, err := http.NewRequest("POST", "https://app.datadoghq.com/api/v2/ddql/table", bytes.NewBuffer(reqData))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("accept", "application/json")
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("DD-API-KEY", c.apiKey)
-	req.Header.Add("DD-APPLICATION-KEY", c.appKey)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Dd-Api-Key", c.apiKey)
+	req.Header.Add("Dd-Application-Key", c.appKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
