@@ -16,6 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -140,6 +142,42 @@ func Test_defaultFeature_ADP(t *testing.T) {
 	}
 
 	tests.Run(t, buildDefaultFeature)
+}
+
+func Test_defaultFeature_Configure_DisabledClusterAgent(t *testing.T) {
+	tests := []struct {
+		name              string
+		dda               *v2alpha1.DatadogAgent
+		wantRequiredComps feature.RequiredComponents
+		wantAgentRequired bool
+		wantDCARequired   bool
+	}{
+		{
+			name: "cluster agent disabled via override",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+					Disabled: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			wantRequiredComps: feature.RequiredComponents{
+				Agent: feature.RequiredComponent{
+					IsRequired: apiutils.NewBoolPointer(true),
+				},
+			},
+			wantAgentRequired: true,
+			wantDCARequired:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := buildDefaultFeature(nil)
+			fReqComps := f.Configure(tt.dda)
+
+			assert.Equal(t, tt.wantAgentRequired, apiutils.BoolValue(fReqComps.Agent.IsRequired), "Agent Component requirement mismatch")
+			assert.Equal(t, tt.wantDCARequired, apiutils.BoolValue(fReqComps.ClusterAgent.IsRequired), "Cluster Agent Component requirement mismatch")
+		})
+	}
 }
 
 func defaultFeatureManageClusterAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
