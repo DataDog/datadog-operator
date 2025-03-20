@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 )
 
 const alternativeRuntimeClass = "nvidia-like"
