@@ -13,7 +13,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: f61405297d57
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -504,7 +504,6 @@ trigger_e2e_operator_image:
 e2e:
   extends: .new_e2e_template
   stage: e2e
-  tags: ["arch:amd64", "ubuntu-20.04"]
   needs:
     - "trigger_e2e_operator_image"
   rules:
