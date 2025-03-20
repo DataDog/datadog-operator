@@ -13,13 +13,13 @@ spec:
       # Enable cluster checks for checks configured on the Cluster Agent
       enabled: true
       # Enable dedicated Cluster Check Runners to run cluster checks
-      useClusterChecksRunners: true
+      # useClusterChecksRunners: true
   override:
     # Enable an additional check on the Node Agent
     nodeAgent:
       extraConfd:
         configDataMap:
-          # The name of the configuration file file must match the name of the check, i.e. check_name.py
+          # The name of the configuration file must match the name of the check, i.e. check_name.py
           check_name.yaml: |-
             init_config:
             instances:
@@ -28,8 +28,9 @@ spec:
     clusterAgent:
       extraConfd:
         configDataMap:
-          # The name of the configuration file file must match the name of the check, i.e. check_name.py
+          # The name of the configuration file must match the name of the check, i.e. check_name.py
           check_name.yaml: |-
+            cluster_check: true
             init_config:
             instances:
               - {}
