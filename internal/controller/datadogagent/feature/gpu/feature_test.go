@@ -168,7 +168,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 
 		wantAgentEnvVars := append([]*corev1.EnvVar{
 			{
-				Name:  override.DDKubernetesPodResourcesSocket,
+				Name:  common.DDKubernetesPodResourcesSocket,
 				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
 			},
 		}, wantSystemProbeEnvVars...)
