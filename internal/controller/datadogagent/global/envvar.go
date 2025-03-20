@@ -3,9 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package override
+package global
 
-// This file tracks environment variables used in overrides
+// This file tracks environment variables used in global
 const (
 	DDChecksTagCardinality         = "DD_CHECKS_TAG_CARDINALITY"
 	DDClusterAgentAuthToken        = "DD_CLUSTER_AGENT_AUTH_TOKEN"
@@ -28,5 +28,4 @@ const (
 	DDSecretBackendTimeout         = "DD_SECRET_BACKEND_TIMEOUT"
 	DDTags                         = "DD_TAGS"
 	DockerHost                     = "DOCKER_HOST"
-	DDLogLevel                     = "DD_LOG_LEVEL"
 )

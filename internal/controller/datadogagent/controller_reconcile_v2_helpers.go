@@ -14,6 +14,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
@@ -35,6 +36,30 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 	depsStore := store.NewStore(instance, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 	return depsStore, resourceManagers
+}
+
+// manageGlobalDependencies manages the global dependencies for a component.
+func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+	var errs []error
+	if requiredComponents.ClusterAgent.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
+	if requiredComponents.Agent.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
+	if requiredComponents.ClusterChecksRunner.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
+	if len(errs) > 0 {
+		return errors.NewAggregate(errs)
+	}
+	return nil
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
