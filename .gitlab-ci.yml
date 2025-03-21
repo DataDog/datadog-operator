@@ -13,7 +13,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: f61405297d57
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -496,6 +496,8 @@ trigger_e2e_operator_image:
   rules: 
     - if: $CI_COMMIT_TAG
       when: always
+    - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
+      when: always
   trigger:
     project: DataDog/public-images
     branch: main
@@ -513,14 +515,21 @@ e2e:
   rules:
     - if: $CI_COMMIT_TAG
       when: always
+    - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
+      when: always
   parallel:
     matrix:
       - K8S_VERSION:
+          - "1.16"
+          - "1.18"
           - "1.19"
           - "1.22"
           - "1.24"
           - "1.25"
           - "1.26"
+          - "1.29"
+          - "1.30"
+          - "1.32"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
