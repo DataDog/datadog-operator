@@ -19,8 +19,8 @@ spec:
     nodeAgent:
       extraConfd:
         configDataMap:
-          # The name of the configuration file must match the name of the check, i.e. check_name.py
-          check_name.yaml: |-
+          # The name of the configuration file must match the name of the check, i.e. <integration_name>.py
+          <integration_name>.yaml: |-
             init_config:
             instances:
               - {}
@@ -28,8 +28,8 @@ spec:
     clusterAgent:
       extraConfd:
         configDataMap:
-          # The name of the configuration file must match the name of the check, i.e. check_name.py
-          check_name.yaml: |-
+          # The name of the configuration file must match the name of the check, i.e. <integration_name>.py
+          <integration_name>.yaml: |-
             cluster_check: true
             init_config:
             instances:
