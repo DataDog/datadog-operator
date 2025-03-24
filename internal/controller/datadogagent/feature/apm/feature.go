@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +28,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 func init() {
@@ -38,6 +41,10 @@ func init() {
 
 func buildAPMFeature(options *feature.Options) feature.Feature {
 	apmFeat := &apmFeature{}
+
+	if options != nil {
+		apmFeat.logger = options.Logger
+	}
 
 	return apmFeat
 }
@@ -63,6 +70,10 @@ type apmFeature struct {
 	singleStepInstrumentation *instrumentationConfig
 
 	processCheckRunsInCoreAgent bool
+
+	errorTrackingStandalone bool
+
+	logger logr.Logger
 }
 
 type instrumentationConfig struct {
@@ -72,6 +83,7 @@ type instrumentationConfig struct {
 	libVersions        map[string]string
 	languageDetection  *languageDetection
 	injector           *injector
+	targets            []v2alpha1.SSITarget
 }
 
 type languageDetection struct {
@@ -99,6 +111,10 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	// SingleStepInstrumentation requires APM Enabled
 	if apmConf.SingleStepInstrumentation != nil && apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) {
 		return true
+	}
+
+	if apmConf.ErrorTrackingStandalone != nil {
+		return apiutils.BoolValue(apmConf.DeepCopy().ErrorTrackingStandalone.Enabled)
 	}
 
 	return false
@@ -152,6 +168,13 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
 			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
+			if len(apm.SingleStepInstrumentation.Targets) > 0 {
+				if supportsInstrumentationTargets(dda) {
+					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
+				} else {
+					f.logger.Info("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= 7.64.0")
+				}
+			}
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
@@ -163,6 +186,10 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
+		}
+
+		if apm.ErrorTrackingStandalone != nil {
+			f.errorTrackingStandalone = apiutils.BoolValue(apm.ErrorTrackingStandalone.Enabled)
 		}
 	}
 
@@ -329,9 +356,31 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 				Value: string(libs),
 			})
 		}
+		if len(f.singleStepInstrumentation.targets) > 0 {
+			js, err := json.Marshal(f.singleStepInstrumentation.targets)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  DDAPMInstrumentationTargets,
+				Value: string(js),
+			})
+		}
 
 	}
 	return nil
+}
+
+const minInstrumentationTargetsVersion = "7.64.0-0"
+
+func supportsInstrumentationTargets(dda *v2alpha1.DatadogAgent) bool {
+	// Agent version must >= 7.64.0 to run feature in core agent
+	if nodeAgent, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		if nodeAgent.Image != nil {
+			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
+		}
+	}
+	return utils.IsAboveMinVersion(defaulting.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
@@ -352,7 +401,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provi
 func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
 
 	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDAPMEnabled,
+		Name:  common.DDAPMEnabled,
 		Value: "true",
 	})
 
@@ -398,7 +447,7 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 		// Always add this envvar to Core and Process containers
 		runInCoreAgentEnvVar := &corev1.EnvVar{
-			Name:  v2alpha1.DDProcessConfigRunInCoreAgent,
+			Name:  common.DDProcessConfigRunInCoreAgent,
 			Value: apiutils.BoolToString(&f.processCheckRunsInCoreAgent),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ProcessAgentContainerName, runInCoreAgentEnvVar)
@@ -418,6 +467,14 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, agentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
+	}
+
+	// Error Tracking standalone
+	if f.errorTrackingStandalone {
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
+			Value: "true",
+		})
 	}
 
 	return nil

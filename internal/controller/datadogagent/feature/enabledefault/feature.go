@@ -10,6 +10,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/errors"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -24,11 +29,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
-
-	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/errors"
 )
 
 func init() {
@@ -171,12 +171,12 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 		// DCA Token management
 		f.dcaTokenInfo.token.SecretName = secrets.GetDefaultDCATokenSecretName(dda)
-		f.dcaTokenInfo.token.SecretKey = v2alpha1.DefaultTokenKey
+		f.dcaTokenInfo.token.SecretKey = common.DefaultTokenKey
 		if dda.Spec.Global.ClusterAgentToken != nil {
 			// User specifies token
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
-			f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
+			f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
 		} else if dda.Spec.Global.ClusterAgentTokenSecret != nil {
 			// User specifies token secret
 			f.dcaTokenInfo.token.SecretName = dda.Spec.Global.ClusterAgentTokenSecret.SecretName
@@ -186,9 +186,9 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
 			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
-				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = apiutils.GenerateRandomString(32)
+				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = apiutils.GenerateRandomString(32)
 			} else {
-				f.dcaTokenInfo.secretCreation.data[v2alpha1.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
+				f.dcaTokenInfo.secretCreation.data[common.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
 
@@ -429,6 +429,14 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
 
+	if f.adpEnabled {
+		// When ADP is enabled, we signal this to the Core Agent by setting an environment variable.
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  common.DDADPEnabled,
+			Value: "true",
+		})
+	}
+
 	return nil
 }
 
@@ -450,12 +458,12 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 	}
 
 	if f.credentialsInfo.apiKey.SecretName != "" {
-		apiKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
+		apiKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAPIKey, common.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
 
 	if f.credentialsInfo.appKey.SecretName != "" {
-		appKeyEnvVar := common.BuildEnvVarFromSource(v2alpha1.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
+		appKeyEnvVar := common.BuildEnvVarFromSource(constants.DDAppKey, common.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
 
@@ -465,7 +473,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  v2alpha1.DDKubernetesResourcesLabelsAsTags,
+				Name:  DDKubernetesResourcesLabelsAsTags,
 				Value: string(kubernetesResourceLabelsAsTags),
 			})
 		}
@@ -477,7 +485,7 @@ func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManage
 			f.logger.Error(err, "Failed to unmarshal json input")
 		} else {
 			managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  v2alpha1.DDKubernetesResourcesAnnotationsAsTags,
+				Name:  DDKubernetesResourcesAnnotationsAsTags,
 				Value: string(kubernetesResourceAnnotationsAsTags),
 			})
 		}

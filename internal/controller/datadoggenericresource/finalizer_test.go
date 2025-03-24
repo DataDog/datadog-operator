@@ -10,18 +10,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/go-logr/logr"
-	"github.com/stretchr/testify/assert"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -64,6 +65,9 @@ func Test_handleFinalizer(t *testing.T) {
 						Namespace:         testNamespace,
 						Finalizers:        []string{datadogGenericResourceFinalizer},
 						DeletionTimestamp: &metaNow,
+					},
+					Spec: datadoghqv1alpha1.DatadogGenericResourceSpec{
+						Type: v1alpha1.Notebook,
 					},
 				},
 			).

@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"reflect"
 
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (

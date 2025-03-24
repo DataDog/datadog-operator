@@ -8,13 +8,13 @@ package condition
 import (
 	"fmt"
 
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 // DatadogAgentState type representing the deployment state of the different Agent components.
@@ -110,7 +110,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *v2alpha1.Deployme
 		return depStatus
 	}
 
-	if hash, ok := dep.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := dep.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
 		depStatus.CurrentHash = hash
 	}
 	if updateTime != nil {
@@ -172,7 +172,7 @@ func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*v2al
 		if updateTime != nil {
 			newStatus.LastUpdate = updateTime
 		}
-		if hash, ok := ds.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
+		if hash, ok := ds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
 			newStatus.CurrentHash = hash
 		}
 
@@ -223,7 +223,7 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	if updateTime != nil {
 		newStatus.LastUpdate = updateTime
 	}
-	if hash, ok := eds.Annotations[v2alpha1.MD5AgentDeploymentAnnotationKey]; ok {
+	if hash, ok := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
 		newStatus.CurrentHash = hash
 	}
 

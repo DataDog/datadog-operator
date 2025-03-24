@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/go-logr/logr"
-
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
 	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/go-logr/logr"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 

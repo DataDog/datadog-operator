@@ -6,8 +6,9 @@
 package override
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	v1 "k8s.io/api/apps/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // Deployment overrides a v1.Deployment according to the given override options

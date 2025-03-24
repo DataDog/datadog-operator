@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
@@ -172,7 +172,7 @@ func getWantVolumes() []*corev1.Volume {
 			Name: pointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: v2alpha1.DefaultLogTempStoragePath,
+					Path: common.DefaultLogTempStoragePath,
 				},
 			},
 		},
@@ -233,7 +233,7 @@ func getWantVolumeMounts() []*corev1.VolumeMount {
 func createEnvVars(logsEnabled, collectAllEnabled, collectUsingFilesEnabled string) []*corev1.EnvVar {
 	return []*corev1.EnvVar{
 		{
-			Name:  v2alpha1.DDLogsEnabled,
+			Name:  common.DDLogsEnabled,
 			Value: logsEnabled,
 		},
 		{

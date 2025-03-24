@@ -9,6 +9,9 @@ const (
 	containerdDirVolumeName = "host-containerd-dir"
 	containerdDirVolumePath = "/var/lib/containerd"
 	containerdDirMountPath  = "/host/var/lib/containerd"
+	criDirVolumeName        = "host-cri-dir"
+	criDirVolumePath        = "/var/lib/containers"
+	criDirMountPath         = "/host/var/lib/containers"
 	apkDirVolumeName        = "host-apk-dir"
 	apkDirVolumePath        = "/var/lib/apk"
 	apkDirMountPath         = "/host/var/lib/apk"
@@ -30,4 +33,7 @@ const (
 	systemReleaseVolumeName = "etc-system-release"
 	systemReleaseVolumePath = "/etc/system-release"
 	systemReleaseMountPath  = "/host/etc/system-release"
+
+	agentAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/agent"
+	agentAppArmorAnnotationValue = "unconfined"
 )

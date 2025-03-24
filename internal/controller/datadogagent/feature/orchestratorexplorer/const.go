@@ -17,6 +17,9 @@ const (
 	orchestratorExplorerFolderName   = "orchestrator.d"
 
 	orchestratorExplorerVolumeName = "orchestrator-explorer-config"
+
+	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
+	defaultOrchestratorExplorerConf string = "orchestrator-explorer-config"
 )
 
 // GetOrchestratorExplorerRBACResourceName returns the RBAC resources name

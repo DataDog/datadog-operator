@@ -6,15 +6,15 @@
 package datadog
 
 import (
+	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/agent"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/clusteragent"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/metrics"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/validate"
-
-	"github.com/spf13/cobra"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // options provides information required by datadog command

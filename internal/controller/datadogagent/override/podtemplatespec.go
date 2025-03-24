@@ -15,12 +15,11 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 func getAgentContainersMap() map[apicommon.AgentContainerName]string {
@@ -55,7 +54,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
 			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
-				manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
+				manager.PodTemplateSpec().Spec.Containers[i].Image = common.OverrideAgentImage(container.Image, override.Image)
 				if override.Image.PullPolicy != nil {
 					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
 				}
@@ -63,7 +62,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = overrideImage(initContainer.Image, override.Image)
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = common.OverrideAgentImage(initContainer.Image, override.Image)
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}
@@ -93,7 +92,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraConfd != nil {
 		cmName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, v2alpha1.ConfdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, common.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -110,7 +109,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraChecksd != nil {
 		cmName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(componentName))))
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, v2alpha1.ChecksdVolumeName, cmName)
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, common.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 
 		// Add md5 hash annotation for custom config
@@ -205,7 +204,7 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		case v2alpha1.ClusterAgentComponentName:
 			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
-			volumeName := v2alpha1.ClusterAgentCustomConfigVolumeName
+			volumeName := clusterAgentCustomConfigVolumeName
 			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
 			manager.Volume().AddVolume(&vol)
 
@@ -227,26 +226,6 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
-}
-
-func overrideImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) string {
-	splitImg := strings.Split(currentImg, "/")
-	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
-
-	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
-
-	// This deep copies primitives of the struct, we don't care about other fields
-	overrideImgCopy := *overrideImg
-	if overrideImgCopy.Name == "" {
-		overrideImgCopy.Name = splitName[0]
-	}
-
-	if overrideImgCopy.Tag == "" {
-		// If present need to drop JMX tag suffix
-		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
-	}
-
-	return constants.GetImage(&overrideImgCopy, &registry)
 }
 
 func mergeAffinities(affinity1 *v1.Affinity, affinity2 *v1.Affinity) *v1.Affinity {

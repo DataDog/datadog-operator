@@ -9,17 +9,18 @@ import (
 	"fmt"
 	"strings"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/utils"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
@@ -77,7 +78,7 @@ func GetAgentVersion(dda metav1.Object) string {
 
 // GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
 func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), v2alpha1.SystemProbeAgentSecurityConfigMapSuffixName)
+	return fmt.Sprintf("%s-%s", dda.GetName(), SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
 // GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
@@ -132,4 +133,25 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	}
 	// Service Internal Traffic Policy is enabled by default since 1.22
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
+}
+
+// OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
+func OverrideAgentImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) string {
+	splitImg := strings.Split(currentImg, "/")
+	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
+
+	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
+
+	// This deep copies primitives of the struct, we don't care about other fields
+	overrideImgCopy := *overrideImg
+	if overrideImgCopy.Name == "" {
+		overrideImgCopy.Name = splitName[0]
+	}
+
+	if overrideImgCopy.Tag == "" {
+		// If present need to drop JMX tag suffix
+		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
+	}
+
+	return constants.GetImage(&overrideImgCopy, &registry)
 }

@@ -8,14 +8,13 @@ package eventcollection
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/go-logr/logr"
-
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
@@ -76,7 +75,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
 			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = constants.GetConfName(dda, nil, v2alpha1.DefaultKubeAPIServerConf)
+				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
 				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
 				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
 			} else {
@@ -150,7 +149,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
+		Name:  common.DDLeaderElection,
 		Value: "true",
 	})
 
@@ -160,7 +159,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
+		Name:  common.DDClusterAgentTokenName,
 		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
 	})
 
@@ -169,7 +168,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 		vol := volume.GetBasicVolume(f.configMapName, kubernetesAPIServerCheckConfigVolumeName)
 		volMount := corev1.VolumeMount{
 			Name:      kubernetesAPIServerCheckConfigVolumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", v2alpha1.ConfigVolumePath, v2alpha1.ConfdVolumePath, kubeAPIServerConfigFolderName),
+			MountPath: fmt.Sprintf("%s%s/%s", common.ConfigVolumePath, common.ConfdVolumePath, kubeAPIServerConfigFolderName),
 			ReadOnly:  true,
 		}
 
@@ -188,44 +187,18 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *eventCollectionFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
-	return nil
-}
-
-func (f *eventCollectionFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, _ string) error {
-	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  DDCollectKubernetesEvents,
-		Value: "true",
-	})
-
-	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDLeaderElection,
-		Value: "true",
-	})
-
-	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  DDLeaderLeaseName,
-		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
-	})
-
-	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-		Name:  v2alpha1.DDClusterAgentTokenName,
-		Value: secrets.GetDefaultDCATokenSecretName(f.owner),
-	})
-
+func (f *eventCollectionFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *eventCollectionFeature) ManageClusterChecksRunner(_ feature.PodTemplateManagers) error {
 	return nil
 }

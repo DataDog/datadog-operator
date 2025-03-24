@@ -6,11 +6,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -23,8 +18,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -38,11 +38,11 @@ type Reconciler struct {
 	client                  client.Client
 	datadogSyntheticsClient *datadogV1.SyntheticsApi
 	datadogNotebooksClient  *datadogV1.NotebooksApi
-	// TODO: add other clients
-	datadogAuth context.Context
-	scheme      *runtime.Scheme
-	log         logr.Logger
-	recorder    record.EventRecorder
+	datadogMonitorsClient   *datadogV1.MonitorsApi
+	datadogAuth             context.Context
+	scheme                  *runtime.Scheme
+	log                     logr.Logger
+	recorder                record.EventRecorder
 }
 
 func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) *Reconciler {
@@ -50,12 +50,11 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogGenericCl
 		client:                  client,
 		datadogSyntheticsClient: ddClient.SyntheticsClient,
 		datadogNotebooksClient:  ddClient.NotebooksClient,
-		// TODO: add other clients
-		// datadogOtherClient: ddClient.OtherClient,
-		datadogAuth: ddClient.Auth,
-		scheme:      scheme,
-		log:         log,
-		recorder:    recorder,
+		datadogMonitorsClient:   ddClient.MonitorsClient,
+		datadogAuth:             ddClient.Auth,
+		scheme:                  scheme,
+		log:                     log,
+		recorder:                recorder,
 	}
 }
 

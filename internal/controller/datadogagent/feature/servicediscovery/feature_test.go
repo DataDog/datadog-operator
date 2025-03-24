@@ -15,6 +15,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
@@ -27,16 +28,52 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
+					NetworkStats: &v2alpha1.ServiceDiscoveryNetworkStatsConfig{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
 				},
 			},
 		},
 	}
-	ddaServiceDiscoveryEnabled := ddaServiceDiscoveryDisabled.DeepCopy()
+	ddaServiceDiscoveryEnabledNoNetStats := ddaServiceDiscoveryDisabled.DeepCopy()
 	{
-		ddaServiceDiscoveryEnabled.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+		ddaServiceDiscoveryEnabledNoNetStats.Spec.Features.ServiceDiscovery.Enabled = apiutils.NewBoolPointer(true)
+	}
+	ddaServiceDiscoveryEnabledWithNetStats := ddaServiceDiscoveryEnabledNoNetStats.DeepCopy()
+	{
+		ddaServiceDiscoveryEnabledWithNetStats.Spec.Features.ServiceDiscovery.NetworkStats.Enabled = apiutils.NewBoolPointer(true)
 	}
 
-	serviceDiscoveryAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	tests := test.FeatureTestSuite{
+		{
+			Name:          "service discovery not enabled",
+			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
+			WantConfigure: false,
+		},
+		{
+			Name:          "service discovery enabled - no network stats",
+			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
+		},
+		{
+			Name:          "service discovery enabled - with network stats",
+			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
+		},
+	}
+
+	tests.Run(t, buildFeature)
+}
+
+const (
+	noNetStats   = false
+	withNetStats = true
+)
+
+func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	return func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 		// check security context capabilities
@@ -51,28 +88,44 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantCoreAgentVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
 
 		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
-				Name:      v2alpha1.ProcdirVolumeName,
-				MountPath: v2alpha1.ProcdirMountPath,
+				Name:      common.ProcdirVolumeName,
+				MountPath: common.ProcdirMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.CgroupsVolumeName,
-				MountPath: v2alpha1.CgroupsMountPath,
+				Name:      common.CgroupsVolumeName,
+				MountPath: common.CgroupsMountPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      v2alpha1.SystemProbeSocketVolumeName,
-				MountPath: v2alpha1.SystemProbeSocketVolumePath,
+				Name:      common.SystemProbeSocketVolumeName,
+				MountPath: common.SystemProbeSocketVolumePath,
 				ReadOnly:  false,
 			},
+		}
+		if withNetStats {
+			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts,
+				corev1.VolumeMount{
+					Name:      common.DebugfsVolumeName,
+					MountPath: common.DebugfsPath,
+					ReadOnly:  false,
+				}, corev1.VolumeMount{
+					Name:      common.ModulesVolumeName,
+					MountPath: common.ModulesVolumePath,
+					ReadOnly:  true,
+				}, corev1.VolumeMount{
+					Name:      common.SrcVolumeName,
+					MountPath: common.SrcVolumePath,
+					ReadOnly:  true,
+				})
 		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
@@ -84,63 +137,96 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: v2alpha1.ProcdirVolumeName,
+				Name: common.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.ProcdirHostPath,
+						Path: common.ProcdirHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.CgroupsVolumeName,
+				Name: common.CgroupsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: v2alpha1.CgroupsHostPath,
+						Path: common.CgroupsHostPath,
 					},
 				},
 			},
 			{
-				Name: v2alpha1.SystemProbeSocketVolumeName,
+				Name: common.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
+		}
+		if withNetStats {
+			wantVolumes = append(wantVolumes,
+				corev1.Volume{
+					Name: common.DebugfsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.DebugfsPath,
+						},
+					},
+				}, corev1.Volume{
+					Name: common.ModulesVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.ModulesVolumePath,
+						},
+					},
+				}, corev1.Volume{
+					Name: common.SrcVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.SrcVolumePath,
+						},
+					},
+				})
 		}
 
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 		// check env vars
-		wantEnvVars := []*corev1.EnvVar{
+		wantAgentEnvVars := []*corev1.EnvVar{
 			{
 				Name:  DDServiceDiscoveryEnabled,
 				Value: "true",
 			},
 			{
-				Name:  v2alpha1.DDSystemProbeSocket,
-				Value: v2alpha1.DefaultSystemProbeSocketPath,
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
 			},
 		}
+
+		// check env vars
+		wantSPEnvVars := []*corev1.EnvVar{
+			{
+				Name:  DDServiceDiscoveryEnabled,
+				Value: "true",
+			},
+			{
+				Name:  DDServiceDiscoveryNetworkStatsEnabled,
+				Value: boolToString(withNetStats),
+			},
+			{
+				Name:  common.DDSystemProbeSocket,
+				Value: common.DefaultSystemProbeSocketPath,
+			},
+		}
+
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantAgentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantAgentEnvVars))
 
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantSPEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantSPEnvVars))
 	}
+}
 
-	tests := test.FeatureTestSuite{
-		{
-			Name:          "service discovery not enabled",
-			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "service discovery enabled",
-			DDA:           ddaServiceDiscoveryEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(serviceDiscoveryAgentNodeWantFunc),
-		},
+func boolToString(val bool) string {
+	if val {
+		return "true"
 	}
-
-	tests.Run(t, buildFeature)
+	return "false"
 }

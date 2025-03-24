@@ -31,7 +31,7 @@
               ],
               "type": "string"
             },
-            "scaledown": {
+            "scaleDown": {
               "additionalProperties": false,
               "description": "ScaleDown defines the policy to scale down the target resource.",
               "properties": {
@@ -92,7 +92,7 @@
               },
               "type": "object"
             },
-            "scaleup": {
+            "scaleUp": {
               "additionalProperties": false,
               "description": "ScaleUp defines the policy to scale up the target resource.",
               "properties": {
@@ -280,14 +280,14 @@
           "type": "object"
         },
         "objectives": {
-          "description": "Objectives are the objectives to reach and maintain for the target resource.\nDefault to a single target to maintain 80% POD CPU utilization.",
+          "description": "Objectives are the objectives to reach and maintain for the target resource.\nDefault to a single objective to maintain 80% POD CPU utilization.",
           "items": {
             "additionalProperties": false,
-            "description": "DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target resource.",
+            "description": "DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.",
             "properties": {
               "containerResource": {
                 "additionalProperties": false,
-                "description": "ContainerResource allows to set a container-level resource target.",
+                "description": "ContainerResource allows to set a container-level resource objective.",
                 "properties": {
                   "container": {
                     "description": "Container is the name of the container.",
@@ -302,16 +302,23 @@
                   },
                   "value": {
                     "additionalProperties": false,
-                    "description": "Value is the value of the target.",
+                    "description": "Value is the value of the objective",
                     "properties": {
+                      "type": {
+                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "type": "string"
+                      },
                       "utilization": {
-                        "description": "Utilization defines a percentage of the target compared to requested resource",
+                        "description": "Utilization defines a percentage of the target compared to requested workload",
                         "format": "int32",
                         "maximum": 100,
                         "minimum": 0,
                         "type": "integer"
                       }
                     },
+                    "required": [
+                      "type"
+                    ],
                     "type": "object"
                   }
                 },
@@ -324,7 +331,7 @@
               },
               "podResource": {
                 "additionalProperties": false,
-                "description": "PodResource allows to set a pod-level resource target.",
+                "description": "PodResource allows to set a pod-level resource objective.",
                 "properties": {
                   "name": {
                     "description": "Name is the name of the resource.",
@@ -335,16 +342,23 @@
                   },
                   "value": {
                     "additionalProperties": false,
-                    "description": "Value is the value of the target.",
+                    "description": "Value is the value of the objective.",
                     "properties": {
+                      "type": {
+                        "description": "Type specifies how the value is expressed (possible values: Utilization).",
+                        "type": "string"
+                      },
                       "utilization": {
-                        "description": "Utilization defines a percentage of the target compared to requested resource",
+                        "description": "Utilization defines a percentage of the target compared to requested workload",
                         "format": "int32",
                         "maximum": 100,
                         "minimum": 0,
                         "type": "integer"
                       }
                     },
+                    "required": [
+                      "type"
+                    ],
                     "type": "object"
                   }
                 },
@@ -355,7 +369,7 @@
                 "type": "object"
               },
               "type": {
-                "description": "Type sets the type of the target.",
+                "description": "Type sets the type of the objective.",
                 "enum": [
                   "PodResource",
                   "ContainerResource"
@@ -512,7 +526,7 @@
               "description": "Target is the current target of the horizontal scaling",
               "properties": {
                 "desiredReplicas": {
-                  "description": "Replicas is the desired number of replicas for the resource",
+                  "description": "Replicas is the desired number of replicas for the workload",
                   "format": "int32",
                   "type": "integer"
                 },
@@ -522,7 +536,7 @@
                   "type": "string"
                 },
                 "source": {
-                  "description": "Source is the source of the value used to scale the target resource",
+                  "description": "Source is the source of the value used to scale the target workload",
                   "type": "string"
                 }
               },
