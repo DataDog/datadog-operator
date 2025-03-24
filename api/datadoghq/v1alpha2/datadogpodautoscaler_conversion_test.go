@@ -3,15 +3,17 @@ package v1alpha2
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/utils"
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	v2 "k8s.io/api/autoscaling/v2"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
@@ -25,7 +27,7 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.DatadogPodAutoscalerSpec{
-			TargetRef: v2.CrossVersionObjectReference{
+			TargetRef: autoscalingv2.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       "test-deployment",
 				APIVersion: "apps/v1",
@@ -34,21 +36,21 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 			RemoteVersion: utils.NewPointer[uint64](10),
 			Targets: []common.DatadogPodAutoscalerObjective{
 				{
-					Type: common.DatadogPodAutoscalerContainerResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceCPU,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerContainerResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceCPU,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
 				},
 				{
-					Type: common.DatadogPodAutoscalerPodResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceMemory,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerPodResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceMemory,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
@@ -62,13 +64,13 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 						Name:    "foo",
 						Enabled: utils.NewPointer[bool](true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
-							MinAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MinAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
-							MaxAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MaxAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
 						},
 					},
@@ -86,14 +88,14 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 	expected := &DatadogPodAutoscaler{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogPodAutoscaler",
-			APIVersion: "datadoghq.com/v1alpha1",
+			APIVersion: "datadoghq.com/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dpa",
 			Namespace: "default",
 		},
 		Spec: DatadogPodAutoscalerSpec{
-			TargetRef: v2.CrossVersionObjectReference{
+			TargetRef: autoscalingv2.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       "test-deployment",
 				APIVersion: "apps/v1",
@@ -102,21 +104,21 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 			RemoteVersion: utils.NewPointer[uint64](10),
 			Objectives: []common.DatadogPodAutoscalerObjective{
 				{
-					Type: common.DatadogPodAutoscalerContainerResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceCPU,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerContainerResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceCPU,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
 				},
 				{
-					Type: common.DatadogPodAutoscalerPodResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceMemory,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerPodResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceMemory,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
@@ -130,13 +132,13 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 						Name:    "foo",
 						Enabled: utils.NewPointer[bool](true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
-							MinAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MinAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
-							MaxAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MaxAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
 						},
 					},
@@ -166,7 +168,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: DatadogPodAutoscalerSpec{
-			TargetRef: v2.CrossVersionObjectReference{
+			TargetRef: autoscalingv2.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       "test-deployment",
 				APIVersion: "apps/v1",
@@ -175,21 +177,21 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			RemoteVersion: utils.NewPointer[uint64](10),
 			Objectives: []common.DatadogPodAutoscalerObjective{
 				{
-					Type: common.DatadogPodAutoscalerContainerResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceCPU,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerContainerResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceCPU,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
 				},
 				{
-					Type: common.DatadogPodAutoscalerPodResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceMemory,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerPodResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceMemory,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
@@ -203,13 +205,13 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 						Name:    "foo",
 						Enabled: utils.NewPointer[bool](true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
-							MinAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MinAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
-							MaxAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MaxAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
 						},
 					},
@@ -234,7 +236,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.DatadogPodAutoscalerSpec{
-			TargetRef: v2.CrossVersionObjectReference{
+			TargetRef: autoscalingv2.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       "test-deployment",
 				APIVersion: "apps/v1",
@@ -243,21 +245,21 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 			RemoteVersion: utils.NewPointer[uint64](10),
 			Targets: []common.DatadogPodAutoscalerObjective{
 				{
-					Type: common.DatadogPodAutoscalerContainerResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceCPU,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerContainerResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceCPU,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
 				},
 				{
-					Type: common.DatadogPodAutoscalerPodResourceTargetType,
-					PodResource: &common.DatadogPodAutoscalerResourceTarget{
-						Name: v1.ResourceMemory,
-						Value: common.DatadogPodAutoscalerTargetValue{
-							Type:        common.DatadogPodAutoscalerUtilizationTargetValueType,
+					Type: common.DatadogPodAutoscalerPodResourceObjectiveType,
+					PodResource: &common.DatadogPodAutoscalerPodResourceObjective{
+						Name: corev1.ResourceMemory,
+						Value: common.DatadogPodAutoscalerObjectiveValue{
+							Type:        common.DatadogPodAutoscalerUtilizationObjectiveValueType,
 							Utilization: utils.NewPointer[int32](80),
 						},
 					},
@@ -271,13 +273,13 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 						Name:    "foo",
 						Enabled: utils.NewPointer[bool](true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
-							MinAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MinAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
-							MaxAllowed: v1.ResourceList{
-								v1.ResourceCPU:    resource.MustParse("100m"),
-								v1.ResourceMemory: resource.MustParse("100Mi"),
+							MaxAllowed: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("100Mi"),
 							},
 						},
 					},

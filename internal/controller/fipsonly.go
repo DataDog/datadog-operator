@@ -3,9 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package servicediscovery
+//go:build fips
 
-const (
-	DDServiceDiscoveryEnabled             = "DD_DISCOVERY_ENABLED"
-	DDServiceDiscoveryNetworkStatsEnabled = "DD_DISCOVERY_NETWORK_STATS_ENABLED"
-)
+package controller
+
+import _ "crypto/tls/fipsonly"
