@@ -397,16 +397,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			args: args{
-				request: newRequest(resourcesNamespace, resourcesName),
-				loadFunc: func(c client.Client) {
-					dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-						WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-							Disabled: apiutils.NewBoolPointer(true),
-						}).
-						Build()
-					_ = c.Create(context.TODO(), dda)
-				},
+			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
+						Disabled: apiutils.NewBoolPointer(true),
+					}).
+					Build()
+				_ = c.Create(context.TODO(), dda)
+				return dda
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
