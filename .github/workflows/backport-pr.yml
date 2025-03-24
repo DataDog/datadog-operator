@@ -2,6 +2,9 @@ name: Backport PR
 on:
   pull_request_target:
     types: [ labeled ] # add closed
+  pull_request:
+    branches:
+      - swang392/auto-backport
 
 permissions: {}
 
