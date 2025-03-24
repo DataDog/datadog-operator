@@ -571,6 +571,20 @@ type ServiceDiscoveryFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Enables the service discovery network stats collection.
+	// Default: true
+	// +optional
+	NetworkStats *ServiceDiscoveryNetworkStatsConfig `json:"networkStats,omitempty"`
+}
+
+// ServiceDiscoveryNetworkStatsConfig configures Service Discovery's network stats
+// collection feature.
+type ServiceDiscoveryNetworkStatsConfig struct {
+	// Enables the Service Discovery Network Stats feature.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // GPUFeatureConfig contains the GPU monitoring configuration.
@@ -948,6 +962,10 @@ type Profile struct {
 	// ResourceRequirements specifies the resource requirements for the profile.
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// SecurityContext specifies the security context for the profile.
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KubernetesAdmissionEventsConfig struct {
@@ -1205,25 +1223,26 @@ type OriginDetectionUnified struct {
 // +kubebuilder:object:generate=true
 type AgentImageConfig struct {
 	// Defines the Agent image name for the pod. You can provide this as:
-	// * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
-	//   The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
-	// * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
-	// * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
-	//   like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
+	// * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
+	// for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
+	// * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
+	// and `[key].image.jmxEnabled` are ignored.
+	// * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
+	//   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
 	Name string `json:"name,omitempty"`
 
 	// Define the image tag to use.
-	// To be used if the Name field does not correspond to a full image string.
+	// To be used if the `Name` field does not correspond to a full image string.
 	// +optional
 	Tag string `json:"tag,omitempty"`
 
 	// Define whether the Agent image should support JMX.
-	// To be used if the Name field does not correspond to a full image string.
+	// To be used if the `Name` field does not correspond to a full image string.
 	// +optional
 	JMXEnabled bool `json:"jmxEnabled,omitempty"`
 
 	// The Kubernetes pull policy:
-	// Use Always, Never, or IfNotPresent.
+	// Use `Always`, `Never`, or `IfNotPresent`.
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// It is possible to specify Docker registry credentials.
