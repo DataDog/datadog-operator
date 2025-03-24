@@ -29,3 +29,39 @@ jobs:
     steps:
       - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
         run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1
+  backport:
+    name: Backport PR
+    runs-on: ubuntu-latest
+    if: 
+      github.event.action == 'labeled' && contains(github.event.label.name, 'backport')
+    # if: >
+      # github.event.pull_request.merged
+      # && (
+      #   github.event.action == 'closed'
+      #   || (
+      #     github.event.action == 'labeled'
+      #     && contains(github.event.label.name, 'backport')
+      #   )
+      # )
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/create-github-app-token@21cfef2b496dd8ef5b904c159339626a10ad380e # v1.11.6
+        id: app-token
+        with:
+          app-id: ${{ vars.DD_GITHUB_TOKEN_GENERATOR_APP_ID }}
+          private-key: ${{ secrets.DD_GITHUB_TOKEN_GENERATOR_PRIVATE_KEY }}
+      - uses: tibdex/backport@9565281eda0731b1d20c4025c43339fb0a23812e # v2.0.4
+        with:
+          label_pattern: "^backport/(?<base>([^ ]+))$" 
+          # should this be more restrictive? as it it can be used on release branches or anything else (ex: dda)
+          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot']) %>"
+          github_token: ${{ steps.app-token.outputs.token }}
+          body_template: |
+            Backport <%- mergeCommitSha %> from #<%- number %>.
+
+            ___
+
+            <%- body %>
+
