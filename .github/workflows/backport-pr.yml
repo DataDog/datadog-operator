@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - swang392/auto-backport
+  workflow_dispatch:
 
 permissions: {}
 
