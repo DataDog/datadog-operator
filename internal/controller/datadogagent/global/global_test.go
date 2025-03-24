@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"fmt"
@@ -79,18 +79,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  DDKubeletTLSVerify,
-					Value: "true",
-				},
-				{
-					Name:  DDKubeletCAPath,
-					Value: agentCAPath,
-				},
-				{
-					Name:  DockerHost,
-					Value: "unix:///host" + dockerSocketPath,
-				},
-				{
 					Name: constants.DDAPIKey,
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
@@ -122,6 +110,18 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
+				},
+				{
+					Name:  DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  DDKubeletCAPath,
+					Value: agentCAPath,
+				},
+				{
+					Name:  DockerHost,
+					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
@@ -140,18 +140,6 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
-					Name:  DDKubeletTLSVerify,
-					Value: "true",
-				},
-				{
-					Name:  DDKubeletCAPath,
-					Value: agentCAPath,
-				},
-				{
-					Name:  DockerHost,
-					Value: "unix:///host" + dockerSocketPath,
-				},
-				{
 					Name: constants.DDAPIKey,
 					ValueFrom: &corev1.EnvVarSource{
 						SecretKeyRef: &corev1.SecretKeySelector{
@@ -183,6 +171,18 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 							Key: common.DefaultTokenKey,
 						},
 					},
+				},
+				{
+					Name:  DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  DDKubeletCAPath,
+					Value: agentCAPath,
+				},
+				{
+					Name:  DockerHost,
+					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
@@ -594,6 +594,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
 			}
+			ApplyGlobalDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName)
 			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
@@ -647,7 +648,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  DDLogLevel,
+			Name:  constants.DDLogLevel,
 			Value: "info",
 		},
 	}
