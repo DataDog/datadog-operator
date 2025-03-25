@@ -511,6 +511,8 @@ e2e:
       when: always
     - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
       when: always
+    - if: '$CI_COMMIT_BRANCH == "kfairise/test-fix"'
+      when: always
   parallel:
     matrix:
       - K8S_VERSION:
