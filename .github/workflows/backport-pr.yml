@@ -12,11 +12,9 @@ jobs:
     if: >
       github.event.pull_request.merged
       && (
-        github.event.action == 'closed'
-        || (
-          github.event.action == 'labeled'
-          && contains(github.event.label.name, 'backport')
-        )
+        ( github.event.action == 'closed' && contains(github.event.label.name, 'backport') )
+        || 
+        ( github.event.action == 'labeled' && contains(github.event.label.name, 'backport') )
       )
     permissions:
       contents: write
