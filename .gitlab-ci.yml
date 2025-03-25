@@ -492,6 +492,8 @@ trigger_e2e_operator_image:
       when: always
     - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
       when: always
+    - if: '$CI_COMMIT_BRANCH == "kfairise/test-fix"'
+      when: always
   trigger:
     project: DataDog/public-images
     branch: main
