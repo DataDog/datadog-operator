@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
-TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
+TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -51,7 +51,7 @@ IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.24
+ENVTEST_K8S_VERSION = 1.30
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -191,19 +191,15 @@ docker-push-check-img:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and integration tests
+test: build manifests generate fmt vet verify-licenses gotest integration-tests ## Run unit tests and integration tests
 
 .PHONY: gotest
 gotest:
 	go test ./... -coverprofile cover.out
 
 .PHONY: integration-tests
-integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v1.out
-
-.PHONY: integration-tests-v2
-integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration_v2.out
+integration-tests: $(ENVTEST) ## Run integration tests with reconciler
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
@@ -358,7 +354,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.11.1
+	hack/install-openshift-preflight.sh latest
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
