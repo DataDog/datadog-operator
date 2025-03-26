@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.23.5
+image: registry.ddbuild.io/images/mirror/library/golang:1.23.6
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -16,6 +16,7 @@ variables:
   TEST_INFRA_DEFINITIONS_BUILDIMAGES: f61405297d57
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
+  FIPS_ENABLED: false
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -28,6 +29,7 @@ stages:
   - image
   - test-image
   - release
+  - release-latest
   - e2e
   - post-release
   - deploy
@@ -54,8 +56,6 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 16Gi
 
 .on_run_e2e:
-  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
-    when: always
   - if: $CI_COMMIT_BRANCH
     changes:
       paths:
@@ -144,8 +144,15 @@ build_operator_image_amd64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-push-ci
+    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+
+build_operator_image_fips_amd64:
+  extends: build_operator_image_amd64
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
+    FIPS_ENABLED: "true"
 
 build_operator_image_arm64:
   stage: image
@@ -161,8 +168,15 @@ build_operator_image_arm64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-push-ci
+    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+
+build_operator_image_fips_arm64:
+  extends: build_operator_image_arm64
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    FIPS_ENABLED: "true"
 
 build_operator_check_image_amd64:
   stage: image
@@ -226,6 +240,13 @@ publish_public_main:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_main_fips:
+  extends: publish_public_main
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+    IMG_DESTINATIONS: operator:main-fips
 
 publish_public_tag:
   stage: release
@@ -243,6 +264,13 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX: ':v'
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_tag_fips:
+  extends: publish_public_tag
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:$CI_COMMIT_TAG-fips
 
 publish_redhat_public_tag:
   stage: release
@@ -261,9 +289,16 @@ publish_redhat_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_redhat_public_tag_fips:
+  extends: publish_redhat_public_tag
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG-fips
 
 publish_public_latest:
-  stage: release
+  stage: release-latest
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -276,9 +311,16 @@ publish_public_latest:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_latest_fips:
+  extends: publish_public_latest
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:latest-fips
 
 publish_redhat_public_latest:
-  stage: release
+  stage: release-latest
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -292,6 +334,13 @@ publish_redhat_public_latest:
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_redhat_public_latest_fips:
+  extends: publish_redhat_public_latest
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest-fips
 
 trigger_internal_operator_image:
   stage: release
@@ -323,9 +372,9 @@ trigger_internal_operator_image_fips:
   variables:
     IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
-    BUILD_TAG: ${CI_COMMIT_REF_SLUG}
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
@@ -443,8 +492,10 @@ trigger_custom_operator_check_image_staging:
     RELEASE_PROD: "false"
 
 trigger_e2e_operator_image:
-  stage: release
-  rules: !reference [.on_run_e2e]
+  stage: e2e
+  rules: 
+    - if: $CI_COMMIT_TAG
+      when: always
   trigger:
     project: DataDog/public-images
     branch: main
@@ -456,11 +507,12 @@ trigger_e2e_operator_image:
 
 e2e:
   extends: .new_e2e_template
-  variables:
-    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  stage: e2e
   needs:
     - "trigger_e2e_operator_image"
-  rules: !reference [.on_run_e2e]
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: always
   parallel:
     matrix:
       - K8S_VERSION:
@@ -469,13 +521,34 @@ e2e:
           - "1.24"
           - "1.25"
           - "1.26"
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
     - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
+# Runs preflight checks without submitting the image
+check_preflight_redhat_image:
+  stage: release
+  rules: 
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  needs:
+    - "publish_redhat_public_tag"
+  tags: ["runner:docker", "size:large"]
+  image: $JOB_DOCKER_IMAGE
+  script: 
+    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
+    - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
+    - make preflight-redhat-container
+  
 
 # Preflight now supports multiarch image checks
 submit_preflight_redhat_image:
   stage: post-release
+  allow_failure: true
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -497,8 +570,10 @@ publish_community_operators:
       - if: $CI_COMMIT_TAG
         when: manual
       - when: never
-  needs:
-    - "submit_preflight_redhat_image"
+  # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
+  # preflight submission can be retried locally followed by this manual job trigger in the pipeline
+  # needs:
+  #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:

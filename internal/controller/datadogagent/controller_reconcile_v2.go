@@ -176,9 +176,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if r.options.DatadogAgentProfileEnabled {
 			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, instance)
+			profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, instance)
 			if err != nil {
-				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, e, now)
+				return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 			}
 
 			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
