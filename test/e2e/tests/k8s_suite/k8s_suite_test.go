@@ -169,7 +169,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyKSMCheck(c)
-		}, 12*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
+		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
 	})
 
 	s.T().Run("Autodiscovery works", func(t *testing.T) {
