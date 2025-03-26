@@ -1,4 +1,4 @@
-# 
+#
 ARG FIPS_ENABLED=false
 
 # Build the manager binary

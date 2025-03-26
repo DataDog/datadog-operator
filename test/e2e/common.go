@@ -55,24 +55,19 @@ alias kl="kubectl logs"
 alias kx="kubectl exec"
 ' >> /home/ubuntu/.bashrc
 `
-	defaultMgrImageName        = "gcr.io/datadoghq/operator"
-	defaultMgrImgTag           = "latest"
-	defaultMgrFileName         = "e2e-manager.yaml"
-	nodeAgentSelector          = "agent.datadoghq.com/component=agent"
-	clusterAgentSelector       = "agent.datadoghq.com/component=cluster-agent"
-	clusterCheckRunnerSelector = "agent.datadoghq.com/component=cluster-checks-runner"
+	defaultMgrImageName = "gcr.io/datadoghq/operator"
+	defaultMgrImgTag    = "latest"
+	nodeAgentSelector   = "agent.datadoghq.com/component=agent"
 )
 
 var (
-	namespaceName   = "system"
+	namespaceName   = "e2e-operator"
 	k8sVersion      = getEnv("K8S_VERSION", "1.26")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
 	kubeConfigPath string
-	kubectlOptions *k8s.KubectlOptions
 
-	tmpDir         string
-	ddaMinimalPath = filepath.Join(manifestsPath, "datadog-agent-minimum.yaml")
+	tmpDir string
 )
 
 // getAbsPath Return absolute path for given path
