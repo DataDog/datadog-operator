@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
         github.event.action == 'labeled'
-        && contains(github.event.label.name, 'backport/')
         && github.event.pull_request.merged_at != null
+        && contains(github.event.label.name, 'backport/')
     permissions:
       contents: write
       pull-requests: write
