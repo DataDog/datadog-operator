@@ -1,0 +1,36 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    clusterName: my-example-cluster
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+  features:
+    clusterChecks:
+      # Enable cluster checks for checks configured on the Cluster Agent
+      enabled: true
+      # Enable dedicated Cluster Check Runners to run cluster checks
+      # useClusterChecksRunners: true
+  override:
+    # Enable an additional check on the Node Agent
+    nodeAgent:
+      extraConfd:
+        configDataMap:
+          # The name of the configuration file must match the name of the check, i.e. <integration_name>.py
+          <integration_name>.yaml: |-
+            init_config:
+            instances:
+              - {}
+    # Enable an additional check on the Cluster Agent. If you desire the check to run as a cluster check, configure features.clusterChecks
+    clusterAgent:
+      extraConfd:
+        configDataMap:
+          # The name of the configuration file must match the name of the check, i.e. <integration_name>.py
+          <integration_name>.yaml: |-
+            cluster_check: true
+            init_config:
+            instances:
+              - {}

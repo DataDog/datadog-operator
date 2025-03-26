@@ -8,8 +8,8 @@ SHELL = /usr/bin/env bash -o pipefail
 # Datadog custom variables
 #
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
-GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
-TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
+GIT_TAG?=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)
+TAG_HASH=$(shell git tag | tr - \~ | sort -V | tr \~ - | tail -1)_$(shell git rev-parse --short HEAD)
 IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
@@ -354,7 +354,7 @@ bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.6.0
 
 bin/$(PLATFORM)/preflight: Makefile
-	hack/install-openshift-preflight.sh 1.11.1
+	hack/install-openshift-preflight.sh latest
 
 bin/$(PLATFORM)/openapi-gen:
 	mkdir -p $(ROOT)/bin/$(PLATFORM)
