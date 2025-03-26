@@ -10,11 +10,15 @@ jobs:
     name: Backport PR
     runs-on: ubuntu-latest
     if: >
-      github.event.pull_request.merged
-      && (
-        ( github.event.action == 'closed' && contains(github.event.label.name, 'backport') )
-        || 
-        ( github.event.action == 'labeled' && contains(github.event.label.name, 'backport') )
+      (
+        github.event.pull_request.merged
+        && contains(join(',', github.event.pull_request.labels.*.name), 'backport/')
+      )
+      ||
+      (
+        github.event.action == 'labeled'
+        && contains(github.event.label.name, 'backport/')
+        && github.event.pull_request.merged_at != null
       )
     permissions:
       contents: write
