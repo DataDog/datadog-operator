@@ -15,10 +15,14 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -30,11 +34,21 @@ func dependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager featur
 		errs = append(errs, err)
 	}
 
-	// DCA token
 	if componentName == v2alpha1.ClusterAgentComponentName {
+		// DCA token
 		if err := dcaTokenDependencies(logger, dda, manager); err != nil {
 			errs = append(errs, err)
 		}
+
+		// Resources as tags
+		if err := resourcesAsTagsDependencies(logger, dda, manager); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	// RBAC
+	if err := rbacDependencies(logger, dda, manager, componentName); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Network policy
@@ -132,6 +146,83 @@ func dcaTokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manage
 	return nil
 }
 
+func rbacDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
+	switch componentName {
+	case v2alpha1.ClusterAgentComponentName:
+		return clusterAgentDependencies(logger, dda, manager)
+	case v2alpha1.NodeAgentComponentName:
+		return nodeAgentDependencies(logger, dda, manager)
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		return clusterChecksRunnerDependencies(logger, dda, manager)
+	}
+
+	return nil
+}
+
+func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+	var errs []error
+	serviceAccountName := constants.GetClusterAgentServiceAccount(dda)
+	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(dda)
+
+	// Service account
+	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Role Creation
+	if err := manager.RBACManager().AddPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentRolePolicyRules(dda), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	// ClusterRole creation
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusteragent.GetDefaultClusterAgentClusterRolePolicyRules(dda), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Service
+	if err := manager.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(dda)); err != nil {
+		errs = append(errs, err)
+	}
+
+	return nil
+}
+
+func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+	var errs []error
+	serviceAccountName := constants.GetAgentServiceAccount(dda)
+	rbacResourcesName := agent.GetAgentRoleName(dda)
+
+	// Service account
+	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	// ClusterRole creation
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules(disableNonResourceRules(dda)), string(v2alpha1.NodeAgentComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	return nil
+}
+
+func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+	var errs []error
+	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda)
+	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(dda)
+
+	// Service account
+	if err := manager.RBACManager().AddServiceAccountByComponent(dda.Namespace, serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	// ClusterRole creation
+	if err := manager.RBACManager().AddClusterPolicyRulesByComponent(dda.Namespace, rbacResourcesName, serviceAccountName, clusterchecksrunner.GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda, disableNonResourceRules(dda)), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+		errs = append(errs, err)
+	}
+
+	return nil
+}
+
 func networkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
 	if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
@@ -213,5 +304,25 @@ func secretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 		}
 	}
 
+	return nil
+}
+
+func disableNonResourceRules(dda *v2alpha1.DatadogAgent) bool {
+	return dda.Spec.Global != nil && dda.Spec.Global.DisableNonResourceRules != nil && *dda.Spec.Global.DisableNonResourceRules
+}
+
+func resourcesAsTagsDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+	global := dda.Spec.Global
+
+	if len(global.KubernetesResourcesLabelsAsTags) > 0 || len(global.KubernetesResourcesAnnotationsAsTags) > 0 {
+		if err := manager.RBACManager().AddClusterPolicyRules(
+			dda.Namespace,
+			clusteragent.GetResourceMetadataAsTagsClusterRoleName(dda),
+			constants.GetClusterAgentServiceAccount(dda),
+			clusteragent.GetKubernetesResourceMetadataAsTagsPolicyRules(global.KubernetesResourcesLabelsAsTags, global.KubernetesResourcesAnnotationsAsTags),
+		); err != nil {
+			return err
+		}
+	}
 	return nil
 }

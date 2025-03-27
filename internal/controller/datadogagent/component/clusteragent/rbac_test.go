@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package enabledefault
+package clusteragent
 
 import (
 	"testing"
@@ -67,7 +67,7 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 		},
 	}
 
-	rules := getKubernetesResourceMetadataAsTagsPolicyRules(labelsAsTags, annotationsAsTags)
+	rules := GetKubernetesResourceMetadataAsTagsPolicyRules(labelsAsTags, annotationsAsTags)
 
 	assert.ElementsMatch(t, expectedRules, rules)
 }

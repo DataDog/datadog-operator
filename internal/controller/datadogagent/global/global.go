@@ -171,6 +171,31 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Resources as tags
+	if len(config.KubernetesResourcesLabelsAsTags) > 0 {
+		kubernetesResourceLabelsAsTags, err := json.Marshal(config.KubernetesResourcesLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDKubernetesResourcesLabelsAsTags,
+				Value: string(kubernetesResourceLabelsAsTags),
+			})
+		}
+	}
+
+	if len(config.KubernetesResourcesAnnotationsAsTags) > 0 {
+		kubernetesResourceAnnotationsAsTags, err := json.Marshal(config.KubernetesResourcesAnnotationsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDKubernetesResourcesAnnotationsAsTags,
+				Value: string(kubernetesResourceAnnotationsAsTags),
+			})
+		}
+	}
+
 	// Credentials
 	credentialResource(dda, manager)
 
