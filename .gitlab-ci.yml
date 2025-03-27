@@ -27,47 +27,11 @@ stages:
   - build
   - test
   - image
-  - test-image
+  - e2e
   - release
   - release-latest
-  - e2e
   - post-release
   - deploy
-
-.new_e2e_template:
-  stage: e2e
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  tags: ["arch:amd64"]
-  before_script:
-    # Setup AWS Credentials
-    - mkdir -p ~/.aws
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
-    - export AWS_PROFILE=agent-qa-ci
-    # Now all `aws` commands target the agent-qa profile
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
-    # Use S3 backend to store stack status
-    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
-  variables:
-    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
-    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
-    E2E_KEY_PAIR_NAME: ci.datadog-operator
-    KUBERNETES_MEMORY_REQUEST: 12Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-
-.on_run_e2e:
-  - if: $CI_COMMIT_BRANCH
-    changes:
-      paths:
-        - "*.md"
-      compare_to: "refs/heads/main"
-    when: never
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-    when: never
-  # Temporarily disable on Conductor-triggered jobs
-  - if: '$DDR != "true"'
-    when: manual
-  - when: never
 
 .on_build_images:
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -225,6 +189,78 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
+.new_e2e_template:
+  stage: e2e
+  tags: ["arch:amd64"]
+  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+  before_script:
+    # Setup AWS Credentials
+    - echo "Starting setup for E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Now all `aws` commands target the agent-qa profile
+    - echo "Retrieving SSH keys from AWS..."
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+  variables:
+    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
+    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+
+.on_run_e2e:
+  # Skip e2e tests if only .md files are changed
+  - if: $CI_COMMIT_BRANCH
+    changes:
+      paths:
+        - "*.md"
+      compare_to: "refs/heads/main"
+    when: never
+  # Allow mergequeue branches to merge even if e2e tests fail
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    allow_failure: true
+  # Temporarily disable on Conductor-triggered jobs
+  - if: '$DDR == "true"'
+    when: manual
+  - when: on_success
+  # Run e2e tests automatically otherwise
+
+trigger_e2e_operator_image:
+  stage: e2e
+  rules: !reference [.on_run_e2e]
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
+
+e2e:
+  extends: .new_e2e_template
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+  rules: !reference [.on_run_e2e]
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 publish_public_main:
   stage: release
@@ -520,41 +556,6 @@ trigger_custom_operator_check_image_staging:
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
-
-trigger_e2e_operator_image:
-  stage: e2e
-  rules: 
-    - if: $CI_COMMIT_TAG
-      when: always
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    IMG_REGISTRIES: agent-qa
-
-e2e:
-  extends: .new_e2e_template
-  stage: e2e
-  needs:
-    - "trigger_e2e_operator_image"
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: always
-  parallel:
-    matrix:
-      - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-  variables:
-    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-  script:
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 # Runs preflight checks without submitting the image
 check_preflight_redhat_image:
