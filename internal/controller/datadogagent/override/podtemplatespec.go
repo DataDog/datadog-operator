@@ -19,9 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 func getAgentContainersMap() map[apicommon.AgentContainerName]string {
@@ -56,7 +54,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
 			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
-				manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
+				manager.PodTemplateSpec().Spec.Containers[i].Image = common.OverrideAgentImage(container.Image, override.Image)
 				if override.Image.PullPolicy != nil {
 					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
 				}
@@ -64,7 +62,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = overrideImage(initContainer.Image, override.Image)
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = common.OverrideAgentImage(initContainer.Image, override.Image)
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}
@@ -228,26 +226,6 @@ func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplate
 		annotationKey := object.GetChecksumAnnotationKey(string(fileName))
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
-}
-
-func overrideImage(currentImg string, overrideImg *v2alpha1.AgentImageConfig) string {
-	splitImg := strings.Split(currentImg, "/")
-	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
-
-	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
-
-	// This deep copies primitives of the struct, we don't care about other fields
-	overrideImgCopy := *overrideImg
-	if overrideImgCopy.Name == "" {
-		overrideImgCopy.Name = splitName[0]
-	}
-
-	if overrideImgCopy.Tag == "" {
-		// If present need to drop JMX tag suffix
-		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
-	}
-
-	return constants.GetImage(&overrideImgCopy, &registry)
 }
 
 func mergeAffinities(affinity1 *v1.Affinity, affinity2 *v1.Affinity) *v1.Affinity {

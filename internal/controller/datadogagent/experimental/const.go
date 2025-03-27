@@ -3,9 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package servicediscovery
+package experimental
 
-const (
-	DDServiceDiscoveryEnabled             = "DD_DISCOVERY_ENABLED"
-	DDServiceDiscoveryNetworkStatsEnabled = "DD_DISCOVERY_NETWORK_STATS_ENABLED"
-)
+const ExperimentalAnnotationPrefix = "experimental.agent.datadoghq.com"
+const ExperimentalImageOverrideConfigSubkey = "image-override-config"

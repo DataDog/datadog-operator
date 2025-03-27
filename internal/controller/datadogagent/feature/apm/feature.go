@@ -471,10 +471,12 @@ func (f *apmFeature) manageNodeAgent(agentContainerName apicommon.AgentContainer
 
 	// Error Tracking standalone
 	if f.errorTrackingStandalone {
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		etStandaloneEnvVar := &corev1.EnvVar{
 			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
 			Value: "true",
-		})
+		}
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, etStandaloneEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, etStandaloneEnvVar)
 	}
 
 	return nil

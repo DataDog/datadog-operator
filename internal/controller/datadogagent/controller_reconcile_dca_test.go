@@ -103,6 +103,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -116,6 +117,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 						},
 					},
@@ -132,6 +134,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -141,6 +144,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -150,6 +154,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 						Labels: map[string]string{
 							apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 							kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+							kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 						},
 					},
 				},
@@ -163,6 +168,7 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 							Labels: map[string]string{
 								apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 								kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+								kubernetes.AppKubernetesPartOfLabelKey:     "ns--1-dda--foo",
 							},
 						},
 					},
