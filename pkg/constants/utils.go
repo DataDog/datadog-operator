@@ -27,6 +27,20 @@ func GetConfName(owner metav1.Object, conf *v2alpha1.CustomConfig, defaultName s
 	return fmt.Sprintf("%s-%s", owner.GetName(), defaultName)
 }
 
+// GetServiceAccountByComponent returns the service account name for a given component
+func GetServiceAccountByComponent(dda *v2alpha1.DatadogAgent, component v2alpha1.ComponentName) string {
+	switch component {
+	case v2alpha1.ClusterAgentComponentName:
+		return GetClusterAgentServiceAccount(dda)
+	case v2alpha1.NodeAgentComponentName:
+		return GetAgentServiceAccount(dda)
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		return GetClusterChecksRunnerServiceAccount(dda)
+	default:
+		return ""
+	}
+}
+
 // GetClusterAgentServiceAccount return the cluster-agent serviceAccountName
 func GetClusterAgentServiceAccount(dda *v2alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, DefaultClusterAgentResourceSuffix)
@@ -52,33 +66,6 @@ func GetClusterChecksRunnerServiceAccount(dda *v2alpha1.DatadogAgent) string {
 		return *dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName
 	}
 	return saDefault
-}
-
-// GetClusterAgentServiceAccountAnnotations returns the annotations for the cluster-agent service account.
-func GetClusterAgentServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
-	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[v2alpha1.ClusterAgentComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountAnnotations
-	}
-	return defaultAnnotations
-}
-
-// GetAgentServiceAccountAnnotations returns the annotations for the agent service account.
-func GetAgentServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
-	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[v2alpha1.NodeAgentComponentName] != nil && dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountAnnotations
-	}
-	return defaultAnnotations
-}
-
-// GetClusterChecksRunnerServiceAccountAnnotations returns the annotations for the cluster-checks-runner service account.
-func GetClusterChecksRunnerServiceAccountAnnotations(dda *v2alpha1.DatadogAgent) map[string]string {
-	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountAnnotations
-	}
-	return defaultAnnotations
 }
 
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace

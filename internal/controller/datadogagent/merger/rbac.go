@@ -22,7 +22,6 @@ type RBACManager interface {
 	AddServiceAccount(namespace string, name string) error
 	AddServiceAccountByComponent(namespace, name, component string) error
 	AddServiceAccountAnnotations(namespace string, name string, annotations map[string]string) error
-	AddServiceAccountAnnotationsByComponent(namespace string, name string, annotations map[string]string, component string) error
 	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, saNamespace ...string) error
 	AddPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
 	AddRoleBinding(roleNamespace, roleName, saNamespace, saName string, roleRef rbacv1.RoleRef) error
@@ -104,18 +103,12 @@ func (m *rbacManagerImpl) AddServiceAccountAnnotations(namespace, saName string,
 	return m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
 }
 
-// AddServiceAccountAnnotationsByComponent updates the annotations for a ServiceAccount and associates it with a component.
-func (m *rbacManagerImpl) AddServiceAccountAnnotationsByComponent(namespace, saName string, annotations map[string]string, component string) error {
-	m.serviceAccountByComponent[component] = append(m.serviceAccountByComponent[component], saName)
-	return m.AddServiceAccountAnnotations(namespace, saName, annotations)
-}
-
 // AddPolicyRules is used to add PolicyRules to a Role. It also creates the RoleBinding.
 func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, saNamespace ...string) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.RolesKind, namespace, roleName)
 	role, ok := obj.(*rbacv1.Role)
 	if !ok {
-		return fmt.Errorf("unable to get from the store the ClusterRole %s", roleName)
+		return fmt.Errorf("unable to get from the store the Role %s", roleName)
 	}
 
 	// TODO: can be improve by checking if the policies don't already exist.
