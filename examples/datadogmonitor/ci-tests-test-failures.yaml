@@ -1,0 +1,13 @@
+# Note: this monitor type requires Datadog Operator v0.8+
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: ci-tests-test-failures
+  namespace: datadog
+spec:
+  query: "ci-tests("test_level:test @test.service:* @git.branch:* @git.commit.author.email:* @test.status:fail").rollup("count").last("5m") > 2"
+  type: "ci-tests alert"
+  name: "Test ci tests alert made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
