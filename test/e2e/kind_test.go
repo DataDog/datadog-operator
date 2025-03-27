@@ -27,7 +27,6 @@ import (
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	"github.com/DataDog/test-infra-definitions/common/utils"
 	localKubernetes "github.com/DataDog/test-infra-definitions/components/kubernetes"
-	"github.com/DataDog/test-infra-definitions/components/os"
 	resAws "github.com/DataDog/test-infra-definitions/resources/aws"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/gruntwork-io/terratest/modules/k8s"
@@ -98,7 +97,7 @@ func kindProvisioner(k8sVersion string, extraKustomizeResources []string) provis
 		}
 
 		// Create EC2 VM
-		vm, err := ec2.NewVM(awsEnv, "kind", ec2.WithOS(os.Ubuntu2004), ec2.WithUserData(UserData))
+		vm, err := ec2.NewVM(awsEnv, "kind", ec2.WithUserData(UserData))
 		if err != nil {
 			return err
 		}
