@@ -25,7 +25,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/experimental"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -106,6 +108,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
+		experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -181,6 +185,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		override.DaemonSet(daemonset, componentOverride)
 	}
 
+	experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -219,6 +225,9 @@ func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *d
 func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	err := r.client.Delete(context.TODO(), ds)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
@@ -232,6 +241,9 @@ func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha
 func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
 	err := r.client.Delete(context.TODO(), eds)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
@@ -399,6 +411,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 
 	dsName := getDaemonSetNameFromDatadogAgent(dda)

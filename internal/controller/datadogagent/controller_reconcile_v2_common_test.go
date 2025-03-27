@@ -818,3 +818,62 @@ func Test_getDDALastUpdatedTime(t *testing.T) {
 		})
 	}
 }
+
+func Test_shouldProfileWaitForCanary(t *testing.T) {
+	logger := logf.Log.WithName("Test_shouldProfileWaitForCanary")
+
+	tests := []struct {
+		name        string
+		annotations map[string]string
+		expected    bool
+	}{
+		{
+			name:        "Nil annotations",
+			annotations: nil,
+			expected:    false,
+		},
+		{
+			name:        "Empty annotations",
+			annotations: map[string]string{},
+			expected:    false,
+		},
+		{
+			name: "No relevant annotations",
+			annotations: map[string]string{
+				"foo": "bar",
+			},
+			expected: false,
+		},
+		{
+			name: "Relevant annotation exists",
+			annotations: map[string]string{
+				"foo":                   "bar",
+				profileWaitForCanaryKey: "true",
+			},
+			expected: true,
+		},
+		{
+			name: "Relevant annotation exists and is false",
+			annotations: map[string]string{
+				"foo":                   "bar",
+				profileWaitForCanaryKey: "false",
+			},
+			expected: false,
+		},
+		{
+			name: "Relevant annotation exists, but value is not bool",
+			annotations: map[string]string{
+				"foo":                   "bar",
+				profileWaitForCanaryKey: "yes",
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			shouldWait := shouldProfileWaitForCanary(logger, tt.annotations)
+			assert.Equal(t, tt.expected, shouldWait)
+		})
+	}
+}

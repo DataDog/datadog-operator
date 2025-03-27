@@ -46,15 +46,15 @@
                       "description": "Image overrides the default Agent image name and tag for the Agent sidecar.",
                       "properties": {
                         "jmxEnabled": {
-                          "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                          "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                           "type": "boolean"
                         },
                         "name": {
-                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                           "type": "string"
                         },
                         "pullPolicy": {
-                          "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                          "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                           "type": "string"
                         },
                         "pullSecrets": {
@@ -75,7 +75,7 @@
                           "type": "array"
                         },
                         "tag": {
-                          "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                          "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                           "type": "string"
                         }
                       },
@@ -2089,6 +2089,17 @@
                 "enabled": {
                   "description": "Enables the service discovery check.\nDefault: false",
                   "type": "boolean"
+                },
+                "networkStats": {
+                  "additionalProperties": false,
+                  "description": "Enables the service discovery network stats collection.\nDefault: true",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 }
               },
               "type": "object"
@@ -2480,15 +2491,15 @@
                   "description": "The container image of the FIPS sidecar.",
                   "properties": {
                     "jmxEnabled": {
-                      "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                      "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                       "type": "boolean"
                     },
                     "name": {
-                      "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                      "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                       "type": "string"
                     },
                     "pullPolicy": {
-                      "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                      "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                       "type": "string"
                     },
                     "pullSecrets": {
@@ -2509,7 +2520,7 @@
                       "type": "array"
                     },
                     "tag": {
-                      "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                      "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                       "type": "string"
                     }
                   },
@@ -5148,15 +5159,15 @@
                 "description": "The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).",
                 "properties": {
                   "jmxEnabled": {
-                    "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                    "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                     "type": "boolean"
                   },
                   "name": {
-                    "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                    "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                     "type": "string"
                   },
                   "pullPolicy": {
-                    "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                    "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                     "type": "string"
                   },
                   "pullSecrets": {
@@ -5177,7 +5188,7 @@
                     "type": "array"
                   },
                   "tag": {
-                    "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                    "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                     "type": "string"
                   }
                 },
@@ -7290,15 +7301,15 @@
                           "description": "Image overrides the default Agent image name and tag for the Agent sidecar.",
                           "properties": {
                             "jmxEnabled": {
-                              "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                              "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                               "type": "boolean"
                             },
                             "name": {
-                              "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                              "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                               "type": "string"
                             },
                             "pullPolicy": {
-                              "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                              "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                               "type": "string"
                             },
                             "pullSecrets": {
@@ -7319,7 +7330,7 @@
                               "type": "array"
                             },
                             "tag": {
-                              "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                              "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                               "type": "string"
                             }
                           },
@@ -9333,6 +9344,17 @@
                     "enabled": {
                       "description": "Enables the service discovery check.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "networkStats": {
+                      "additionalProperties": false,
+                      "description": "Enables the service discovery network stats collection.\nDefault: true",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"
