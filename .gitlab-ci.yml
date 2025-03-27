@@ -256,6 +256,9 @@ e2e:
           - "1.24"
           - "1.25"
           - "1.26"
+          - "1.29"
+          - "1.30"
+          - "1.32"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
@@ -526,48 +529,6 @@ trigger_custom_operator_check_image_staging:
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
-
-trigger_e2e_operator_image:
-  stage: e2e
-  rules: 
-    - if: $CI_COMMIT_TAG
-      when: always
-    - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
-      when: always
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    IMG_REGISTRIES: agent-qa
-
-e2e:
-  extends: .new_e2e_template
-  stage: e2e
-  needs:
-    - "trigger_e2e_operator_image"
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: always
-    - if: '$CI_COMMIT_BRANCH == "swang392/k8s-versions"'
-      when: always
-  parallel:
-    matrix:
-      - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-          - "1.29"
-          - "1.30"
-          - "1.32"
-  variables:
-    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-  script:
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 # Runs preflight checks without submitting the image
 check_preflight_redhat_image:
