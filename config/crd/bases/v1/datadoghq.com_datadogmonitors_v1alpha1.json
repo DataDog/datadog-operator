@@ -124,6 +124,34 @@
               "description": "A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly\nrecommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.",
               "type": "boolean"
             },
+            "schedulingOptions": {
+              "additionalProperties": false,
+              "description": "Configuration options for scheduling.",
+              "properties": {
+                "evaluationWindow": {
+                  "additionalProperties": false,
+                  "description": "Configuration options for the evaluation window. If hour_starts is set, no other fields may be set.\nOtherwise, day_starts and month_starts must be set together.",
+                  "properties": {
+                    "dayStarts": {
+                      "description": "The time of the day at which a one day cumulative evaluation window starts. Must be defined in UTC time in HH:mm format.",
+                      "type": "string"
+                    },
+                    "hourStarts": {
+                      "description": "The minute of the hour at which a one hour cumulative evaluation window starts.",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "monthStarts": {
+                      "description": "The day of the month at which a one month cumulative evaluation window starts.",
+                      "format": "int32",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            },
             "thresholdWindows": {
               "additionalProperties": false,
               "description": "A struct of the alerting time window options.",
