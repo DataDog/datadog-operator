@@ -78,9 +78,9 @@ type DatadogPodAutoscalerSpec struct {
 	ApplyPolicy *DatadogPodAutoscalerApplyPolicy `json:"applyPolicy,omitempty"`
 
 	// Objectives are the objectives to reach and maintain for the target resource.
-	// Default to a single target to maintain 80% POD CPU utilization.
+	// Default to a single objective to maintain 80% POD CPU utilization.
 	// +listType=atomic
-	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
 	// Constraints defines constraints that should always be respected.

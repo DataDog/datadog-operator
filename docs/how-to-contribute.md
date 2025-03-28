@@ -93,11 +93,8 @@ If the golang version is used in a new file (for example in a new `Dockefile`) t
 # Run unit tests and integration tests
 $ make test
 
-# Run v1 integration tests
+# Run integration tests
 $ make integration-tests
-
-# Run v2 integration tests
-$ make integration-tests-v2
 ```
 
 ### End-to-End Tests
