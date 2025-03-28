@@ -22,6 +22,7 @@ import (
 )
 
 func Test_admissionControllerFeature_Configure(t *testing.T) {
+	runAsUser := int64(1000)
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Admission Controller not enabled",
@@ -189,7 +190,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithSidecarInjectionSelectors("testKey", "testValue").
-				WithSidecarInjectionProfiles("testName", "testValue", "500m", "1Gi").
+				WithSidecarInjectionProfiles("testName", "testValue", "500m", "1Gi", &corev1.SecurityContext{RunAsUser: &runAsUser}).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
@@ -407,7 +408,7 @@ func getSidecarEnvVars(imageName, imageTag, registry string, selectors, profiles
 	if profiles {
 		profileEnv := corev1.EnvVar{
 			Name:  DDAdmissionControllerAgentSidecarProfiles,
-			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}}}]",
+			Value: "[{\"env\":[{\"name\":\"testName\",\"value\":\"testValue\"}],\"resources\":{\"requests\":{\"cpu\":\"500m\",\"memory\":\"1Gi\"}},\"securityContext\":{\"runAsUser\":1000}}]",
 		}
 		envVars = append(envVars, &profileEnv)
 	}

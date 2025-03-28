@@ -364,10 +364,6 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  common.DDLeaderElection,
-			Value: "true",
-		},
-		{
 			// we want to default it in 7.49.0
 			// but in 7.50.0 it will be already defaulted in the agent process.
 			Name:  DDContainerImageEnabled,

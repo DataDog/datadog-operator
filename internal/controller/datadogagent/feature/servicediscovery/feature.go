@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -27,7 +28,9 @@ func buildFeature(*feature.Options) feature.Feature {
 	return &serviceDiscoveryFeature{}
 }
 
-type serviceDiscoveryFeature struct{}
+type serviceDiscoveryFeature struct {
+	networkStatsEnabled bool
+}
 
 // ID returns the ID of the Feature
 func (f *serviceDiscoveryFeature) ID() feature.IDType {
@@ -40,6 +43,11 @@ func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+		}
+
+		f.networkStatsEnabled = true
+		if dda.Spec.Features.ServiceDiscovery.NetworkStats != nil {
+			f.networkStatsEnabled = apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.NetworkStats.Enabled)
 		}
 	}
 
@@ -60,7 +68,7 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(feature.PodTemplateManagers
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
+func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// annotations
 	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
@@ -81,6 +89,26 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
 
+	if f.networkStatsEnabled {
+		// debugfs volume mount
+		debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+		managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
+		managers.Volume().AddVolume(&debugfsVol)
+
+		// modules volume mount
+		modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
+		managers.Volume().AddVolume(&modulesVol)
+
+		// src volume mount
+		_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+		if providerValue != kubernetes.GKECosType {
+			srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+			managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+			managers.Volume().AddVolume(&srcVol)
+		}
+	}
+
 	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
 
@@ -90,8 +118,14 @@ func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMa
 		Value: "true",
 	}
 
+	netStatsEnvVar := &corev1.EnvVar{
+		Name:  DDServiceDiscoveryNetworkStatsEnabled,
+		Value: apiutils.BoolToString(&f.networkStatsEnabled),
+	}
+
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
 	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, netStatsEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  common.DDSystemProbeSocket,

@@ -1,14 +1,16 @@
-# Custom Check
+# Custom Checks
 
-To configure one of Datadog's 400+ integrations, leverage the [Agent Autodiscovery feature][1]. But if you want to run a custom check, the `DatadogAgent` resource can be configured to provide custom checks (`checks.d`) and their configuration files (`conf.d`) at initialization time. A `ConfigMap` resource needs to be configured for each of these settings before the `DatadogAgent` resource using them is created.
+To run a [custom check][1], you can configure the `DatadogAgent` resource to provide custom checks (`checks.d`) and their corresponding configuration files (`conf.d`) at initialization time. You must configure a ConfigMap resource for each check script file and its configuration file.
 
-Below is an example of configuring these `ConfigMaps` for a single check `hello` that submits the `hello.world` metrics to Datadog. See the [Introduction to Integrations][2] to learn what is a check in the Datadog ecosystem.
+This page explains how to set up a custom check, `hello`, that submits a `hello.world` metric to Datadog.
+
+To learn more about checks in the Datadog ecosystem, see [Introduction to Integrations][2]. To configure a [Datadog Integration][3], see [Kubernetes and Integrations][4]
 
 ## Create the check files
 
-A check needs a configuration file `hello.yaml` and a script file `hello.py`:
+Each check needs a configuration file (`hello.yaml`) and a script file (`hello.py`).
 
-1. Create the **`hello.yaml`** with the following content:
+1. Create `hello.yaml` with the following content:
 
    ```yaml
    init_config:
@@ -16,7 +18,7 @@ A check needs a configuration file `hello.yaml` and a script file `hello.py`:
    instances: [{}]
    ```
 
-2. Create the **`hello.py`** with the following content:
+2. Create `hello.py` with the following content:
 
    ```python
    from datadog_checks.base import AgentCheck
@@ -29,18 +31,18 @@ A check needs a configuration file `hello.yaml` and a script file `hello.py`:
 
 ## Create the check ConfigMaps
 
-Once the `hello` check files are created, create the associated `ConfigMaps`:
+After you create the `hello` check files, create the associated ConfigMaps:
 
 1. Create the ConfigMap for the custom check YAML configuration file `hello.yaml`:
 
-   ```shell
+   ```bash
    $ kubectl create configmap -n $DD_NAMESPACE confd-config --from-file=hello.yaml
    configmap/confd-config created
    ```
 
 2. Verify that the ConfigMap has been correctly created:
 
-   ```shell
+   ```bash
    $ kubectl get configmap -n $DD_NAMESPACE confd-config -o yaml
    apiVersion: v1
    data:
@@ -56,14 +58,14 @@ Once the `hello` check files are created, create the associated `ConfigMaps`:
 
 3. Create the ConfigMap for the custom check Python file `hello.py`:
 
-   ```shell
+   ```bash
    $ kubectl create configmap -n $DD_NAMESPACE checksd-config --from-file=hello.py
    configmap/checksd-config created
    ```
 
 4. Verify that the ConfigMap has been correctly created:
 
-   ```shell
+   ```bash
    $ kubectl get configmap -n $DD_NAMESPACE checksd-config -o yaml
    apiVersion: v1
    data:
@@ -80,9 +82,9 @@ Once the `hello` check files are created, create the associated `ConfigMaps`:
       namespace: datadog
    ```
 
-## Configure the Agent
+## Configure the Datadog Agent
 
-Once the `ConfigMaps` are configured, a `DatadogAgent` resource can be created to use them with the following chart:
+After you create your ConfigMaps, create a `DatadogAgent` resource to use them:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -108,27 +110,29 @@ spec:
 
 This deploys the Datadog Agent with your custom check.
 
-### Multiple checks
+### ConfigMaps for multiple checks
 
-In order to populate `ConfigMaps` with the content of multiple checks or their respective configurations files, the following approach can be used:
+You can populate ConfigMaps with the content of multiple checks or their respective configuration files.
 
-- Populating all check configuration files:
+#### Populating all check script files
 
-  ```shell
-  $ kubectl create cm -n $DD_NAMESPACE confd-config $(find ./conf.d -name "*.yaml" | xargs -I'{}' echo -n '--from-file={} ')
-  configmap/confd-config created
-  ```
+```bash
+$ kubectl create cm -n $DD_NAMESPACE checksd-config $(find ./checks.d -name "*.py" | xargs -I'{}' echo -n '--from-file={} ')
+configmap/checksd-config created
+```
 
-- Populating all check script files:
+#### Populating all check configuration files
 
-  ```shell
-  $ kubectl create cm -n $DD_NAMESPACE checksd-config $(find ./checks.d -name "*.py" | xargs -I'{}' echo -n '--from-file={} ')
-  configmap/checksd-config created
-  ```
+```bash
+$ kubectl create cm -n $DD_NAMESPACE confd-config $(find ./conf.d -name "*.yaml" | xargs -I'{}' echo -n '--from-file={} ')
+configmap/confd-config created
+```
 
-## Providing additional volumes
+## Provide additional volumes
 
-Additional user-configured volumes can be mounted in either the node or Cluster Agent containers by setting the `volumes` and `volumeMounts` properties. Find below an example of using a volume to mount a secret:
+You can mount additional user-configured volumes in either the node or Cluster Agent containers by setting the `volumes` and `volumeMounts` properties. 
+
+**Example**: Using a volume to mount a secret
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -155,6 +159,7 @@ spec:
               mountPath: /etc/secrets
               readOnly: true
 ```
-
-[1]: https://docs.datadoghq.com/agent/autodiscovery/
+[1]: https://docs.datadoghq.com/developers/custom_checks/
 [2]: https://docs.datadoghq.com/getting_started/integrations/
+[3]: https://docs.datadoghq.com/integrations/
+[4]: https://docs.datadoghq.com/containers/kubernetes/integrations/?tab=annotations

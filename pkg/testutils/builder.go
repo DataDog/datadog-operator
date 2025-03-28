@@ -338,7 +338,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionSelectors(selectorKey, s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string, securityContext *corev1.SecurityContext) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
 
@@ -356,6 +356,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValu
 					corev1.ResourceMemory: resource.MustParse(resourceMem),
 				},
 			},
+			SecurityContext: securityContext,
 		},
 	}
 
