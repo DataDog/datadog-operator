@@ -75,12 +75,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name:  DDKubeletTLSVerify,
@@ -95,9 +90,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
 			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
-			wantVolumes:               getExpectedVolumes(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantVolumes:               getExpectedVolumes(kubeletCAVolumes, criSocketVolume),
 			want:                      assertAll,
 		},
 		{
@@ -107,12 +102,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				BuildWithDefaults(),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name:  DDKubeletTLSVerify,
@@ -127,9 +117,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "unix:///host" + dockerSocketPath,
 				},
 			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
 			wantVolumeMounts:          getExpectedVolumeMounts(kubeletCAVolumes, criSocketVolume),
-			wantVolumes:               getExpectedVolumes(defaultVolumes, kubeletCAVolumes, criSocketVolume),
+			wantVolumes:               getExpectedVolumes(kubeletCAVolumes, criSocketVolume),
 			want:                      assertAllAgentSingleContainer,
 		},
 		{
@@ -138,19 +128,14 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithChecksTagCardinality("orchestrator").
 				BuildWithDefaults(),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
 				Name:  DDChecksTagCardinality,
 				Value: "orchestrator",
 			}),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(defaultVolumes),
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
 		{
@@ -159,19 +144,14 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithOriginDetectionUnified(true).
 				BuildWithDefaults(),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
 				Name:  DDOriginDetectionUnified,
 				Value: "true",
 			}),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(defaultVolumes),
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
 		{
@@ -189,12 +169,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					},
 				}).
 				BuildWithDefaults(),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name:  "envA",
@@ -205,9 +180,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "valueB",
 				},
 			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(defaultVolumes),
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
 		{
@@ -220,12 +195,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
 					BuildWithDefaults(),
 			),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name:  DDSecretBackendCommand,
@@ -240,9 +210,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "60",
 				},
 			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(defaultVolumes),
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 			wantDependency:            assertSecretBackendGlobalPerms,
 		},
@@ -256,12 +226,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
 					BuildWithDefaults(),
 			),
-			wantCoreAgentEnvVars: []*corev1.EnvVar{
-				{
-					Name:  DDKubernetesPodResourcesSocket,
-					Value: podResourcesSocket,
-				},
-			},
+			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
 				{
 					Name:  DDSecretBackendCommand,
@@ -276,9 +241,9 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Value: "60",
 				},
 			}...),
-			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(defaultVolumes),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
-			wantVolumes:               getExpectedVolumes(defaultVolumes),
+			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 			wantDependency:            assertSecretBackendSpecificPerms,
 		},
@@ -353,7 +318,6 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 
 type volumeConfig string
 
-const defaultVolumes volumeConfig = "default"
 const kubeletCAVolumes volumeConfig = "kubeletCA"
 const criSocketVolume volumeConfig = "criSocket"
 
@@ -367,17 +331,6 @@ func getExpectedVolumes(configs ...volumeConfig) []*corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostCAPath,
-				},
-			},
-		})
-	}
-
-	if slices.Contains(configs, defaultVolumes) {
-		volumes = append(volumes, &corev1.Volume{
-			Name: common.KubeletPodResourcesVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: podResourcesSocketDir,
 				},
 			},
 		})
@@ -405,14 +358,6 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 			Name:      kubeletCAVolumeName,
 			MountPath: agentCAPath,
 			ReadOnly:  true,
-		})
-	}
-
-	if slices.Contains(configs, defaultVolumes) {
-		mounts = append(mounts, &corev1.VolumeMount{
-			Name:      common.KubeletPodResourcesVolumeName,
-			MountPath: podResourcesSocketDir,
-			ReadOnly:  false,
 		})
 	}
 
