@@ -30,7 +30,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				},
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "test-id",
+				Id:                "123456789",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
 				CurrentHash:       hash,
@@ -46,7 +46,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				},
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "test-id",
+				Id:                "123456789",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
 				CurrentHash:       hash,
@@ -63,7 +63,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				},
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "test-id",
+				Id:                "123456789",
 				Creator:           "test-handle",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
 				CurrentHash:       hash,
@@ -77,7 +77,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				"created_at": "2024-01-01T00:00:00Z",
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "test-id",
+				Id:                "123456789",
 				Creator:           "",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
 				CurrentHash:       hash,
@@ -92,7 +92,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 				"created_by": map[string]interface{}{},
 			},
 			expectedStatus: v1alpha1.DatadogGenericResourceStatus{
-				Id:                "test-id",
+				Id:                "123456789",
 				Creator:           "",
 				SyncStatus:        v1alpha1.DatadogSyncStatusOK,
 				CurrentHash:       hash,
@@ -106,7 +106,7 @@ func Test_updateStatusFromSyntheticsTest(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			status := &v1alpha1.DatadogGenericResourceStatus{}
 			syntheticTest := &datadogV1.SyntheticsAPITest{}
-			syntheticTest.SetPublicId("test-id")
+			syntheticTest.SetPublicId("123456789")
 			err := updateStatusFromSyntheticsTest(syntheticTest, tt.additionalProperties, status, mockLogger, hash)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus.Id, status.Id)
