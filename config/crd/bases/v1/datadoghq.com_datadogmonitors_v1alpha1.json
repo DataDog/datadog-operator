@@ -30,10 +30,12 @@
         },
         "message": {
           "description": "Message is a message to include with notifications for this monitor",
+          "minLength": 1,
           "type": "string"
         },
         "name": {
           "description": "Name is the monitor name",
+          "minLength": 1,
           "type": "string"
         },
         "options": {
@@ -211,6 +213,7 @@
         },
         "query": {
           "description": "Query is the Datadog monitor query",
+          "minLength": 1,
           "type": "string"
         },
         "restrictedRoles": {
@@ -231,9 +234,29 @@
         },
         "type": {
           "description": "Type is the monitor type",
+          "enum": [
+            "metric alert",
+            "query alert",
+            "service check",
+            "event alert",
+            "log alert",
+            "process alert",
+            "rum alert",
+            "trace-analytics alert",
+            "slo alert",
+            "event-v2 alert",
+            "audit alert",
+            "composite"
+          ],
           "type": "string"
         }
       },
+      "required": [
+        "message",
+        "name",
+        "query",
+        "type"
+      ],
       "type": "object"
     },
     "status": {
