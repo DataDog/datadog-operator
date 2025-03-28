@@ -45,7 +45,9 @@ RUN if [ "$FIPS_ENABLED" = "true" ]; then \
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
+
+FROM registry.access.redhat.com/ubi9/ubi-micro:latest
 
 LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."
@@ -54,6 +56,9 @@ LABEL description="Datadog provides a modern monitoring and analytics platform. 
       metrics, logs and traces for full observability of your Kubernetes cluster with \
       Datadog Operator."
 LABEL maintainer="Datadog Inc."
+
+# ubi-micro variant does not have CA certificates installed
+COPY --from=certs /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/certs/ca-bundle.crt
 
 WORKDIR /
 COPY --from=builder /workspace/manager .

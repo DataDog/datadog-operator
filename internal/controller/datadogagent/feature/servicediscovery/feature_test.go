@@ -112,11 +112,20 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 		if withNetStats {
-			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts, corev1.VolumeMount{
-				Name:      common.DebugfsVolumeName,
-				MountPath: common.DebugfsPath,
-				ReadOnly:  false,
-			})
+			wantSystemProbeVolMounts = append(wantSystemProbeVolMounts,
+				corev1.VolumeMount{
+					Name:      common.DebugfsVolumeName,
+					MountPath: common.DebugfsPath,
+					ReadOnly:  false,
+				}, corev1.VolumeMount{
+					Name:      common.ModulesVolumeName,
+					MountPath: common.ModulesVolumePath,
+					ReadOnly:  true,
+				}, corev1.VolumeMount{
+					Name:      common.SrcVolumeName,
+					MountPath: common.SrcVolumePath,
+					ReadOnly:  true,
+				})
 		}
 
 		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommon.CoreAgentContainerName]
@@ -151,14 +160,29 @@ func getWantFunc(withNetStats bool) func(t testing.TB, mgrInterface feature.PodT
 			},
 		}
 		if withNetStats {
-			wantVolumes = append(wantVolumes, corev1.Volume{
-				Name: common.DebugfsVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: common.DebugfsPath,
+			wantVolumes = append(wantVolumes,
+				corev1.Volume{
+					Name: common.DebugfsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.DebugfsPath,
+						},
 					},
-				},
-			})
+				}, corev1.Volume{
+					Name: common.ModulesVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.ModulesVolumePath,
+						},
+					},
+				}, corev1.Volume{
+					Name: common.SrcVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: common.SrcVolumePath,
+						},
+					},
+				})
 		}
 
 		volumes := mgr.VolumeMgr.Volumes
