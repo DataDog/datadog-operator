@@ -142,17 +142,17 @@ func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	})
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMContainerImageEnabled,
 		Value: apiutils.BoolToString(&f.containerImageEnabled),
 	})
 	if len(f.containerImageAnalyzers) > 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  DDSBOMContainerImageAnalyzers,
 			Value: strings.Join(f.containerImageAnalyzers, " "),
 		})
@@ -189,12 +189,12 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 		volMgr.AddVolume(&criLibVol)
 	}
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMHostEnabled,
 		Value: apiutils.BoolToString(&f.hostEnabled),
 	})
 	if len(f.hostAnalyzers) > 0 {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  DDSBOMHostAnalyzers,
 			Value: strings.Join(f.hostAnalyzers, " "),
 		})
