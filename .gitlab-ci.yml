@@ -214,21 +214,21 @@ build_bundle_image:
     KUBERNETES_MEMORY_LIMIT: 16Gi
 
 .on_run_e2e:
-  # Skip e2e tests if only .md files are changed
+  # Skip if only .md files are changed
   - if: $CI_COMMIT_BRANCH
     changes:
       paths:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
-  # Allow mergequeue branches to merge even if e2e tests fail
+  # Allow mergequeue branches to merge even if tests fail
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
     allow_failure: true
-  # Temporarily disable on Conductor-triggered jobs
+  # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
-    when: manual
+    when: never
+  # Run automatically otherwise
   - when: on_success
-  # Run e2e tests automatically otherwise
 
 trigger_e2e_operator_image:
   stage: e2e
