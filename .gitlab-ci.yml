@@ -221,7 +221,7 @@ build_bundle_image:
         - "*.md"
       compare_to: "refs/heads/main"
     when: never
-  # Allow mergequeue branches to merge even if testsfail
+  # Allow mergequeue branches to merge even if tests fail
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
     allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
