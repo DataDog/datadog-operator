@@ -15,7 +15,6 @@ const (
 	DDFIPSLocalAddress             = "DD_FIPS_LOCAL_ADDRESS"
 	DDKubeletCAPath                = "DD_KUBELET_CLIENT_CA"
 	DDKubeletTLSVerify             = "DD_KUBELET_TLS_VERIFY"
-	DDKubernetesPodResourcesSocket = "DD_KUBERNETES_KUBELET_PODRESOURCES_SOCKET"
 	DDNamespaceLabelsAsTags        = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
 	DDNamespaceAnnotationsAsTags   = "DD_KUBERNETES_NAMESPACE_ANNOTATIONS_AS_TAGS"
 	DDNodeLabelsAsTags             = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
