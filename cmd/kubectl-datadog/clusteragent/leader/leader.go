@@ -33,7 +33,8 @@ type options struct {
 	common.Options
 	args []string
 
-	DDAName string
+	DDAName        string
+	forceConfigMap bool
 }
 
 type leaderResponse struct {
@@ -70,6 +71,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&o.DDAName, "dda-name", "", "", "The DatadogAgent resource name to get the leader from")
+	cmd.Flags().BoolVarP(&o.forceConfigMap, "force-configmap", "", false, "Force using ConfigMap for leader election lookup instead of Lease")
 	o.ConfigFlags.AddFlags(cmd.Flags())
 
 	return cmd
@@ -103,19 +105,26 @@ func (o *options) run(cmd *cobra.Command) error {
 	var err error
 	var useLease bool
 
+	// Check if lease is supported by default
 	useLease, err = isLeaseSupported(o.DiscoveryClient)
 	if err != nil {
-		return fmt.Errorf("unable to check if lease is suppoered %w", err)
+		return fmt.Errorf("unable to check if lease is supported %w", err)
 	}
+
+	// Override with force-configmap flag if set
+	if o.forceConfigMap {
+		useLease = false
+	}
+
 	if useLease {
 		fmt.Fprintln(o.IOStreams.Out, "Using lease for leader election")
 		leaderName, err = o.getLeaderFromLease(objKey)
 	} else {
-		fmt.Fprintln(o.IOStreams.Out, "Using lease for configmap")
+		fmt.Fprintln(o.IOStreams.Out, "Using ConfigMap for leader election")
 		leaderName, err = o.getLeaderFromConfigMap(objKey)
 	}
 	if err != nil {
-		return fmt.Errorf("unable to get leader from lease: %w", err)
+		return fmt.Errorf("unable to get leader: %w", err)
 	}
 
 	cmd.Println("The Pod name of the Cluster Agent is:", leaderName)
