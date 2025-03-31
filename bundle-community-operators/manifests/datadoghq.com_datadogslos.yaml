@@ -4,16 +4,16 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.3
   creationTimestamp: null
-  name: datadogdashboards.datadoghq.com
+  name: datadogslos.datadoghq.com
 spec:
   group: datadoghq.com
   names:
-    kind: DatadogDashboard
-    listKind: DatadogDashboardList
-    plural: datadogdashboards
+    kind: DatadogSLO
+    listKind: DatadogSLOList
+    plural: datadogslos
     shortNames:
-    - ddd
-    singular: datadogdashboard
+    - ddslo
+    singular: datadogslo
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -29,7 +29,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: DatadogDashboard is the Schema for the datadogdashboards API
+        description: DatadogSLO allows a user to define and manage datadog SLOs from
+          Kubernetes cluster.
         properties:
           apiVersion:
             description: |-
@@ -49,132 +50,105 @@ spec:
           metadata:
             type: object
           spec:
-            description: DatadogDashboardSpec defines the desired state of DatadogDashboard
             properties:
+              controllerOptions:
+                description: ControllerOptions are the optional parameters in the
+                  DatadogSLO controller
+                properties:
+                  disableRequiredTags:
+                    description: DisableRequiredTags disables the automatic addition
+                      of required tags to SLOs.
+                    type: boolean
+                type: object
               description:
-                description: Description is the description of the dashboard.
-                type: string
-              layoutType:
-                description: LayoutType is the layout type of the dashboard.
-                enum:
-                - ordered
-                - free
-                type: string
-              notifyList:
-                description: NotifyList is the list of handles of users to notify
-                  when changes are made to this dashboard.
-                items:
-                  type: string
-                type: array
-                x-kubernetes-list-type: set
-              reflowType:
                 description: |-
-                  Reflowtype is the reflow type for a 'new dashboard layout' dashboard. Set this only when layout type is 'ordered'.
-                  If set to 'fixed', the dashboard expects all widgets to have a layout, and if it's set to 'auto',
-                  widgets should not have layouts.
+                  Description is a user-defined description of the service level objective.
+                  Always included in service level objective responses (but may be null). Optional in create/update requests.
                 type: string
-              tags:
-                description: Tags is a list of team names representing ownership of
-                  a dashboard.
+              groups:
+                description: |-
+                  Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective.
+                  Included in service level objective responses if it is not empty.
+                  Optional in create/update requests for monitor service level objectives, but may only be used when the length of the monitor_ids field is one.
                 items:
                   type: string
                 type: array
                 x-kubernetes-list-type: set
-              templateVariablePresets:
-                description: TemplateVariablePresets is an array of template variables
-                  saved views.
+              monitorIDs:
+                description: MonitorIDs is a list of monitor IDs that defines the
+                  scope of a monitor service level objective. Required if type is
+                  monitor.
                 items:
-                  description: DashboardTemplateVariablePreset Template variables
-                    saved views.
-                  properties:
-                    name:
-                      description: The name of the variable.
-                      type: string
-                    templateVariables:
-                      description: List of variables.
-                      items:
-                        description: DashboardTemplateVariablePresetValue Template
-                          variables saved views.
-                        properties:
-                          name:
-                            description: The name of the variable.
-                            type: string
-                          values:
-                            description: One or many template variable values within
-                              the saved view, which will be unioned together using
-                              `OR` if more than one is specified. Cannot be used in
-                              conjunction with `value`.
-                            items:
-                              type: string
-                            type: array
-                            x-kubernetes-list-type: set
-                        required:
-                        - name
-                        type: object
-                      type: array
-                      x-kubernetes-list-map-keys:
-                      - name
-                      x-kubernetes-list-type: map
-                  required:
-                  - name
-                  type: object
+                  format: int64
+                  type: integer
                 type: array
-                x-kubernetes-list-map-keys:
-                - name
-                x-kubernetes-list-type: map
-              templateVariables:
-                description: TemplateVariables is a list of template variables for
-                  this dashboard.
+                x-kubernetes-list-type: set
+              name:
+                description: Name is the name of the service level objective.
+                type: string
+              query:
+                description: |-
+                  Query is the query for a metric-based SLO. Required if type is metric.
+                  Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.
+                properties:
+                  denominator:
+                    description: Denominator is a Datadog metric query for total (valid)
+                      events.
+                    type: string
+                  numerator:
+                    description: Numerator is a Datadog metric query for good events.
+                    type: string
+                required:
+                - denominator
+                - numerator
+                type: object
+              tags:
+                description: |-
+                  Tags is a list of tags to associate with your service level objective.
+                  This can help you categorize and filter service level objectives in the service level objectives page of the UI.
+                  Note: it's not currently possible to filter by these tags when querying via the API.
                 items:
-                  description: DashboardTemplateVariable Template variable.
-                  properties:
-                    availableValues:
-                      description: The list of values that the template variable drop-down
-                        is limited to.
-                      items:
-                        type: string
-                      type: array
-                    defaults:
-                      description: One or many default values for template variables
-                        on load. If more than one default is specified, they will
-                        be unioned together with `OR`. Cannot be used in conjunction
-                        with `default`.
-                      items:
-                        type: string
-                      type: array
-                      x-kubernetes-list-type: set
-                    name:
-                      description: The name of the variable.
-                      type: string
-                    prefix:
-                      description: The tag prefix associated with the variable. Only
-                        tags with this prefix appear in the variable drop-down.
-                      type: string
-                  required:
-                  - name
-                  type: object
+                  type: string
                 type: array
-                x-kubernetes-list-map-keys:
-                - name
-                x-kubernetes-list-type: map
-              title:
-                description: Title is the title of the dashboard.
-                minLength: 1
+                x-kubernetes-list-type: set
+              targetThreshold:
+                anyOf:
+                - type: integer
+                - type: string
+                description: TargetThreshold is the target threshold such that when
+                  the service level indicator is above this threshold over the given
+                  timeframe, the objective is being met.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
+              timeframe:
+                description: The SLO time window options.
                 type: string
-              widgets:
-                description: Widgets is a JSON string representation of a list of
-                  Datadog API Widgets
+              type:
+                description: Type is the type of the service level objective.
                 type: string
+              warningThreshold:
+                anyOf:
+                - type: integer
+                - type: string
+                description: WarningThreshold is a optional warning threshold such
+                  that when the service level indicator is below this value for the
+                  given threshold, but above the target threshold, the objective appears
+                  in a "warning" state. This value must be greater than the target
+                  threshold.
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
             required:
-            - layoutType
-            - title
+            - name
+            - targetThreshold
+            - timeframe
+            - type
             type: object
           status:
-            description: DatadogDashboardStatus defines the observed state of DatadogDashboard
+            description: DatadogSLOStatus defines the observed state of a DatadogSLO.
             properties:
               conditions:
                 description: Conditions represents the latest available observations
-                  of the state of a DatadogDashboard.
+                  of the state of a DatadogSLO.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -234,28 +208,28 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               created:
-                description: Created is the time the dashboard was created.
+                description: Created is the time the SLO was created.
                 format: date-time
                 type: string
               creator:
-                description: Creator is the identity of the dashboard creator.
+                description: Creator is the identity of the SLO creator.
                 type: string
               currentHash:
                 description: |-
-                  CurrentHash tracks the hash of the current DatadogDashboardSpec to know
+                  CurrentHash tracks the hash of the current DatadogSLOSpec to know
                   if the Spec has changed and needs an update.
                 type: string
               id:
-                description: ID is the dashboard ID generated in Datadog.
+                description: ID is the SLO ID generated in Datadog.
                 type: string
               lastForceSyncTime:
-                description: LastForceSyncTime is the last time the API dashboard
-                  was last force synced with the DatadogDashboard resource
+                description: LastForceSyncTime is the last time the API SLO was last
+                  force synced with the DatadogSLO resource.
                 format: date-time
                 type: string
               syncStatus:
-                description: SyncStatus shows the health of syncing the dashboard
-                  state to Datadog.
+                description: SyncStatus shows the health of syncing the SLO state
+                  to Datadog.
                 type: string
             type: object
         type: object
