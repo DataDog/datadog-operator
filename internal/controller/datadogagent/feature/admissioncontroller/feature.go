@@ -221,12 +221,15 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// Assemble agent sidecar profiles.
 			for _, profile := range sidecarConfig.Profiles {
-				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil {
+				if len(profile.EnvVars) > 0 || profile.ResourceRequirements != nil || profile.SecurityContext != nil {
 					newProfile := &v2alpha1.Profile{
 						EnvVars: profile.EnvVars,
 					}
 					if profile.ResourceRequirements != nil {
 						newProfile.ResourceRequirements = profile.ResourceRequirements
+					}
+					if profile.SecurityContext != nil {
+						newProfile.SecurityContext = profile.SecurityContext
 					}
 					f.agentSidecarConfig.profiles = append(f.agentSidecarConfig.profiles, newProfile)
 				}

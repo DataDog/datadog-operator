@@ -29,5 +29,13 @@ then
 fi
 
 mkdir -p "$ROOT/bin/$PLATFORM"
-curl -Lo "$ROOT/bin/$PLATFORM/preflight" "https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${RELEASE_VERSION}/preflight-${OS}-amd64"
+
+if [ "$RELEASE_VERSION" == "latest" ];
+then
+  echo "Downloading latest preflight version"
+  curl -Lo "$ROOT/bin/$PLATFORM/preflight" "https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/latest/download/preflight-${OS}-amd64"
+else
+  curl -Lo "$ROOT/bin/$PLATFORM/preflight" "https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases/download/${RELEASE_VERSION}/preflight-${OS}-amd64"
+fi
+
 chmod +x "$ROOT/bin/$PLATFORM/preflight"
