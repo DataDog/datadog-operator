@@ -142,6 +142,14 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 		})
 	}
 
+	if f.adpEnabled {
+		// When ADP is enabled, we signal this to the Core Agent by setting an environment variable.
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  common.DDADPEnabled,
+			Value: "true",
+		})
+	}
+
 	return nil
 }
 
