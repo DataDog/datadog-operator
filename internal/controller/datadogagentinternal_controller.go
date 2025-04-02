@@ -24,7 +24,7 @@ type DatadogAgentInternalReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
-	internal *ddai.Reconciler
+	internal *ddai.DatadogAgentInternalReconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals,verbs=get;list;watch;create;update;patch;delete
@@ -38,14 +38,16 @@ func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, req ctrl
 
 // SetupWithManager creates a new DatadogAgentInternal controller.
 func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.internal = ddai.NewReconciler(r.Client, r.Scheme, r.Log)
+	internal, err := ddai.NewReconciler(r.Client, r.Scheme, r.Log)
+	if err != nil {
+		return err
+	}
+	r.internal = internal
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.DatadogAgentInternal{})
-		// TODO: Possibly only watch for spec changes, not status changes.
-		// .WithEventFilter(predicate.GenerationChangedPredicate{})
 
-	err := builder.Complete(r)
+	err = builder.Complete(r)
 	if err != nil {
 		return err
 	}

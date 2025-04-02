@@ -10,25 +10,31 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
-// Reconciler reconciles a DatadogAgentInternal object
-type Reconciler struct {
+// DatadogAgentInternalReconciler reconciles a DatadogAgentInternal object
+type DatadogAgentInternalReconciler struct {
 	client client.Client
 	scheme *runtime.Scheme
 	log    logr.Logger
 }
 
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/finalizers,verbs=update
+
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger) *Reconciler {
-	return &Reconciler{
+func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger) (*DatadogAgentInternalReconciler, error) {
+	return &DatadogAgentInternalReconciler{
 		client: client,
 		scheme: scheme,
 		log:    log,
-	}
+	}, nil
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -40,10 +46,17 @@ func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
 
-	return reconcile.Result{}, nil
+	return ctrl.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&datadoghqv1alpha1.DatadogAgentInternal{}).
+		Complete(r)
 }
