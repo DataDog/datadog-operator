@@ -34,7 +34,7 @@ const (
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
 	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
-	// JMXTagSuffix prefix tag for agent JMX images
+	// JMXTagSuffix suffix tag for agent JMX images
 	JMXTagSuffix = "-jmx"
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
