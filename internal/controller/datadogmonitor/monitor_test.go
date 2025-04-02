@@ -18,32 +18,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 
 	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
-	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
 const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
 
 func Test_buildMonitor(t *testing.T) {
-	evalDelay := int64(100)
-	escalationMsg := "This is an escalation message"
-	valTrue := true
-	newGroupDelay := int64(400)
-	noDataTimeframe := int64(15)
-	renotifyInterval := int64(1440)
-	renotifyOccurrences := int64(1)
-	renotifyStatuses := []datadogV1.MonitorRenotifyStatusType{
-		datadogV1.MONITORRENOTIFYSTATUSTYPE_ALERT,
-		datadogV1.MONITORRENOTIFYSTATUSTYPE_WARN,
-	}
-
-	timeoutH := int64(2)
-	critThreshold := "0.05"
-	warnThreshold := "0.02"
-	priority := int64(3)
-
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
 			RestrictedRoles: []string{"an-admin-uuid"},
@@ -51,36 +36,46 @@ func Test_buildMonitor(t *testing.T) {
 			Type:            "metric alert",
 			Name:            "Test monitor",
 			Message:         "Something went wrong",
-			Priority:        priority,
+			Priority:        int64(3),
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
 				"kube_cluster:test.staging",
 			},
 			Options: datadoghqv1alpha1.DatadogMonitorOptions{
-				EnableLogsSample:       &valTrue,
-				EvaluationDelay:        &evalDelay,
-				EscalationMessage:      &escalationMsg,
-				IncludeTags:            &valTrue,
-				GroupbySimpleMonitor:   &valTrue,
-				Locked:                 &valTrue,
-				NewGroupDelay:          &newGroupDelay,
-				NoDataTimeframe:        &noDataTimeframe,
+				EnableLogsSample:       ptr.To(true),
+				EvaluationDelay:        ptr.To(int64(100)),
+				EscalationMessage:      ptr.To("This is an escalation message"),
+				IncludeTags:            ptr.To(true),
+				GroupbySimpleMonitor:   ptr.To(true),
+				Locked:                 ptr.To(true),
+				NewGroupDelay:          ptr.To(int64(400)),
+				NoDataTimeframe:        ptr.To(int64(15)),
 				NotificationPresetName: "show_all",
 				NotifyBy: []string{
 					"env",
 					"kube_namespace",
 					"kube_cluster",
 				},
-				NotifyNoData:        &valTrue,
+				NotifyNoData:        ptr.To(true),
 				OnMissingData:       "default",
-				RenotifyOccurrences: &renotifyOccurrences,
-				RenotifyInterval:    &renotifyInterval,
-				RenotifyStatuses:    renotifyStatuses,
-				TimeoutH:            &timeoutH,
+				RenotifyOccurrences: ptr.To(int64(1)),
+				RenotifyInterval:    ptr.To(int64(1440)),
+				RenotifyStatuses: []datadogV1.MonitorRenotifyStatusType{
+					datadogV1.MONITORRENOTIFYSTATUSTYPE_ALERT,
+					datadogV1.MONITORRENOTIFYSTATUSTYPE_WARN,
+				},
+				SchedulingOptions: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptions{
+					EvaluationWindow: &datadoghqv1alpha1.DatadogMonitorOptionsSchedulingOptionsEvaluationWindow{
+						DayStarts:   ptr.To("01:00"),
+						HourStarts:  ptr.To(int32(2)),
+						MonthStarts: ptr.To(int32(3)),
+					},
+				},
+				TimeoutH: ptr.To(int64(2)),
 				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
-					Critical: &critThreshold,
-					Warning:  &warnThreshold,
+					Critical: ptr.To("0.05"),
+					Warning:  ptr.To("0.02"),
 				},
 			},
 		},
@@ -150,6 +145,15 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitor.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
 	assert.Equal(t, dm.Spec.Options.RenotifyStatuses, monitorUR.Options.GetRenotifyStatuses(), "discrepancy found in parameter: RenotifyStatuses")
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitor.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.DayStarts, monitorUR.Options.SchedulingOptions.EvaluationWindow.GetDayStarts(), "discrepancy found in parameter: EvaluationWindow.DayStarts")
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.HourStarts, monitor.Options.SchedulingOptions.EvaluationWindow.GetHourStarts(), "discrepancy found in parameter: EvaluationWindow.HourStarts")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.HourStarts, monitorUR.Options.SchedulingOptions.EvaluationWindow.GetHourStarts(), "discrepancy found in parameter: EvaluationWindow.HourStarts")
+
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.MonthStarts, monitor.Options.SchedulingOptions.EvaluationWindow.GetMonthStarts(), "discrepancy found in parameter: EvaluationWindow.MonthStarts")
+	assert.Equal(t, *dm.Spec.Options.SchedulingOptions.EvaluationWindow.MonthStarts, monitorUR.Options.SchedulingOptions.EvaluationWindow.GetMonthStarts(), "discrepancy found in parameter: EvaluationWindow.MonthStarts")
 
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitor.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
 	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitorUR.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
