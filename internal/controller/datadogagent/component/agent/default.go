@@ -101,7 +101,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return defaulting.GetLatestAgentImage()
 }
 
 func otelAgentImage() string {
