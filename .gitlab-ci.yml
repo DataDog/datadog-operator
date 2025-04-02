@@ -17,6 +17,7 @@ variables:
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
+  FF_TIMESTAMPS: true
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}

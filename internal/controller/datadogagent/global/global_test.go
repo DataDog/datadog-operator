@@ -78,7 +78,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -144,7 +144,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -209,7 +209,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -266,7 +266,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -332,7 +332,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -397,7 +397,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -467,7 +467,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -537,7 +537,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
@@ -594,7 +594,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			),
 			wantCoreAgentEnvVars: []*corev1.EnvVar{
 				{
-					Name:  DDKubernetesPodResourcesSocket,
+					Name:  common.DDKubernetesPodResourcesSocket,
 					Value: podResourcesSocket,
 				},
 			},
