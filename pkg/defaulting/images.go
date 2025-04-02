@@ -84,18 +84,6 @@ func GetLatestAgentImage(opts ...ImageOptions) string {
 	return image.String()
 }
 
-// GetLatestAgentImageJMX return the latest JMX stable agent release version
-func GetLatestAgentImageJMX(opts ...ImageOptions) string {
-	image := &Image{
-		registry:  DefaultImageRegistry,
-		imageName: DefaultAgentImageName,
-		tag:       AgentLatestVersion,
-	}
-	processOptions(image, opts...)
-	image.tag = fmt.Sprintf("%s%s", image.tag, JMXTagSuffix)
-	return image.String()
-}
-
 // GetLatestClusterAgentImage return the latest stable agent release version
 func GetLatestClusterAgentImage(opts ...ImageOptions) string {
 	image := &Image{
@@ -125,13 +113,6 @@ func WithTag(tag string) ImageOptions {
 func WithImageName(name string) ImageOptions {
 	return func(image *Image) {
 		image.imageName = name
-	}
-}
-
-// WithJMX ImageOptions to specify if the JMX prefix should be added
-func WithJMX(jmx bool) ImageOptions {
-	return func(image *Image) {
-		image.isJMX = jmx
 	}
 }
 

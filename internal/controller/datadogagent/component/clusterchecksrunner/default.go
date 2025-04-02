@@ -141,7 +141,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func clusterChecksRunnerImage() string {
-	return defaulting.GetLatestAgentImageJMX()
+	return defaulting.GetLatestAgentImage()
 }
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {

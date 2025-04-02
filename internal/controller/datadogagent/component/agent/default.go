@@ -101,7 +101,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return defaulting.GetLatestAgentImageJMX()
+	return defaulting.GetLatestAgentImage()
 }
 
 func otelAgentImage() string {
