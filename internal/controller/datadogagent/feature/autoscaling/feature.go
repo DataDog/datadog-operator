@@ -66,7 +66,10 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+		},
 	}
 }
 

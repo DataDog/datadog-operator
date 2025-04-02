@@ -6,6 +6,8 @@
 package v1alpha2
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 )
 
@@ -17,7 +19,10 @@ func NewDatadogPodAutoscalerFromV1Alpha1(in *v1alpha1.DatadogPodAutoscaler) *Dat
 	// As many types are shared, we'll assign the deep copied value to the new object
 	in = in.DeepCopy()
 	out := &DatadogPodAutoscaler{
-		TypeMeta:   in.TypeMeta,
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogPodAutoscaler",
+			APIVersion: "datadoghq.com/v1alpha2",
+		},
 		ObjectMeta: in.ObjectMeta,
 		Spec:       ConvertDatadogPodAutoscalerSpecFromV1Alpha1(in.Spec),
 		Status:     in.Status,
@@ -61,7 +66,10 @@ func NewDatadogPodAutoscalerToV1Alpha1(in *DatadogPodAutoscaler) *v1alpha1.Datad
 	// As many types are shared, we'll assign the deep copied value to the new object
 	in = in.DeepCopy()
 	out := &v1alpha1.DatadogPodAutoscaler{
-		TypeMeta:   in.TypeMeta,
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "DatadogPodAutoscaler",
+			APIVersion: "datadoghq.com/v1alpha1",
+		},
 		ObjectMeta: in.ObjectMeta,
 		Spec:       ConvertDatadogPodAutoscalerSpecToV1Alpha1(in.Spec),
 		Status:     in.Status,

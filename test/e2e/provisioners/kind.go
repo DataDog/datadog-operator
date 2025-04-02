@@ -7,13 +7,16 @@ package provisioners
 
 import (
 	"fmt"
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"os"
 	"strings"
+
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
+
+	"path/filepath"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
@@ -34,7 +37,6 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"path/filepath"
 )
 
 const (
@@ -94,7 +96,7 @@ func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernet
 		awskubernetes.WithExtraConfigParams(extraConfig),
 		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
 		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
-		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData)}...),
+		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
 	}
 
 	for _, yamlWorkload := range params.yamlWorkloads {

@@ -9,24 +9,19 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var log = logf.Log.WithName("DatadogMetricForwarders")
 
-// MonitoredObject must be implemented by the monitored object (e.g DatadogAgent)
-type MonitoredObject interface {
-	GetNamespace() string
-	GetName() string
-}
-
 // getObjID builds an identifier for a given monitored object
-func getObjID(obj MonitoredObject) string {
+func getObjID(obj client.Object) string {
 	return fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
 }
 
-// getNamespacedName builds a NamespacedName for a given monitored object
-func getNamespacedName(obj MonitoredObject) types.NamespacedName {
+// GetNamespacedName builds a NamespacedName for a given monitored object
+func GetNamespacedName(obj client.Object) types.NamespacedName {
 	return types.NamespacedName{
 		Namespace: obj.GetNamespace(),
 		Name:      obj.GetName(),

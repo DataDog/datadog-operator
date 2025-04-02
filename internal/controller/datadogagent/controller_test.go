@@ -8,25 +8,13 @@ package datadogagent
 import (
 	"reflect"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
-
-func newRequest(ns, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Namespace: ns,
-			Name:      name,
-		},
-	}
-}
 
 func containsEnv(slice []corev1.EnvVar, name, value string) bool {
 	for _, element := range slice {
@@ -146,18 +134,18 @@ type dummyManager struct{}
 func (dummyManager) Register(client.Object) {
 }
 
-func (dummyManager) Unregister(datadog.MonitoredObject) {
+func (dummyManager) Unregister(client.Object) {
 }
 
-func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
+func (dummyManager) ProcessError(client.Object, error) {
 }
 
-func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
+func (dummyManager) ProcessEvent(client.Object, datadog.Event) {
 }
 
-func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadog.ConditionCommon {
+func (dummyManager) MetricsForwarderStatusForObj(obj client.Object) *datadog.ConditionCommon {
 	return nil
 }
 
-func (dummyManager) SetEnabledFeatures(obj datadog.MonitoredObject, features []feature.Feature) {
+func (dummyManager) SetEnabledFeatures(obj client.Object, features []string) {
 }

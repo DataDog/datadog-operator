@@ -13,6 +13,7 @@ const (
 	DDAPMInstrumentationInjectorImageTag   = "DD_APM_INSTRUMENTATION_INJECTOR_IMAGE_TAG"
 	DDAPMInstrumentationEnabledNamespaces  = "DD_APM_INSTRUMENTATION_ENABLED_NAMESPACES"
 	DDAPMInstrumentationDisabledNamespaces = "DD_APM_INSTRUMENTATION_DISABLED_NAMESPACES"
+	DDAPMInstrumentationTargets            = "DD_APM_INSTRUMENTATION_TARGETS"
 	DDAPMInstrumentationLibVersions        = "DD_APM_INSTRUMENTATION_LIB_VERSIONS"
 	DDLanguageDetectionEnabled             = "DD_LANGUAGE_DETECTION_ENABLED"
 )

@@ -40,7 +40,8 @@ const (
 
 	defaultGPUMonitoringEnabled bool = false
 
-	defaultServiceDiscoveryEnabled bool = false
+	defaultServiceDiscoveryEnabled             bool = false
+	defaultServiceDiscoveryNetworkStatsEnabled bool = true
 
 	defaultAPMEnabled                 bool   = true
 	defaultAPMHostPortEnabled         bool   = false
@@ -55,6 +56,7 @@ const (
 	defaultCWSSyscallMonitorEnabled   bool   = false
 	defaultCWSNetworkEnabled          bool   = true
 	defaultCWSSecurityProfilesEnabled bool   = true
+	defaultAPMErrorTrackingStandalone bool   = false
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -272,10 +274,19 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
 
+	// Service Discovery Feature
 	if ddaSpec.Features.ServiceDiscovery == nil {
 		ddaSpec.Features.ServiceDiscovery = &v2alpha1.ServiceDiscoveryFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.Enabled, defaultServiceDiscoveryEnabled)
+
+	if *ddaSpec.Features.ServiceDiscovery.Enabled {
+		if ddaSpec.Features.ServiceDiscovery.NetworkStats == nil {
+			ddaSpec.Features.ServiceDiscovery.NetworkStats = &v2alpha1.ServiceDiscoveryNetworkStatsConfig{}
+		}
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ServiceDiscovery.NetworkStats.Enabled, defaultServiceDiscoveryNetworkStatsEnabled)
+	}
 
 	// GPU monitoring feature
 	if ddaSpec.Features.GPU == nil {
@@ -322,6 +333,12 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultAPMSingleStepInstrEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled, defaultLanguageDetectionEnabled)
+
+		if ddaSpec.Features.APM.ErrorTrackingStandalone == nil {
+			ddaSpec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{}
+		}
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.ErrorTrackingStandalone.Enabled, defaultAPMErrorTrackingStandalone)
 	}
 
 	// ASM Features

@@ -23,6 +23,10 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			"foo": "baz",
 			"bar": "bar",
 		},
+		"metrics.custom.metrics.group": {
+			"foo": "baz",
+			"bar": "bar",
+		},
 	}
 
 	annotationsAsTags := map[string]map[string]string{
@@ -41,7 +45,6 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{""},
 			Resources: []string{"pods"},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},
@@ -50,7 +53,14 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{"apps"},
 			Resources: []string{"deployments"},
 			Verbs: []string{
-				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{"custom.metrics.group"},
+			Resources: []string{"metrics"},
+			Verbs: []string{
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},

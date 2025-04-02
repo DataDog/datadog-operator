@@ -23,6 +23,8 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -38,7 +40,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, dda, resourcesManager)
+	global.ApplyGlobalSettingsClusterChecksRunner(logger, podManagers, dda, resourcesManager, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -130,6 +132,7 @@ func (r *Reconciler) cleanupOldCCRDeployments(ctx context.Context, logger logr.L
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterChecksRunnerResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 	deploymentName := getDeploymentNameFromCCR(dda)
 	deploymentList := appsv1.DeploymentList{}

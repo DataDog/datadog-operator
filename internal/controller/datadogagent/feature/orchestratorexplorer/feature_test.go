@@ -58,7 +58,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
-			WantConfigure: false,
+			WantConfigure: true,
 		},
 		{
 			Name: "orchestrator explorer enabled",
@@ -128,7 +128,7 @@ func orchestratorExplorerNodeAgentNoProcessAgentWantFunc(t testing.TB, mgrInterf
 
 func orchestratorExplorerClusterChecksRunnerWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+	runnerEnvs := append(mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers], mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]...)
 	assert.True(t, apiutils.IsEqualStruct(runnerEnvs, expectedOrchestratorEnvsV2), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, expectedOrchestratorEnvsV2))
 }
 

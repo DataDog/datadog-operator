@@ -101,25 +101,32 @@ func (o *options) run(cmd *cobra.Command) error {
 
 	var leaderName string
 	var err error
-	var useLease bool
 
-	useLease, err = isLeaseSupported(o.DiscoveryClient)
+	useLease, err := isLeaseSupported(o.DiscoveryClient)
 	if err != nil {
-		return fmt.Errorf("unable to check if lease is suppoered %w", err)
+		return fmt.Errorf("unable to check if lease is supported %w", err)
 	}
+
+	// Try to get leader from lease if supported
 	if useLease {
 		fmt.Fprintln(o.IOStreams.Out, "Using lease for leader election")
 		leaderName, err = o.getLeaderFromLease(objKey)
-	} else {
-		fmt.Fprintln(o.IOStreams.Out, "Using lease for configmap")
+	}
+
+	// Fall back to ConfigMap if lease is not supported or failed
+	if !useLease || err != nil {
+		if err != nil {
+			fmt.Fprintln(o.IOStreams.Out, "Lease lookup failed, falling back to ConfigMap")
+		}
+		fmt.Fprintln(o.IOStreams.Out, "Using ConfigMap for leader election")
 		leaderName, err = o.getLeaderFromConfigMap(objKey)
 	}
+
 	if err != nil {
-		return fmt.Errorf("unable to get leader from lease: %w", err)
+		return fmt.Errorf("unable to get leader: %w", err)
 	}
 
 	cmd.Println("The Pod name of the Cluster Agent is:", leaderName)
-
 	return nil
 }
 

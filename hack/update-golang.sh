@@ -25,7 +25,7 @@ if [[ ! -x "$YQ" ]]; then
     exit 1
 fi
 
-# Get Go version from go.mod and parse it
+# Get Go version from go.work and parse it
 GOVERSION=$(go work edit --json | $JQ -r .Go)
 IFS='.' read -r major minor revision <<< "$GOVERSION"
 

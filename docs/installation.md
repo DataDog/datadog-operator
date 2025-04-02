@@ -1,4 +1,6 @@
-# Installation
+# Installing the Datadog Operator
+
+This document contains detailed information about installing the Datadog Operator. For basic installation instructions for the Datadog Agent on Kubernetes, see [Install the Datadog Agent on Kubernetes][10].
 
 ## Prerequisites
 
@@ -27,51 +29,49 @@ datadogMonitor:
   enabled: true
 ```
 
-The Helm release can be updated with
+Then, to update the Helm release, run:
 
 ```shell
 helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 ```
 
-### Add credentials for DatadogMonitor
+### Add credentials
 
-If using the DatadogMonitor controller, the Datadog Operator requires API and application keys to be configured. 
-Create a Kubernetes Secret that contains your API and application keys.
+1. Create a Kubernetes Secret that contains your API and application keys.
 
-```
-export DD_API_KEY=<YOUR_API_KEY>
-export DD_APP_KEY=<YOUR_APP_KEY>
+   ```
+   export DD_API_KEY=<YOUR_API_KEY>
+   export DD_APP_KEY=<YOUR_APP_KEY>
 
-kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
-```
+   kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
+   ```
 
-The secret can then be referenced in the `values.yaml` file.
+2. Reference this Secret in your `values.yaml` file.
 
-```yaml
-apiKeyExistingSecret: datadog-operator-secret
-appKeyExistingSecret: datadog-operator-secret
-image:
-  tag: 1.2.0
-datadogMonitor:
-  enabled: true
-```
+   ```yaml
+   apiKeyExistingSecret: datadog-operator-secret
+   appKeyExistingSecret: datadog-operator-secret
+   image:
+     tag: 1.2.0
+   datadogMonitor:
+     enabled: true
+   ```
 
-The Helm release can be updated with
+3. Update the Helm release.
 
-```shell
-helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
-```
+   ```shell
+   helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
+   ```
 
+## Install the Datadog Operator with Operator Lifecycle Manager
 
-### Install the Datadog Operator with Operator Lifecycle Manager
+Instructions for deploying the Datadog Operator with [Operator Lifecycle Manager][4] (OLM) are available at [operatorhub.io][5].
 
-Instructions for deploying the Datadog Operator with [Operator Lifecycle Manager][4] are available at [operatorhub.io][5].
+### Override the default Operator configuration with OLM
 
-#### Override the default Operator configuration with OLM
+The [Operator Lifecycle Manager][4] framework allows overriding the default Operator configuration. See [Subscription Config][6] for a list of the supported installation configuration parameters.
 
-The [Operator Lifecycle Manager][4] framework allows overriding the default Operator configuration. See the [Subscription Config][6] document for a list of the supported installation configuration parameters.
-
-For example, the Datadog Operator's Pod resources are changed with the following [Operator Lifecycle Manager][4] `Subscription`:
+For example, the following [Operator Lifecycle Manager][4] `Subscription` changes the Datadog Operator's Pod resources:
 
 ```yaml
 apiVersion: operators.coreos.com/v1alpha1
@@ -94,53 +94,52 @@ spec:
         cpu: "500m"
 ```
 
-### Add credentials for DatadogMonitor
+### Add credentials
 
-If using the DatadogMonitor controller, the Datadog Operator requires API and application keys to be configured. 
-Create a Kubernetes Secret that contains your API and application keys.
+1. Create a Kubernetes Secret that contains your API and application keys.
 
-```
-export DD_API_KEY=<YOUR_API_KEY>
-export DD_APP_KEY=<YOUR_APP_KEY>
+   ```
+   export DD_API_KEY=<YOUR_API_KEY>
+   export DD_APP_KEY=<YOUR_APP_KEY>
 
-kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
-```
+   kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
+   ```
 
-Add references to the Secret in the Datadog Operator `Subscription` resource instance. 
+2. Add references to the Secret in the Datadog Operator `Subscription` resource instance. 
 
-```yaml
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: my-datadog-operator
-  namespace: operators
-spec:
-  channel: stable
-  name: datadog-operator
-  source: operatorhubio-catalog
-  sourceNamespace: olm
-  config:
-    env:
-      - name: DD_API_KEY
-        valueFrom:
-          secretKeyRef: 
-             key: api-key
-             name: datadog-operator-secret
-      - name: DD_APP_KEY
-        valueFrom:
-          secretKeyRef: 
-            key: app-key
-            name: datadog-operator-secret
-```
+   ```yaml
+   apiVersion: operators.coreos.com/v1alpha1
+   kind: Subscription
+   metadata:
+     name: my-datadog-operator
+     namespace: operators
+   spec:
+     channel: stable
+     name: datadog-operator
+     source: operatorhubio-catalog
+     sourceNamespace: olm
+     config:
+       env:
+         - name: DD_API_KEY
+           valueFrom:
+             secretKeyRef: 
+                key: api-key
+                name: datadog-operator-secret
+         - name: DD_APP_KEY
+           valueFrom:
+             secretKeyRef: 
+               key: app-key
+               name: datadog-operator-secret
+   ```
 
 
-## Deploy the `DatadogAgent` custom resource managed by the Operator
+## Deploy the DatadogAgent custom resource managed by the Operator
 
-After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent will be deployed as a DaemonSet, running a pod on every node of your cluster.
+After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent, and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent is deployed as a DaemonSet, running a pod on every node of your cluster.
 
-1. Create a Kubernetes secret with your API and application keys
+1. Create a Kubernetes secret with your API and application keys.
 
-   ```shell
+   ```
    export DD_API_KEY=<YOUR_API_KEY>
    export DD_APP_KEY=<YOUR_APP_KEY>
 
@@ -171,7 +170,7 @@ After deploying the Datadog Operator, create the `DatadogAgent` resource that tr
 
 In a cluster with two worker nodes, you should see the Agent Pods created on each node.
 
-```shell
+```console
 $ kubectl get daemonset
 NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 datadog-agent   2         2         2       2            2           <none>          5m30s
@@ -185,7 +184,7 @@ datadog-agent-zcxx7                          1/1     Running   0          5m59s 
 
 ### Tolerations
 
-Update your [`datadog-agent.yaml` file][8] with the following configuration to add the toleration in the `Daemonset.spec.template` of your DaemonSet:
+Update your [`datadog-agent.yaml` file][8] with the following configuration to add tolerations in the `Daemonset.spec.template` of your DaemonSet:
 
    ```yaml
    apiVersion: datadoghq.com/v1alpha1
@@ -205,16 +204,17 @@ Update your [`datadog-agent.yaml` file][8] with the following configuration to a
          tolerations:
           - operator: Exists
    ```
+
 Apply this new configuration:
 
-```shell
+```console
 $ kubectl apply -f datadog-agent.yaml
 datadogagent.datadoghq.com/datadog updated
 ```
 
 Validate the DaemonSet update by looking at the new `desired` Pod value:
 
-```shell
+```console
 $ kubectl get daemonset
 NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 datadog-agent   3         3         3       3            3           <none>          7m31s
@@ -227,10 +227,9 @@ datadog-agent-lkfqt                          0/1     Running    0          15s
 datadog-agent-zvdbw                          1/1     Running    0          8m1s
 ```
 
-## Install the `kubectl` plugin
+## Install the kubectl plugin
 
-See the [`kubectl` plugin doc](/docs/kubectl-plugin.md)
-
+See the [`kubectl` plugin documentation][11].
 
 ## Use a custom Datadog Operator image
 
@@ -240,20 +239,19 @@ See instructions to build a Datadog Operator custom container image based on an 
 
 To install a custom Datadog Operator image using the Helm chart, run the following:
 
-
-```console
+```shell
 helm install my-datadog-operator --set image.repository=<custom-image-repository> --set image.tag=<custom-image-tag> datadog/datadog-operator
 ```
-
 
 ## Cleanup
 
 The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog`.
 
 ```shell
-$ kubectl delete datadogagent datadog
-datadogagent.datadoghq.com/datadog deleted
+kubectl delete datadogagent datadog
 ```
+
+This command outputs `datadogagent.datadoghq.com/datadog deleted`.
 
 You can then remove the Datadog Operator with the `helm delete` command:
 
@@ -270,3 +268,5 @@ helm delete my-datadog-operator
 [7]: https://app.datadoghq.com/account/settings#api
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
+[10]: https://docs.datadoghq.com/containers/kubernetes/installation
+[11]: https://github.com/DataDog/datadog-operator/blob/main/docs/kubectl-plugin.md

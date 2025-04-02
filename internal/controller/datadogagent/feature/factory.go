@@ -31,11 +31,12 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
-	var output []Feature
+	var configuredFeatures []Feature
+	var enabledFeatures []Feature
 	var requiredComponents RequiredComponents
 
 	// to always return in feature in the same order we need to sort the map keys
@@ -49,10 +50,16 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
+		featureID := feat.ID()
 		reqComponents := feat.Configure(dda)
-		// only add feature to the output if one of the components is configured (but not necessarily required)
-		if reqComponents.IsConfigured() {
-			output = append(output, feat)
+		if reqComponents.IsEnabled() {
+			// enabled features
+			enabledFeatures = append(enabledFeatures, feat)
+			options.Logger.V(1).Info("Feature enabled", "featureID", featureID)
+		} else if reqComponents.IsConfigured() {
+			// disabled, but still possibly needing configuration features
+			configuredFeatures = append(configuredFeatures, feat)
+			options.Logger.V(1).Info("Feature configured", "featureID", featureID)
 		}
 		requiredComponents.Merge(&reqComponents)
 	}
@@ -66,9 +73,9 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		!requiredComponents.Agent.IsPrivileged() {
 
 		requiredComponents.Agent.Containers = []common.AgentContainerName{common.UnprivilegedSingleAgentContainerName}
-		return output, requiredComponents
+		return configuredFeatures, enabledFeatures, requiredComponents
 	}
-	return output, requiredComponents
+	return configuredFeatures, enabledFeatures, requiredComponents
 }
 
 var (

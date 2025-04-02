@@ -817,3 +817,38 @@ func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
 		})
 	}
 }
+
+func Test_setEnabledFeatures(t *testing.T) {
+	tests := []struct {
+		name            string
+		enabledFeatures []string
+		expected        map[string][]string
+	}{
+		{
+			name:            "empty features",
+			enabledFeatures: []string{},
+			expected:        map[string][]string{"foo": {}},
+		},
+		{
+			name:            "one feature",
+			enabledFeatures: []string{"feature1"},
+			expected:        map[string][]string{"foo": {"feature1"}},
+		},
+		{
+			name:            "multiple features",
+			enabledFeatures: []string{"feature1", "feature2"},
+			expected:        map[string][]string{"foo": {"feature1", "feature2"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mf := &metricsForwarder{
+				id: "foo",
+			}
+
+			mf.setEnabledFeatures(tt.enabledFeatures)
+			assert.Equal(t, tt.expected, mf.EnabledFeatures)
+		})
+	}
+}

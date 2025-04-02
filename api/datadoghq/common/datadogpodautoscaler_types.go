@@ -31,11 +31,11 @@ const (
 	// DatadogPodAutoscalerAutoUpdateStrategy is the default mode.
 	DatadogPodAutoscalerAutoUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Auto"
 
-	// DatadogPodAutoscalerDisabledUpdateStrategy will disable the update of the target resource.
+	// DatadogPodAutoscalerDisabledUpdateStrategy will disable the update of the target workload.
 	DatadogPodAutoscalerDisabledUpdateStrategy DatadogPodAutoscalerUpdateStrategy = "Disabled"
 )
 
-// DatadogPodAutoscalerUpdatePolicy defines the policy to update the target resource.
+// DatadogPodAutoscalerUpdatePolicy defines the policy to update the target workload.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerUpdatePolicy struct {
 	// Strategy defines the mode of the update policy.
@@ -63,7 +63,7 @@ const (
 	DatadogPodAutoscalerDisabledStrategySelect DatadogPodAutoscalerScalingStrategySelect = "Disabled"
 )
 
-// DatadogPodAutoscalerScalingPolicy defines the policy to scale the target resource.
+// DatadogPodAutoscalerScalingPolicy defines the policy to scale the target workload.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerScalingPolicy struct {
 	// Strategy is used to specify which policy should be used.
@@ -115,74 +115,74 @@ type DatadogPodAutoscalerScalingRule struct {
 	PeriodSeconds int32 `json:"periodSeconds"`
 }
 
-// DatadogPodAutoscalerTargetType defines the type of the target.
+// DatadogPodAutoscalerObjectiveType defines the type of the objective.
 // +kubebuilder:validation:Enum:=PodResource;ContainerResource
-type DatadogPodAutoscalerTargetType string
+type DatadogPodAutoscalerObjectiveType string
 
 const (
-	// DatadogPodAutoscalerPodResourceTargetType allows to set pod-level resource targets.
-	DatadogPodAutoscalerPodResourceTargetType DatadogPodAutoscalerTargetType = "PodResource"
+	// DatadogPodAutoscalerPodResourceObjectiveType allows to set pod-level resource objectives.
+	DatadogPodAutoscalerPodResourceObjectiveType DatadogPodAutoscalerObjectiveType = "PodResource"
 
-	// DatadogPodAutoscalerContainerResourceTargetType allows to set container-level resource targets.
-	DatadogPodAutoscalerContainerResourceTargetType DatadogPodAutoscalerTargetType = "ContainerResource"
+	// DatadogPodAutoscalerContainerResourceObjectiveType allows to set container-level resource objectives.
+	DatadogPodAutoscalerContainerResourceObjectiveType DatadogPodAutoscalerObjectiveType = "ContainerResource"
 )
 
-// DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target resource.
+// DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerObjective struct {
-	// Type sets the type of the target.
-	Type DatadogPodAutoscalerTargetType `json:"type"`
+	// Type sets the type of the objective.
+	Type DatadogPodAutoscalerObjectiveType `json:"type"`
 
-	// PodResource allows to set a pod-level resource target.
-	PodResource *DatadogPodAutoscalerResourceTarget `json:"podResource,omitempty"`
+	// PodResource allows to set a pod-level resource objective.
+	PodResource *DatadogPodAutoscalerPodResourceObjective `json:"podResource,omitempty"`
 
-	// ContainerResource allows to set a container-level resource target.
-	ContainerResource *DatadogPodAutoscalerContainerResourceTarget `json:"containerResource,omitempty"`
+	// ContainerResource allows to set a container-level resource objective.
+	ContainerResource *DatadogPodAutoscalerContainerResourceObjective `json:"containerResource,omitempty"`
 }
 
-// DatadogPodAutoscalerResourceTarget defines a pod-level resource target (for instance, CPU Utilization at 80%)
-// For pod-level targets, resources are the sum of all containers resources.
+// DatadogPodAutoscalerPodResourceObjective defines a pod-level resource objective (for instance, CPU Utilization at 80%)
+// For pod-level objectives, resources are the sum of all containers resources.
 // Utilization is computed from sum(usage) / sum(requests).
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerResourceTarget struct {
+type DatadogPodAutoscalerPodResourceObjective struct {
 	// Name is the name of the resource.
 	// +kubebuilder:validation:Enum:=cpu
 	Name corev1.ResourceName `json:"name"`
 
-	// Value is the value of the target.
-	Value DatadogPodAutoscalerTargetValue `json:"value"`
+	// Value is the value of the objective.
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
 }
 
-// DatadogPodAutoscalerContainerResourceTarget defines a container-level resource target (for instance, CPU Utilization for container named "foo" at 80%)
+// DatadogPodAutoscalerContainerResourceObjective defines a container-level resource objective (for instance, CPU Utilization for container named "foo" at 80%)
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerContainerResourceTarget struct {
+type DatadogPodAutoscalerContainerResourceObjective struct {
 	// Name is the name of the resource.
 	// +kubebuilder:validation:Enum:=cpu
 	Name corev1.ResourceName `json:"name"`
 
-	// Value is the value of the target.
-	Value DatadogPodAutoscalerTargetValue `json:"value"`
+	// Value is the value of the objective
+	Value DatadogPodAutoscalerObjectiveValue `json:"value"`
 
 	// Container is the name of the container.
 	Container string `json:"container"`
 }
 
-// DatadogPodAutoscalerTargetValueType specifies the type of metric being targeted, and should be either
+// DatadogPodAutoscalerObjectiveValueType specifies the type of objective value.
 // kubebuilder:validation:Enum:=Utilization
-type DatadogPodAutoscalerTargetValueType string
+type DatadogPodAutoscalerObjectiveValueType string
 
 const (
-	// DatadogPodAutoscalerUtilizationTargetValueType declares a MetricTarget is an AverageUtilization value
-	DatadogPodAutoscalerUtilizationTargetValueType DatadogPodAutoscalerTargetValueType = "Utilization"
+	// DatadogPodAutoscalerUtilizationObjectiveValueType declares an objective based on a Utilization (percentage, 0-100).
+	DatadogPodAutoscalerUtilizationObjectiveValueType DatadogPodAutoscalerObjectiveValueType = "Utilization"
 )
 
-// DatadogPodAutoscalerTargetValue defines the value of the target.
+// DatadogPodAutoscalerObjectiveValue defines the target value of the objective.
 // +kubebuilder:object:generate=true
-type DatadogPodAutoscalerTargetValue struct {
-	// Type specifies how the value is expressed (Absolute or Utilization).
-	Type DatadogPodAutoscalerTargetValueType `json:"type"`
+type DatadogPodAutoscalerObjectiveValue struct {
+	// Type specifies how the value is expressed (possible values: Utilization).
+	Type DatadogPodAutoscalerObjectiveValueType `json:"type"`
 
-	// Utilization defines a percentage of the target compared to requested resource
+	// Utilization defines a percentage of the target compared to requested workload
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100
 	Utilization *int32 `json:"utilization,omitempty"`
@@ -252,7 +252,7 @@ type DatadogPodAutoscalerStatus struct {
 	Conditions []DatadogPodAutoscalerCondition `json:"conditions,omitempty"`
 }
 
-// DatadogPodAutoscalerValueSource defines the source of the value used to scale the target resource.
+// DatadogPodAutoscalerValueSource defines the source of the value used to scale the target workload.
 type DatadogPodAutoscalerValueSource string
 
 const (
@@ -279,13 +279,13 @@ type DatadogPodAutoscalerHorizontalStatus struct {
 // DatadogPodAutoscalerHorizontalTargetStatus defines the current target of the horizontal scaling
 // +kubebuilder:object:generate=true
 type DatadogPodAutoscalerHorizontalTargetStatus struct {
-	// Source is the source of the value used to scale the target resource
+	// Source is the source of the value used to scale the target workload
 	Source DatadogPodAutoscalerValueSource `json:"source"`
 
 	// GeneratedAt is the timestamp at which the recommendation was generated
 	GeneratedAt metav1.Time `json:"generatedAt,omitempty"`
 
-	// Replicas is the desired number of replicas for the resource
+	// Replicas is the desired number of replicas for the workload
 	Replicas int32 `json:"desiredReplicas"`
 }
 

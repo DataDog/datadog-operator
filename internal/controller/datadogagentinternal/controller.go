@@ -22,6 +22,10 @@ type Reconciler struct {
 	log    logr.Logger
 }
 
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=datadoghq.com,resources=datadogagentinternals/finalizers,verbs=update
+
 // NewReconciler returns a new Reconciler object
 func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger) *Reconciler {
 	return &Reconciler{

@@ -2,7 +2,7 @@ module github.com/DataDog/datadog-operator
 
 go 1.23
 
-toolchain go1.23.5
+toolchain go1.23.6
 
 replace github.com/DataDog/extendeddaemonset v0.10.0-rc.4 => github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1
 
@@ -51,6 +51,7 @@ require (
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/text v0.21.0
 	k8s.io/kubectl v0.31.2
+	k8s.io/utils v0.0.0-20240821151609-f90d01438635
 )
 
 require (
@@ -208,7 +209,6 @@ require (
 	k8s.io/apiserver v0.31.1 // indirect
 	k8s.io/component-base v0.31.2 // indirect
 	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
-	k8s.io/utils v0.0.0-20240821151609-f90d01438635 // indirect
 	modernc.org/sqlite v1.34.1 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.30.3 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
