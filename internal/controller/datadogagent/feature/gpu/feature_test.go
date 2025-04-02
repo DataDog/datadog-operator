@@ -170,6 +170,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Name:  common.DDKubernetesPodResourcesSocket,
 				Value: path.Join(podResourcesSocketPath, "kubelet.sock"),
 			},
+			{
+				Name:  DDEnableNVMLDetectionEnvVar,
+				Value: "true",
+			},
 		}, wantSystemProbeEnvVars...)
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]

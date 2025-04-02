@@ -138,6 +138,14 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 	// Both in the core agent and the system probe
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
 
+	// env var to enable NVML detection, so that workloadmeta features depending on it
+	// can be enabled
+	nvmlDetectionEnvVar := &corev1.EnvVar{
+		Name:  DDEnableNVMLDetectionEnvVar,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, nvmlDetectionEnvVar)
+
 	// The agent check does not need to be manually enabled, the init config container will
 	// check if GPU monitoring is enabled and will enable the check automatically (see
 	// Dockerfiles/agent/cont-init.d/60-sysprobe-check.sh in the datadog-agent repo).
