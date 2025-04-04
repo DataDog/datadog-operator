@@ -94,6 +94,21 @@ func GetAgentVersionFromImage(imageConfig v2alpha1.AgentImageConfig) string {
 	return version
 }
 
+// GetImage builds the image string based on ImageConfig and the registry configuration.
+func GetImage(imageSpec *v2alpha1.AgentImageConfig, registry *string) string {
+	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
+		return imageSpec.Name
+	}
+
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
+
+	if registry != nil && *registry != "" {
+		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
+	}
+
+	return img.String()
+}
+
 // BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
 func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
 	return &corev1.EnvVar{
@@ -153,5 +168,5 @@ func OverrideAgentImage(currentImg string, overrideImg *v2alpha1.AgentImageConfi
 		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
 	}
 
-	return constants.GetImage(&overrideImgCopy, &registry)
+	return GetImage(&overrideImgCopy, &registry)
 }
