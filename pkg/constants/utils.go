@@ -14,7 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
@@ -223,19 +222,4 @@ func GetDefaultAgentDataPlaneReadinessProbe() *corev1.Probe {
 		},
 	}
 	return readinessProbe
-}
-
-// GetImage builds the image string based on ImageConfig and the registry configuration.
-func GetImage(imageSpec *v2alpha1.AgentImageConfig, registry *string) string {
-	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
-		return imageSpec.Name
-	}
-
-	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
-
-	if registry != nil && *registry != "" {
-		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
-	}
-
-	return img.String()
 }
