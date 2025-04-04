@@ -23,7 +23,7 @@ import (
 
 // ApplyGlobalDependencies applies the global dependencies for a component.
 func ApplyGlobalDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName) []error {
-	return dependencies(logger, dda, resourceManagers, componentName)
+	return createDependencies(logger, dda, resourceManagers, componentName)
 }
 
 // ApplyGlobalSettingsClusterAgent applies the global settings for the ClusterAgent component.
