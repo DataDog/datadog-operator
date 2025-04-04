@@ -29,7 +29,9 @@ func buildFeature(*feature.Options) feature.Feature {
 }
 
 type serviceDiscoveryFeature struct {
+	enabled             bool
 	networkStatsEnabled bool
+	explicitlyConfigured bool
 }
 
 // ID returns the ID of the Feature
@@ -39,15 +41,36 @@ func (f *serviceDiscoveryFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features != nil && dda.Spec.Features.ServiceDiscovery != nil && apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.Enabled) {
-		reqComp.Agent = feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+	// Always store enabled state
+	f.enabled = false
+	f.explicitlyConfigured = false
+
+	if dda.Spec.Features != nil && dda.Spec.Features.ServiceDiscovery != nil {
+		// If ServiceDiscovery is present in the spec, it's explicitly configured
+		if dda.Spec.Features.ServiceDiscovery.Enabled != nil {
+			f.explicitlyConfigured = true
+			f.enabled = apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.Enabled)
 		}
 
-		f.networkStatsEnabled = true
-		if dda.Spec.Features.ServiceDiscovery.NetworkStats != nil {
-			f.networkStatsEnabled = apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.NetworkStats.Enabled)
+		if f.enabled {
+			// Only require containers when enabled
+			reqComp.Agent = feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
+			}
+
+			f.networkStatsEnabled = true
+			if dda.Spec.Features.ServiceDiscovery.NetworkStats != nil {
+				f.networkStatsEnabled = apiutils.BoolValue(dda.Spec.Features.ServiceDiscovery.NetworkStats.Enabled)
+			}
+		}
+	}
+
+	// Always mark as configured with a dummy component that doesn't require anything
+	// This ensures the feature is included in the features list
+	if !f.enabled {
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(false),
 		}
 	}
 
@@ -69,71 +92,77 @@ func (f *serviceDiscoveryFeature) ManageClusterAgent(feature.PodTemplateManagers
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *serviceDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// annotations
-	managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
-
-	// security context capabilities
-	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
-
-	// socket volume mount (needs write perms for the system probe container but not the others)
-	procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
-	managers.Volume().AddVolume(&procdirVol)
-
-	// Needed to resolve container information
-	cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
-	managers.Volume().AddVolume(&cgroupsVol)
-
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
-	managers.Volume().AddVolume(&socketVol)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
-
-	if f.networkStatsEnabled {
-		// debugfs volume mount
-		debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
-		managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&debugfsVol)
-
-		// modules volume mount
-		modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&modulesVol)
-
-		// src volume mount
-		_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-		if providerValue != kubernetes.GKECosType {
-			srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-			managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
-			managers.Volume().AddVolume(&srcVol)
+	// Only set the environment variable if the feature was explicitly configured by the user
+	if f.explicitlyConfigured {
+		enableEnvVar := &corev1.EnvVar{
+			Name:  DDServiceDiscoveryEnabled,
+			Value: apiutils.BoolToString(&f.enabled),
 		}
+
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
+		managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
 	}
 
-	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
+	// Only proceed with additional configuration if feature is enabled
+	if f.enabled {
+		// annotations
+		managers.Annotation().AddAnnotation(common.SystemProbeAppArmorAnnotationKey, common.SystemProbeAppArmorAnnotationValue)
 
-	// env vars
-	enableEnvVar := &corev1.EnvVar{
-		Name:  DDServiceDiscoveryEnabled,
-		Value: "true",
+		// security context capabilities
+		managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
+
+		// socket volume mount (needs write perms for the system probe container but not the others)
+		procdirVol, procdirMount := volume.GetVolumes(common.ProcdirVolumeName, common.ProcdirHostPath, common.ProcdirMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommon.SystemProbeContainerName)
+		managers.Volume().AddVolume(&procdirVol)
+
+		// Needed to resolve container information
+		cgroupsVol, cgroupsMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommon.SystemProbeContainerName)
+		managers.Volume().AddVolume(&cgroupsVol)
+
+		socketVol, socketVolMount := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, false)
+		managers.Volume().AddVolume(&socketVol)
+		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommon.SystemProbeContainerName)
+
+		if f.networkStatsEnabled {
+			// debugfs volume mount
+			debugfsVol, debugfsMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)
+			managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommon.SystemProbeContainerName)
+			managers.Volume().AddVolume(&debugfsVol)
+
+			// modules volume mount
+			modulesVol, modulesVolMount := volume.GetVolumes(common.ModulesVolumeName, common.ModulesVolumePath, common.ModulesVolumePath, true)
+			managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommon.SystemProbeContainerName)
+			managers.Volume().AddVolume(&modulesVol)
+
+			// src volume mount
+			_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+			if providerValue != kubernetes.GKECosType {
+				srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+				managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+				managers.Volume().AddVolume(&srcVol)
+			}
+		}
+
+		_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(common.SystemProbeSocketVolumeName, common.SystemProbeSocketVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommon.CoreAgentContainerName)
+
+		netStatsEnvVar := &corev1.EnvVar{
+			Name:  DDServiceDiscoveryNetworkStatsEnabled,
+			Value: apiutils.BoolToString(&f.networkStatsEnabled),
+		}
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, netStatsEnvVar)
+
+		socketEnvVar := &corev1.EnvVar{
+			Name:  common.DDSystemProbeSocket,
+			Value: common.DefaultSystemProbeSocketPath,
+		}
+
+		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 	}
-
-	netStatsEnvVar := &corev1.EnvVar{
-		Name:  DDServiceDiscoveryNetworkStatsEnabled,
-		Value: apiutils.BoolToString(&f.networkStatsEnabled),
-	}
-
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
-	managers.EnvVar().AddEnvVarToInitContainer(apicommon.InitConfigContainerName, enableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, netStatsEnvVar)
-
-	socketEnvVar := &corev1.EnvVar{
-		Name:  common.DDSystemProbeSocket,
-		Value: common.DefaultSystemProbeSocketPath,
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, socketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 
 	return nil
 }
