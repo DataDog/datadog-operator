@@ -819,113 +819,33 @@ spec:
                   required:
                     - maxReplicas
                   type: object
-                fallbackApplyPolicy:
+                horizontalFallback:
                   default: {}
-                  description: FallbackApplyPolicy defines how recommendations should be applied when in fallback mode.
+                  description: HorizontalFallback defines how recommendations should be applied when in fallback mode.
                   properties:
-                    errorWindowSeconds:
-                      default: 600
-                      description: ErrorWindowSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
-                      format: int32
-                      maximum: 1200
-                      minimum: 180
-                      type: integer
                     mode:
                       default: Apply
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
                         - Apply: Apply all fallback recommendations.
-                        - Preview: Recommendations are generated, but the controller will not apply them.
                         - Disabled: Recommendations are not generated.
                       enum:
                         - Apply
-                        - Preview
                         - Disabled
                       type: string
-                    staleWindowSeconds:
-                      default: 600
-                      description: StaleWindowSeconds defines how long before metrics are considered to be stale.
-                      format: int32
-                      maximum: 1200
-                      minimum: 30
-                      type: integer
+                    triggers:
+                      default: {}
+                      description: Triggers defines the triggers that will generate recommendations.
+                      properties:
+                        staleRecommendationThresholdSeconds:
+                          default: 600
+                          description: StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
+                          format: int32
+                          maximum: 1200
+                          minimum: 100
+                          type: integer
+                      type: object
                   type: object
-                fallbackObjectives:
-                  description: |-
-                    Objectives are the objectives to reach and maintain for the target resource when in fallback mode.
-                    Default to a single objective to maintain 80% POD CPU utilization.
-                  items:
-                    description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
-                    properties:
-                      containerResource:
-                        description: ContainerResource allows to set a container-level resource objective.
-                        properties:
-                          container:
-                            description: Container is the name of the container.
-                            type: string
-                          name:
-                            description: Name is the name of the resource.
-                            enum:
-                              - cpu
-                            type: string
-                          value:
-                            description: Value is the value of the objective
-                            properties:
-                              type:
-                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                type: string
-                              utilization:
-                                description: Utilization defines a percentage of the target compared to requested workload
-                                format: int32
-                                maximum: 100
-                                minimum: 0
-                                type: integer
-                            required:
-                              - type
-                            type: object
-                        required:
-                          - container
-                          - name
-                          - value
-                        type: object
-                      podResource:
-                        description: PodResource allows to set a pod-level resource objective.
-                        properties:
-                          name:
-                            description: Name is the name of the resource.
-                            enum:
-                              - cpu
-                            type: string
-                          value:
-                            description: Value is the value of the objective.
-                            properties:
-                              type:
-                                description: 'Type specifies how the value is expressed (possible values: Utilization).'
-                                type: string
-                              utilization:
-                                description: Utilization defines a percentage of the target compared to requested workload
-                                format: int32
-                                maximum: 100
-                                minimum: 0
-                                type: integer
-                            required:
-                              - type
-                            type: object
-                        required:
-                          - name
-                          - value
-                        type: object
-                      type:
-                        description: Type sets the type of the objective.
-                        enum:
-                          - PodResource
-                          - ContainerResource
-                        type: string
-                    required:
-                      - type
-                    type: object
-                  type: array
-                  x-kubernetes-list-type: atomic
                 objectives:
                   description: |-
                     Objectives are the objectives to reach and maintain for the target resource.

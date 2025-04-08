@@ -49,6 +49,10 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
+//   horizontalFallback:
+//     mode: Apply|Disabled
+//     triggers:
+//       staleRecommendationThresholdSeconds: 600
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -83,16 +87,10 @@ type DatadogPodAutoscalerSpec struct {
 	// +optional
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
-	// FallbackApplyPolicy defines how recommendations should be applied when in fallback mode.
+	// HorizontalFallback defines how recommendations should be applied when in fallback mode.
 	// +optional
 	// +kubebuilder:default={}
-	FallbackApplyPolicy *DatadogPodAutoscalerFallbackApplyPolicy `json:"fallbackApplyPolicy,omitempty"`
-
-	// Objectives are the objectives to reach and maintain for the target resource when in fallback mode.
-	// Default to a single objective to maintain 80% POD CPU utilization.
-	// +listType=atomic
-	// +optional
-	FallbackObjectives []common.DatadogPodAutoscalerObjective `json:"fallbackObjectives,omitempty"`
+	HorizontalFallback *DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontalFallback,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
@@ -111,15 +109,12 @@ const (
 )
 
 // DatadogPodAutoscalerFallbackMode specifies if the controller should apply/generate recommendations in fallback mode.
-// +kubebuilder:validation:Enum:=Apply;Preview;Disabled
+// +kubebuilder:validation:Enum:=Apply;Disabled
 type DatadogPodAutoscalerFallbackMode string
 
 const (
 	// DatadogPodAutoscalerFallbackModeApply allows the controller to apply all recommendations in fallback mode
 	DatadogPodAutoscalerFallbackModeApply DatadogPodAutoscalerFallbackMode = "Apply"
-
-	// DatadogPodAutoscalerFallbackModePreview generates recommendations but doesn't allow the controller to apply any in fallback mode
-	DatadogPodAutoscalerFallbackModePreview DatadogPodAutoscalerFallbackMode = "Preview"
 
 	// DatadogPodAutoscalerFallbackModeDisabled doesn't allow the controller to apply any recommendations in fallback mode
 	DatadogPodAutoscalerFallbackModeDisabled DatadogPodAutoscalerFallbackMode = "Disabled"
@@ -145,29 +140,29 @@ type DatadogPodAutoscalerApplyPolicy struct {
 	ScaleDown *common.DatadogPodAutoscalerScalingPolicy `json:"scaleDown,omitempty"`
 }
 
-// DatadogPodAutoscalerFallbackApplyPolicy defines how recommendations should be applied in fallback mode.
-type DatadogPodAutoscalerFallbackApplyPolicy struct {
+// DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
+type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 	// Mode determines recommendations that should be applied by the controller:
 	// - Apply: Apply all fallback recommendations.
-	// - Preview: Recommendations are generated, but the controller will not apply them.
 	// - Disabled: Recommendations are not generated.
 	// +optional
 	// +kubebuilder:default=Apply
 	Mode DatadogPodAutoscalerFallbackMode `json:"mode"`
 
-	// ErrorWindowSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
+	// Triggers defines the triggers that will generate recommendations.
 	// +optional
-	// +kubebuilder:default=600
-	// +kubebuilder:validation:Minimum=180
-	// +kubebuilder:validation:Maximum=1200
-	ErrorWindowSeconds int32 `json:"errorWindowSeconds,omitempty"`
+	// +kubebuilder:default={}
+	Triggers HorizontalFallbackTriggers `json:"triggers,omitempty"`
+}
 
-	// StaleWindowSeconds defines how long before metrics are considered to be stale.
+// HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
+type HorizontalFallbackTriggers struct {
+	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
 	// +optional
 	// +kubebuilder:default=600
-	// +kubebuilder:validation:Minimum=30
+	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:Maximum=1200
-	StaleWindowSeconds int32 `json:"staleWindowSeconds,omitempty"`
+	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
