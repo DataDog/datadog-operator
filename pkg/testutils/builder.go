@@ -179,6 +179,16 @@ func (builder *DatadogAgentBuilder) WithProcessChecksInCoreAgent(enabled bool) *
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithWorkloadAutoscalerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.Autoscaling = &v2alpha1.AutoscalingFeatureConfig{
+		Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(enabled),
+		},
+	}
+
+	return builder
+}
+
 // Admission Controller
 func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
@@ -392,8 +402,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *Data
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData =
-		apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
@@ -579,6 +588,12 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomConfigData(cus
 	builder.datadogAgent.Spec.Features.OrchestratorExplorer.Conf = &v2alpha1.CustomConfig{
 		ConfigData: &customConfigData,
 	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomResources(customResources []string) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.CustomResources = customResources
 	return builder
 }
 
