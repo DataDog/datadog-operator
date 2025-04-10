@@ -36,7 +36,7 @@ import (
 //           periodSeconds: 60
 //   objectives:
 //     - type: PodResource
-//       resource:
+//       podResource:
 //         name: cpu
 //         value:
 //           type: Absolute|Utilization
