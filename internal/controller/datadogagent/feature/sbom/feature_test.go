@@ -146,7 +146,7 @@ func Test_sbomFeature_Configure(t *testing.T) {
 		wantCoreAgentHostEnvVars := []*corev1.EnvVar{
 			{
 				Name:  common.DDHostRootEnvVar,
-				Value: "/host",
+				Value: common.HostRootMountPath,
 			},
 		}
 
@@ -157,43 +157,8 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      common.SystemProbeOSReleaseDirVolumeName,
-				MountPath: common.SystemProbeOSReleaseDirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      apkDirVolumeName,
-				MountPath: apkDirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      dpkgDirVolumeName,
-				MountPath: dpkgDirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      rpmDirVolumeName,
-				MountPath: rpmDirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      redhatReleaseVolumeName,
-				MountPath: redhatReleaseMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      fedoraReleaseVolumeName,
-				MountPath: fedoraReleaseMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      lsbReleaseVolumeName,
-				MountPath: lsbReleaseMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      systemReleaseVolumeName,
-				MountPath: systemReleaseMountPath,
+				Name:      common.HostRootVolumeName,
+				MountPath: common.HostRootMountPath,
 				ReadOnly:  true,
 			},
 		}
@@ -203,66 +168,10 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 		wantVolumes := []corev1.Volume{
 			{
-				Name: common.SystemProbeOSReleaseDirVolumeName,
+				Name: common.HostRootVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: common.SystemProbeOSReleaseDirVolumePath,
-					},
-				},
-			},
-			{
-				Name: apkDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: apkDirVolumePath,
-					},
-				},
-			},
-			{
-				Name: dpkgDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: dpkgDirVolumePath,
-					},
-				},
-			},
-			{
-				Name: rpmDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: rpmDirVolumePath,
-					},
-				},
-			},
-			{
-				Name: redhatReleaseVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: redhatReleaseVolumePath,
-					},
-				},
-			},
-			{
-				Name: fedoraReleaseVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: fedoraReleaseVolumePath,
-					},
-				},
-			},
-			{
-				Name: lsbReleaseVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: lsbReleaseVolumePath,
-					},
-				},
-			},
-			{
-				Name: systemReleaseVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: systemReleaseVolumePath,
+						Path: common.HostRootHostPath,
 					},
 				},
 			},
