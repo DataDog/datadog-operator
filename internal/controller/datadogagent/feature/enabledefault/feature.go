@@ -17,6 +17,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
@@ -113,16 +114,25 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		agentContainers = append(agentContainers, apicommon.AgentDataPlaneContainerName)
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{
-			IsRequired: &trueValue,
-			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
-		},
+	reqComps := feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: &trueValue,
 			Containers: agentContainers,
 		},
 	}
+
+	// If the ClusterAgent is disabled, return the required components as is.
+	if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		if utils.BoolValue(clusterAgentOverride.Disabled) {
+			return reqComps
+		}
+	}
+
+	// Else, add the ClusterAgent container to the list of required containers for the enabledefault feature.
+	reqComps.ClusterAgent.IsRequired = &trueValue
+	reqComps.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
+
+	return reqComps
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
