@@ -115,15 +115,15 @@ func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi
 	return sloListResponse, nil
 }
 
-func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloID string) error {
+func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloID string) (int, error) {
 	force := "false"
 	optionalParams := datadogV1.DeleteSLOOptionalParameters{
 		Force: &force,
 	}
-	if _, _, err := client.DeleteSLO(auth, sloID, optionalParams); err != nil {
-		return translateClientError(err, "error deleting SLO")
+	if _, localVarHTTPResponse, err := client.DeleteSLO(auth, sloID, optionalParams); err != nil {
+		return localVarHTTPResponse.StatusCode, translateClientError(err, "error deleting SLO")
 	}
-	return nil
+	return 200, nil
 }
 
 func translateClientError(err error, msg string) error {
