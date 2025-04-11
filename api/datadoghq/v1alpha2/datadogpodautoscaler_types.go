@@ -36,7 +36,7 @@ import (
 //           periodSeconds: 60
 //   objectives:
 //     - type: PodResource
-//       resource:
+//       podResource:
 //         name: cpu
 //         value:
 //           type: Absolute|Utilization
@@ -49,6 +49,10 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
+//   horizontalFallback:
+//     mode: Apply|Disabled
+//     triggers:
+//       staleRecommendationThresholdSeconds: 600
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -82,6 +86,11 @@ type DatadogPodAutoscalerSpec struct {
 	// +listType=atomic
 	// +kubebuilder:validation:MinItems=1
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
+
+	// HorizontalFallback defines how recommendations should be applied when in fallback mode.
+	// +optional
+	// +kubebuilder:default={}
+	HorizontalFallback *DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontalFallback,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
@@ -117,6 +126,29 @@ type DatadogPodAutoscalerApplyPolicy struct {
 
 	// ScaleDown defines the policy to scale down the target resource.
 	ScaleDown *common.DatadogPodAutoscalerScalingPolicy `json:"scaleDown,omitempty"`
+}
+
+// DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
+type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
+	// Enabled determines whether recommendations should be applied by the controller:
+	// +optional
+	// +kubebuilder:default=true
+	Enabled bool `json:"enabled"`
+
+	// Triggers defines the triggers that will generate recommendations.
+	// +optional
+	// +kubebuilder:default={}
+	Triggers HorizontalFallbackTriggers `json:"triggers,omitempty"`
+}
+
+// HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
+type HorizontalFallbackTriggers struct {
+	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
+	// +optional
+	// +kubebuilder:default=600
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=1200
+	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
 }
 
 // +kubebuilder:object:root=true
