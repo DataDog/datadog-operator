@@ -33,6 +33,13 @@
       ' \+',
     ]
 
+  [[linters-settings.depguard.rules.main.deny]]
+    pkg = "math/rand$"
+    desc = "Please use math/rand/v2 instead of math/rand."
+  [[linters-settings.depguard.rules.main.deny]]
+    pkg = "github.com/pkg/errors"
+    desc = "Please use standard errors package."
+
 [linters]
   enable-all = true
   disable = [
@@ -88,7 +95,6 @@
     "misspell",
     "rowserrcheck",
     "sqlclosecheck",
-    "depguard",
     "perfsprint",
     "inamedparam",
     "nakedret",
