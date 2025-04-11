@@ -284,14 +284,10 @@
           "default": {},
           "description": "HorizontalFallback defines how recommendations should be applied when in fallback mode.",
           "properties": {
-            "mode": {
-              "default": "Apply",
-              "description": "Mode determines recommendations that should be applied by the controller:\n- Apply: Apply all fallback recommendations.\n- Disabled: Recommendations are not generated.",
-              "enum": [
-                "Apply",
-                "Disabled"
-              ],
-              "type": "string"
+            "enabled": {
+              "default": true,
+              "description": "Enabled determines whether recommendations should be applied by the controller:",
+              "type": "boolean"
             },
             "triggers": {
               "additionalProperties": false,

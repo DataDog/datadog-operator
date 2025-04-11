@@ -823,16 +823,10 @@ spec:
                   default: {}
                   description: HorizontalFallback defines how recommendations should be applied when in fallback mode.
                   properties:
-                    mode:
-                      default: Apply
-                      description: |-
-                        Mode determines recommendations that should be applied by the controller:
-                        - Apply: Apply all fallback recommendations.
-                        - Disabled: Recommendations are not generated.
-                      enum:
-                        - Apply
-                        - Disabled
-                      type: string
+                    enabled:
+                      default: true
+                      description: 'Enabled determines whether recommendations should be applied by the controller:'
+                      type: boolean
                     triggers:
                       default: {}
                       description: Triggers defines the triggers that will generate recommendations.

@@ -108,18 +108,6 @@ const (
 	DatadogPodAutoscalerApplyModePreview DatadogPodAutoscalerApplyMode = "Preview"
 )
 
-// DatadogPodAutoscalerFallbackMode specifies if the controller should apply/generate recommendations in fallback mode.
-// +kubebuilder:validation:Enum:=Apply;Disabled
-type DatadogPodAutoscalerFallbackMode string
-
-const (
-	// DatadogPodAutoscalerFallbackModeApply allows the controller to apply all recommendations in fallback mode
-	DatadogPodAutoscalerFallbackModeApply DatadogPodAutoscalerFallbackMode = "Apply"
-
-	// DatadogPodAutoscalerFallbackModeDisabled doesn't allow the controller to apply any recommendations in fallback mode
-	DatadogPodAutoscalerFallbackModeDisabled DatadogPodAutoscalerFallbackMode = "Disabled"
-)
-
 // DatadogPodAutoscalerApplyPolicy defines how recommendations should be applied.
 type DatadogPodAutoscalerApplyPolicy struct {
 	// Mode determines recommendations that should be applied by the controller:
@@ -142,12 +130,10 @@ type DatadogPodAutoscalerApplyPolicy struct {
 
 // DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
 type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
-	// Mode determines recommendations that should be applied by the controller:
-	// - Apply: Apply all fallback recommendations.
-	// - Disabled: Recommendations are not generated.
+	// Enabled determines whether recommendations should be applied by the controller:
 	// +optional
-	// +kubebuilder:default=Apply
-	Mode DatadogPodAutoscalerFallbackMode `json:"mode"`
+	// +kubebuilder:default=true
+	Enabled bool `json:"enabled"`
 
 	// Triggers defines the triggers that will generate recommendations.
 	// +optional
