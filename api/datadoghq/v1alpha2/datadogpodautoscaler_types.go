@@ -50,7 +50,7 @@ import (
 //           absolute: 500m
 //           utilization: 80
 //   horizontalFallback:
-//     mode: Apply|Disabled
+//     enabled: true
 //     triggers:
 //       staleRecommendationThresholdSeconds: 600
 //   constraints:
