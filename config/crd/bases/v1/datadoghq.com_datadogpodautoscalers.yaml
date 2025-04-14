@@ -819,25 +819,30 @@ spec:
                   required:
                     - maxReplicas
                   type: object
-                horizontalFallback:
+                fallback:
                   default: {}
-                  description: HorizontalFallback defines how recommendations should be applied when in fallback mode.
+                  description: Fallback defines how recommendations should be applied when in fallback mode.
                   properties:
-                    enabled:
-                      default: true
-                      description: 'Enabled determines whether recommendations should be applied by the controller:'
-                      type: boolean
-                    triggers:
+                    horizontal:
                       default: {}
-                      description: Triggers defines the triggers that will generate recommendations.
+                      description: Horizontal configures the behavior during horizontal fallback mode.
                       properties:
-                        staleRecommendationThresholdSeconds:
-                          default: 600
-                          description: StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
-                          format: int32
-                          maximum: 1200
-                          minimum: 100
-                          type: integer
+                        enabled:
+                          default: true
+                          description: 'Enabled determines whether recommendations should be applied by the controller:'
+                          type: boolean
+                        triggers:
+                          default: {}
+                          description: Triggers defines the triggers that will generate recommendations.
+                          properties:
+                            staleRecommendationThresholdSeconds:
+                              default: 600
+                              description: StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
+                              format: int32
+                              maximum: 1200
+                              minimum: 100
+                              type: integer
+                          type: object
                       type: object
                   type: object
                 objectives:

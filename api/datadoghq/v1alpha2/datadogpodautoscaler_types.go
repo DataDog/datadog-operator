@@ -49,10 +49,11 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
-//   horizontalFallback:
-//     enabled: true
-//     triggers:
-//       staleRecommendationThresholdSeconds: 600
+//   fallback:
+// 	   horizontal:
+//       enabled: true
+//       triggers:
+//         staleRecommendationThresholdSeconds: 600
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -87,10 +88,10 @@ type DatadogPodAutoscalerSpec struct {
 	// +optional
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
 
-	// HorizontalFallback defines how recommendations should be applied when in fallback mode.
+	// Fallback defines how recommendations should be applied when in fallback mode.
 	// +optional
 	// +kubebuilder:default={}
-	HorizontalFallback *DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontalFallback,omitempty"`
+	Fallback *DatadogFallbackPolicy `json:"fallback,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
@@ -126,6 +127,14 @@ type DatadogPodAutoscalerApplyPolicy struct {
 
 	// ScaleDown defines the policy to scale down the target resource.
 	ScaleDown *common.DatadogPodAutoscalerScalingPolicy `json:"scaleDown,omitempty"`
+}
+
+// DatadogFallbackPolicy configures the behavior during fallback mode.
+type DatadogFallbackPolicy struct {
+	// Horizontal configures the behavior during horizontal fallback mode.
+	// +optional
+	// +kubebuilder:default={}
+	Horizontal DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontal,omitempty"`
 }
 
 // DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
