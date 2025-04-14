@@ -114,6 +114,7 @@ type options struct {
 	edsCanaryAutoFailEnabled               bool
 	edsCanaryAutoFailMaxRestarts           int
 	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
+	edsSlowStartAdditiveIncrease           string
 	supportCilium                          bool
 	datadogAgentEnabled                    bool
 	datadogMonitorEnabled                  bool
@@ -164,6 +165,7 @@ func (opts *options) Parse() {
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.StringVar(&opts.edsMaxPodUnavailable, "edsMaxPodUnavailable", "", "ExtendedDaemonset number of max unavailable pods during the rolling update")
+	flag.StringVar(&opts.edsSlowStartAdditiveIncrease, "edsSlowStartAdditiveIncrease", "", "ExtendedDaemonset slow start additive increase")
 	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "edsMaxPodSchedulerFailure", "", "ExtendedDaemonset number of max pod scheduler failures")
 	flag.DurationVar(&opts.edsCanaryDuration, "edsCanaryDuration", 10*time.Minute, "ExtendedDaemonset canary duration")
 	flag.StringVar(&opts.edsCanaryReplicas, "edsCanaryReplicas", "", "ExtendedDaemonset number of canary pods")
@@ -295,6 +297,7 @@ func run(opts *options) error {
 		SupportExtendedDaemonset: controller.ExtendedDaemonsetOptions{
 			Enabled:                             opts.supportExtendedDaemonset,
 			MaxPodUnavailable:                   opts.edsMaxPodUnavailable,
+			SlowStartAdditiveIncrease:           opts.edsSlowStartAdditiveIncrease,
 			CanaryDuration:                      opts.edsCanaryDuration,
 			CanaryReplicas:                      opts.edsCanaryReplicas,
 			CanaryAutoPauseEnabled:              opts.edsCanaryAutoPauseEnabled,
