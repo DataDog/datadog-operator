@@ -1,7 +1,9 @@
 name: Backport PR
 on:
+  workflow_dispatch:
   pull_request:
     types: [ labeled ]
+    branches: [ swang392/backport-milestone-fix ]  # Only run on your test branch
 
 permissions: {}
 
@@ -10,15 +12,13 @@ jobs:
     name: Backport PR
     runs-on: ubuntu-latest
     if: >
-        github.event.action == 'labeled'
-        && github.event.pull_request.merged_at != null
-        && contains(github.event.label.name, 'backport/')
+        (github.event_name == 'workflow_dispatch' || 
+        (github.event.action == 'labeled'
+        && contains(github.event.label.name, 'backport/')))
     permissions:
       contents: write
       pull-requests: write
       issues: write
-    env:
-      BRANCH_NAME: ${{ replace(github.event.label.name, 'backport/', '') }}
     steps:
       - name: Create app token
         uses: actions/create-github-app-token@21cfef2b496dd8ef5b904c159339626a10ad380e # v1.11.6
@@ -26,8 +26,15 @@ jobs:
         with:
           app-id: ${{ secrets.DD_GITHUBOPS_TOKEN_APP_ID }}
           private-key: ${{ secrets.DD_GITHUBOPS_TOKEN_PRIVATE_KEY }}
+      - name: Extract base branch
+        id: extract-base
+        run: |
+          BASE=${GITHUB_EVENT_LABEL_NAME#backport/}
+          echo "base=$BASE" >> $GITHUB_OUTPUT
+
       - name: Create backport PR
         uses: tibdex/backport@9565281eda0731b1d20c4025c43339fb0a23812e # v2.0.4
+        id: backport
         with:
           label_pattern: "^backport/(?<base>([^ ]+))$" 
           labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot']) %>"
@@ -39,15 +46,14 @@ jobs:
             ___
 
             <%- body %>
-      
       - name: Parse backport PR number
         run: |
           echo "CREATED=${{ steps.backport.outputs.created_pull_requests }}" >> $GITHUB_ENV
-          PR_NUM=$(echo "$CREATED" | jq -r ".\"${BRANCH_NAME}\"")
+          PR_NUM=$(echo "$CREATED" | jq -r ".\"${{ steps.extract-base.outputs.base }}\"")
           echo "PR_NUMBER=$PR_NUM" >> $GITHUB_ENV
 
       - name: Copy milestone to backport PR
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/github-script@v6
         env:
           PR_NUMBER: ${{ env.PR_NUMBER }}
         with:
@@ -61,6 +67,6 @@ jobs:
             await github.rest.issues.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: parseInt(process.env.PR_NUMBER, 10)
+              issue_number: parseInt(process.env.PR_NUMBER, 10),
               milestone: orig.milestone.number
             });
