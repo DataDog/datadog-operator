@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package enabledefault
+package component
 
 import (
 	"testing"
@@ -42,7 +42,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 					Name: &tt.overrideAgentName,
 				}).
 				Build()
-			dsName := getDaemonSetNameFromDatadogAgent(dda)
+			dsName := GetDaemonSetNameFromDatadogAgent(dda)
 			assert.Equal(t, tt.expectedName, dsName)
 		})
 	}
@@ -77,7 +77,7 @@ func Test_getDeploymentNameFromDatadogAgent(t *testing.T) {
 					Name: &tt.overrideClusterAgentName,
 				}).
 				Build()
-			deployName := getDeploymentNameFromDatadogAgent(dda)
+			deployName := GetDeploymentNameFromDatadogAgent(dda)
 			assert.Equal(t, tt.expectedName, deployName)
 		})
 	}
