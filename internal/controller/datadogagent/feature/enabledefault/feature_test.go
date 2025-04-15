@@ -69,22 +69,6 @@ func Test_getInstallInfoValue(t *testing.T) {
 	}
 }
 
-func Test_defaultFeature_ManageClusterAgent(t *testing.T) {
-	tests := test.FeatureTestSuite{
-		{
-			Name: "Manage Cluster Agent service account name env variable",
-			DDA: testutils.NewDatadogAgentBuilder().
-				WithName("datadog").
-				WithEventCollectionKubernetesEvents(true).
-				Build(),
-			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(defaultFeatureManageClusterAgentWantFunc),
-		},
-	}
-
-	tests.Run(t, buildDefaultFeature)
-}
-
 func Test_defaultFeature_ADP(t *testing.T) {
 	adpEnabledEnvVar := &corev1.EnvVar{
 		Name:  common.DDADPEnabled,

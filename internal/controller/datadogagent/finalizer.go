@@ -18,6 +18,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -92,6 +93,23 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
+
+	// Global dependencies
+	if requiredComponents.ClusterAgent.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
+	if requiredComponents.Agent.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
+	if requiredComponents.ClusterChecksRunner.IsEnabled() {
+		if err := global.ApplyGlobalDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName); len(err) > 0 {
+			errs = append(errs, err...)
+		}
+	}
 
 	// Set up dependencies required by enabled features
 	for _, feat := range enabledFeatures {
