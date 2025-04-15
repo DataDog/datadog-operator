@@ -79,7 +79,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 		}
 		if config.Kubelet.PodResourcesSocketPath != "" {
 			manager.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  DDKubernetesPodResourcesSocket,
+				Name:  common.DDKubernetesPodResourcesSocket,
 				Value: path.Join(config.Kubelet.PodResourcesSocketPath, "kubelet.sock"),
 			})
 

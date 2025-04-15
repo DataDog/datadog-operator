@@ -27,16 +27,15 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-func dependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) []error {
+func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) []error {
 	var errs []error
 	// Credentials
-	if err := credentialDependencies(logger, dda, manager); err != nil {
+	if err := addCredentialDependencies(logger, dda, manager); err != nil {
 		errs = append(errs, err)
 	}
 
 	if componentName == v2alpha1.ClusterAgentComponentName {
-		// DCA token
-		if err := dcaTokenDependencies(logger, dda, manager); err != nil {
+		if err := addDCATokenDependencies(logger, dda, manager); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -52,19 +51,19 @@ func dependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager featur
 	}
 
 	// Network policy
-	if err := networkPolicyDependencies(dda, manager, componentName); err != nil {
+	if err := addNetworkPolicyDependencies(dda, manager, componentName); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Secret backend
-	if err := secretBackendDependencies(logger, dda, manager, componentName); err != nil {
+	if err := addSecretBackendDependencies(logger, dda, manager, componentName); err != nil {
 		errs = append(errs, err)
 	}
 
 	return nil
 }
 
-func credentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func addCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	// Prioritize existing secrets
 	// Credentials should be non-nil from validation
 	global := dda.Spec.Global
@@ -101,7 +100,7 @@ func credentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, mana
 	return nil
 }
 
-func dcaTokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func addDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	global := dda.Spec.Global
 	var token string
 
@@ -223,7 +222,7 @@ func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAg
 	return nil
 }
 
-func networkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
+func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
 	if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
 		switch flavor {
@@ -250,7 +249,7 @@ func networkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Resou
 	return nil
 }
 
-func secretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, component v2alpha1.ComponentName) error {
+func addSecretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, component v2alpha1.ComponentName) error {
 	global := dda.Spec.Global
 	if global.SecretBackend != nil {
 		var componentSaName string
