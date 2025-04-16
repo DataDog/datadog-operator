@@ -639,7 +639,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
 			}
-			ApplyGlobalDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName)
+			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
 			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)

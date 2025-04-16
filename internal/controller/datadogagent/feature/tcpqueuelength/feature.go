@@ -55,7 +55,7 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

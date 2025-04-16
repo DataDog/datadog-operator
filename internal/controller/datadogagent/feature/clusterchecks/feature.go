@@ -90,7 +90,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	return reqComp
 }
 
-func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	policyName, podSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
 	_, ccrPodSelector := objects.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterChecksRunnerComponentName)
 	if f.createKubernetesNetworkPolicy {

@@ -7,11 +7,14 @@ package global
 
 import (
 	"fmt"
+	"os"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func isValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
@@ -50,4 +53,25 @@ func setImageRegistry(manager feature.PodTemplateManagers, dda *v2alpha1.Datadog
 	}
 
 	return ""
+}
+
+func getInstallInfoValue() string {
+	toolVersion := "unknown"
+	if envVar := os.Getenv(InstallInfoToolVersion); envVar != "" {
+		toolVersion = envVar
+	}
+
+	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
+}
+
+func useCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
+	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
+			// Only ConfigMap is supported for now
+			if container.SeccompConfig != nil && container.SeccompConfig.CustomProfile != nil && container.SeccompConfig.CustomProfile.ConfigMap != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
