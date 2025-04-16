@@ -286,11 +286,14 @@ func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.Datad
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
 		if datadogID != "" {
 			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-			if err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID); err != nil {
-				logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
+			httpErrorCode, err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID)
+			if err != nil && httpErrorCode != 404 {
 				return err
+			} else if httpErrorCode == 404 {
+				logger.Info("Object not found, nothing to delete", "kind", kind, "ID", datadogID)
+			} else {
+				logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
 			}
-			logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
 		}
 		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
 		return nil
