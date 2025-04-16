@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -45,6 +46,7 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 
 	if options != nil {
 		orchestratorExplorerFeat.logger = options.Logger
+		orchestratorExplorerFeat.k8sClient = options.K8sClient
 	}
 
 	return orchestratorExplorerFeat
@@ -61,6 +63,8 @@ type orchestratorExplorerFeature struct {
 	customConfig             *v2alpha1.CustomConfig
 	customResources          []string
 	configConfigMapName      string
+	remoteConfigEnabled      bool
+	k8sClient                client.Client
 
 	logger                      logr.Logger
 	customConfigAnnotationKey   string
@@ -79,6 +83,7 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
+	f.remoteConfigEnabled = f.isRemoteConfigEnabled(&dda.Status)
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	f.mergeConfigs(&dda.Spec, &dda.Status)
@@ -118,7 +123,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		}
 
 		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
+		f.configConfigMapName = f.getConfigConfigMapName()
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
@@ -181,8 +186,12 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
-	// OR if the default configMap is needed.
+	// Creates the final ConfigMap for the orchestrator explorer feature.
+	//
+	// Behavior depends on the presence of custom config and remote config:
+	// - If CustomConfig.ConfigMap is set, it attempts to merge it with remote resources (if enabled).
+	// - If CustomConfig.ConfigData is set, it parses and optionally merges it with remote resources.
+	// - If neither is set, the default config is used, with optional merging if remote config is enabled.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
 	if err != nil {
 		return err
@@ -211,9 +220,19 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 	var vol corev1.Volume
 	var volMount corev1.VolumeMount
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
-		// Custom config is referenced via ConfigMap
+		configMap := f.customConfig.ConfigMap
+
+		// If remote config is enabled, ignore the user-provided ConfigMap reference,
+		// since a new merged ConfigMap will be generated and mounted instead.
+		if f.remoteConfigEnabled {
+			configMap = nil
+		}
+
+		// Mount the appropriate ConfigMap:
+		// - If remote config is disabled and a custom ConfigMap is provided, use it.
+		// - Otherwise, mount the generated ConfigMap by name.
 		vol, volMount = volume.GetVolumesFromConfigMap(
-			f.customConfig.ConfigMap,
+			configMap,
 			orchestratorExplorerVolumeName,
 			f.configConfigMapName,
 			orchestratorExplorerFolderName,
@@ -277,4 +296,16 @@ func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature
 	}
 
 	return nil
+}
+
+func (f *orchestratorExplorerFeature) isRemoteConfigEnabled(ddaStatus *v2alpha1.DatadogAgentStatus) bool {
+	if ddaStatus == nil ||
+		ddaStatus.RemoteConfigConfiguration == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
+		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
+		return false
+	}
+
+	return len(ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources) > 0
 }

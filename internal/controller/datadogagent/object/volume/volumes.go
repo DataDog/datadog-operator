@@ -89,7 +89,7 @@ func GetVolumeFromConfigMap(configMap *v2alpha1.ConfigMapConfig, defaultConfigMa
 		},
 	}
 
-	if len(configMap.Items) > 0 {
+	if configMap != nil && len(configMap.Items) > 0 {
 		cmSource.Items = configMap.Items
 	}
 
