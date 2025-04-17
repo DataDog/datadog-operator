@@ -18,6 +18,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 type expectedPorts struct {
@@ -245,6 +247,27 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 			},
 				defaultAnnotations),
 		},
+		{
+			Name: "otel agent enabled with service ports",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfig().
+				Build(),
+			WantConfigure: true,
+			StoreOption: &store.StoreOptions{
+				PlatformInfo: kubernetes.NewPlatformInfo(
+					&version.Info{
+						Major:      "1",
+						Minor:      "32",
+						GitVersion: "1.32.0",
+					},
+					nil,
+					nil,
+				),
+			},
+			WantDependenciesFunc: testExpectedDepsCreatedCM,
+			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, defaultLocalObjectReferenceName, defaultExpectedEnvVars, defaultAnnotations),
+		},
 	}
 	tests.Run(t, buildOtelCollectorFeature)
 }
@@ -387,4 +410,26 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
+
+	serviceObject, found := store.Get(kubernetes.ServicesKind, "", "-agent")
+	if t.Name() == "Test_otelCollectorFeature_Configure/otel_agent_enabled_with_service_ports" {
+		assert.True(t, found)
+		service := serviceObject.(*corev1.Service)
+		assert.Equal(t, []corev1.ServicePort{
+			{
+				Name:       "otlpgrpcport",
+				Port:       4317,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(4317),
+			},
+			{
+				Name:       "otlphttpport",
+				Port:       4318,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(4318),
+			},
+		}, service.Spec.Ports)
+	} else {
+		assert.False(t, found)
+	}
 }
