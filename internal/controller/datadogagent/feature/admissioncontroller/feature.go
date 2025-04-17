@@ -240,7 +240,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	return reqComp
 }
 
-func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	ns := f.owner.GetNamespace()
 	rbacName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
 

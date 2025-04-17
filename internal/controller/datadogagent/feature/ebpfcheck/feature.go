@@ -51,7 +51,7 @@ func (f *ebpfCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *ebpfCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

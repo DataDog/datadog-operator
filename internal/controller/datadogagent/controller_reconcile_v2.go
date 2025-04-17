@@ -69,7 +69,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, requiredComponents, resourceManagers); err != nil {
+	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {

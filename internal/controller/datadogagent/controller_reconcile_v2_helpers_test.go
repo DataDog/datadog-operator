@@ -35,7 +35,7 @@ func (df *dummyFeature) Configure(dda *datadoghqv2alpha1.DatadogAgent) feature.R
 }
 
 // ManageDependencies returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return df.ManageDependenciesError
 }
 
@@ -83,7 +83,6 @@ func Test_setupDependencies(t *testing.T) {
 func Test_manageFeatureDependencies(t *testing.T) {
 	dummyLogger := logr.Discard()
 	dummyResMgrs := feature.NewResourceManagers(nil) // passing nil for simplicity
-	dummyRequiredComponents := feature.RequiredComponents{}
 
 	// One feature succeeds and one fails.
 	f1 := &dummyFeature{
@@ -96,11 +95,11 @@ func Test_manageFeatureDependencies(t *testing.T) {
 
 	r := &Reconciler{}
 	// Test when all features succeed.
-	err := r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1}, dummyRequiredComponents, dummyResMgrs)
+	err := r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1}, dummyResMgrs)
 	require.NoError(t, err)
 
 	// Test with one failing feature.
-	err = r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1, f2}, dummyRequiredComponents, dummyResMgrs)
+	err = r.manageFeatureDependencies(dummyLogger, []feature.Feature{f1, f2}, dummyResMgrs)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fail dependency")
 }

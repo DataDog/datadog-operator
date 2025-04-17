@@ -21,9 +21,17 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-// ApplyGlobalDependencies applies the global dependencies for a component.
-func ApplyGlobalDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName) []error {
-	return addDependencies(logger, dda, resourceManagers, componentName)
+// ApplyGlobalDependencies applies the global dependencies for a DatadogAgent instance.
+func ApplyGlobalDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers) []error {
+	return addDependencies(logger, dda, resourceManagers)
+}
+
+// ApplyGlobalComponentDependencies applies the global dependencies for a component.
+func ApplyGlobalComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent) []error {
+	if rc.IsEnabled() {
+		return addComponentDependencies(logger, dda, resourceManagers, componentName, rc)
+	}
+	return nil
 }
 
 // ApplyGlobalSettingsClusterAgent applies the global settings for the ClusterAgent component.

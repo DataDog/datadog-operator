@@ -75,7 +75,7 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Hack to trigger an error if admission feature is not enabled as we cannot return an error in configure
 	if !f.admissionControllerActivated {
 		return errors.New("admission controller feature must be enabled to use the autoscaling feature")

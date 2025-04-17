@@ -6,21 +6,15 @@
 package enabledefault
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/errors"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
 func init() {
@@ -81,39 +75,8 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	var errs []error
-	// Create install-info configmap
-	installInfoCM := buildInstallInfoConfigMap(f.owner)
-	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, installInfoCM); err != nil {
-		return err
-	}
-
-	if components.Agent.IsEnabled() {
-		if err := f.agentDependencies(managers, components.Agent); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	return errors.NewAggregate(errs)
-}
-
-func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, requiredComponent feature.RequiredComponent) error {
-	var errs []error
-
-	// Create a configmap for the default seccomp profile in the System Probe.
-	// This is mounted in the init-volume container in the agent default code.
-	for _, containerName := range requiredComponent.Containers {
-		if containerName == apicommon.SystemProbeContainerName {
-			errs = append(errs, managers.ConfigMapManager().AddConfigMap(
-				common.GetDefaultSeccompConfigMapName(f.owner),
-				f.owner.GetNamespace(),
-				DefaultSeccompConfigDataForSystemProbe(),
-			))
-		}
-	}
-
-	return errors.NewAggregate(errs)
+func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers) error {
+	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -142,22 +105,6 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 		})
 	}
 
-	if f.adpEnabled {
-		// When ADP is enabled, we signal this to the Core Agent by setting an environment variable.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDADPEnabled,
-			Value: "true",
-		})
-	}
-
-	if f.adpEnabled {
-		// When ADP is enabled, we signal this to the Core Agent by setting an environment variable.
-		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  common.DDADPEnabled,
-			Value: "true",
-		})
-	}
-
 	return nil
 }
 
@@ -166,33 +113,3 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers, p
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }
-
-func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.GetInstallInfoConfigMapName(dda),
-			Namespace: dda.GetNamespace(),
-		},
-		Data: map[string]string{
-			"install_info": getInstallInfoValue(),
-		},
-	}
-
-	return configMap
-}
-
-func getInstallInfoValue() string {
-	toolVersion := "unknown"
-	if envVar := os.Getenv(InstallInfoToolVersion); envVar != "" {
-		toolVersion = envVar
-	}
-
-	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
-}
-
-const installInfoDataTmpl = `---
-install_method:
-  tool: datadog-operator
-  tool_version: %s
-  installer_version: %s
-`
