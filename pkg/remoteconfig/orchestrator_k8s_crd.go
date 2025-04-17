@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2025-present Datadog, Inc.
+
 package remoteconfig
 
 import (
@@ -117,7 +122,7 @@ func (r *RemoteConfigUpdater) crdUpdateInstanceStatus(dda v2alpha1.DatadogAgent,
 		if err := r.kubeClient.Status().Update(context.TODO(), ddaUpdate); err != nil {
 			if apierrors.IsConflict(err) {
 				r.logger.Info("unable to update DatadogAgent CRD status due to update conflict")
-				return nil
+				return err // Retry if conflict
 			}
 			r.logger.Error(err, "unable to update DatadogAgent status")
 			return err
