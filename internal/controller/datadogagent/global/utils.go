@@ -64,7 +64,7 @@ func getInstallInfoValue() string {
 	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
 }
 
-func useCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
+func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
 	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
 			// Only ConfigMap is supported for now

@@ -63,7 +63,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 		// This is mounted in the init-volume container in the agent default code.
 		for _, containerName := range rc.Containers {
 			if containerName == apicommon.SystemProbeContainerName {
-				if !useCustomSeccomp(dda) {
+				if !useSystemProbeCustomSeccomp(dda) {
 					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
 						common.GetDefaultSeccompConfigMapName(dda),
 						dda.GetNamespace(),
