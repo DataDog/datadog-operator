@@ -9,6 +9,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -21,10 +26,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 )
 
 var customConfDataV2 = `cluster_check: false
@@ -194,4 +195,97 @@ func orchestratorExplorerClusterAgentWantFuncV2() *test.ComponentTest {
 			assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 		},
 	)
+}
+
+func Test_isRemoteConfigEnabled(t *testing.T) {
+	tests := []struct {
+		name      string
+		ddaStatus *v2alpha1.DatadogAgentStatus
+		want      bool
+	}{
+		{
+			name:      "nil status",
+			ddaStatus: nil,
+			want:      false,
+		},
+		{
+			name:      "empty status",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{},
+			want:      false,
+		},
+		{
+			name: "nil RemoteConfigConfiguration",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: nil,
+			},
+			want: false,
+		},
+		{
+			name: "nil Features",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: nil,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "nil OrchestratorExplorer",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						OrchestratorExplorer: nil,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "nil CustomResources",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+							CustomResources: nil,
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "empty CustomResources",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+							CustomResources: []string{},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "non-empty CustomResources",
+			ddaStatus: &v2alpha1.DatadogAgentStatus{
+				RemoteConfigConfiguration: &v2alpha1.RemoteConfigConfiguration{
+					Features: &v2alpha1.DatadogFeatures{
+						OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+							CustomResources: []string{"datadoghq.com/v1alpha1/datadogmetrics"},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &orchestratorExplorerFeature{}
+			got := f.isRemoteConfigEnabled(tt.ddaStatus)
+			require.Equal(t, tt.want, got)
+		})
+	}
 }

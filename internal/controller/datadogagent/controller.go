@@ -104,10 +104,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	return resp, err
 }
 
-func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
+func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger, client client.Client) *feature.Options {
 	return &feature.Options{
 		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
 		Logger:                   logger,
+		K8sClient:                client,
 	}
 }
 

@@ -8,6 +8,7 @@ package feature
 import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -150,6 +151,8 @@ type Options struct {
 	SupportExtendedDaemonset bool
 
 	Logger logr.Logger
+
+	K8sClient client.Client
 }
 
 // BuildFunc function type used by each Feature during its factory registration.

@@ -99,7 +99,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
-	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger, r.client))
 	// update list of enabled features for metrics forwarder
 	r.updateMetricsForwardersFeatures(instance, features)
 
