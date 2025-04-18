@@ -16,7 +16,20 @@ spec:
     singular: datadogagentinternal
   scope: Namespaced
   versions:
-    - name: v1alpha1
+    - additionalPrinterColumns:
+        - jsonPath: .status.agent.status
+          name: agent
+          type: string
+        - jsonPath: .status.clusterAgent.status
+          name: cluster-agent
+          type: string
+        - jsonPath: .status.clusterChecksRunner.status
+          name: cluster-checks-runner
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: age
+          type: date
+      name: v1alpha1
       schema:
         openAPIV3Schema:
           description: DatadogAgentInternal is the Schema for the datadogagentinternals API
@@ -6678,7 +6691,262 @@ spec:
                   type: object
               type: object
             status:
-              description: DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal
+              description: |-
+                DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal
+                Unlike DatadogAgent, RemoteConfigConfiguration is not included in the status.
+                It is instead included in the spec by the DatadogAgent controller.
+              properties:
+                agent:
+                  description: The combined actual state of all Agents as daemonsets or extended daemonsets.
+                  properties:
+                    available:
+                      description: Number of available pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    current:
+                      description: Number of current pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the DaemonSet.
+                      type: string
+                    daemonsetName:
+                      description: DaemonsetName corresponds to the name of the created DaemonSet.
+                      type: string
+                    desired:
+                      description: Number of desired pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    ready:
+                      description: Number of ready pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the DaemonSet state.
+                      type: string
+                    status:
+                      description: Status corresponds to the DaemonSet computed status.
+                      type: string
+                    upToDate:
+                      description: Number of up to date pods in the DaemonSet.
+                      format: int32
+                      type: integer
+                  required:
+                    - available
+                    - current
+                    - desired
+                    - ready
+                    - upToDate
+                  type: object
+                agentList:
+                  description: The actual state of the Agent as a daemonset or an extended daemonset.
+                  items:
+                    description: DaemonSetStatus defines the observed state of Agent running as DaemonSet.
+                    properties:
+                      available:
+                        description: Number of available pods in the DaemonSet.
+                        format: int32
+                        type: integer
+                      current:
+                        description: Number of current pods in the DaemonSet.
+                        format: int32
+                        type: integer
+                      currentHash:
+                        description: CurrentHash is the stored hash of the DaemonSet.
+                        type: string
+                      daemonsetName:
+                        description: DaemonsetName corresponds to the name of the created DaemonSet.
+                        type: string
+                      desired:
+                        description: Number of desired pods in the DaemonSet.
+                        format: int32
+                        type: integer
+                      lastUpdate:
+                        description: LastUpdate is the last time the status was updated.
+                        format: date-time
+                        type: string
+                      ready:
+                        description: Number of ready pods in the DaemonSet.
+                        format: int32
+                        type: integer
+                      state:
+                        description: State corresponds to the DaemonSet state.
+                        type: string
+                      status:
+                        description: Status corresponds to the DaemonSet computed status.
+                        type: string
+                      upToDate:
+                        description: Number of up to date pods in the DaemonSet.
+                        format: int32
+                        type: integer
+                    required:
+                      - available
+                      - current
+                      - desired
+                      - ready
+                      - upToDate
+                    type: object
+                  type: array
+                  x-kubernetes-list-type: atomic
+                clusterAgent:
+                  description: The actual state of the Cluster Agent as a deployment.
+                  properties:
+                    availableReplicas:
+                      description: Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the Deployment.
+                      type: string
+                    deploymentName:
+                      description: DeploymentName corresponds to the name of the Deployment.
+                      type: string
+                    generatedToken:
+                      description: |-
+                        GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+                        enabled.
+                      type: string
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    readyReplicas:
+                      description: Total number of ready pods targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the Deployment state.
+                      type: string
+                    status:
+                      description: Status corresponds to the Deployment computed status.
+                      type: string
+                    unavailableReplicas:
+                      description: |-
+                        Total number of unavailable pods targeted by this Deployment. This is the total number of
+                        pods that are still required for the Deployment to have 100% available capacity. They may
+                        either be pods that are running but not yet available or pods that still have not been created.
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      description: Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
+                      format: int32
+                      type: integer
+                  type: object
+                clusterChecksRunner:
+                  description: The actual state of the Cluster Checks Runner as a deployment.
+                  properties:
+                    availableReplicas:
+                      description: Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    currentHash:
+                      description: CurrentHash is the stored hash of the Deployment.
+                      type: string
+                    deploymentName:
+                      description: DeploymentName corresponds to the name of the Deployment.
+                      type: string
+                    generatedToken:
+                      description: |-
+                        GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+                        enabled.
+                      type: string
+                    lastUpdate:
+                      description: LastUpdate is the last time the status was updated.
+                      format: date-time
+                      type: string
+                    readyReplicas:
+                      description: Total number of ready pods targeted by this Deployment.
+                      format: int32
+                      type: integer
+                    replicas:
+                      description: Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
+                      format: int32
+                      type: integer
+                    state:
+                      description: State corresponds to the Deployment state.
+                      type: string
+                    status:
+                      description: Status corresponds to the Deployment computed status.
+                      type: string
+                    unavailableReplicas:
+                      description: |-
+                        Total number of unavailable pods targeted by this Deployment. This is the total number of
+                        pods that are still required for the Deployment to have 100% available capacity. They may
+                        either be pods that are running but not yet available or pods that still have not been created.
+                      format: int32
+                      type: integer
+                    updatedReplicas:
+                      description: Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
+                      format: int32
+                      type: integer
+                  type: object
+                conditions:
+                  description: Conditions Represents the latest available observations of a DatadogAgent's current state.
+                  items:
+                    description: Condition contains details for one aspect of the current state of this API Resource.
+                    properties:
+                      lastTransitionTime:
+                        description: |-
+                          lastTransitionTime is the last time the condition transitioned from one status to another.
+                          This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                        format: date-time
+                        type: string
+                      message:
+                        description: |-
+                          message is a human readable message indicating details about the transition.
+                          This may be an empty string.
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        description: |-
+                          observedGeneration represents the .metadata.generation that the condition was set based upon.
+                          For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                          with respect to the current state of the instance.
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        description: |-
+                          reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                          Producers of specific condition types may define expected values and meanings for this field,
+                          and whether the values are considered a guaranteed API.
+                          The value should be a CamelCase string.
+                          This field may not be empty.
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                        type: string
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    type: object
+                  type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
               type: object
           type: object
       served: true
