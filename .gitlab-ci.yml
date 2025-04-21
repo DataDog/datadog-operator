@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/images/mirror/library/golang:1.23.5
+image: registry.ddbuild.io/images/mirror/library/golang:1.23.6
 variables:
   PROJECTNAME: "datadog-operator"
   PROJECTNAME_CHECK: "datadog-operator-check"
@@ -13,9 +13,11 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: f61405297d57
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
+  FIPS_ENABLED: false
+  FF_TIMESTAMPS: true
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -26,48 +28,11 @@ stages:
   - build
   - test
   - image
-  - test-image
-  - release
   - e2e
+  - release
+  - release-latest
   - post-release
   - deploy
-
-.new_e2e_template:
-  stage: e2e
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  tags: ["arch:amd64"]
-  before_script:
-    # Setup AWS Credentials
-    - mkdir -p ~/.aws
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
-    - export AWS_PROFILE=agent-qa-ci
-    # Now all `aws` commands target the agent-qa profile
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
-    # Use S3 backend to store stack status
-    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
-  variables:
-    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
-    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
-    E2E_KEY_PAIR_NAME: ci.datadog-operator
-    KUBERNETES_MEMORY_REQUEST: 12Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-
-.on_run_e2e:
-  - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main"'
-    when: always
-  - if: $CI_COMMIT_BRANCH
-    changes:
-      paths:
-        - "*.md"
-      compare_to: "refs/heads/main"
-    when: never
-  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
-    when: never
-  # Temporarily disable on Conductor-triggered jobs
-  - if: '$DDR != "true"'
-    when: manual
-  - when: never
 
 .on_build_images:
   - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -144,8 +109,15 @@ build_operator_image_amd64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-push-ci
+    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+
+build_operator_image_fips_amd64:
+  extends: build_operator_image_amd64
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
+    FIPS_ENABLED: "true"
 
 build_operator_image_arm64:
   stage: image
@@ -161,8 +133,15 @@ build_operator_image_arm64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-push-ci
+    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+
+build_operator_image_fips_arm64:
+  extends: build_operator_image_arm64
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    FIPS_ENABLED: "true"
 
 build_operator_check_image_amd64:
   stage: image
@@ -211,6 +190,81 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
+.new_e2e_template:
+  stage: e2e
+  tags: ["arch:amd64"]
+  image: $BUILD_DOCKER_REGISTRY/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+  before_script:
+    # Setup AWS Credentials
+    - echo "Starting setup for E2E testing..."
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE=agent-qa-ci
+    # Now all `aws` commands target the agent-qa profile
+    - echo "Retrieving SSH keys from AWS..."
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PUBLIC_KEY_PATH
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_AWS_PRIVATE_KEY_PATH
+    # Use S3 backend to store stack status
+    - echo "Logging in to Pulumi with S3 backend..."
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+  variables:
+    E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
+    E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
+    E2E_KEY_PAIR_NAME: ci.datadog-operator
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+
+.on_run_e2e:
+  # Skip if only .md files are changed
+  - if: $CI_COMMIT_BRANCH
+    changes:
+      paths:
+        - "*.md"
+      compare_to: "refs/heads/main"
+    when: never
+  # Allow mergequeue branches to merge even if tests fail
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    allow_failure: true
+  # Disable on Conductor-triggered jobs (ex: nightly)
+  - if: '$DDR == "true"'
+    when: never
+  # Run automatically otherwise
+  - when: on_success
+
+trigger_e2e_operator_image:
+  stage: e2e
+  rules: !reference [.on_run_e2e]
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    IMG_REGISTRIES: agent-qa
+
+e2e:
+  extends: .new_e2e_template
+  stage: e2e
+  needs:
+    - "trigger_e2e_operator_image"
+  rules: !reference [.on_run_e2e]
+  parallel:
+    matrix:
+      - K8S_VERSION:
+          - "1.19"
+          - "1.22"
+          - "1.24"
+          - "1.25"
+          - "1.26"
+          - "1.29"
+          - "1.30"
+          - "1.32"
+  variables:
+    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+  script:
+    - echo "Running e2e test with target image $TARGET_IMAGE"
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
 
 publish_public_main:
   stage: release
@@ -226,6 +280,13 @@ publish_public_main:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_main_fips:
+  extends: publish_public_main
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+    IMG_DESTINATIONS: operator:main-fips
 
 publish_public_tag:
   stage: release
@@ -243,6 +304,13 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX: ':v'
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_tag_fips:
+  extends: publish_public_tag
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:$CI_COMMIT_TAG-fips
 
 publish_redhat_public_tag:
   stage: release
@@ -261,9 +329,16 @@ publish_redhat_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_redhat_public_tag_fips:
+  extends: publish_redhat_public_tag
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG-fips
 
 publish_public_latest:
-  stage: release
+  stage: release-latest
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -276,9 +351,16 @@ publish_public_latest:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_public_latest_fips:
+  extends: publish_public_latest
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: operator:latest-fips
 
 publish_redhat_public_latest:
-  stage: release
+  stage: release-latest
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -292,6 +374,13 @@ publish_redhat_public_latest:
     IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest
     IMG_REGISTRIES: redhat-operator
     IMG_SIGNING: "false"
+    IMG_MERGE_STRATEGY: "index_oci"
+
+publish_redhat_public_latest_fips:
+  extends: publish_redhat_public_latest
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+    IMG_DESTINATIONS: $RH_PARTNER_PROJECT_ID:latest-fips
 
 trigger_internal_operator_image:
   stage: release
@@ -323,9 +412,9 @@ trigger_internal_operator_image_fips:
   variables:
     IMAGE_VERSION: tmpl-v2-fips
     IMAGE_NAME: $PROJECTNAME
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
-    BUILD_TAG: ${CI_COMMIT_REF_SLUG}
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-fips
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-fips
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
@@ -442,36 +531,6 @@ trigger_custom_operator_check_image_staging:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
 
-trigger_e2e_operator_image:
-  stage: release
-  rules: !reference [.on_run_e2e]
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    IMG_DESTINATIONS: operator:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    IMG_REGISTRIES: agent-qa
-
-e2e:
-  extends: .new_e2e_template
-  variables:
-    TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-  needs:
-    - "trigger_e2e_operator_image"
-  rules: !reference [.on_run_e2e]
-  parallel:
-    matrix:
-      - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-  script:
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
-
 # Runs preflight checks without submitting the image
 check_preflight_redhat_image:
   stage: release
@@ -487,13 +546,14 @@ check_preflight_redhat_image:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
     - export RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:$CI_COMMIT_TAG
+    - export IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container
   
 
 # Preflight now supports multiarch image checks
 submit_preflight_redhat_image:
   stage: post-release
+  allow_failure: true
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
@@ -515,8 +575,10 @@ publish_community_operators:
       - if: $CI_COMMIT_TAG
         when: manual
       - when: never
-  needs:
-    - "submit_preflight_redhat_image"
+  # Allow the job to be run manually even if submit_preflight_redhat_image fails, so that
+  # preflight submission can be retried locally followed by this manual job trigger in the pipeline
+  # needs:
+  #   - "submit_preflight_redhat_image"
   tags: [ "runner:docker", "size:large" ]
   image: $JOB_DOCKER_IMAGE
   before_script:

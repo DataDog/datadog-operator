@@ -179,6 +179,16 @@ func (builder *DatadogAgentBuilder) WithProcessChecksInCoreAgent(enabled bool) *
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithWorkloadAutoscalerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.Autoscaling = &v2alpha1.AutoscalingFeatureConfig{
+		Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(enabled),
+		},
+	}
+
+	return builder
+}
+
 // Admission Controller
 func (builder *DatadogAgentBuilder) initAdmissionController() {
 	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
@@ -338,7 +348,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionSelectors(selectorKey, s
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValue, resourceCPU, resourceMem string, securityContext *corev1.SecurityContext) *DatadogAgentBuilder {
 	builder.initAdmissionController()
 	builder.initSidecarInjection()
 
@@ -356,6 +366,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionProfiles(envKey, envValu
 					corev1.ResourceMemory: resource.MustParse(resourceMem),
 				},
 			},
+			SecurityContext: securityContext,
 		},
 	}
 
@@ -391,8 +402,7 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorEnabled(enabled bool) *Data
 
 func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
-	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData =
-		apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(defaultconfig.DefaultOtelCollectorConfig)
 	return builder
 }
 
@@ -581,6 +591,12 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomConfigData(cus
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomResources(customResources []string) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.CustomResources = customResources
+	return builder
+}
+
 // Cluster Checks
 
 func (builder *DatadogAgentBuilder) initCC() {
@@ -647,6 +663,14 @@ func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBu
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithErrorTrackingStandalone(enabled bool) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.ErrorTrackingStandalone = &v2alpha1.ErrorTrackingStandalone{
+		Enabled: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port *int32) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
@@ -667,7 +691,14 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithClusterAgentTag(tag string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Override[v2alpha1.ClusterAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
+		Image: &v2alpha1.AgentImageConfig{Tag: tag},
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string, languageDetectionEnabled bool, injectorImageTag string, targets []v2alpha1.SSITarget) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
 		Enabled:            apiutils.NewBoolPointer(enabled),
@@ -678,6 +709,7 @@ func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enab
 		Injector: &v2alpha1.InjectorConfig{
 			ImageTag: injectorImageTag,
 		},
+		Targets: targets,
 	}
 	return builder
 }

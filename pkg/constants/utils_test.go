@@ -61,16 +61,6 @@ func Test_GetImage(t *testing.T) {
 			want:     "gcr.io/datadoghq/agent:latest",
 		},
 		{
-			name: "add jmx",
-			imageSpec: &v2alpha1.AgentImageConfig{
-				Name:       "agent",
-				Tag:        defaulting.AgentLatestVersion,
-				JMXEnabled: true,
-			},
-			registry: nil,
-			want:     defaulting.GetLatestAgentImageJMX(),
-		},
-		{
 			name: "cluster-agent",
 			imageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "cluster-agent",

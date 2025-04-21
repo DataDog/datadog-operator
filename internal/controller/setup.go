@@ -53,9 +53,10 @@ type SetupOptions struct {
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
 type ExtendedDaemonsetOptions struct {
-	Enabled                bool
-	MaxPodUnavailable      string
-	MaxPodSchedulerFailure string
+	Enabled                   bool
+	MaxPodUnavailable         string
+	MaxPodSchedulerFailure    string
+	SlowStartAdditiveIncrease string
 
 	CanaryDuration                      time.Duration
 	CanaryReplicas                      string

@@ -36,7 +36,7 @@ import (
 //           periodSeconds: 60
 //   objectives:
 //     - type: PodResource
-//       resource:
+//       podResource:
 //         name: cpu
 //         value:
 //           type: Absolute|Utilization
@@ -49,6 +49,11 @@ import (
 //           type: Absolute|Utilization
 //           absolute: 500m
 //           utilization: 80
+//   fallback:
+// 	   horizontal:
+//       enabled: true
+//       triggers:
+//         staleRecommendationThresholdSeconds: 600
 //   constraints:
 //     minReplicas: 1
 //     maxReplicas: 10
@@ -80,8 +85,13 @@ type DatadogPodAutoscalerSpec struct {
 	// Objectives are the objectives to reach and maintain for the target resource.
 	// Default to a single objective to maintain 80% POD CPU utilization.
 	// +listType=atomic
-	// +optional
+	// +kubebuilder:validation:MinItems=1
 	Objectives []common.DatadogPodAutoscalerObjective `json:"objectives,omitempty"`
+
+	// Fallback defines how recommendations should be applied when in fallback mode.
+	// +optional
+	// +kubebuilder:default={}
+	Fallback *DatadogFallbackPolicy `json:"fallback,omitempty"`
 
 	// Constraints defines constraints that should always be respected.
 	Constraints *common.DatadogPodAutoscalerConstraints `json:"constraints,omitempty"`
@@ -119,6 +129,37 @@ type DatadogPodAutoscalerApplyPolicy struct {
 	ScaleDown *common.DatadogPodAutoscalerScalingPolicy `json:"scaleDown,omitempty"`
 }
 
+// DatadogFallbackPolicy configures the behavior during fallback mode.
+type DatadogFallbackPolicy struct {
+	// Horizontal configures the behavior during horizontal fallback mode.
+	// +optional
+	// +kubebuilder:default={}
+	Horizontal DatadogPodAutoscalerHorizontalFallbackPolicy `json:"horizontal,omitempty"`
+}
+
+// DatadogPodAutoscalerHorizontalFallbackPolicy defines how recommendations should be applied in fallback mode.
+type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
+	// Enabled determines whether recommendations should be applied by the controller:
+	// +optional
+	// +kubebuilder:default=true
+	Enabled bool `json:"enabled"`
+
+	// Triggers defines the triggers that will generate recommendations.
+	// +optional
+	// +kubebuilder:default={}
+	Triggers HorizontalFallbackTriggers `json:"triggers,omitempty"`
+}
+
+// HorizontalFallbackTriggers defines the triggers that will cause local fallback to be enabled.
+type HorizontalFallbackTriggers struct {
+	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
+	// +optional
+	// +kubebuilder:default=600
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=1200
+	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=dpa
 // +kubebuilder:subresource:status
@@ -134,6 +175,7 @@ type DatadogPodAutoscalerApplyPolicy struct {
 // +kubebuilder:printcolumn:name="Generated",type="date",JSONPath=".status.vertical.target.generatedAt"
 // +kubebuilder:printcolumn:name="Able to Apply",type="string",JSONPath=".status.conditions[?(@.type=='VerticalAbleToApply')].status"
 // +kubebuilder:printcolumn:name="Last Trigger",type="date",JSONPath=".status.vertical.lastAction.time"
+// +kubebuilder:storageversion
 // DatadogPodAutoscaler is the Schema for the datadogpodautoscalers API
 type DatadogPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
