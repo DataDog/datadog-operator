@@ -17,15 +17,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    steps:
-      - name: Debug event
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Event action: ${{ github.event.action }}"
-          echo "Label name: ${{ github.event.label.name }}"
-          echo "PR number: ${{ github.event.pull_request.number }}"
-          echo "PR merged: ${{ github.event.pull_request.merged_at }}"
-      
+    steps:    
       - name: Create app token
         uses: actions/create-github-app-token@21cfef2b496dd8ef5b904c159339626a10ad380e # v1.11.6
         id: app-token
@@ -56,7 +48,6 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
             console.log('Raw backport output:', process.env.BACKPORT_PR);
-            console.log('Type of backport output:', typeof process.env.BACKPORT_PR);
             
             const orig = context.payload.pull_request;
             if (!orig.milestone) {
