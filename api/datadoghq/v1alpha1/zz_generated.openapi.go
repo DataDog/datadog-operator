@@ -1457,11 +1457,17 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogMonitorSpec(ref commo
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorControllerOptions"),
 						},
 					},
+					"sloRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SLORef is SLO reference when specifying slo type alert.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.SLORef"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptions"},
+			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogMonitorOptions", "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.SLORef"},
 	}
 }
 
