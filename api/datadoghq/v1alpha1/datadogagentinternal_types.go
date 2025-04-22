@@ -6,23 +6,43 @@
 package v1alpha1
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal
+// +k8s:openapi-gen=true
 type DatadogAgentInternalStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
+	// The actual state of the Agent as a daemonset or an extended daemonset.
+	// +optional
+	Agent *v2alpha1.DaemonSetStatus `json:"agent,omitempty"`
+	// The actual state of the Cluster Agent as a deployment.
+	// +optional
+	ClusterAgent *v2alpha1.DeploymentStatus `json:"clusterAgent,omitempty"`
+	// The actual state of the Cluster Checks Runner as a deployment.
+	// +optional
+	ClusterChecksRunner *v2alpha1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
+	// +optional
+	RemoteConfigConfiguration *v2alpha1.RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-
-// +kubebuilder:resource:path=datadogagentinternals,shortName=ddai
-// +k8s:openapi-gen=true
 // DatadogAgentInternal is the Schema for the datadogagentinternals API
+// +kubebuilder:resource:path=datadogagentinternals,shortName=ddai
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
+// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +k8s:openapi-gen=true
 type DatadogAgentInternal struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
