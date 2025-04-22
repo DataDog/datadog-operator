@@ -112,7 +112,7 @@ func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeM
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: defaulting.GetLatestClusterAgentImage(),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
