@@ -132,7 +132,7 @@ type Feature interface {
 	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourceManagers, components RequiredComponents) error
+	ManageDependencies(managers ResourceManagers) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterAgent(managers PodTemplateManagers) error

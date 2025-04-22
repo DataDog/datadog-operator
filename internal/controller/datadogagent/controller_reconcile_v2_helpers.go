@@ -41,21 +41,22 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 // manageGlobalDependencies manages the global dependencies for a component.
 func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
-	if requiredComponents.ClusterAgent.IsEnabled() {
-		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName); len(err) > 0 {
-			errs = append(errs, err...)
-		}
+	// Non component specific dependencies
+	if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers); len(err) > 0 {
+		errs = append(errs, err...)
 	}
-	if requiredComponents.Agent.IsEnabled() {
-		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName); len(err) > 0 {
-			errs = append(errs, err...)
-		}
+
+	// Component specific dependencies
+	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+		errs = append(errs, err...)
 	}
-	if requiredComponents.ClusterChecksRunner.IsEnabled() {
-		if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName); len(err) > 0 {
-			errs = append(errs, err...)
-		}
+	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+		errs = append(errs, err...)
 	}
+	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+		errs = append(errs, err...)
+	}
+
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
 	}
@@ -63,11 +64,11 @@ func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghq
 }
 
 // manageFeatureDependencies iterates over features to set up dependencies.
-func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, requiredComponents feature.RequiredComponents, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []feature.Feature, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	for _, feat := range features {
 		logger.V(1).Info("Managing dependencies", "featureID", feat.ID())
-		if err := feat.ManageDependencies(resourceManagers, requiredComponents); err != nil {
+		if err := feat.ManageDependencies(resourceManagers); err != nil {
 			errs = append(errs, err)
 		}
 	}

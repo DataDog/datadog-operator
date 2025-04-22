@@ -56,7 +56,7 @@ func (f *serviceDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *serviceDiscoveryFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
+func (f *serviceDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

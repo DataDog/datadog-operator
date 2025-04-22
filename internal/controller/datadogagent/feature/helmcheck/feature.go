@@ -112,7 +112,7 @@ func (f *helmCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *helmCheckFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	if f.config != nil {
 		// Add md5 hash annotation for configMap
 		if f.configAnnotationKey != "" && f.configAnnotationValue != "" {

@@ -135,7 +135,7 @@ type collectorOptions struct {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()

@@ -9,9 +9,11 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -27,12 +29,23 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) []error {
+func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) []error {
 	var errs []error
+	// Install info
+	if err := addInstallInfoDependencies(logger, dda, manager); err != nil {
+		errs = append(errs, err)
+	}
+
 	// Credentials
 	if err := addCredentialDependencies(logger, dda, manager); err != nil {
 		errs = append(errs, err)
 	}
+
+	return errs
+}
+
+func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent) []error {
+	var errs []error
 
 	if componentName == v2alpha1.ClusterAgentComponentName {
 		if err := addDCATokenDependencies(logger, dda, manager); err != nil {
@@ -42,6 +55,22 @@ func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fea
 		// Resources as tags
 		if err := resourcesAsTagsDependencies(logger, dda, manager); err != nil {
 			errs = append(errs, err)
+		}
+	}
+
+	if componentName == v2alpha1.NodeAgentComponentName {
+		// Create a configmap for the default seccomp profile in the System Probe.
+		// This is mounted in the init-volume container in the agent default code.
+		for _, containerName := range rc.Containers {
+			if containerName == apicommon.SystemProbeContainerName {
+				if !useSystemProbeCustomSeccomp(dda) {
+					errs = append(errs, manager.ConfigMapManager().AddConfigMap(
+						common.GetDefaultSeccompConfigMapName(dda),
+						dda.GetNamespace(),
+						agent.DefaultSeccompConfigDataForSystemProbe(),
+					))
+				}
+			}
 		}
 	}
 
@@ -58,6 +87,24 @@ func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fea
 	// Secret backend
 	if err := addSecretBackendDependencies(logger, dda, manager, componentName); err != nil {
 		errs = append(errs, err)
+	}
+
+	return errs
+}
+
+func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.GetInstallInfoConfigMapName(dda),
+			Namespace: dda.GetNamespace(),
+		},
+		Data: map[string]string{
+			"install_info": getInstallInfoValue(),
+		},
+	}
+
+	if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
+		return err
 	}
 
 	return nil
