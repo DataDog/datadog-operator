@@ -33,9 +33,9 @@ See the [Getting Started][5] dedicated documentation to learn how to deploy the 
 
 ### Migrating from `v1alpha1` to `v2alpha1`
 
-Current Operator version does not support migration from DatadogAgent CRD version `v1alpha1` to `v2alpha1` or from Operator `v0.8.x` to `v1.x.x`. 
+Datadog Operator v1.8.0+ does not support migrating from `DatadogAgent` CRD `v1alpha1` to `v2alpha1` or from Operator `v0.8.x` to `v1.x.x`.
 
-Please use `v1.7.0` to migrate and then upgrade to a latest version. 
+Use the conversion webhook in v1.7.0 to migrate, and then upgrade to a recent version.
 
 ### Default Enabled Features
 
