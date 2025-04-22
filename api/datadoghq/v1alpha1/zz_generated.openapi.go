@@ -22,6 +22,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePreset":       schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePreset(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DashboardTemplateVariablePresetValue":  schema_datadog_operator_api_datadoghq_v1alpha1_DashboardTemplateVariablePresetValue(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternal":                  schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternal(ref),
+		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternalStatus":            schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfile":                   schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfile(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentProfileStatus":             schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentProfileStatus(ref),
 		"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogDashboard":                      schema_datadog_operator_api_datadoghq_v1alpha1_DatadogDashboard(ref),
@@ -296,6 +297,67 @@ func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternal(ref com
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1.DatadogAgentInternalStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DatadogAgentSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_datadog_operator_api_datadoghq_v1alpha1_DatadogAgentInternalStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentInternalStatus defines the observed state of DatadogAgentInternal Unlike DatadogAgent, RemoteConfigConfiguration is not included in the status. It is instead included in the spec by the DatadogAgent controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions Represents the latest available observations of a DatadogAgent's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"agent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Agent as a daemonset or an extended daemonset.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus"),
+						},
+					},
+					"clusterAgent": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Cluster Agent as a deployment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
+						},
+					},
+					"clusterChecksRunner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The actual state of the Cluster Checks Runner as a deployment.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus"),
+						},
+					},
+					"remoteConfigConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.DeploymentStatus", "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.RemoteConfigConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
