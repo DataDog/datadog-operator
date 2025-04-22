@@ -96,7 +96,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
 

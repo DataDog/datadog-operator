@@ -14,4 +14,12 @@ const (
 	FIPSProxyCustomConfigFileName   = "datadog-fips-proxy.cfg"
 	FIPSProxyCustomConfigMapName    = "%s-fips-config"
 	FIPSProxyCustomConfigMountPath  = "/etc/datadog-fips-proxy/datadog-fips-proxy.cfg"
+
+	InstallInfoToolVersion = "DD_TOOL_VERSION"
+	installInfoDataTmpl    = `---
+install_method:
+  tool: datadog-operator
+  tool_version: %s
+  installer_version: %s
+`
 )
