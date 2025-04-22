@@ -23,10 +23,6 @@ type DatadogAgentInternalStatus struct {
 	Conditions []metav1.Condition `json:"conditions"`
 	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
-	// +listType=atomic
-	AgentList []*v2alpha1.DaemonSetStatus `json:"agentList,omitempty"`
-	// The combined actual state of all Agents as daemonsets or extended daemonsets.
-	// +optional
 	Agent *v2alpha1.DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
@@ -34,6 +30,9 @@ type DatadogAgentInternalStatus struct {
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *v2alpha1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	// RemoteConfigConfiguration stores the configuration received from RemoteConfig.
+	// +optional
+	RemoteConfigConfiguration *v2alpha1.RemoteConfigConfiguration `json:"remoteConfigConfiguration,omitempty"`
 }
 
 // DatadogAgentInternal is the Schema for the datadogagentinternals API

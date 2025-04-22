@@ -250,17 +250,6 @@ func (in *DatadogAgentInternalStatus) DeepCopyInto(out *DatadogAgentInternalStat
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.AgentList != nil {
-		in, out := &in.AgentList, &out.AgentList
-		*out = make([]*v2alpha1.DaemonSetStatus, len(*in))
-		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(v2alpha1.DaemonSetStatus)
-				(*in).DeepCopyInto(*out)
-			}
-		}
-	}
 	if in.Agent != nil {
 		in, out := &in.Agent, &out.Agent
 		*out = new(v2alpha1.DaemonSetStatus)
@@ -274,6 +263,11 @@ func (in *DatadogAgentInternalStatus) DeepCopyInto(out *DatadogAgentInternalStat
 	if in.ClusterChecksRunner != nil {
 		in, out := &in.ClusterChecksRunner, &out.ClusterChecksRunner
 		*out = new(v2alpha1.DeploymentStatus)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.RemoteConfigConfiguration != nil {
+		in, out := &in.RemoteConfigConfiguration, &out.RemoteConfigConfiguration
+		*out = new(v2alpha1.RemoteConfigConfiguration)
 		(*in).DeepCopyInto(*out)
 	}
 }

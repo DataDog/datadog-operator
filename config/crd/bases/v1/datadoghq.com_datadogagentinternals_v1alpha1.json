@@ -6552,7 +6552,7 @@
       "properties": {
         "agent": {
           "additionalProperties": false,
-          "description": "The combined actual state of all Agents as daemonsets or extended daemonsets.",
+          "description": "The actual state of the Agent as a daemonset or an extended daemonset.",
           "properties": {
             "available": {
               "description": "Number of available pods in the DaemonSet.",
@@ -6609,71 +6609,6 @@
             "upToDate"
           ],
           "type": "object"
-        },
-        "agentList": {
-          "description": "The actual state of the Agent as a daemonset or an extended daemonset.",
-          "items": {
-            "additionalProperties": false,
-            "description": "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",
-            "properties": {
-              "available": {
-                "description": "Number of available pods in the DaemonSet.",
-                "format": "int32",
-                "type": "integer"
-              },
-              "current": {
-                "description": "Number of current pods in the DaemonSet.",
-                "format": "int32",
-                "type": "integer"
-              },
-              "currentHash": {
-                "description": "CurrentHash is the stored hash of the DaemonSet.",
-                "type": "string"
-              },
-              "daemonsetName": {
-                "description": "DaemonsetName corresponds to the name of the created DaemonSet.",
-                "type": "string"
-              },
-              "desired": {
-                "description": "Number of desired pods in the DaemonSet.",
-                "format": "int32",
-                "type": "integer"
-              },
-              "lastUpdate": {
-                "description": "LastUpdate is the last time the status was updated.",
-                "format": "date-time",
-                "type": "string"
-              },
-              "ready": {
-                "description": "Number of ready pods in the DaemonSet.",
-                "format": "int32",
-                "type": "integer"
-              },
-              "state": {
-                "description": "State corresponds to the DaemonSet state.",
-                "type": "string"
-              },
-              "status": {
-                "description": "Status corresponds to the DaemonSet computed status.",
-                "type": "string"
-              },
-              "upToDate": {
-                "description": "Number of up to date pods in the DaemonSet.",
-                "format": "int32",
-                "type": "integer"
-              }
-            },
-            "required": [
-              "available",
-              "current",
-              "desired",
-              "ready",
-              "upToDate"
-            ],
-            "type": "object"
-          },
-          "type": "array",
-          "x-kubernetes-list-type": "atomic"
         },
         "clusterAgent": {
           "additionalProperties": false,
@@ -6848,6 +6783,1706 @@
             "type"
           ],
           "x-kubernetes-list-type": "map"
+        },
+        "remoteConfigConfiguration": {
+          "additionalProperties": false,
+          "description": "RemoteConfigConfiguration stores the configuration received from RemoteConfig.",
+          "properties": {
+            "features": {
+              "additionalProperties": false,
+              "description": "DatadogFeatures are features running on the Agent and Cluster Agent.",
+              "properties": {
+                "admissionController": {
+                  "additionalProperties": false,
+                  "description": "AdmissionController configuration.",
+                  "properties": {
+                    "agentCommunicationMode": {
+                      "description": "AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent.\nIt can be \"hostip\", \"service\", or \"socket\".",
+                      "type": "string"
+                    },
+                    "agentSidecarInjection": {
+                      "additionalProperties": false,
+                      "description": "AgentSidecarInjection contains Agent sidecar injection configurations.",
+                      "properties": {
+                        "clusterAgentCommunicationEnabled": {
+                          "description": "ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent.\nDefault : true",
+                          "type": "boolean"
+                        },
+                        "enabled": {
+                          "description": "Enabled enables Sidecar injections.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "image": {
+                          "additionalProperties": false,
+                          "description": "Image overrides the default Agent image name and tag for the Agent sidecar.",
+                          "properties": {
+                            "jmxEnabled": {
+                              "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                              "type": "boolean"
+                            },
+                            "name": {
+                              "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                              "type": "string"
+                            },
+                            "pullPolicy": {
+                              "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                              "type": "string"
+                            },
+                            "pullSecrets": {
+                              "description": "It is possible to specify Docker registry credentials.\nSee https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "LocalObjectReference contains enough information to let you locate the\nreferenced object inside the same namespace.",
+                                "properties": {
+                                  "name": {
+                                    "default": "",
+                                    "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object",
+                                "x-kubernetes-map-type": "atomic"
+                              },
+                              "type": "array"
+                            },
+                            "tag": {
+                              "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "profiles": {
+                          "description": "Profiles define the sidecar configuration override. Only one profile is supported.",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "Profile defines a sidecar configuration override.",
+                            "properties": {
+                              "env": {
+                                "description": "EnvVars specifies the environment variables for the profile.",
+                                "items": {
+                                  "additionalProperties": false,
+                                  "description": "EnvVar represents an environment variable present in a Container.",
+                                  "properties": {
+                                    "name": {
+                                      "description": "Name of the environment variable. Must be a C_IDENTIFIER.",
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "description": "Variable references $(VAR_NAME) are expanded\nusing the previously defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.\n\"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\".\nEscaped references will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".",
+                                      "type": "string"
+                                    },
+                                    "valueFrom": {
+                                      "additionalProperties": false,
+                                      "description": "Source for the environment variable's value. Cannot be used if value is not empty.",
+                                      "properties": {
+                                        "configMapKeyRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a key of a ConfigMap.",
+                                          "properties": {
+                                            "key": {
+                                              "description": "The key to select.",
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "default": "",
+                                              "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                              "type": "string"
+                                            },
+                                            "optional": {
+                                              "description": "Specify whether the ConfigMap or its key must be defined",
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "fieldRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['\u003cKEY\u003e']`, `metadata.annotations['\u003cKEY\u003e']`,\nspec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.",
+                                          "properties": {
+                                            "apiVersion": {
+                                              "description": "Version of the schema the FieldPath is written in terms of, defaults to \"v1\".",
+                                              "type": "string"
+                                            },
+                                            "fieldPath": {
+                                              "description": "Path of the field to select in the specified API version.",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "fieldPath"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "resourceFieldRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a resource of the container: only resources limits and requests\n(limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.",
+                                          "properties": {
+                                            "containerName": {
+                                              "description": "Container name: required for volumes, optional for env vars",
+                                              "type": "string"
+                                            },
+                                            "divisor": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "description": "Specifies the output format of the exposed resources, defaults to \"1\"",
+                                              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                              "x-kubernetes-int-or-string": true
+                                            },
+                                            "resource": {
+                                              "description": "Required: resource to select",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "resource"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "secretKeyRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a key of a secret in the pod's namespace",
+                                          "properties": {
+                                            "key": {
+                                              "description": "The key of the secret to select from.  Must be a valid secret key.",
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "default": "",
+                                              "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                              "type": "string"
+                                            },
+                                            "optional": {
+                                              "description": "Specify whether the Secret or its key must be defined",
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        }
+                                      },
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array",
+                                "x-kubernetes-list-map-keys": [
+                                  "name"
+                                ],
+                                "x-kubernetes-list-type": "map"
+                              },
+                              "resources": {
+                                "additionalProperties": false,
+                                "description": "ResourceRequirements specifies the resource requirements for the profile.",
+                                "properties": {
+                                  "claims": {
+                                    "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "description": "ResourceClaim references one entry in PodSpec.ResourceClaims.",
+                                      "properties": {
+                                        "name": {
+                                          "description": "Name must match the name of one entry in pod.spec.resourceClaims of\nthe Pod where this field is used. It makes that resource available\ninside a container.",
+                                          "type": "string"
+                                        },
+                                        "request": {
+                                          "description": "Request is the name chosen for a request in the referenced claim.\nIf empty, everything from the claim is made available, otherwise\nonly the result of this request.",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "name"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-map-keys": [
+                                      "name"
+                                    ],
+                                    "x-kubernetes-list-type": "map"
+                                  },
+                                  "limits": {
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                      "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Limits describes the maximum amount of compute resources allowed.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                    "type": "object"
+                                  },
+                                  "requests": {
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer"
+                                        },
+                                        {
+                                          "type": "string"
+                                        }
+                                      ],
+                                      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                      "x-kubernetes-int-or-string": true
+                                    },
+                                    "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value. Requests cannot exceed Limits.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                    "type": "object"
+                                  }
+                                },
+                                "type": "object"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        },
+                        "provider": {
+                          "description": "Provider is used to add infrastructure provider-specific configurations to the Agent sidecar.\nCurrently only \"fargate\" is supported.\nTo use the feature in other environments (including local testing) omit the config.\nSee also: https://docs.datadoghq.com/integrations/eks_fargate",
+                          "type": "string"
+                        },
+                        "registry": {
+                          "description": "Registry overrides the default registry for the sidecar Agent.",
+                          "type": "string"
+                        },
+                        "selectors": {
+                          "description": "Selectors define the pod selector for sidecar injection. Only one rule is supported.",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "Selectors define a pod selector for sidecar injection.",
+                            "properties": {
+                              "namespaceSelector": {
+                                "additionalProperties": false,
+                                "description": "NamespaceSelector specifies the label selector for namespaces.",
+                                "properties": {
+                                  "matchExpressions": {
+                                    "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                      "properties": {
+                                        "key": {
+                                          "description": "key is the label key that the selector applies to.",
+                                          "type": "string"
+                                        },
+                                        "operator": {
+                                          "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array",
+                                          "x-kubernetes-list-type": "atomic"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "operator"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "atomic"
+                                  },
+                                  "matchLabels": {
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+                                    "type": "object"
+                                  }
+                                },
+                                "type": "object",
+                                "x-kubernetes-map-type": "atomic"
+                              },
+                              "objectSelector": {
+                                "additionalProperties": false,
+                                "description": "ObjectSelector specifies the label selector for objects.",
+                                "properties": {
+                                  "matchExpressions": {
+                                    "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                      "properties": {
+                                        "key": {
+                                          "description": "key is the label key that the selector applies to.",
+                                          "type": "string"
+                                        },
+                                        "operator": {
+                                          "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array",
+                                          "x-kubernetes-list-type": "atomic"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "operator"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "atomic"
+                                  },
+                                  "matchLabels": {
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+                                    "type": "object"
+                                  }
+                                },
+                                "type": "object",
+                                "x-kubernetes-map-type": "atomic"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "atomic"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "cwsInstrumentation": {
+                      "additionalProperties": false,
+                      "description": "CWSInstrumentation holds the CWS Instrumentation endpoint configuration",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable the CWS Instrumentation admission controller endpoint.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "mode": {
+                          "description": "Mode defines the behavior of the CWS Instrumentation endpoint, and can be either \"init_container\" or \"remote_copy\".\nDefault: \"remote_copy\"",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the Admission Controller.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "failurePolicy": {
+                      "description": "FailurePolicy determines how unrecognized and timeout errors are handled.",
+                      "type": "string"
+                    },
+                    "kubernetesAdmissionEvents": {
+                      "additionalProperties": false,
+                      "description": "KubernetesAdmissionEvents holds the Kubernetes Admission Events configuration.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable the Kubernetes Admission Events feature.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "mutateUnlabelled": {
+                      "description": "MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled=\"true\"'.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "mutation": {
+                      "additionalProperties": false,
+                      "description": "Mutation contains Admission Controller mutation configurations.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the Admission Controller mutation webhook.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "registry": {
+                      "description": "Registry defines an image registry for the admission controller.",
+                      "type": "string"
+                    },
+                    "serviceName": {
+                      "description": "ServiceName corresponds to the webhook service name.",
+                      "type": "string"
+                    },
+                    "validation": {
+                      "additionalProperties": false,
+                      "description": "Validation contains Admission Controller validation configurations.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the Admission Controller validation webhook.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "webhookName": {
+                      "description": "WebhookName is a custom name for the MutatingWebhookConfiguration.\nDefault: \"datadog-webhook\"",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "apm": {
+                  "additionalProperties": false,
+                  "description": "APM (Application Performance Monitoring) configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "hostPortConfig": {
+                      "additionalProperties": false,
+                      "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8126",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables host port configuration",
+                          "type": "boolean"
+                        },
+                        "hostPort": {
+                          "description": "Port takes a port number (0 \u003c x \u003c 65536) to expose on the host. (Most containers do not need this.)\nIf HostNetwork is enabled, this value must match the ContainerPort.",
+                          "format": "int32",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "instrumentation": {
+                      "additionalProperties": false,
+                      "description": "SingleStepInstrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster.\nFeature is in beta.\nSee also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm\nEnabled Default: false",
+                      "properties": {
+                        "disabledNamespaces": {
+                          "description": "DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "set"
+                        },
+                        "enabled": {
+                          "description": "Enabled enables injecting the Datadog APM libraries into all pods in the cluster.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "enabledNamespaces": {
+                          "description": "EnabledNamespaces enables injecting the Datadog APM libraries into pods in specific namespaces.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "set"
+                        },
+                        "injector": {
+                          "additionalProperties": false,
+                          "description": "Injector configures the APM Injector.",
+                          "properties": {
+                            "imageTag": {
+                              "description": "Set the image tag to use for the APM Injector.\n(Requires Cluster Agent 7.57.0+)",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "languageDetection": {
+                          "additionalProperties": false,
+                          "description": "LanguageDetection detects languages and adds them as annotations on Deployments, but does not use these languages for injecting libraries to workload pods.\n(Requires Agent 7.52.0+ and Cluster Agent 7.52.0+)",
+                          "properties": {
+                            "enabled": {
+                              "description": "Enabled enables Language Detection to automatically detect languages of user workloads (beta).\nRequires SingleStepInstrumentation.Enabled to be true.\nDefault: true",
+                              "type": "boolean"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "libVersions": {
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "description": "LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.\n\u003cLibrary\u003e: \u003cVersion\u003e\nex: \"java\": \"v1.18.0\"",
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "unixDomainSocketConfig": {
+                      "additionalProperties": false,
+                      "description": "UnixDomainSocketConfig contains socket configuration.\nSee also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables\nEnabled Default: true\nPath Default: `/var/run/datadog/apm.socket`",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Unix Domain Socket.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "path": {
+                          "description": "Path defines the socket path used when enabled.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "asm": {
+                  "additionalProperties": false,
+                  "description": "ASM (Application Security Management) configuration.",
+                  "properties": {
+                    "iast": {
+                      "additionalProperties": false,
+                      "description": "IAST configures Interactive Application Security Testing.\nEnabled Default: false",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Interactive Application Security Testing (IAST).\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "sca": {
+                      "additionalProperties": false,
+                      "description": "SCA configures Software Composition Analysis.\nEnabled Default: false",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Software Composition Analysis (SCA).\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "threats": {
+                      "additionalProperties": false,
+                      "description": "Threats configures ASM App \u0026 API Protection.\nEnabled Default: false",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables ASM App \u0026 API Protection.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "autoscaling": {
+                  "additionalProperties": false,
+                  "description": "Autoscaling configuration.",
+                  "properties": {
+                    "workload": {
+                      "additionalProperties": false,
+                      "description": "Workload contains the configuration for the workload autoscaling product.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables the workload autoscaling product.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "clusterChecks": {
+                  "additionalProperties": false,
+                  "description": "ClusterChecks configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables Cluster Checks scheduling in the Cluster Agent.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "useClusterChecksRunners": {
+                      "description": "Enabled enables Cluster Checks Runners to run all Cluster Checks.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "cspm": {
+                  "additionalProperties": false,
+                  "description": "CSPM (Cloud Security Posture Management) configuration.",
+                  "properties": {
+                    "checkInterval": {
+                      "description": "CheckInterval defines the check interval.",
+                      "type": "string"
+                    },
+                    "customBenchmarks": {
+                      "additionalProperties": false,
+                      "description": "CustomBenchmarks contains CSPM benchmarks.\nThe content of the ConfigMap will be merged with the benchmarks bundled with the agent.\nAny benchmarks with the same name as those existing in the agent will take precedence.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Cloud Security Posture Management.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "hostBenchmarks": {
+                      "additionalProperties": false,
+                      "description": "HostBenchmarks contains configuration for host benchmarks.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables host benchmarks.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "cws": {
+                  "additionalProperties": false,
+                  "description": "CWS (Cloud Workload Security) configuration.",
+                  "properties": {
+                    "customPolicies": {
+                      "additionalProperties": false,
+                      "description": "CustomPolicies contains security policies.\nThe content of the ConfigMap will be merged with the policies bundled with the agent.\nAny policies with the same name as those existing in the agent will take precedence.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Cloud Workload Security.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "network": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Cloud Workload Security Network detections.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "remoteConfiguration": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Remote Configuration for Cloud Workload Security.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "securityProfiles": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Security Profiles collection for Cloud Workload Security.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "syscallMonitorEnabled": {
+                      "description": "SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only).\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "dogstatsd": {
+                  "additionalProperties": false,
+                  "description": "Dogstatsd configuration.",
+                  "properties": {
+                    "hostPortConfig": {
+                      "additionalProperties": false,
+                      "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8125",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables host port configuration",
+                          "type": "boolean"
+                        },
+                        "hostPort": {
+                          "description": "Port takes a port number (0 \u003c x \u003c 65536) to expose on the host. (Most containers do not need this.)\nIf HostNetwork is enabled, this value must match the ContainerPort.",
+                          "format": "int32",
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "mapperProfiles": {
+                      "additionalProperties": false,
+                      "description": "Configure the Dogstasd Mapper Profiles.\nCan be passed as raw data or via a json encoded string in a config map.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "originDetectionEnabled": {
+                      "description": "OriginDetectionEnabled enables origin detection for container tagging.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
+                      "type": "boolean"
+                    },
+                    "tagCardinality": {
+                      "description": "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).\nSee also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables\nCardinality default: low",
+                      "type": "string"
+                    },
+                    "unixDomainSocketConfig": {
+                      "additionalProperties": false,
+                      "description": "UnixDomainSocketConfig contains socket configuration.\nSee also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables\nEnabled Default: true\nPath Default: `/var/run/datadog/dsd.socket`",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled enables Unix Domain Socket.\nDefault: true",
+                          "type": "boolean"
+                        },
+                        "path": {
+                          "description": "Path defines the socket path used when enabled.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "ebpfCheck": {
+                  "additionalProperties": false,
+                  "description": "EBPFCheck configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the eBPF check.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "eventCollection": {
+                  "additionalProperties": false,
+                  "description": "EventCollection configuration.",
+                  "properties": {
+                    "collectKubernetesEvents": {
+                      "description": "CollectKubernetesEvents enables Kubernetes event collection.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "collectedEventTypes": {
+                      "description": "CollectedEventTypes defines the list of events to collect when UnbundleEvents is enabled.\nDefault:\n[\n{\"kind\":\"Pod\",\"reasons\":[\"Failed\",\"BackOff\",\"Unhealthy\",\"FailedScheduling\",\"FailedMount\",\"FailedAttachVolume\"]},\n{\"kind\":\"Node\",\"reasons\":[\"TerminatingEvictedPod\",\"NodeNotReady\",\"Rebooted\",\"HostPortConflict\"]},\n{\"kind\":\"CronJob\",\"reasons\":[\"SawCompletedJob\"]}\n]",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "EventTypes defines the kind and reasons of events to collect.",
+                        "properties": {
+                          "kind": {
+                            "description": "Kind is the kind of event to collect. (ex: Pod, Node, CronJob)",
+                            "type": "string"
+                          },
+                          "reasons": {
+                            "description": "Reasons is a list of event reasons to collect. (ex: Failed, BackOff, Unhealthy)",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-type": "atomic"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "reasons"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    },
+                    "unbundleEvents": {
+                      "description": "UnbundleEvents enables collection of Kubernetes events as individual events.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "externalMetricsServer": {
+                  "additionalProperties": false,
+                  "description": "ExternalMetricsServer configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the External Metrics Server.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "endpoint": {
+                      "additionalProperties": false,
+                      "description": "Override the API endpoint for the External Metrics Server.\nURL Default: \"https://app.datadoghq.com\".",
+                      "properties": {
+                        "credentials": {
+                          "additionalProperties": false,
+                          "description": "Credentials defines the Datadog credentials used to submit data to/query data from Datadog.",
+                          "properties": {
+                            "apiKey": {
+                              "description": "APIKey configures your Datadog API key.\nSee also: https://app.datadoghq.com/account/settings#agent/kubernetes",
+                              "type": "string"
+                            },
+                            "apiSecret": {
+                              "additionalProperties": false,
+                              "description": "APISecret references an existing Secret which stores the API key instead of creating a new one.\nIf set, this parameter takes precedence over \"APIKey\".",
+                              "properties": {
+                                "keyName": {
+                                  "description": "KeyName is the key of the secret to use.",
+                                  "type": "string"
+                                },
+                                "secretName": {
+                                  "description": "SecretName is the name of the secret.",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "secretName"
+                              ],
+                              "type": "object"
+                            },
+                            "appKey": {
+                              "description": "AppKey configures your Datadog application key.\nIf you are using features.externalMetricsServer.enabled = true, you must set\na Datadog application key for read access to your metrics.",
+                              "type": "string"
+                            },
+                            "appSecret": {
+                              "additionalProperties": false,
+                              "description": "AppSecret references an existing Secret which stores the application key instead of creating a new one.\nIf set, this parameter takes precedence over \"AppKey\".",
+                              "properties": {
+                                "keyName": {
+                                  "description": "KeyName is the key of the secret to use.",
+                                  "type": "string"
+                                },
+                                "secretName": {
+                                  "description": "SecretName is the name of the secret.",
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "secretName"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "url": {
+                          "description": "URL defines the endpoint URL.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "port": {
+                      "description": "Port specifies the metricsProvider External Metrics Server service port.\nDefault: 8443",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "registerAPIService": {
+                      "description": "RegisterAPIService registers the External Metrics endpoint as an APIService\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "useDatadogMetrics": {
+                      "description": "UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries).\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "wpaController": {
+                      "description": "WPAController enables the informer and controller of the Watermark Pod Autoscaler.\nNOTE: The Watermark Pod Autoscaler controller needs to be installed.\nSee also: https://github.com/DataDog/watermarkpodautoscaler.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "gpu": {
+                  "additionalProperties": false,
+                  "description": "GPU monitoring",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables GPU monitoring.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "requiredRuntimeClassName": {
+                      "description": "PodRuntimeClassName specifies the runtime class name required for the GPU monitoring feature.\nIf the value is an empty string, the runtime class is not set.\nDefault: nvidia",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "helmCheck": {
+                  "additionalProperties": false,
+                  "description": "HelmCheck configuration.",
+                  "properties": {
+                    "collectEvents": {
+                      "description": "CollectEvents set to `true` enables event collection in the Helm check\n(Requires Agent 7.36.0+ and Cluster Agent 1.20.0+)\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the Helm check.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "valuesAsTags": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "ValuesAsTags collects Helm values from a release and uses them as tags\n(Requires Agent and Cluster Agent 7.40.0+).\nDefault: {}",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "kubeStateMetricsCore": {
+                  "additionalProperties": false,
+                  "description": "KubeStateMetricsCore check configuration.",
+                  "properties": {
+                    "conf": {
+                      "additionalProperties": false,
+                      "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Kube State Metrics Core.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "liveContainerCollection": {
+                  "additionalProperties": false,
+                  "description": "LiveContainerCollection configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables container collection for the Live Container View.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "liveProcessCollection": {
+                  "additionalProperties": false,
+                  "description": "LiveProcessCollection configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables Process monitoring.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "scrubProcessArguments": {
+                      "description": "ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ).\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "stripProcessArguments": {
+                      "description": "StripProcessArguments enables stripping of all process arguments.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "logCollection": {
+                  "additionalProperties": false,
+                  "description": "LogCollection configuration.",
+                  "properties": {
+                    "containerCollectAll": {
+                      "description": "ContainerCollectAll enables Log collection from all containers.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "containerCollectUsingFiles": {
+                      "description": "ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API.\nCollecting logs from files is usually the most efficient way of collecting logs.\nSee also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "containerLogsPath": {
+                      "description": "ContainerLogsPath allows log collection from the container log path.\nSet to a different path if you are not using the Docker runtime.\nSee also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest\nDefault: `/var/lib/docker/containers`",
+                      "type": "string"
+                    },
+                    "containerSymlinksPath": {
+                      "description": "ContainerSymlinksPath allows log collection to use symbolic links in this directory to validate container ID -\u003e pod.\nDefault: `/var/log/containers`",
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Log collection.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "openFilesLimit": {
+                      "description": "OpenFilesLimit sets the maximum number of log files that the Datadog Agent tails.\nIncreasing this limit can increase resource consumption of the Agent.\nSee also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup\nDefault: 100",
+                      "format": "int32",
+                      "type": "integer"
+                    },
+                    "podLogsPath": {
+                      "description": "PodLogsPath allows log collection from a pod log path.\nDefault: `/var/log/pods`",
+                      "type": "string"
+                    },
+                    "tempStoragePath": {
+                      "description": "TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files.\nIf the Agent is restarted, it starts tailing the log files immediately.\nDefault: `/var/lib/datadog-agent/logs`",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "npm": {
+                  "additionalProperties": false,
+                  "description": "NPM (Network Performance Monitoring) configuration.",
+                  "properties": {
+                    "collectDNSStats": {
+                      "description": "CollectDNSStats enables DNS stat collection.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "enableConntrack": {
+                      "description": "EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.\nSee also: http://conntrack-tools.netfilter.org/\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables Network Performance Monitoring.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "oomKill": {
+                  "additionalProperties": false,
+                  "description": "OOMKill configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the OOMKill eBPF-based check.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "orchestratorExplorer": {
+                  "additionalProperties": false,
+                  "description": "OrchestratorExplorer check configuration.",
+                  "properties": {
+                    "conf": {
+                      "additionalProperties": false,
+                      "description": "Conf overrides the configuration for the default Orchestrator Explorer check.\nThis must point to a ConfigMap containing a valid cluster check configuration.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "customResources": {
+                      "description": "`CustomResources` defines custom resources for the orchestrator explorer to collect.\nEach item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
+                    },
+                    "ddUrl": {
+                      "description": "Override the API endpoint for the Orchestrator Explorer.\nURL Default: \"https://orchestrator.datadoghq.com\".",
+                      "type": "string"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the Orchestrator Explorer.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "extraTags": {
+                      "description": "Additional tags to associate with the collected data in the form of `a b c`.\nThis is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "set"
+                    },
+                    "scrubContainers": {
+                      "description": "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "otelCollector": {
+                  "additionalProperties": false,
+                  "description": "OtelCollector configuration.",
+                  "properties": {
+                    "conf": {
+                      "additionalProperties": false,
+                      "description": "Conf overrides the configuration for the default Kubernetes State Metrics Core check.\nThis must point to a ConfigMap containing a valid cluster check configuration.\nWhen passing a configmap, file name *must* be otel-config.yaml.",
+                      "properties": {
+                        "configData": {
+                          "description": "ConfigData corresponds to the configuration file content.",
+                          "type": "string"
+                        },
+                        "configMap": {
+                          "additionalProperties": false,
+                          "description": "ConfigMap references an existing ConfigMap with the configuration file content.",
+                          "properties": {
+                            "items": {
+                              "description": "Items maps a ConfigMap data `key` to a file `path` mount.",
+                              "items": {
+                                "additionalProperties": false,
+                                "description": "Maps a string key to a path within a volume.",
+                                "properties": {
+                                  "key": {
+                                    "description": "key is the key to project.",
+                                    "type": "string"
+                                  },
+                                  "mode": {
+                                    "description": "mode is Optional: mode bits used to set permissions on this file.\nMust be an octal value between 0000 and 0777 or a decimal value between 0 and 511.\nYAML accepts both octal and decimal values, JSON requires decimal values for mode bits.\nIf not specified, the volume defaultMode will be used.\nThis might be in conflict with other options that affect the file\nmode, like fsGroup, and the result can be other mode bits set.",
+                                    "format": "int32",
+                                    "type": "integer"
+                                  },
+                                  "path": {
+                                    "description": "path is the relative path of the file to map the key to.\nMay not be an absolute path.\nMay not contain the path element '..'.\nMay not start with the string '..'.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "path"
+                                ],
+                                "type": "object"
+                              },
+                              "type": "array",
+                              "x-kubernetes-list-map-keys": [
+                                "key"
+                              ],
+                              "x-kubernetes-list-type": "map"
+                            },
+                            "name": {
+                              "description": "Name is the name of the ConfigMap.",
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "coreConfig": {
+                      "additionalProperties": false,
+                      "description": "OTelCollector Config Relevant to the Core agent",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enabled marks otelcollector as enabled in core agent.",
+                          "type": "boolean"
+                        },
+                        "extensionTimeout": {
+                          "description": "Extension URL provides the timout of the ddflareextension to\nthe core agent.",
+                          "type": "integer"
+                        },
+                        "extensionURL": {
+                          "description": "Extension URL provides the URL of the ddflareextension to\nthe core agent.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enabled enables the OTel Agent.\nDefault: true",
+                      "type": "boolean"
+                    },
+                    "ports": {
+                      "description": "Ports contains the ports for the otel-agent.\nDefaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317\nor 4318 manually is *only* supported if name match default names (otel-grpc, otel-http).\nIf not, this will lead to a port conflict.\nThis limitation will be lifted once annotations support is removed.",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "ContainerPort represents a network port in a single container.",
+                        "properties": {
+                          "containerPort": {
+                            "description": "Number of port to expose on the pod's IP address.\nThis must be a valid port number, 0 \u003c x \u003c 65536.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "hostIP": {
+                            "description": "What host IP to bind the external port to.",
+                            "type": "string"
+                          },
+                          "hostPort": {
+                            "description": "Number of port to expose on the host.\nIf specified, this must be a valid port number, 0 \u003c x \u003c 65536.\nIf HostNetwork is specified, this must match ContainerPort.\nMost containers do not need this.",
+                            "format": "int32",
+                            "type": "integer"
+                          },
+                          "name": {
+                            "description": "If specified, this must be an IANA_SVC_NAME and unique within the pod. Each\nnamed port in a pod must have a unique name. Name for the port that can be\nreferred to by services.",
+                            "type": "string"
+                          },
+                          "protocol": {
+                            "default": "TCP",
+                            "description": "Protocol for port. Must be UDP, TCP, or SCTP.\nDefaults to \"TCP\".",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "containerPort"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array",
+                      "x-kubernetes-list-type": "atomic"
+                    }
+                  },
+                  "type": "object"
+                },
+                "otlp": {
+                  "additionalProperties": false,
+                  "description": "OTLP ingest configuration",
+                  "properties": {
+                    "receiver": {
+                      "additionalProperties": false,
+                      "description": "Receiver contains configuration for the OTLP ingest receiver.",
+                      "properties": {
+                        "protocols": {
+                          "additionalProperties": false,
+                          "description": "Protocols contains configuration for the OTLP ingest receiver protocols.",
+                          "properties": {
+                            "grpc": {
+                              "additionalProperties": false,
+                              "description": "GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.",
+                              "properties": {
+                                "enabled": {
+                                  "description": "Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled.",
+                                  "type": "boolean"
+                                },
+                                "endpoint": {
+                                  "description": "Endpoint for OTLP/gRPC.\ngRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md\nThe Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`).\nDefault: `0.0.0.0:4317`.",
+                                  "type": "string"
+                                },
+                                "hostPortConfig": {
+                                  "additionalProperties": false,
+                                  "description": "Enable hostPort for OTLP/gRPC\nDefault: true",
+                                  "properties": {
+                                    "enabled": {
+                                      "description": "Enabled enables host port configuration",
+                                      "type": "boolean"
+                                    },
+                                    "hostPort": {
+                                      "description": "Port takes a port number (0 \u003c x \u003c 65536) to expose on the host. (Most containers do not need this.)\nIf HostNetwork is enabled, this value must match the ContainerPort.",
+                                      "format": "int32",
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "http": {
+                              "additionalProperties": false,
+                              "description": "HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.",
+                              "properties": {
+                                "enabled": {
+                                  "description": "Enable the OTLP/HTTP endpoint. Host port is enabled by default and can be disabled.",
+                                  "type": "boolean"
+                                },
+                                "endpoint": {
+                                  "description": "Endpoint for OTLP/HTTP.\nDefault: '0.0.0.0:4318'.",
+                                  "type": "string"
+                                },
+                                "hostPortConfig": {
+                                  "additionalProperties": false,
+                                  "description": "Enable hostPorts for OTLP/HTTP\nDefault: true",
+                                  "properties": {
+                                    "enabled": {
+                                      "description": "Enabled enables host port configuration",
+                                      "type": "boolean"
+                                    },
+                                    "hostPort": {
+                                      "description": "Port takes a port number (0 \u003c x \u003c 65536) to expose on the host. (Most containers do not need this.)\nIf HostNetwork is enabled, this value must match the ContainerPort.",
+                                      "format": "int32",
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "type": "object"
+                            }
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "processDiscovery": {
+                  "additionalProperties": false,
+                  "description": "ProcessDiscovery configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the Process Discovery check in the Agent.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "prometheusScrape": {
+                  "additionalProperties": false,
+                  "description": "PrometheusScrape configuration.",
+                  "properties": {
+                    "additionalConfigs": {
+                      "description": "AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.",
+                      "type": "string"
+                    },
+                    "enableServiceEndpoints": {
+                      "description": "EnableServiceEndpoints enables generating dedicated checks for service endpoints.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "enabled": {
+                      "description": "Enable autodiscovery of pods and services exposing Prometheus metrics.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "version": {
+                      "description": "Version specifies the version of the OpenMetrics check.\nDefault: 2",
+                      "type": "integer"
+                    }
+                  },
+                  "type": "object"
+                },
+                "remoteConfiguration": {
+                  "additionalProperties": false,
+                  "description": "Remote Configuration configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enable this option to activate Remote Configuration.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "sbom": {
+                  "additionalProperties": false,
+                  "description": "SBOM collection configuration.",
+                  "properties": {
+                    "containerImage": {
+                      "additionalProperties": false,
+                      "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                      "properties": {
+                        "analyzers": {
+                          "description": "Analyzers to use for SBOM collection.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "set"
+                        },
+                        "enabled": {
+                          "description": "Enable this option to activate SBOM collection.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "overlayFSDirectScan": {
+                          "description": "Enable this option to enable experimental overlayFS direct scan.\nDefault: false",
+                          "type": "boolean"
+                        },
+                        "uncompressedLayersSupport": {
+                          "description": "Enable this option to enable support for uncompressed layers.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "enabled": {
+                      "description": "Enable this option to activate SBOM collection.\nDefault: false",
+                      "type": "boolean"
+                    },
+                    "host": {
+                      "additionalProperties": false,
+                      "description": "SBOMTypeConfig contains configuration for a SBOM collection type.",
+                      "properties": {
+                        "analyzers": {
+                          "description": "Analyzers to use for SBOM collection.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array",
+                          "x-kubernetes-list-type": "set"
+                        },
+                        "enabled": {
+                          "description": "Enable this option to activate SBOM collection.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                },
+                "serviceDiscovery": {
+                  "additionalProperties": false,
+                  "description": "ServiceDiscovery",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the service discovery check.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "tcpQueueLength": {
+                  "additionalProperties": false,
+                  "description": "TCPQueueLength configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the TCP queue length eBPF-based check.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
+                "usm": {
+                  "additionalProperties": false,
+                  "description": "USM (Universal Service Monitoring) configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables Universal Service Monitoring.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
