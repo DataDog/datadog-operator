@@ -28,7 +28,7 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName string
+	podRuntimeClassName    string
 	podResourcesSocketPath string
 }
 
