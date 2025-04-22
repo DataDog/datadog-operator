@@ -115,7 +115,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: defaulting.GetLatestClusterAgentImage(),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,

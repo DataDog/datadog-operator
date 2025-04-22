@@ -101,12 +101,12 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return defaulting.GetLatestAgentImage()
 }
 
 func otelAgentImage() string {
-	// todo(mackjmr): make this dynamic once we have otel agent image which releases with regular agent.
-	return fmt.Sprintf("%s:%s", defaulting.AgentDevImageName, defaulting.OTelAgentNightlyTag)
+	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
+	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.OTelAgentBetaTag)
 
 }
 
@@ -362,10 +362,6 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		{
 			Name:  common.DDHealthPort,
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
-		},
-		{
-			Name:  common.DDLeaderElection,
-			Value: "true",
 		},
 		{
 			// we want to default it in 7.49.0

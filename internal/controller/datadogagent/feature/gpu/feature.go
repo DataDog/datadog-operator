@@ -1,6 +1,8 @@
 package gpu
 
 import (
+	"path"
+
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -26,7 +28,8 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName string
+	podRuntimeClassName    string
+	podResourcesSocketPath string
 }
 
 // ID returns the ID of the Feature
@@ -53,6 +56,8 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		// string, which tells us to not change the runtime class.
 		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
 	}
+
+	f.podResourcesSocketPath = dda.Spec.Global.Kubelet.PodResourcesSocketPath
 
 	return reqComp
 }
@@ -101,10 +106,28 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 }
 
+func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateManagers) {
+	if f.podResourcesSocketPath == "" {
+		return
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  common.DDKubernetesPodResourcesSocket,
+		Value: path.Join(f.podResourcesSocketPath, "kubelet.sock"),
+	})
+
+	podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, f.podResourcesSocketPath, f.podResourcesSocketPath, false)
+	managers.VolumeMount().AddVolumeMountToContainer(
+		&podResourcesMount,
+		apicommon.CoreAgentContainerName,
+	)
+	managers.Volume().AddVolume(&podResourcesVol)
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
 	configureSystemProbe(managers)
+	f.configurePodResourcesSocket(managers)
 
 	// env var to enable the GPU module
 	enableEnvVar := &corev1.EnvVar{
@@ -114,6 +137,14 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 
 	// Both in the core agent and the system probe
 	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName}, enableEnvVar)
+
+	// env var to enable NVML detection, so that workloadmeta features depending on it
+	// can be enabled
+	nvmlDetectionEnvVar := &corev1.EnvVar{
+		Name:  DDEnableNVMLDetectionEnvVar,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, nvmlDetectionEnvVar)
 
 	// The agent check does not need to be manually enabled, the init config container will
 	// check if GPU monitoring is enabled and will enable the check automatically (see
