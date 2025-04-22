@@ -35,7 +35,7 @@ See the [Getting Started][5] dedicated documentation to learn how to deploy the 
 
 Datadog Operator `v1.8.0+` does not support migrating from `DatadogAgent` CRD `v1alpha1` to `v2alpha1` or from Operator `v0.8.x` to `v1.x.x`.
 
-Use the conversion webhook in v1.7.0 to migrate, and then upgrade to a recent version.
+Use the conversion webhook in `v1.7.0` to migrate, and then upgrade to a recent version.
 
 ### Default Enabled Features
 
