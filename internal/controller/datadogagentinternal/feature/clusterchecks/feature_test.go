@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -30,7 +31,7 @@ func TestClusterChecksFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "cluster checks empty, checksum set",
-			DDA: &v2alpha1.DatadogAgent{
+			DDAI: &v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
 						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{},
@@ -42,7 +43,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks not enabled and runners not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(false).
 				WithClusterChecksUseCLCEnabled(false).
 				Build(),
@@ -51,7 +52,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks not enabled and runners enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(false).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
@@ -60,7 +61,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
 				Build(),
@@ -70,7 +71,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners not enabled with single container strategy",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(false).
 				WithSingleContainerStrategy(true).
@@ -81,7 +82,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				Build(),
@@ -92,7 +93,7 @@ func TestClusterChecksFeature(t *testing.T) {
 		},
 		{
 			Name: "cluster checks enabled and runners enabled with single container strategy",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithClusterChecksEnabled(true).
 				WithClusterChecksUseCLCEnabled(true).
 				WithSingleContainerStrategy(true).
@@ -119,7 +120,7 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 	podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 	md5Values := map[string]string{}
 
-	datadogAgents := []*v2alpha1.DatadogAgent{
+	datadogAgents := []*v1alpha1.DatadogAgentInternal{
 		{
 			Spec: v2alpha1.DatadogAgentSpec{
 				Features: &v2alpha1.DatadogFeatures{
@@ -127,19 +128,19 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 				},
 			},
 		},
-		testutils.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentInternalBuilder().
 			WithClusterChecksEnabled(false).
 			WithClusterChecksUseCLCEnabled(false).
 			Build(),
-		testutils.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentInternalBuilder().
 			WithClusterChecksEnabled(false).
 			WithClusterChecksUseCLCEnabled(true).
 			Build(),
-		testutils.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentInternalBuilder().
 			WithClusterChecksEnabled(true).
 			WithClusterChecksUseCLCEnabled(false).
 			Build(),
-		testutils.NewDatadogAgentBuilder().
+		testutils.NewDatadogAgentInternalBuilder().
 			WithClusterChecksEnabled(true).
 			WithClusterChecksUseCLCEnabled(true).
 			Build(),

@@ -29,14 +29,14 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Event Collection not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithEventCollectionKubernetesEvents(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Event Collection enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				Build(),
@@ -45,7 +45,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Unbundle event enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithName("ddaDCA").
 				WithEventCollectionKubernetesEvents(true).
 				WithEventCollectionUnbundleEvents(true, []v2alpha1.EventTypes{

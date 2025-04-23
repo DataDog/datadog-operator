@@ -39,14 +39,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Prometheus scrape not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithPrometheusScrapeEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Prometheus scrape enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithPrometheusScrapeEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -83,7 +83,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Prometheus scrape service endpoints enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeServiceEndpoints(true).
 				Build(),
@@ -121,7 +121,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Prometheus scrape additional configs",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeAdditionalConfigs(yamlConfigs).
 				Build(),
@@ -167,7 +167,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "version specified",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithPrometheusScrapeEnabled(true).
 				WithPrometheusScrapeVersion(1).
 				Build(),

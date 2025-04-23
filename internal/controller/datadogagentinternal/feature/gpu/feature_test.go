@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ const alternativeRuntimeClass = "nvidia-like"
 func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	podResourcesSocketPath := "/var/lib/kubelet/pod-resources/"
 
-	ddaGPUMonitoringDisabled := v2alpha1.DatadogAgent{
+	ddaGPUMonitoringDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				GPU: &v2alpha1.GPUFeatureConfig{
@@ -193,12 +194,12 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "gpu monitoring not enabled",
-			DDA:           ddaGPUMonitoringDisabled.DeepCopy(),
+			DDAI:          ddaGPUMonitoringDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "gpu monitoring enabled",
-			DDA:           ddaGPUMonitoringEnabled,
+			DDAI:          ddaGPUMonitoringEnabled,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, defaultGPURuntimeClass)
@@ -206,7 +207,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "gpu monitoring enabled, alternative runtime class",
-			DDA:           ddaGPUMonitoringEnabledAlternativeRuntimeClass,
+			DDAI:          ddaGPUMonitoringEnabledAlternativeRuntimeClass,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, alternativeRuntimeClass)
@@ -215,7 +216,7 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 
 		{
 			Name:          "gpu monitoring enabled, no runtime class",
-			DDA:           ddaGPUMonitoringEnabledANoRuntimeClass,
+			DDAI:          ddaGPUMonitoringEnabledANoRuntimeClass,
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 				GPUMonitoringAgentNodeWantFunc(t, mgrInterface, "")

@@ -27,7 +27,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "process discovery enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -35,21 +35,21 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery disabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "process discovery config missing",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         testExpectedAgent(apicommon.ProcessAgentContainerName, false),
 		},
 		{
 			Name: "process discovery enabled in core agent via env vars",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -64,7 +64,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled in core agent via spec",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -79,7 +79,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled in core agent via spec without min version",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -94,7 +94,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery disabled in core agent via env var override",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -110,7 +110,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "process discovery enabled on single container",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithProcessDiscoveryEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),

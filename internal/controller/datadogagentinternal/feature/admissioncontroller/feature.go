@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
@@ -91,11 +92,11 @@ func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 	return false
 }
 
-func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+func (f *admissionControllerFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
+	f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
-	ac := dda.Spec.Features.AdmissionController
+	ac := ddai.Spec.Features.AdmissionController
 
 	if ac != nil && apiutils.BoolValue(ac.Enabled) {
 		if ac.Validation != nil && ac.Validation.Enabled != nil {
@@ -112,8 +113,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		// set image registry from feature config or global config if defined
 		if ac.Registry != nil && *ac.Registry != "" {
 			f.registry = *ac.Registry
-		} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
-			f.registry = *dda.Spec.Global.Registry
+		} else if ddai.Spec.Global.Registry != nil && *ddai.Spec.Global.Registry != "" {
+			f.registry = *ddai.Spec.Global.Registry
 		}
 		// agent communication mode set by user
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
@@ -121,15 +122,15 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		} else {
 			// agent communication mode set automatically
 			// use `socket` mode if either apm or dsd uses uds
-			apm := dda.Spec.Features.APM
-			dsd := dda.Spec.Features.Dogstatsd
+			apm := ddai.Spec.Features.APM
+			dsd := ddai.Spec.Features.Dogstatsd
 			if (apm != nil && apm.UnixDomainSocketConfig != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)) ||
 				(dsd != nil && dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled)) {
 				f.agentCommunicationMode = admissionControllerSocketCommunicationMode
 			}
 			// otherwise don't set to fall back to default agent setting `hostip`
 		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda)
+		f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -154,9 +155,9 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
 		}
 
-		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(dda)
+		_, f.networkPolicy = constants.IsNetworkPolicyEnabledDDAI(ddai)
 
-		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
+		sidecarConfig := ddai.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {
 			f.agentSidecarConfig = &AgentSidecarInjectionConfig{}
 			if sidecarConfig.Enabled != nil {
@@ -173,8 +174,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// set image registry from admissionController config or global config if defined
 			if sidecarConfig.Registry != nil && *sidecarConfig.Registry != "" {
 				f.agentSidecarConfig.registry = *sidecarConfig.Registry
-			} else if dda.Spec.Global.Registry != nil && *dda.Spec.Global.Registry != "" {
-				f.agentSidecarConfig.registry = *dda.Spec.Global.Registry
+			} else if ddai.Spec.Global.Registry != nil && *ddai.Spec.Global.Registry != "" {
+				f.agentSidecarConfig.registry = *ddai.Spec.Global.Registry
 			}
 
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
@@ -182,7 +183,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.agentSidecarConfig.imageName = defaulting.DefaultAgentImageName
 			f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
 
-			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
+			componentOverride, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
 			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
 				f.agentSidecarConfig.imageName = sidecarConfig.Image.Name
 			} else if ok && componentOverride.Image != nil {

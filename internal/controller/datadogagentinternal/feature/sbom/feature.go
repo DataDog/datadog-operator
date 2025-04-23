@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -56,13 +57,13 @@ func (f *sbomFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *sbomFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&ddai.Spec, &ddai.Status)
 
-	sbomConfig := dda.Spec.Features.SBOM
+	sbomConfig := ddai.Spec.Features.SBOM
 
 	if sbomConfig != nil && apiutils.BoolValue(sbomConfig.Enabled) {
 		f.enabled = true
@@ -89,8 +90,8 @@ func (f *sbomFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaiStatus *v1alpha1.DatadogAgentInternalStatus) {
+	if ddaiStatus.RemoteConfigConfiguration == nil || ddaiStatus.RemoteConfigConfiguration.Features == nil || ddaiStatus.RemoteConfigConfiguration.Features.SBOM == nil || ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Enabled == nil {
 		return
 	}
 
@@ -102,22 +103,22 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.SBOM = &v2alpha1.SBOMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
-		ddaSpec.Features.SBOM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
+	if ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Enabled != nil {
+		ddaSpec.Features.SBOM.Enabled = ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
+	if ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Host != nil && ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled != nil {
 		if ddaSpec.Features.SBOM.Host == nil {
 			ddaSpec.Features.SBOM.Host = &v2alpha1.SBOMHostConfig{}
 		}
-		ddaSpec.Features.SBOM.Host.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
+		ddaSpec.Features.SBOM.Host.Enabled = ddaiStatus.RemoteConfigConfiguration.Features.SBOM.Host.Enabled
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
+	if ddaiStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage != nil && ddaiStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled != nil {
 		if ddaSpec.Features.SBOM.ContainerImage == nil {
 			ddaSpec.Features.SBOM.ContainerImage = &v2alpha1.SBOMContainerImageConfig{}
 		}
-		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
+		ddaSpec.Features.SBOM.ContainerImage.Enabled = ddaiStatus.RemoteConfigConfiguration.Features.SBOM.ContainerImage.Enabled
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -72,11 +73,11 @@ func (f *ksmFeature) ID() feature.IDType {
 }
 
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
+func (f *ksmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
+	f.owner = ddai
 	var output feature.RequiredComponents
 
-	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+	if ddai.Spec.Features != nil && ddai.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(ddai.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		output.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
@@ -84,24 +85,24 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
-		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+		if ddai.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 
-			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
+			if ccrOverride, ok := ddai.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
 					// Disable if image is overridden to an unsupported version
 					f.collectAPIServiceMetrics = false
 					f.collectCRDMetrics = false
 				}
 			}
-		} else if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+		} else if clusterAgentOverride, ok := ddai.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
 				// Disable if image is overridden to an unsupported version
 				f.collectAPIServiceMetrics = false
@@ -109,8 +110,8 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			}
 		}
 
-		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-			f.customConfig = dda.Spec.Features.KubeStateMetricsCore.Conf
+		if ddai.Spec.Features.KubeStateMetricsCore.Conf != nil {
+			f.customConfig = ddai.Spec.Features.KubeStateMetricsCore.Conf
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
@@ -121,7 +122,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultKubeStateMetricsCoreConf)
+		f.configConfigMapName = constants.GetConfName(ddai, f.customConfig, defaultKubeStateMetricsCoreConf)
 	}
 
 	return output

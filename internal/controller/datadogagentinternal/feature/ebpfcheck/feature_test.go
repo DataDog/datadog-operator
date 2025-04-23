@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 )
 
 func Test_ebpfCheckFeature_Configure(t *testing.T) {
-	ddaEBPFCheckDisabled := v2alpha1.DatadogAgent{
+	ddaEBPFCheckDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
@@ -119,12 +120,12 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "ebpf check not enabled",
-			DDA:           ddaEBPFCheckDisabled.DeepCopy(),
+			DDAI:          ddaEBPFCheckDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "ebpf check enabled",
-			DDA:           ddaEBPFCheckEnabled,
+			DDAI:          ddaEBPFCheckEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ebpfCheckAgentNodeWantFunc),
 		},

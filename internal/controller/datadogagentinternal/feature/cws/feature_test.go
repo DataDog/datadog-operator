@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -27,7 +28,7 @@ import (
 )
 
 func Test_cwsFeature_Configure(t *testing.T) {
-	ddaCWSDisabled := v2alpha1.DatadogAgent{
+	ddaCWSDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CWS: &v2alpha1.CWSFeatureConfig{
@@ -82,18 +83,18 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 CWS not enabled",
-			DDA:           ddaCWSDisabled.DeepCopy(),
+			DDAI:          ddaCWSDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 CWS enabled",
-			DDA:           ddaCWSLiteEnabled,
+			DDAI:          ddaCWSLiteEnabled,
 			WantConfigure: true,
 			Agent:         cwsAgentNodeWantFunc(false),
 		},
 		{
 			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
-			DDA:           ddaCWSFullEnabled,
+			DDAI:          ddaCWSFullEnabled,
 			WantConfigure: true,
 			Agent:         cwsAgentNodeWantFunc(true),
 		},

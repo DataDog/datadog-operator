@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
@@ -31,7 +32,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []Feature, RequiredComponents) {
+func BuildFeatures(ddai *v1alpha1.DatadogAgentInternal, options *Options) ([]Feature, []Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -51,7 +52,7 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []F
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
 		featureID := feat.ID()
-		reqComponents := feat.Configure(dda)
+		reqComponents := feat.Configure(ddai)
 		if reqComponents.IsEnabled() {
 			// enabled features
 			enabledFeatures = append(enabledFeatures, feat)
@@ -64,9 +65,9 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []F
 		requiredComponents.Merge(&reqComponents)
 	}
 
-	if dda.Spec.Global != nil &&
-		dda.Spec.Global.ContainerStrategy != nil &&
-		*dda.Spec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
+	if ddai.Spec.Global != nil &&
+		ddai.Spec.Global.ContainerStrategy != nil &&
+		*ddai.Spec.Global.ContainerStrategy == v2alpha1.SingleContainerStrategy &&
 		// All features that need the NodeAgent must include it in their RequiredComponents;
 		// otherwise tests will fail when checking `requiredComponents.Agent.IsPrivileged()`.
 		requiredComponents.Agent.IsEnabled() &&

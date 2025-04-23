@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -24,7 +25,7 @@ import (
 
 func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 
-	ddaTCPQLDisabled := v2alpha1.DatadogAgent{
+	ddaTCPQLDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				TCPQueueLength: &v2alpha1.TCPQueueLengthFeatureConfig{
@@ -150,12 +151,12 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "tcp queue length not enabled",
-			DDA:           ddaTCPQLDisabled.DeepCopy(),
+			DDAI:          ddaTCPQLDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "tcp queue length enabled",
-			DDA:           ddaTCPQLEnabled,
+			DDAI:          ddaTCPQLEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(tcpQueueLengthAgentNodeWantFunc),
 		},

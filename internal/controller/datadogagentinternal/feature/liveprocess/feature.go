@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -41,20 +41,20 @@ func (f *liveProcessFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
-		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
-			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
+func (f *liveProcessFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if ddai.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddai.Spec.Features.LiveProcessCollection.Enabled) {
+		if ddai.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
+			f.scrubArgs = apiutils.NewBoolPointer(*ddai.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
-		if dda.Spec.Features.LiveProcessCollection.StripProcessArguments != nil {
-			f.stripArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.StripProcessArguments)
+		if ddai.Spec.Features.LiveProcessCollection.StripProcessArguments != nil {
+			f.stripArgs = apiutils.NewBoolPointer(*ddai.Spec.Features.LiveProcessCollection.StripProcessArguments)
 		}
 
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddai, apiutils.BoolValue(ddai.Spec.Global.RunProcessChecksInCoreAgent))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

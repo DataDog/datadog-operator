@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -63,9 +64,9 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	dogstatsd := dda.Spec.Features.Dogstatsd
-	f.owner = dda
+func (f *dogstatsdFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	dogstatsd := ddai.Spec.Features.Dogstatsd
+	f.owner = ddai
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
@@ -81,17 +82,17 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.TagCardinality != nil {
 		f.tagCardinality = *dogstatsd.TagCardinality
 	}
-	f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
+	f.useHostNetwork = constants.IsHostNetworkEnabledDDAI(ddai, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
 
-	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	if ddai.Spec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(ddai.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
 
-	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
+	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(ddai)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{

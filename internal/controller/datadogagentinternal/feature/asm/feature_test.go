@@ -52,7 +52,7 @@ func TestASMFeature(t *testing.T) {
 	test.FeatureTestSuite{
 		{
 			Name: "ASM not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(false, false, false).
 				Build(),
@@ -60,7 +60,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM Threats enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, false, false).
 				Build(),
@@ -70,7 +70,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM Threats enabled, admission controller not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(false).
 				WithASMEnabled(true, false, false).
 				Build(),
@@ -79,7 +79,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM Threats enabled, admission controller not configured",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithASMEnabled(true, false, false).
 				Build(),
 
@@ -87,7 +87,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM SCA enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithASMEnabled(false, true, false).
 				WithAdmissionControllerEnabled(true).
 				Build(),
@@ -97,7 +97,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM IAST enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithASMEnabled(false, false, true).
 				WithAdmissionControllerEnabled(true).
 				Build(),
@@ -107,7 +107,7 @@ func TestASMFeature(t *testing.T) {
 		},
 		{
 			Name: "ASM all enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithASMEnabled(true, true, true).
 				Build(),

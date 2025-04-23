@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
@@ -41,9 +41,9 @@ func (f *asmFeature) ID() feature.IDType {
 	return feature.ASMIDType
 }
 
-func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
-	asm := dda.Spec.Features.ASM
-	if dda.Spec.Features.AdmissionController == nil || !apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled) {
+func (f *asmFeature) shouldEnableASM(ddai *v1alpha1.DatadogAgentInternal) bool {
+	asm := ddai.Spec.Features.ASM
+	if ddai.Spec.Features.AdmissionController == nil || !apiutils.BoolValue(ddai.Spec.Features.AdmissionController.Enabled) {
 		return false
 	}
 
@@ -51,10 +51,10 @@ func (f *asmFeature) shouldEnableASM(dda *v2alpha1.DatadogAgent) bool {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *asmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-	asm := dda.Spec.Features.ASM
-	if !f.shouldEnableASM(dda) {
+func (f *asmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
+	f.owner = ddai
+	asm := ddai.Spec.Features.ASM
+	if !f.shouldEnableASM(ddai) {
 		return feature.RequiredComponents{}
 	}
 

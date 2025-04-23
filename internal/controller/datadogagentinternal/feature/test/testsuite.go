@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
@@ -31,7 +31,7 @@ type FeatureTestSuite []FeatureTest
 type FeatureTest struct {
 	Name string
 	// Inputs
-	DDA            *v2alpha1.DatadogAgent
+	DDAI           *v1alpha1.DatadogAgentInternal
 	Options        *Options
 	FeatureOptions *feature.Options
 	// Dependencies Store
@@ -106,12 +106,12 @@ func runTest(t *testing.T, tt FeatureTest) {
 		featureOptions = tt.FeatureOptions
 	}
 	featureOptions.Logger = logger
-	if tt.DDA != nil {
+	if tt.DDAI != nil {
 		var configuredFeatures []feature.Feature
 		var enabledFeatures []feature.Feature
-		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDAI, featureOptions)
 		features = append(configuredFeatures, enabledFeatures...)
-		dda = tt.DDA
+		dda = tt.DDAI
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
 	}

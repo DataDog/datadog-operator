@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -57,12 +58,12 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 	return feature.ClusterChecksIDType
 }
 
-func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-		f.updateConfigHash(dda)
-		f.owner = dda
+func (f *clusterChecksFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.Enabled) {
+		f.updateConfigHash(ddai)
+		f.owner = ddai
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {
@@ -70,7 +71,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			}
 		}
 
-		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+		f.useClusterCheckRunners = apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -236,8 +237,8 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	return nil
 }
 
-func (f *clusterChecksFeature) updateConfigHash(dda *v2alpha1.DatadogAgent) {
-	hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
+func (f *clusterChecksFeature) updateConfigHash(ddai *v1alpha1.DatadogAgentInternal) {
+	hash, err := comparison.GenerateMD5ForSpec(ddai.Spec.Features.ClusterChecks)
 	if err != nil {
 		f.logger.Error(err, "couldn't generate hash for cluster checks config")
 	} else {
