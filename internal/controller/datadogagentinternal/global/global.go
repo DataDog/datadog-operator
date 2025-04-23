@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -22,12 +23,12 @@ import (
 )
 
 // ApplyGlobalDependencies applies the global dependencies for a DatadogAgent instance.
-func ApplyGlobalDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers) []error {
+func ApplyGlobalDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers) []error {
 	return addDependencies(logger, dda, resourceManagers)
 }
 
 // ApplyGlobalComponentDependencies applies the global dependencies for a component.
-func ApplyGlobalComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent) []error {
+func ApplyGlobalComponentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, componentName v2alpha1.ComponentName, rc feature.RequiredComponent) []error {
 	if rc.IsEnabled() {
 		return addComponentDependencies(logger, dda, resourceManagers, componentName, rc)
 	}
@@ -35,28 +36,28 @@ func ApplyGlobalComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogA
 }
 
 // ApplyGlobalSettingsClusterAgent applies the global settings for the ClusterAgent component.
-func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal,
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, dda, resourcesManager, requiredComponents)
 	applyClusterAgentResources(manager, dda)
 }
 
 // ApplyGlobalSettingsClusterChecksRunner applies the global settings for the ClusterChecksRunner component.
-func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal,
 	resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, dda, resourcesManager, requiredComponents)
 	applyClusterChecksRunnerResources(manager, dda)
 }
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.
-func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal,
 	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) {
 	applyGlobalSettings(logger, manager, dda, resourcesManager, requiredComponents)
 	applyNodeAgentResources(manager, dda, singleContainerStrategyEnabled)
 }
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
+func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, requiredComponents feature.RequiredComponents) {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -241,7 +242,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 }
 
-func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.PodTemplateManagers) {
+func credentialResource(dda *v1alpha1.DatadogAgentInternal, podTemplateManager feature.PodTemplateManagers) {
 	// Default credential names
 	defaultSecretName := secrets.GetDefaultCredentialsSecretName(dda)
 	apiKeySecretName := defaultSecretName
@@ -275,7 +276,7 @@ func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.P
 	}
 }
 
-func dcaTokenResource(dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) {
+func dcaTokenResource(dda *v1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, podTemplateManager feature.PodTemplateManagers) {
 	secretName := secrets.GetDefaultDCATokenSecretName(dda)
 	secretKey := common.DefaultTokenKey
 
