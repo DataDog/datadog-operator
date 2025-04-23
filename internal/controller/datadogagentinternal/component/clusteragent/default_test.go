@@ -5,8 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -26,8 +25,8 @@ const (
 	agentConfigFile  = "/etc/datadog-agent/datadog.yaml"
 )
 
-func defaultDatadogAgent() *datadoghqv2alpha1.DatadogAgent {
-	dda := &datadoghqv2alpha1.DatadogAgent{}
+func defaultDatadogAgent() *datadoghqv1alpha1.DatadogAgentInternal {
+	dda := &datadoghqv1alpha1.DatadogAgentInternal{}
 	dda.SetName("foo")
 	dda.SetNamespace("bar")
 	dda.SetCreationTimestamp(metav1.Now())
@@ -42,19 +41,19 @@ func Test_defaultClusterAgentDeployment(t *testing.T) {
 	assert.Empty(t, testutils.CompareKubeResource(&deployment.Spec.Template, expectedDeployment))
 }
 func Test_getPodDisruptionBudget(t *testing.T) {
-	dda := v2alpha1.DatadogAgent{
+	ddai := datadoghqv1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-datadog-agent",
 			Namespace: "some-namespace",
 		},
 	}
-	testpdb := GetClusterAgentPodDisruptionBudget(&dda, false).(*policyv1.PodDisruptionBudget)
+	testpdb := GetClusterAgentPodDisruptionBudget(&ddai, false).(*policyv1.PodDisruptionBudget)
 	assert.Equal(t, "my-datadog-agent-cluster-agent-pdb", testpdb.Name)
 	assert.Equal(t, intstr.FromInt(pdbMinAvailableInstances), *testpdb.Spec.MinAvailable)
 	assert.Nil(t, testpdb.Spec.MaxUnavailable)
 }
 
-func clusterAgentExpectedPodTemplate(dda *datadoghqv2alpha1.DatadogAgent) *corev1.PodTemplateSpec {
+func clusterAgentExpectedPodTemplate(dda *datadoghqv1alpha1.DatadogAgentInternal) *corev1.PodTemplateSpec {
 	podTemplate := &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -75,7 +74,7 @@ func clusterAgentExpectedPodTemplate(dda *datadoghqv2alpha1.DatadogAgent) *corev
 	return podTemplate
 }
 
-func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodSpec {
+func clusterAgentDefaultPodSpec(dda *datadoghqv1alpha1.DatadogAgentInternal) corev1.PodSpec {
 	return corev1.PodSpec{
 		// from default
 		Affinity:           DefaultAffinity(),
@@ -207,7 +206,7 @@ func defaultStartupProbe() *corev1.Probe {
 	}
 }
 
-func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.EnvVar {
+func clusterAgentDefaultEnvVars(dda *datadoghqv1alpha1.DatadogAgentInternal) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  "DD_AUTH_TOKEN_FILE_PATH",

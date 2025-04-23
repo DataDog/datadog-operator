@@ -36,13 +36,13 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := testutils.NewDatadogAgentBuilder().
+			ddai := testutils.NewDatadogAgentInternalBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					Name: &tt.overrideAgentName,
 				}).
 				Build()
-			dsName := GetDaemonSetNameFromDatadogAgent(dda)
+			dsName := GetDaemonSetNameFromDatadogAgent(ddai)
 			assert.Equal(t, tt.expectedName, dsName)
 		})
 	}
@@ -71,13 +71,13 @@ func Test_getDeploymentNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dda := testutils.NewDatadogAgentBuilder().
+			ddai := testutils.NewDatadogAgentInternalBuilder().
 				WithName(tt.ddaName).
 				WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 					Name: &tt.overrideClusterAgentName,
 				}).
 				Build()
-			deployName := GetDeploymentNameFromDatadogAgent(dda)
+			deployName := GetDeploymentNameFromDatadogAgent(ddai)
 			assert.Equal(t, tt.expectedName, deployName)
 		})
 	}
