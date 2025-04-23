@@ -26,13 +26,13 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Admission Controller not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Admission Controller enabled with basic setup",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -41,7 +41,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with validation and mutation enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithAdmissionControllerValidationEnabled(true).
 				WithAdmissionControllerMutationEnabled(true).
@@ -52,7 +52,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission controller enabled, cwsInstrumentation enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithCWSInstrumentationEnabled(true).
 				WithCWSInstrumentationMode("test-mode").
@@ -63,7 +63,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with overriding registry",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithRegistry("testRegistry").
 				Build(),
@@ -73,7 +73,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with custom registry in global config, override with feature config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithAdmissionControllerRegistry("featureRegistry").
 				WithRegistry("globalRegistry").
@@ -84,7 +84,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with apm uds",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithAPMEnabled(true).
 				WithAPMUDSEnabled(true, "testHostPath").
@@ -95,7 +95,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with DSD uds",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithDogstatsdUnixDomainSocketConfigEnabled(true).
 				Build(),
@@ -105,7 +105,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar basic setup",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				Build(),
@@ -115,7 +115,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global registry",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithRegistry("globalRegistry").
@@ -126,7 +126,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding both sidecar and global registry",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithRegistry("globalRegistry").
@@ -138,7 +138,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding test sidecar image and tag",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithSidecarInjectionImageName("testAgentImage").
@@ -150,7 +150,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global image and tag",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -168,7 +168,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding both global and sidecar image and tag",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
@@ -186,7 +186,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection with selector and profile",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAdmissionControllerEnabled(true).
 				WithSidecarInjectionEnabled(true).
 				WithSidecarInjectionSelectors("testKey", "testValue").

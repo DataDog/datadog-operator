@@ -25,7 +25,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "RC not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithRemoteConfigEnabled(false).
 				Build(),
 			WantConfigure: true,
@@ -34,7 +34,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "RC enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithRemoteConfigEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -43,7 +43,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "RC default (no datadogagent_default.go)",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				Build(),
 			WantConfigure: true,
 			Agent:         rcAgentNodeWantFunc(false),

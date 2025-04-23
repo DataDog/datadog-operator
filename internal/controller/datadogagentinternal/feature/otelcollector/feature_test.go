@@ -80,14 +80,14 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// disabled
 		{
 			Name: "otel agent disabled without config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "otel agent disabled with config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(false).
 				WithOTelCollectorConfig().
 				Build(),
@@ -96,7 +96,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// enabled
 		{
 			Name: "otel agent enabled with config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfig().
 				Build(),
@@ -106,7 +106,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled with configMap",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfigMap().
 				Build(),
@@ -116,7 +116,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled without config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				Build(),
 			WantConfigure:        true,
@@ -125,7 +125,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent enabled without config non default ports",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorPorts(4444, 5555).
 				Build(),
@@ -143,7 +143,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		// coreconfig
 		{
 			Name: "otel agent coreconfig enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(true).
 				Build(),
@@ -153,7 +153,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig disabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				Build(),
@@ -163,7 +163,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig extensionTimeout",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				WithOTelCollectorCoreConfigExtensionTimeout(13).
@@ -188,7 +188,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig extensionURL",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(false).
 				WithOTelCollectorCoreConfigExtensionURL("https://localhost:1234").
@@ -213,7 +213,7 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "otel agent coreconfig all env vars",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorCoreConfigEnabled(true).
 				WithOTelCollectorCoreConfigExtensionTimeout(13).

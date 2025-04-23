@@ -25,14 +25,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "log collection not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(false).
 				BuildWithDefaults(),
 			WantConfigure: false,
 		},
 		{
 			Name: "log collection enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
@@ -45,7 +45,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "container collect all enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionCollectAll(true).
 				BuildWithDefaults(),
@@ -59,7 +59,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "container collect using files disabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionCollectAll(true).
 				WithLogCollectionLogCollectionUsingFiles(false).
@@ -74,7 +74,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "open files limit set to custom value",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionOpenFilesLimit(250).
 				BuildWithDefaults(),
@@ -92,7 +92,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "custom volumes",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionPaths("/custom/pod/logs", "/custom/container/logs", "/custom/symlink", "/custom/temp/storage").
 				BuildWithDefaults(),

@@ -55,14 +55,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "orchestrator explorer not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
 			WantConfigure: true,
 		},
 		{
 			Name: "orchestrator explorer enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -76,7 +76,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "orchestrator explorer enabled and runs on cluster checks runner",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
@@ -93,7 +93,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "orchestrator explorer enabled on version requiring process agent",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).

@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -74,9 +75,9 @@ func (f *otlpFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	otlp := dda.Spec.Features.OTLP
-	f.owner = dda
+func (f *otlpFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	otlp := ddai.Spec.Features.OTLP
+	f.owner = ddai
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
 	}
@@ -103,15 +104,15 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.httpEndpoint = *otlp.Receiver.Protocols.HTTP.Endpoint
 	}
 
-	apm := dda.Spec.Features.APM
+	apm := ddai.Spec.Features.APM
 	if apm != nil {
 		f.usingAPM = apiutils.BoolValue(apm.Enabled)
 	}
 
-	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	if ddai.Spec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(ddai.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -128,7 +129,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 	}
 	if f.grpcEnabled || f.httpEnabled {
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {

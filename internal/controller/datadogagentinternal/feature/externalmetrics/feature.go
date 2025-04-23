@@ -17,6 +17,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -73,9 +74,9 @@ func (f *externalMetricsFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	em := dda.Spec.Features.ExternalMetricsServer
+func (f *externalMetricsFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
+	em := ddai.Spec.Features.ExternalMetricsServer
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
 		// By default, we register the external metrics endpoint
@@ -124,9 +125,9 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			}
 		}
 
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {

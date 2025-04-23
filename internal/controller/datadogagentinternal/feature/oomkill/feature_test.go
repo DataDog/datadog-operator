@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 )
 
 func Test_oomKillFeature_Configure(t *testing.T) {
-	ddaOOMKillDisabled := v2alpha1.DatadogAgent{
+	ddaOOMKillDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				OOMKill: &v2alpha1.OOMKillFeatureConfig{
@@ -149,12 +150,12 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "oom kill not enabled",
-			DDA:           ddaOOMKillDisabled.DeepCopy(),
+			DDAI:          ddaOOMKillDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "oom kill enabled",
-			DDA:           ddaOOMKillEnabled,
+			DDAI:          ddaOOMKillEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(oomKillAgentNodeWantFunc),
 		},

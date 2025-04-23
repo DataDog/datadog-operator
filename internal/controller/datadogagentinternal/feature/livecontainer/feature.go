@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -40,13 +40,13 @@ func (f *liveContainerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
+func (f *liveContainerFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if ddai.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(ddai.Spec.Features.LiveContainerCollection.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddai, apiutils.BoolValue(ddai.Spec.Global.RunProcessChecksInCoreAgent))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

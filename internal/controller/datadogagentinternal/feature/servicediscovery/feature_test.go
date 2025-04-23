@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 )
 
 func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
-	ddaServiceDiscoveryDisabled := v2alpha1.DatadogAgent{
+	ddaServiceDiscoveryDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ServiceDiscovery: &v2alpha1.ServiceDiscoveryFeatureConfig{
@@ -47,18 +48,18 @@ func Test_serviceDiscoveryFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "service discovery not enabled",
-			DDA:           ddaServiceDiscoveryDisabled.DeepCopy(),
+			DDAI:          ddaServiceDiscoveryDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "service discovery enabled - no network stats",
-			DDA:           ddaServiceDiscoveryEnabledNoNetStats,
+			DDAI:          ddaServiceDiscoveryEnabledNoNetStats,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(noNetStats)),
 		},
 		{
 			Name:          "service discovery enabled - with network stats",
-			DDA:           ddaServiceDiscoveryEnabledWithNetStats,
+			DDAI:          ddaServiceDiscoveryEnabledWithNetStats,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(getWantFunc(withNetStats)),
 		},

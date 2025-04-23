@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -41,36 +42,36 @@ func TestExternalMetricsFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "external metrics not enabled",
-			DDA:           newAgent(false, true, false, false, v2alpha1.DatadogCredentials{}),
+			DDAI:          newAgent(false, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: false,
 		},
 		{
 			Name:          "external metrics enabled",
-			DDA:           newAgent(true, true, true, false, v2alpha1.DatadogCredentials{}),
+			DDAI:          newAgent(true, true, true, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, false),
 		},
 		{
 			Name:          "external metrics enabled, wpa controller enabled",
-			DDA:           newAgent(true, true, true, true, v2alpha1.DatadogCredentials{}),
+			DDAI:          newAgent(true, true, true, true, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, true, false),
 		},
 		{
 			Name:          "external metrics enabled, ddm disabled",
-			DDA:           newAgent(true, true, false, false, v2alpha1.DatadogCredentials{}),
+			DDAI:          newAgent(true, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(false, false, false),
 		},
 		{
 			Name:          "external metrics enabled, secrets set",
-			DDA:           newAgent(true, true, true, false, secret),
+			DDAI:          newAgent(true, true, true, false, secret),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, true),
 		},
 		{
 			Name:          "external metrics enabled, secrets set, registerAPIService enabled",
-			DDA:           newAgent(true, true, true, false, secret),
+			DDAI:          newAgent(true, true, true, false, secret),
 			WantConfigure: true,
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
@@ -85,7 +86,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 		},
 		{
 			Name:          "external metrics enabled, secrets set, registerAPIService disabled",
-			DDA:           newAgent(true, false, true, false, secret),
+			DDAI:          newAgent(true, false, true, false, secret),
 			WantConfigure: true,
 			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
 				apiServiceName := "v1beta1.external.metrics.k8s.io"
@@ -103,8 +104,8 @@ func TestExternalMetricsFeature(t *testing.T) {
 	tests.Run(t, buildExternalMetricsFeature)
 }
 
-func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
+func newAgent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v1alpha1.DatadogAgentInternal {
+	return &v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{

@@ -38,14 +38,14 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "Helm check disabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithHelmCheckEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "Helm check enabled",
-			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			DDAI: testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
 				WithHelmCheckValuesAsTags(valuesAsTags).
@@ -56,7 +56,7 @@ func Test_helmCheckFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "Helm check enabled and runs on cluster checks runner",
-			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			DDAI: testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 				WithHelmCheckEnabled(true).
 				WithHelmCheckCollectEvents(true).
 				WithHelmCheckValuesAsTags(valuesAsTags).

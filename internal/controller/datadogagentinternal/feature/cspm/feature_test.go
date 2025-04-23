@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -40,7 +41,7 @@ var customConfig = &v2alpha1.CustomConfig{
 }
 
 func Test_cspmFeature_Configure(t *testing.T) {
-	ddaCSPMDisabled := v2alpha1.DatadogAgent{
+	ddaCSPMDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				CSPM: &v2alpha1.CSPMFeatureConfig{
@@ -71,12 +72,12 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		{
 			Name:          "CSPM not enabled",
-			DDA:           ddaCSPMDisabled.DeepCopy(),
+			DDAI:          ddaCSPMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "CSPM enabled",
-			DDA:           ddaCSPMEnabled,
+			DDAI:          ddaCSPMEnabled,
 			WantConfigure: true,
 			ClusterAgent:  cspmClusterAgentWantFunc(),
 			Agent:         cspmAgentNodeWantFunc(),

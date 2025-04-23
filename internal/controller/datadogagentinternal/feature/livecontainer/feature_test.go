@@ -27,7 +27,7 @@ func TestLiveContainerFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "live container collection enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -35,7 +35,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled with single container",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -44,7 +44,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled on core agent via env var",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -59,7 +59,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled on core agent via spec",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -74,7 +74,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection enabled in core agent via spec without min version",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
@@ -89,7 +89,7 @@ func TestLiveContainerFeature(t *testing.T) {
 		},
 		{
 			Name: "live container collection disabled on core agent via env var override",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithLiveContainerCollectionEnabled(true).
 				WithComponentOverride(
 					v2alpha1.NodeAgentComponentName,
