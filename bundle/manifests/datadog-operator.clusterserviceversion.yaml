@@ -194,7 +194,7 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    createdAt: "2025-04-23 16:02:27"
+    createdAt: "2025-04-23 18:18:16"
     description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
     operators.operatorframework.io/builder: operator-sdk-v1.34.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
@@ -783,4 +783,4 @@ spec:
   provider:
     name: Datadog
   version: 1.14.0
-  replaces: datadog-operator.v1.14.0-rc.3
+  replaces: datadog-operator.v1.13.0
