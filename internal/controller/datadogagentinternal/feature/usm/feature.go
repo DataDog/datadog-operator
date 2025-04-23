@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -38,11 +39,11 @@ func (f *usmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *usmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&ddai.Spec, &ddai.Status)
 
-	usmConfig := dda.Spec.Features.USM
+	usmConfig := ddai.Spec.Features.USM
 
 	if usmConfig != nil && apiutils.BoolValue(usmConfig.Enabled) {
 		reqComp = feature.RequiredComponents{
@@ -60,8 +61,8 @@ func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.USM == nil || ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaiStatus *v1alpha1.DatadogAgentInternalStatus) {
+	if ddaiStatus.RemoteConfigConfiguration == nil || ddaiStatus.RemoteConfigConfiguration.Features == nil || ddaiStatus.RemoteConfigConfiguration.Features.USM == nil || ddaiStatus.RemoteConfigConfiguration.Features.USM.Enabled == nil {
 		return
 	}
 
@@ -73,8 +74,8 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.USM = &v2alpha1.USMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled != nil {
-		ddaSpec.Features.USM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.USM.Enabled
+	if ddaiStatus.RemoteConfigConfiguration.Features.USM.Enabled != nil {
+		ddaSpec.Features.USM.Enabled = ddaiStatus.RemoteConfigConfiguration.Features.USM.Enabled
 	}
 }
 

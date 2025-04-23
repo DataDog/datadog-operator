@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 )
 
 func Test_npmFeature_Configure(t *testing.T) {
-	ddaNPMDisabled := v2alpha1.DatadogAgent{
+	ddaNPMDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				NPM: &v2alpha1.NPMFeatureConfig{
@@ -206,18 +207,18 @@ func Test_npmFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "NPM not enabled",
-			DDA:           ddaNPMDisabled.DeepCopy(),
+			DDAI:          ddaNPMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "NPM enabled",
-			DDA:           ddaNPMEnabled,
+			DDAI:          ddaNPMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 		{
 			Name:          "NPM enabled, conntrack disable, dnsstat enabled",
-			DDA:           ddaNPMEnabledConfig,
+			DDAI:          ddaNPMEnabledConfig,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmFeatureEnvVarWantFunc),
 		},

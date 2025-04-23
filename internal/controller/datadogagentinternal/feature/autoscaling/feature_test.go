@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -35,19 +36,19 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "v2alpha1 autoscaling disabled",
-			DDA:           newAgent(false, true),
+			DDAI:          newAgent(false, true),
 			WantConfigure: false,
 		},
 		{
 			Name:                 "v2alpha1 autoscaling enabeld",
-			DDA:                  newAgent(true, true),
+			DDAI:                 newAgent(true, true),
 			WantConfigure:        true,
 			ClusterAgent:         testDCAResources(true),
 			WantDependenciesFunc: testRBACResources,
 		},
 		{
 			Name:                      "v2alpha1 autoscaling enabeld but admission disabled",
-			DDA:                       newAgent(true, false),
+			DDAI:                      newAgent(true, false),
 			WantConfigure:             true,
 			WantManageDependenciesErr: true,
 		},
@@ -56,8 +57,8 @@ func TestAutoscalingFeature(t *testing.T) {
 	tests.Run(t, buildAutoscalingFeature)
 }
 
-func newAgent(enabled bool, admissionEnabled bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
+func newAgent(enabled bool, admissionEnabled bool) *v1alpha1.DatadogAgentInternal {
+	return &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",

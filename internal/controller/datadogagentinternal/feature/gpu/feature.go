@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
@@ -38,8 +38,8 @@ func (f *gpuFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil || dda.Spec.Features.GPU == nil || !apiutils.BoolValue(dda.Spec.Features.GPU.Enabled) {
+func (f *gpuFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if ddai.Spec.Features == nil || ddai.Spec.Features.GPU == nil || !apiutils.BoolValue(ddai.Spec.Features.GPU.Enabled) {
 		return reqComp
 	}
 
@@ -48,16 +48,16 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},
 	}
 
-	if dda.Spec.Features.GPU.PodRuntimeClassName == nil {
+	if ddai.Spec.Features.GPU.PodRuntimeClassName == nil {
 		// Configuration option not set, so revert to the default
 		f.podRuntimeClassName = defaultGPURuntimeClass
 	} else {
 		// Configuration option set, use the value. Note that here the value might be an empty
 		// string, which tells us to not change the runtime class.
-		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
+		f.podRuntimeClassName = *ddai.Spec.Features.GPU.PodRuntimeClassName
 	}
 
-	f.podResourcesSocketPath = dda.Spec.Global.Kubelet.PodResourcesSocketPath
+	f.podResourcesSocketPath = ddai.Spec.Global.Kubelet.PodResourcesSocketPath
 
 	return reqComp
 }

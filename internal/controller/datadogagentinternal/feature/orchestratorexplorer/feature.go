@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -78,13 +79,13 @@ func (f *orchestratorExplorerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *orchestratorExplorerFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	f.mergeConfigs(&dda.Spec, &dda.Status)
+	f.mergeConfigs(&ddai.Spec, &ddai.Status)
 
-	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
+	orchestratorExplorer := ddai.Spec.Features.OrchestratorExplorer
 
 	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		f.enabled = true
@@ -106,18 +107,18 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 
-		f.customResources = dda.Spec.Features.OrchestratorExplorer.CustomResources
-		f.configConfigMapName = constants.GetConfName(dda, f.customConfig, defaultOrchestratorExplorerConf)
+		f.customResources = ddai.Spec.Features.OrchestratorExplorer.CustomResources
+		f.configConfigMapName = constants.GetConfName(ddai, f.customConfig, defaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
 		// Handle automatic addition of OOTB resources
 		// Autoscaling: Add DPA resource if enabled and replace older versions if present
-		autoscaling := dda.Spec.Features.Autoscaling
+		autoscaling := ddai.Spec.Features.Autoscaling
 		if autoscaling != nil && autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
 			addRequired := true
 			for i := range f.customResources {
@@ -135,11 +136,11 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabled(dda) {
-			if constants.IsCCREnabled(dda) {
+		if constants.IsClusterChecksEnabledDDAI(ddai) {
+			if constants.IsCCREnabledDDAI(ddai) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
@@ -148,7 +149,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 	reqContainers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	// Process Agent is not required as of agent version 7.51.0
-	if nodeAgent, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+	if nodeAgent, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgent.Image != nil && !utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), NoProcessAgentMinVersion) {
 			f.processAgentRequired = true
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
@@ -163,11 +164,11 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 	return reqComp
 }
 
-func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
-		ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
+func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaiStatus *v1alpha1.DatadogAgentInternalStatus) {
+	if ddaiStatus.RemoteConfigConfiguration == nil ||
+		ddaiStatus.RemoteConfigConfiguration.Features == nil ||
+		ddaiStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer == nil ||
+		ddaiStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources == nil {
 		return
 	}
 
@@ -179,7 +180,7 @@ func (f *orchestratorExplorerFeature) mergeConfigs(ddaSpec *v2alpha1.DatadogAgen
 		ddaSpec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
 	}
 
-	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
+	ddaSpec.Features.OrchestratorExplorer.CustomResources = append(ddaSpec.Features.OrchestratorExplorer.CustomResources, ddaiStatus.RemoteConfigConfiguration.Features.OrchestratorExplorer.CustomResources...)
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

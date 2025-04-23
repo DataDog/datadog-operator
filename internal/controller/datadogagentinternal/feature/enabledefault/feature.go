@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/utils"
@@ -46,12 +46,12 @@ func (f *defaultFeature) ID() feature.IDType {
 	return feature.DefaultIDType
 }
 
-func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *defaultFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
 	trueValue := true
-	f.owner = dda
+	f.owner = ddai
 
-	if dda.ObjectMeta.Annotations != nil {
-		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
+	if ddai.ObjectMeta.Annotations != nil {
+		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(ddai)
 	}
 
 	agentContainers := make([]apicommon.AgentContainerName, 0)

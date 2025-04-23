@@ -10,7 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
@@ -129,7 +129,7 @@ type Feature interface {
 	ID() IDType
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
-	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
+	Configure(ddai *v1alpha1.DatadogAgentInternal) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
 	ManageDependencies(managers ResourceManagers) error

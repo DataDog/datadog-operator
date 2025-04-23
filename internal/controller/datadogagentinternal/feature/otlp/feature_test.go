@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
@@ -25,7 +25,7 @@ func TestOTLPFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "gRPC and HTTP enabled, APM",
-			DDA: newAgent(Settings{
+			DDAI: newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  4317,
@@ -67,7 +67,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "[single container] gRPC and HTTP enabled, APM",
-			DDA: newAgentSingleContainer(Settings{
+			DDAI: newAgentSingleContainer(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				EndpointGRPC:        "0.0.0.0:4317",
@@ -107,7 +107,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "gRPC and HTTP enabled, hostPorts disabled",
-			DDA: newAgent(Settings{
+			DDAI: newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: false,
 				EndpointGRPC:        "0.0.0.0:4317",
@@ -145,7 +145,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "[single container] gRPC and HTTP enabled, hostPorts disabled",
-			DDA: newAgentSingleContainer(Settings{
+			DDAI: newAgentSingleContainer(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: false,
 				EndpointGRPC:        "0.0.0.0:4317",
@@ -183,7 +183,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "gRPC and HTTP enabled, custom hostports",
-			DDA: newAgent(Settings{
+			DDAI: newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  4315,
@@ -225,7 +225,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "[single container] gRPC and HTTP enabled, custom hostports",
-			DDA: newAgentSingleContainer(Settings{
+			DDAI: newAgentSingleContainer(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  4315,
@@ -267,7 +267,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "gRPC enabled, no APM",
-			DDA: newAgent(Settings{
+			DDAI: newAgent(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  0,
@@ -293,7 +293,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "[single container] gRPC enabled, no APM",
-			DDA: newAgentSingleContainer(Settings{
+			DDAI: newAgentSingleContainer(Settings{
 				EnabledGRPC:         true,
 				EnabledGRPCHostPort: true,
 				CustomGRPCHostPort:  0,
@@ -319,7 +319,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "HTTP enabled, APM",
-			DDA: newAgent(Settings{
+			DDAI: newAgent(Settings{
 				EnabledHTTP:         true,
 				EnabledHTTPHostPort: true,
 				CustomHTTPHostPort:  0,
@@ -347,7 +347,7 @@ func TestOTLPFeature(t *testing.T) {
 		},
 		{
 			Name: "[single container] HTTP enabled, APM",
-			DDA: newAgentSingleContainer(Settings{
+			DDAI: newAgentSingleContainer(Settings{
 				EnabledHTTP:         true,
 				EnabledHTTPHostPort: true,
 				CustomHTTPHostPort:  0,
@@ -391,16 +391,16 @@ type Settings struct {
 	APM bool
 }
 
-func newAgent(set Settings) *v2alpha1.DatadogAgent {
-	return testutils.NewDatadogAgentBuilder().
+func newAgent(set Settings) *v1alpha1.DatadogAgentInternal {
+	return testutils.NewDatadogAgentInternalBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).
 		Build()
 }
 
-func newAgentSingleContainer(set Settings) *v2alpha1.DatadogAgent {
-	return testutils.NewDatadogAgentBuilder().
+func newAgentSingleContainer(set Settings) *v1alpha1.DatadogAgentInternal {
+	return testutils.NewDatadogAgentInternalBuilder().
 		WithOTLPGRPCSettings(set.EnabledGRPC, set.EnabledGRPCHostPort, set.CustomGRPCHostPort, set.EndpointGRPC).
 		WithOTLPHTTPSettings(set.EnabledHTTP, set.EnabledHTTPHostPort, set.CustomHTTPHostPort, set.EndpointHTTP).
 		WithAPMEnabled(set.APM).

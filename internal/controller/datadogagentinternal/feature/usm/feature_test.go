@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 
 func Test_usmFeature_Configure(t *testing.T) {
 
-	ddaUSMDisabled := v2alpha1.DatadogAgent{
+	ddaUSMDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				USM: &v2alpha1.USMFeatureConfig{
@@ -157,12 +158,12 @@ func Test_usmFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "USM not enabled",
-			DDA:           ddaUSMDisabled.DeepCopy(),
+			DDAI:          ddaUSMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "USM enabled",
-			DDA:           ddaUSMEnabled,
+			DDAI:          ddaUSMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},

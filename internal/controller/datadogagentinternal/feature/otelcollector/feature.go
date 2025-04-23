@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -62,20 +63,20 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
-func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
-	o.owner = dda
-	if dda.Spec.Features.OtelCollector.Conf != nil {
-		o.customConfig = dda.Spec.Features.OtelCollector.Conf
+func (o *otelCollectorFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
+	o.owner = ddai
+	if ddai.Spec.Features.OtelCollector.Conf != nil {
+		o.customConfig = ddai.Spec.Features.OtelCollector.Conf
 	}
-	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
+	o.configMapName = constants.GetConfName(ddai, o.customConfig, defaultOTelAgentConf)
 
-	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
-		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionURL
+	if ddai.Spec.Features.OtelCollector.CoreConfig != nil {
+		o.coreAgentConfig.enabled = ddai.Spec.Features.OtelCollector.CoreConfig.Enabled
+		o.coreAgentConfig.extension_timeout = ddai.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extension_url = ddai.Spec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
-	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
+	if len(ddai.Spec.Features.OtelCollector.Ports) == 0 {
 		o.ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
@@ -91,11 +92,11 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 			},
 		}
 	} else {
-		o.ports = dda.Spec.Features.OtelCollector.Ports
+		o.ports = ddai.Spec.Features.OtelCollector.Ports
 	}
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
+	if apiutils.BoolValue(ddai.Spec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

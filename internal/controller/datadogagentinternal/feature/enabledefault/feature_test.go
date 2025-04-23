@@ -29,7 +29,7 @@ func Test_defaultFeature_ADP(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "adp disabled (default)",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -42,7 +42,7 @@ func Test_defaultFeature_ADP(t *testing.T) {
 		},
 		{
 			Name: "adp disabled (forced)",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAnnotations(map[string]string{
 					utils.EnableADPAnnotation: "false",
 				}).
@@ -58,7 +58,7 @@ func Test_defaultFeature_ADP(t *testing.T) {
 		},
 		{
 			Name: "adp enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithAnnotations(map[string]string{
 					utils.EnableADPAnnotation: "true",
 				}).

@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	common "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -64,20 +65,20 @@ func (f *eventCollectionFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *eventCollectionFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
-	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	if ddai.Spec.Features != nil && ddai.Spec.Features.EventCollection != nil && apiutils.BoolValue(ddai.Spec.Features.EventCollection.CollectKubernetesEvents) {
+		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
-		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {
-			if len(dda.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
-				f.configMapName = constants.GetConfName(dda, nil, defaultKubeAPIServerConf)
-				f.unbundleEvents = *dda.Spec.Features.EventCollection.UnbundleEvents
-				f.unbundleEventTypes = dda.Spec.Features.EventCollection.CollectedEventTypes
+		if apiutils.BoolValue(ddai.Spec.Features.EventCollection.UnbundleEvents) {
+			if len(ddai.Spec.Features.EventCollection.CollectedEventTypes) > 0 {
+				f.configMapName = constants.GetConfName(ddai, nil, defaultKubeAPIServerConf)
+				f.unbundleEvents = *ddai.Spec.Features.EventCollection.UnbundleEvents
+				f.unbundleEventTypes = ddai.Spec.Features.EventCollection.CollectedEventTypes
 			} else {
 				f.logger.Info("UnbundleEvents is enabled but no CollectedEventTypes are specified, disabling unbundleEvents")
 			}

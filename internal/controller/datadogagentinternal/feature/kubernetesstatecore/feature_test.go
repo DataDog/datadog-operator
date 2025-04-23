@@ -37,14 +37,14 @@ func Test_ksmFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "ksm-core not enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
 			Name: "ksm-core not enabled with single agent container",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(false).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -52,7 +52,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(true).
 				Build(),
 			WantConfigure: true,
@@ -61,7 +61,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled with single agent container",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(true).
 				WithSingleContainerStrategy(true).
 				Build(),
@@ -71,7 +71,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled, custom config",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				Build(),
@@ -81,7 +81,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "ksm-core enabled, custom config with single agent container",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithKSMEnabled(true).
 				WithKSMCustomConf(customData).
 				WithSingleContainerStrategy(true).

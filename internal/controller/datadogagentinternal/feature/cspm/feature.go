@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -63,17 +64,17 @@ func (f *cspmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
+func (f *cspmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(&ddai.Spec, &ddai.Status)
 
-	cspmConfig := dda.Spec.Features.CSPM
+	cspmConfig := ddai.Spec.Features.CSPM
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
 		if cspmConfig.CheckInterval != nil {
 			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)
@@ -90,7 +91,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
-		f.configMapName = constants.GetConfName(dda, f.customConfig, defaultCSPMConf)
+		f.configMapName = constants.GetConfName(ddai, f.customConfig, defaultCSPMConf)
 
 		if cspmConfig.HostBenchmarks != nil && apiutils.BoolValue(cspmConfig.HostBenchmarks.Enabled) {
 			f.hostBenchmarksEnabled = true
@@ -113,8 +114,8 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaiStatus *v1alpha1.DatadogAgentInternalStatus) {
+	if ddaiStatus.RemoteConfigConfiguration == nil || ddaiStatus.RemoteConfigConfiguration.Features == nil || ddaiStatus.RemoteConfigConfiguration.Features.CSPM == nil || ddaiStatus.RemoteConfigConfiguration.Features.CSPM.Enabled == nil {
 		return
 	}
 
@@ -126,8 +127,8 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled != nil {
-		ddaSpec.Features.CSPM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled
+	if ddaiStatus.RemoteConfigConfiguration.Features.CSPM.Enabled != nil {
+		ddaSpec.Features.CSPM.Enabled = ddaiStatus.RemoteConfigConfiguration.Features.CSPM.Enabled
 	}
 }
 

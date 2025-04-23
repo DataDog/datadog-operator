@@ -6,7 +6,7 @@
 package dummy
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 )
 
@@ -33,7 +33,7 @@ func (f *dummyFeature) ID() feature.IDType {
 	return feature.DummyIDType
 }
 
-func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *dummyFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
 	return feature.RequiredComponents{}
 }
 

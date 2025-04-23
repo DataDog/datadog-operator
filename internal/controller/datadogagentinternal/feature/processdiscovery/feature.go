@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -36,14 +36,14 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 	return feature.ProcessDiscoveryIDType
 }
 
-func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (p *processDiscoveryFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
-	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled) {
+	if ddai.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(ddai.Spec.Features.ProcessDiscovery.Enabled) {
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		p.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddai, apiutils.BoolValue(ddai.Spec.Global.RunProcessChecksInCoreAgent))
 
 		if !p.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)

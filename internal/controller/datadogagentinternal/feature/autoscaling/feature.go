@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
@@ -50,20 +51,20 @@ func (f *autoscalingFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-	if dda.Spec.Features == nil {
+func (f *autoscalingFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	f.owner = ddai
+	if ddai.Spec.Features == nil {
 		return feature.RequiredComponents{}
 	}
 
-	autoscaling := dda.Spec.Features.Autoscaling
+	autoscaling := ddai.Spec.Features.Autoscaling
 	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		return feature.RequiredComponents{}
 	}
 
-	admission := dda.Spec.Features.AdmissionController
+	admission := ddai.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{

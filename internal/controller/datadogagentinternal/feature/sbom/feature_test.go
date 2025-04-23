@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -23,7 +24,7 @@ import (
 
 func Test_sbomFeature_Configure(t *testing.T) {
 
-	sbomDisabled := v2alpha1.DatadogAgent{
+	sbomDisabled := v1alpha1.DatadogAgentInternal{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				SBOM: &v2alpha1.SBOMFeatureConfig{
@@ -177,30 +178,30 @@ func Test_sbomFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name:          "SBOM not enabled",
-			DDA:           sbomDisabled.DeepCopy(),
+			DDAI:          sbomDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
 			Name:          "SBOM enabled",
-			DDA:           sbomEnabled,
+			DDAI:          sbomEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomNodeAgentWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, ContainerImage enabled",
-			DDA:           sbomEnabledContainerImageEnabled,
+			DDAI:          sbomEnabledContainerImageEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, ContainerImage enabled, overlayFS direct scan",
-			DDA:           sbomEnabledContainerImageOverlayFSEnabled,
+			DDAI:          sbomEnabledContainerImageOverlayFSEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithContainerImageOverlayFSWantFunc),
 		},
 		{
 			Name:          "SBOM enabled, Host enabled",
-			DDA:           sbomEnabledHostEnabled,
+			DDAI:          sbomEnabledHostEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(sbomWithHostWantFunc),
 		},

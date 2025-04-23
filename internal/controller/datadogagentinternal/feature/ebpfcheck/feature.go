@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
@@ -38,8 +38,8 @@ func (f *ebpfCheckFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *ebpfCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features != nil && dda.Spec.Features.EBPFCheck != nil && apiutils.BoolValue(dda.Spec.Features.EBPFCheck.Enabled) {
+func (f *ebpfCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if ddai.Spec.Features != nil && ddai.Spec.Features.EBPFCheck != nil && apiutils.BoolValue(ddai.Spec.Features.EBPFCheck.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.SystemProbeContainerName},

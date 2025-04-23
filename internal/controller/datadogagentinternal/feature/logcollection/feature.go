@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -47,12 +47,12 @@ func (f *logCollectionFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil {
+func (f *logCollectionFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
+	if ddai.Spec.Features == nil {
 		return
 	}
 
-	logCollection := dda.Spec.Features.LogCollection
+	logCollection := ddai.Spec.Features.LogCollection
 
 	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
 		if logCollection.ContainerCollectAll != nil {
