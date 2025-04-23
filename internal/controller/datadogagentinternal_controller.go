@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
@@ -184,8 +183,8 @@ type DatadogAgentInternalReconciler struct {
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch;patch
 
 // Reconcile loop for DatadogAgentInternal.
-func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (ctrl.Result, error) {
-	return r.internal.Reconcile(ctx, dda)
+func (r *DatadogAgentInternalReconciler) Reconcile(ctx context.Context, ddai *datadoghqv1alpha1.DatadogAgentInternal) (ctrl.Result, error) {
+	return r.internal.Reconcile(ctx, ddai)
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
@@ -256,8 +255,8 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		}))
 	}
 
-	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogAgentInternal](r.Client, r)
+	if err := builder.For(&datadoghqv1alpha1.DatadogAgentInternal{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 

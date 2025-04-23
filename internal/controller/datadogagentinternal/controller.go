@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -95,13 +95,13 @@ func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, ddai *v1alpha1.DatadogAgentInternal) (reconcile.Result, error) {
 	var resp reconcile.Result
 	var err error
 
-	resp, err = r.internalReconcileV2(ctx, dda)
+	resp, err = r.internalReconcileV2(ctx, ddai)
 
-	r.metricsForwarderProcessError(dda, err)
+	r.metricsForwarderProcessError(ddai, err)
 	return resp, err
 }
 
@@ -112,8 +112,8 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 }
 
 // metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled
-func (r *Reconciler) metricsForwarderProcessError(dda *v2alpha1.DatadogAgent, err error) {
+func (r *Reconciler) metricsForwarderProcessError(ddai *v1alpha1.DatadogAgentInternal, err error) {
 	if r.options.OperatorMetricsEnabled {
-		r.forwarders.ProcessError(dda, err)
+		r.forwarders.ProcessError(ddai, err)
 	}
 }
