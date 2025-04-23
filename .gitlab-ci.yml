@@ -264,7 +264,15 @@ e2e:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
     - echo "Running e2e test with target image $TARGET_IMAGE"
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
+    - go install github.com/jstemmer/go-junit-report/v2@latest
+    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests | go-junit-report > report.xml
+    - echo "E2E test completed with status $?"
+    - echo "E2E test report:"
+    - cat report.xml
+    - echo "E2E test report end"
+  artifacts:
+    reports:
+      junit: e2e-test-results.xml
 
 publish_public_main:
   stage: release
