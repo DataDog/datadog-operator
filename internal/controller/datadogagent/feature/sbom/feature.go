@@ -203,43 +203,15 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 	if f.hostEnabled {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  common.DDHostRootEnvVar,
-			Value: "/host",
+			Value: common.HostRootMountPath,
 		})
 
 		volMgr := managers.Volume()
 		volMountMgr := managers.VolumeMount()
 
-		osReleaseVol, osReleaseVolMount := volume.GetVolumes(common.SystemProbeOSReleaseDirVolumeName, common.SystemProbeOSReleaseDirVolumePath, common.SystemProbeOSReleaseDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&osReleaseVol)
-
-		hostApkVol, hostApkVolMount := volume.GetVolumes(apkDirVolumeName, apkDirVolumePath, apkDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostApkVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostApkVol)
-
-		hostDpkgVol, hostDpkgVolMount := volume.GetVolumes(dpkgDirVolumeName, dpkgDirVolumePath, dpkgDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostDpkgVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostDpkgVol)
-
-		hostRpmVol, hostRpmVolMount := volume.GetVolumes(rpmDirVolumeName, rpmDirVolumePath, rpmDirMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRpmVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostRpmVol)
-
-		hostRedhatReleaseVol, hostRedhatReleaseVolMount := volume.GetVolumes(redhatReleaseVolumeName, redhatReleaseVolumePath, redhatReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostRedhatReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostRedhatReleaseVol)
-
-		hostFedoraReleaseVol, hostFedoraReleaseVolMount := volume.GetVolumes(fedoraReleaseVolumeName, fedoraReleaseVolumePath, fedoraReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostFedoraReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostFedoraReleaseVol)
-
-		hostLsbReleaseVol, hostLsbReleaseVolMount := volume.GetVolumes(lsbReleaseVolumeName, lsbReleaseVolumePath, lsbReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostLsbReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostLsbReleaseVol)
-
-		hostSystemReleaseVol, hostSystemReleaseVolMount := volume.GetVolumes(systemReleaseVolumeName, systemReleaseVolumePath, systemReleaseMountPath, true)
-		volMountMgr.AddVolumeMountToContainer(&hostSystemReleaseVolMount, apicommon.CoreAgentContainerName)
-		volMgr.AddVolume(&hostSystemReleaseVol)
+		hostRootVol, hostRootVolMount := volume.GetVolumes(common.HostRootVolumeName, common.HostRootHostPath, common.HostRootMountPath, true)
+		volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommon.CoreAgentContainerName)
+		volMgr.AddVolume(&hostRootVol)
 	}
 
 	return nil
