@@ -3,47 +3,117 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package datadogagentinternal
+package datadogagent
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
+	// Use to register features
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/admissioncontroller"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/ebpfcheck"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/eventcollection"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/externalmetrics"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/helmcheck"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/liveprocess"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/logcollection"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/oomkill"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/orchestratorexplorer"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otlp"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/processdiscovery"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/prometheusscrape"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/remoteconfig"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/sbom"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/servicediscovery"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/tcpqueuelength"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/usm"
 )
 
-// Reconciler reconciles a DatadogAgentInternal object
-type Reconciler struct {
-	client client.Client
-	scheme *runtime.Scheme
-	log    logr.Logger
+const (
+	defaultRequeuePeriod = 15 * time.Second
+)
+
+// ReconcilerOptions provides options read from command line
+type ReconcilerOptions struct {
+	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
+	SupportCilium              bool
+	OperatorMetricsEnabled     bool
+	IntrospectionEnabled       bool
+	DatadogAgentProfileEnabled bool
 }
 
-// NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, scheme *runtime.Scheme, log logr.Logger) *Reconciler {
+// Reconciler is the internal reconciler for Datadog Agent
+type Reconciler struct {
+	options      ReconcilerOptions
+	client       client.Client
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	log          logr.Logger
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricForwardersManager
+}
+
+// NewReconciler returns a reconciler for DatadogAgent
+func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricForwardersManager,
+) (*Reconciler, error) {
 	return &Reconciler{
-		client: client,
-		scheme: scheme,
-		log:    log,
+		options:      options,
+		client:       client,
+		platformInfo: platformInfo,
+		scheme:       scheme,
+		log:          log,
+		recorder:     recorder,
+		forwarders:   metricForwardersMgr,
+	}, nil
+}
+
+// Reconcile is similar to reconciler.Reconcile interface, but taking a context
+func (r *Reconciler) Reconcile(ctx context.Context, dda *v2alpha1.DatadogAgent) (reconcile.Result, error) {
+	var resp reconcile.Result
+	var err error
+
+	resp, err = r.internalReconcileV2(ctx, dda)
+
+	r.metricsForwarderProcessError(dda, err)
+	return resp, err
+}
+
+func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
+	return &feature.Options{
+		Logger: logger,
 	}
 }
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the DatadogAgentInternal object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	_ = log.FromContext(ctx)
-
-	// TODO(user): your logic here
-
-	return reconcile.Result{}, nil
+// metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled
+func (r *Reconciler) metricsForwarderProcessError(dda *v2alpha1.DatadogAgent, err error) {
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.ProcessError(dda, err)
+	}
 }
