@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -153,7 +153,7 @@ func TestImageOverride(t *testing.T) {
 			containerName := string(test.containerName)
 
 			// Build the `DatadogAgent` resource and apply the image override configuration, if one was specified.
-			dda := &v2alpha1.DatadogAgent{
+			ddai := &v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -161,10 +161,10 @@ func TestImageOverride(t *testing.T) {
 
 			if test.imageOverrideConfig != "" {
 				annotationKey := getExperimentalAnnotationKey(ExperimentalImageOverrideConfigSubkey)
-				dda.Annotations[annotationKey] = test.imageOverrideConfig
+				ddai.Annotations[annotationKey] = test.imageOverrideConfig
 			}
 
-			applyExperimentalImageOverrides(logger, dda, manager)
+			applyExperimentalImageOverrides(logger, ddai, manager)
 
 			var testContainer v1.Container
 			for _, container := range manager.PodTemplateSpec().Spec.Containers {
