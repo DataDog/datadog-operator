@@ -7,6 +7,7 @@ package orchestratorexplorer
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/utils"
+)
+
+const (
+	currentDatadogPodAutoscalerResource = "datadoghq.com/v1alpha2/datadogpodautoscalers"
+	oldDatadogPodAutoscalerResource     = "datadoghq.com/v1alpha1/datadogpodautoscalers"
 )
 
 func init() {
@@ -108,6 +114,26 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+
+		// Handle automatic addition of OOTB resources
+		// Autoscaling: Add DPA resource if enabled and replace older versions if present
+		autoscaling := dda.Spec.Features.Autoscaling
+		if autoscaling != nil && autoscaling.Workload != nil && apiutils.BoolValue(autoscaling.Workload.Enabled) {
+			addRequired := true
+			for i := range f.customResources {
+				if f.customResources[i] == oldDatadogPodAutoscalerResource {
+					f.customResources[i] = currentDatadogPodAutoscalerResource
+					addRequired = false
+				}
+			}
+			if addRequired {
+				f.customResources = append(f.customResources, currentDatadogPodAutoscalerResource)
+			}
+		}
+
+		// Unique the custom resources as the check will output a warning if there are duplicates
+		slices.Sort(f.customResources)
+		f.customResources = slices.Compact(f.customResources)
 
 		if constants.IsClusterChecksEnabled(dda) {
 			if constants.IsCCREnabled(dda) {

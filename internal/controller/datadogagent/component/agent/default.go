@@ -109,6 +109,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"clone",
 					"clone3",
 					"close",
+					"close_range",
 					"connect",
 					"copy_file_range",
 					"creat",
@@ -196,6 +197,8 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"openat2",
 					"pause",
 					"perf_event_open",
+					"pidfd_open",
+					"pidfd_send_signal",
 					"pipe",
 					"pipe2",
 					"poll",
@@ -259,6 +262,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"symlinkat",
 					"sysinfo",
 					"tgkill",
+					"tkill",
 					"umask",
 					"uname",
 					"unlink",
@@ -323,7 +327,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return defaulting.GetLatestAgentImage()
 }
 
 func otelAgentImage() string {

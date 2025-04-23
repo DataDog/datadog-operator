@@ -264,6 +264,9 @@ const (
 
 	// DatadogPodAutoscalerLocalValueSource is a recommendation that comes from the local fallback.
 	DatadogPodAutoscalerLocalValueSource DatadogPodAutoscalerValueSource = "Local"
+
+	// DatadogPodAutoscalerExternalValueSource is a recommendation that comes from an external source.
+	DatadogPodAutoscalerExternalValueSource DatadogPodAutoscalerValueSource = "External"
 )
 
 // DatadogPodAutoscalerHorizontalStatus defines the status of the horizontal scaling
