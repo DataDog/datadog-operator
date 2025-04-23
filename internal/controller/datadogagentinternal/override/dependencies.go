@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/util/errors"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
@@ -24,18 +25,18 @@ import (
 )
 
 // Dependencies is used to override any resource/dependency settings with a v2alpha1.DatadogAgentComponentOverride.
-func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2alpha1.DatadogAgent) (errs []error) {
-	overrides := dda.Spec.Override
-	namespace := dda.Namespace
+func Dependencies(logger logr.Logger, manager feature.ResourceManagers, ddai *v1alpha1.DatadogAgentInternal) (errs []error) {
+	overrides := ddai.Spec.Override
+	namespace := ddai.Namespace
 
 	for component, override := range overrides {
-		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponent(dda, component), namespace)
+		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponentDDAI(ddai, component), namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}
 
 		// Handle custom agent configurations (datadog.yaml, cluster-agent.yaml, etc.)
-		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, component, dda.Name, namespace)...)
+		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, component, ddai.Name, namespace)...)
 
 		// Handle custom check configurations
 		confdCMName := fmt.Sprintf(extraConfdConfigMapName, strings.ToLower((string(component))))
@@ -45,25 +46,25 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		checksdCMName := fmt.Sprintf(extraChecksdConfigMapName, strings.ToLower((string(component))))
 		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
 
-		errs = append(errs, overridePodDisruptionBudget(logger, manager, dda, override.CreatePodDisruptionBudget, component)...)
+		errs = append(errs, overridePodDisruptionBudget(logger, manager, ddai, override.CreatePodDisruptionBudget, component)...)
 	}
 
 	return errs
 }
 
-func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceManagers, dda *v2alpha1.DatadogAgent, createPdb *bool, component v2alpha1.ComponentName) (errs []error) {
+func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceManagers, ddai *v1alpha1.DatadogAgentInternal, createPdb *bool, component v2alpha1.ComponentName) (errs []error) {
 	if createPdb != nil && *createPdb {
 		platformInfo := manager.Store().GetPlatformInfo()
 		useV1BetaPDB := platformInfo.UseV1Beta1PDB()
 		if component == v2alpha1.ClusterAgentComponentName {
-			pdb := componentdca.GetClusterAgentPodDisruptionBudget(dda, useV1BetaPDB)
+			pdb := componentdca.GetClusterAgentPodDisruptionBudget(ddai, useV1BetaPDB)
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
 			}
 		} else if component == v2alpha1.ClusterChecksRunnerComponentName &&
-			(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners == nil ||
-				*dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(dda, useV1BetaPDB)
+			(ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners == nil ||
+				*ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+			pdb := componentccr.GetClusterChecksRunnerPodDisruptionBudget(ddai, useV1BetaPDB)
 			if err := manager.Store().AddOrUpdate(kubernetes.PodDisruptionBudgetsKind, pdb); err != nil {
 				errs = append(errs, err)
 			}

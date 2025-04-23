@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -25,19 +26,19 @@ func TestDependencies(t *testing.T) {
 	testLogger := logf.Log.WithName("TestRequiredComponents")
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
 	tests := []struct {
 		name          string
-		dda           v2alpha1.DatadogAgent
+		ddai          v1alpha1.DatadogAgentInternal
 		expectsErrors bool
 	}{
 		{
 			name: "empty override without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {},
@@ -48,7 +49,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override extraConfd configmap without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -65,7 +66,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override extraConfd configData without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -82,7 +83,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override extraChecksd configmap without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -99,7 +100,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override extraChecksd configData without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -116,7 +117,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override don't createRbac without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
@@ -129,7 +130,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override clusterAgent createPDB without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterAgentComponentName: {
@@ -141,7 +142,7 @@ func TestDependencies(t *testing.T) {
 		},
 		{
 			name: "override clusterChecksRunner createPDB without errors",
-			dda: v2alpha1.DatadogAgent{
+			ddai: v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.ClusterChecksRunnerComponentName: {
@@ -160,10 +161,10 @@ func TestDependencies(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := store.NewStore(&test.dda, storeOptions)
+			store := store.NewStore(&test.ddai, storeOptions)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(testLogger, manager, &test.dda)
+			errs := Dependencies(testLogger, manager, &test.ddai)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)
@@ -183,12 +184,12 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	ddaName := "test-dda"
 	tests := []struct {
 		name string
-		dda  *v2alpha1.DatadogAgent
+		ddai *v1alpha1.DatadogAgentInternal
 		want map[v2alpha1.ComponentName]map[string]interface{}
 	}{
 		{
 			name: "custom serviceaccount annotations for dda, dca and clc",
-			dda: &v2alpha1.DatadogAgent{
+			ddai: &v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: ddaName,
 				},
@@ -224,7 +225,7 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 		},
 		{
 			name: "custom serviceaccount annotations for dca",
-			dda: &v2alpha1.DatadogAgent{
+			ddai: &v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: ddaName,
 				},
@@ -257,16 +258,16 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := map[v2alpha1.ComponentName]map[string]interface{}{
 				v2alpha1.NodeAgentComponentName: {
-					"name":        constants.GetAgentServiceAccount(tt.dda),
-					"annotations": getSaAnnotations(tt.dda, v2alpha1.NodeAgentComponentName),
+					"name":        constants.GetAgentServiceAccountDDAI(tt.ddai),
+					"annotations": getSaAnnotations(tt.ddai, v2alpha1.NodeAgentComponentName),
 				},
 				v2alpha1.ClusterChecksRunnerComponentName: {
-					"name":        constants.GetClusterChecksRunnerServiceAccount(tt.dda),
-					"annotations": getSaAnnotations(tt.dda, v2alpha1.ClusterChecksRunnerComponentName),
+					"name":        constants.GetClusterChecksRunnerServiceAccountDDAI(tt.ddai),
+					"annotations": getSaAnnotations(tt.ddai, v2alpha1.ClusterChecksRunnerComponentName),
 				},
 				v2alpha1.ClusterAgentComponentName: {
-					"name":        constants.GetClusterAgentServiceAccount(tt.dda),
-					"annotations": getSaAnnotations(tt.dda, v2alpha1.ClusterAgentComponentName),
+					"name":        constants.GetClusterAgentServiceAccountDDAI(tt.ddai),
+					"annotations": getSaAnnotations(tt.ddai, v2alpha1.ClusterAgentComponentName),
 				},
 			}
 			for componentName, sa := range tt.want {
@@ -281,10 +282,10 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 	}
 }
 
-func getSaAnnotations(dda *v2alpha1.DatadogAgent, componentName v2alpha1.ComponentName) map[string]string {
+func getSaAnnotations(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) map[string]string {
 	defaultAnnotations := map[string]string{}
-	if dda.Spec.Override[componentName] != nil && dda.Spec.Override[componentName].ServiceAccountAnnotations != nil {
-		return dda.Spec.Override[componentName].ServiceAccountAnnotations
+	if ddai.Spec.Override[componentName] != nil && ddai.Spec.Override[componentName].ServiceAccountAnnotations != nil {
+		return ddai.Spec.Override[componentName].ServiceAccountAnnotations
 	}
 	return defaultAnnotations
 }
