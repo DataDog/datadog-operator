@@ -24,6 +24,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -40,11 +41,11 @@ const (
 	profileWaitForCanaryKey = "agent.datadoghq.com/profile-wait-for-canary"
 )
 
-type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDSStatusComponentFunc func(daemonsetName string, daemonset *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
 
 	var result reconcile.Result
@@ -131,14 +132,14 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDSStatusComponentFunc, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, daemonset *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateDSStatusComponentFunc, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("daemonset.Namespace", daemonset.Namespace, "daemonset.Name", daemonset.Name)
 
 	var result reconcile.Result
 	var err error
 
 	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dda, daemonset, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(ddai, daemonset, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -225,8 +226,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
-			newStatus.AgentList = condition.UpdateDaemonSetStatus(currentDaemonset.Name, currentDaemonset, newStatus.AgentList, &now)
-			newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+			newStatus.Agent = condition.UpdateDaemonSetStatusDDAI(currentDaemonset.Name, currentDaemonset, newStatus.Agent, &now)
 
 			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil
@@ -246,8 +246,8 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
 		updateProfileDS := true
-		if shouldProfileWaitForCanary(logger, dda.Annotations) {
-			ddaLastSpecUpdate := getDDALastUpdatedTime(dda.ManagedFields, dda.CreationTimestamp)
+		if shouldProfileWaitForCanary(logger, ddai.Annotations) {
+			ddaLastSpecUpdate := getDDALastUpdatedTime(ddai.ManagedFields, ddai.CreationTimestamp)
 			updateProfileDS, err = r.shouldUpdateProfileDaemonSet(profile, ddaLastSpecUpdate, now)
 		}
 		if err != nil {
@@ -263,7 +263,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 				return reconcile.Result{}, err
 			}
 			event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)
-			r.recordEvent(dda, event)
+			r.recordEvent(ddai, event)
 			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
 		}
 	} else {
@@ -282,21 +282,21 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, kubernetes.DaemonSetKind, datadog.CreationEvent)
-		r.recordEvent(dda, event)
+		r.recordEvent(ddai, event)
 		updateStatusFunc(daemonset.Name, daemonset, newStatus, now, metav1.ConditionTrue, createSucceeded, "Daemonset created")
 	}
 
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateStatusFunc updateEDSStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("ExtendedDaemonSet.Namespace", eds.Namespace, "ExtendedDaemonSet.Name", eds.Name)
 
 	var result reconcile.Result
 	var err error
 
 	// Set DatadogAgent instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dda, eds, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(ddai, eds, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -334,8 +334,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
-			newStatus.AgentList = condition.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.AgentList, &now)
-			newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+			newStatus.Agent = condition.UpdateExtendedDaemonSetStatusDDAI(currentEDS, newStatus.Agent, &now)
 
 			// Stop reconcile loop since EDS hasn't changed
 			return reconcile.Result{}, nil
@@ -360,7 +359,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
+		r.recordEvent(ddai, event)
 		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, updateSucceeded, "ExtendedDaemonSet updated")
 	} else {
 		now := metav1.NewTime(time.Now())
@@ -371,7 +370,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.CreationEvent)
-		r.recordEvent(dda, event)
+		r.recordEvent(ddai, event)
 		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, createSucceeded, "ExtendedDaemonSet created")
 	}
 
