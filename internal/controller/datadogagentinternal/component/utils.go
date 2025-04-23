@@ -11,6 +11,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -23,9 +24,9 @@ func GetAgentName(dda metav1.Object) string {
 
 // GetDaemonSetNameFromDatadogAgent returns the expected node Agent DS/EDS name based on
 // the DDA name and nodeAgent name override
-func GetDaemonSetNameFromDatadogAgent(dda *v2alpha1.DatadogAgent) string {
-	dsName := GetAgentName(dda)
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+func GetDaemonSetNameFromDatadogAgent(ddai *v1alpha1.DatadogAgentInternal) string {
+	dsName := GetAgentName(ddai)
+	if componentOverride, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			dsName = *componentOverride.Name
 		}
@@ -40,9 +41,9 @@ func GetClusterAgentName(dda metav1.Object) string {
 
 // GetDeploymentNameFromDatadogAgent returns the expected Cluster Agent Deployment name based on
 // the DDA name and clusterAgent name override
-func GetDeploymentNameFromDatadogAgent(dda *v2alpha1.DatadogAgent) string {
-	deployName := GetClusterAgentName(dda)
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+func GetDeploymentNameFromDatadogAgent(ddai *v1alpha1.DatadogAgentInternal) string {
+	deployName := GetClusterAgentName(ddai)
+	if componentOverride, ok := ddai.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			deployName = *componentOverride.Name
 		}

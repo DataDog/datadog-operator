@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
@@ -51,7 +51,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
-func NewDefaultClusterAgentDeployment(dda *v2alpha1.DatadogAgent) *appsv1.Deployment {
+func NewDefaultClusterAgentDeployment(dda *v1alpha1.DatadogAgentInternal) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
@@ -68,7 +68,7 @@ func NewDefaultClusterAgentDeployment(dda *v2alpha1.DatadogAgent) *appsv1.Deploy
 }
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
-func NewDefaultClusterAgentPodTemplateSpec(dda *v2alpha1.DatadogAgent) *corev1.PodTemplateSpec {
+func NewDefaultClusterAgentPodTemplateSpec(dda *v1alpha1.DatadogAgentInternal) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
 		common.GetVolumeInstallInfo(dda),
 		common.GetVolumeForConfd(),
@@ -106,7 +106,7 @@ func NewDefaultClusterAgentPodTemplateSpec(dda *v2alpha1.DatadogAgent) *corev1.P
 	return podTemplate
 }
 
-func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
+func defaultPodSpec(dda *v1alpha1.DatadogAgentInternal, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: getDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
@@ -144,7 +144,7 @@ func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeM
 	return podSpec
 }
 
-func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
+func defaultEnvVars(dda *v1alpha1.DatadogAgentInternal) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name: DDPodName,
@@ -188,7 +188,7 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 		},
 		{
 			Name:  DDClusterAgentServiceAccountName,
-			Value: constants.GetClusterAgentServiceAccount(dda),
+			Value: constants.GetClusterAgentServiceAccountDDAI(dda),
 		},
 		{
 			Name:  DDAgentDaemonSet,
