@@ -16,8 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -134,9 +133,9 @@ func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.Comp
 func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
 	switch componentName {
 	case v2alpha1.NodeAgentComponentName:
-		policyName = componentagent.GetAgentName(dda)
+		policyName = component.GetAgentName(dda)
 	case v2alpha1.ClusterAgentComponentName:
-		policyName = componentdca.GetClusterAgentName(dda)
+		policyName = component.GetClusterAgentName(dda)
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policyName = componentccr.GetClusterChecksRunnerName(dda)
 	}
@@ -551,7 +550,7 @@ func egressCCRToDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.
 				ToEndpoints: []metav1.LabelSelector{
 					{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: componentdca.GetClusterAgentName(dda),
+							kubernetes.AppKubernetesInstanceLabelKey: component.GetClusterAgentName(dda),
 							kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
 						},
 					},
@@ -606,7 +605,7 @@ func ingressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hostNetwo
 		ingress.FromEndpoints = []metav1.LabelSelector{
 			{
 				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: componentagent.GetAgentName(dda),
+					kubernetes.AppKubernetesInstanceLabelKey: component.GetAgentName(dda),
 					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
 				},
 			},

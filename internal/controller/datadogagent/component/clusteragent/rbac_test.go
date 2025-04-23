@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package enabledefault
+package clusteragent
 
 import (
 	"testing"
@@ -20,6 +20,10 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			"bar": "bar",
 		},
 		"deployments.apps": {
+			"foo": "baz",
+			"bar": "bar",
+		},
+		"metrics.custom.metrics.group": {
 			"foo": "baz",
 			"bar": "bar",
 		},
@@ -41,7 +45,6 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{""},
 			Resources: []string{"pods"},
 			Verbs: []string{
-				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},
@@ -50,14 +53,21 @@ func TestGetKubernetesResourceMetadataAsTagsPolicyRules(t *testing.T) {
 			APIGroups: []string{"apps"},
 			Resources: []string{"deployments"},
 			Verbs: []string{
-				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{"custom.metrics.group"},
+			Resources: []string{"metrics"},
+			Verbs: []string{
 				rbac.ListVerb,
 				rbac.WatchVerb,
 			},
 		},
 	}
 
-	rules := getKubernetesResourceMetadataAsTagsPolicyRules(labelsAsTags, annotationsAsTags)
+	rules := GetKubernetesResourceMetadataAsTagsPolicyRules(labelsAsTags, annotationsAsTags)
 
 	assert.ElementsMatch(t, expectedRules, rules)
 }

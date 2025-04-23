@@ -1,6 +1,8 @@
 package gpu
 
 import (
+	"path"
+
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -26,7 +28,8 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName string
+	podRuntimeClassName    string
+	podResourcesSocketPath string
 }
 
 // ID returns the ID of the Feature
@@ -54,12 +57,14 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.podRuntimeClassName = *dda.Spec.Features.GPU.PodRuntimeClassName
 	}
 
+	f.podResourcesSocketPath = dda.Spec.Global.Kubelet.PodResourcesSocketPath
+
 	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
@@ -101,10 +106,28 @@ func configureSystemProbe(managers feature.PodTemplateManagers) {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.SystemProbeContainerName, socketEnvVar)
 }
 
+func (f *gpuFeature) configurePodResourcesSocket(managers feature.PodTemplateManagers) {
+	if f.podResourcesSocketPath == "" {
+		return
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  common.DDKubernetesPodResourcesSocket,
+		Value: path.Join(f.podResourcesSocketPath, "kubelet.sock"),
+	})
+
+	podResourcesVol, podResourcesMount := volume.GetVolumes(common.KubeletPodResourcesVolumeName, f.podResourcesSocketPath, f.podResourcesSocketPath, false)
+	managers.VolumeMount().AddVolumeMountToContainer(
+		&podResourcesMount,
+		apicommon.CoreAgentContainerName,
+	)
+	managers.Volume().AddVolume(&podResourcesVol)
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ string) error {
 	configureSystemProbe(managers)
+	f.configurePodResourcesSocket(managers)
 
 	// env var to enable the GPU module
 	enableEnvVar := &corev1.EnvVar{

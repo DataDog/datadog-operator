@@ -46,15 +46,15 @@
                       "description": "Image overrides the default Agent image name and tag for the Agent sidecar.",
                       "properties": {
                         "jmxEnabled": {
-                          "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                          "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                           "type": "boolean"
                         },
                         "name": {
-                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                          "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                           "type": "string"
                         },
                         "pullPolicy": {
-                          "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                          "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                           "type": "string"
                         },
                         "pullSecrets": {
@@ -75,7 +75,7 @@
                           "type": "array"
                         },
                         "tag": {
-                          "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                          "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                           "type": "string"
                         }
                       },
@@ -279,6 +279,150 @@
                                   "x-kubernetes-int-or-string": true
                                 },
                                 "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value. Requests cannot exceed Limits.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                "type": "object"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "securityContext": {
+                            "additionalProperties": false,
+                            "description": "SecurityContext specifies the security context for the profile.",
+                            "properties": {
+                              "allowPrivilegeEscalation": {
+                                "description": "AllowPrivilegeEscalation controls whether a process can gain more\nprivileges than its parent process. This bool directly controls if\nthe no_new_privs flag will be set on the container process.\nAllowPrivilegeEscalation is true always when the container is:\n1) run as Privileged\n2) has CAP_SYS_ADMIN\nNote that this field cannot be set when spec.os.name is windows.",
+                                "type": "boolean"
+                              },
+                              "appArmorProfile": {
+                                "additionalProperties": false,
+                                "description": "appArmorProfile is the AppArmor options to use by this container. If set, this profile\noverrides the pod's appArmorProfile.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "properties": {
+                                  "localhostProfile": {
+                                    "description": "localhostProfile indicates a profile loaded on the node that should be used.\nThe profile must be preconfigured on the node to work.\nMust match the loaded name of the profile.\nMust be set if and only if type is \"Localhost\".",
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "description": "type indicates which kind of AppArmor profile will be applied.\nValid options are:\n  Localhost - a profile pre-loaded on the node.\n  RuntimeDefault - the container runtime's default profile.\n  Unconfined - no AppArmor enforcement.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "type": "object"
+                              },
+                              "capabilities": {
+                                "additionalProperties": false,
+                                "description": "The capabilities to add/drop when running containers.\nDefaults to the default set of capabilities granted by the container runtime.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "properties": {
+                                  "add": {
+                                    "description": "Added capabilities",
+                                    "items": {
+                                      "description": "Capability represent POSIX capabilities type",
+                                      "type": "string"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "atomic"
+                                  },
+                                  "drop": {
+                                    "description": "Removed capabilities",
+                                    "items": {
+                                      "description": "Capability represent POSIX capabilities type",
+                                      "type": "string"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "atomic"
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "privileged": {
+                                "description": "Run container in privileged mode.\nProcesses in privileged containers are essentially equivalent to root on the host.\nDefaults to false.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "type": "boolean"
+                              },
+                              "procMount": {
+                                "description": "procMount denotes the type of proc mount to use for the containers.\nThe default value is Default which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "type": "string"
+                              },
+                              "readOnlyRootFilesystem": {
+                                "description": "Whether this container has a read-only root filesystem.\nDefault is false.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "type": "boolean"
+                              },
+                              "runAsGroup": {
+                                "description": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "runAsNonRoot": {
+                                "description": "Indicates that the container must run as a non-root user.\nIf true, the Kubelet will validate the image at runtime to ensure that it\ndoes not run as UID 0 (root) and fail to start the container if it does.\nIf unset or false, no such validation will be performed.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.",
+                                "type": "boolean"
+                              },
+                              "runAsUser": {
+                                "description": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "format": "int64",
+                                "type": "integer"
+                              },
+                              "seLinuxOptions": {
+                                "additionalProperties": false,
+                                "description": "The SELinux context to be applied to the container.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "properties": {
+                                  "level": {
+                                    "description": "Level is SELinux level label that applies to the container.",
+                                    "type": "string"
+                                  },
+                                  "role": {
+                                    "description": "Role is a SELinux role label that applies to the container.",
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "description": "Type is a SELinux type label that applies to the container.",
+                                    "type": "string"
+                                  },
+                                  "user": {
+                                    "description": "User is a SELinux user label that applies to the container.",
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "seccompProfile": {
+                                "additionalProperties": false,
+                                "description": "The seccomp options to use by this container. If seccomp options are\nprovided at both the pod \u0026 container level, the container options\noverride the pod options.\nNote that this field cannot be set when spec.os.name is windows.",
+                                "properties": {
+                                  "localhostProfile": {
+                                    "description": "localhostProfile indicates a profile defined in a file on the node should be used.\nThe profile must be preconfigured on the node to work.\nMust be a descending path, relative to the kubelet's configured seccomp profile location.\nMust be set if type is \"Localhost\". Must NOT be set for any other type.",
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "description": "type indicates which kind of seccomp profile will be applied.\nValid options are:\n\nLocalhost - a profile defined in a file on the node should be used.\nRuntimeDefault - the container runtime default profile should be used.\nUnconfined - no profile should be applied.",
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "type": "object"
+                              },
+                              "windowsOptions": {
+                                "additionalProperties": false,
+                                "description": "The Windows specific settings applied to all containers.\nIf unspecified, the options from the PodSecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is linux.",
+                                "properties": {
+                                  "gmsaCredentialSpec": {
+                                    "description": "GMSACredentialSpec is where the GMSA admission webhook\n(https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the\nGMSA credential spec named by the GMSACredentialSpecName field.",
+                                    "type": "string"
+                                  },
+                                  "gmsaCredentialSpecName": {
+                                    "description": "GMSACredentialSpecName is the name of the GMSA credential spec to use.",
+                                    "type": "string"
+                                  },
+                                  "hostProcess": {
+                                    "description": "HostProcess determines if a container should be run as a 'Host Process' container.\nAll of a Pod's containers must have the same effective HostProcess value\n(it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).\nIn addition, if HostProcess is true then HostNetwork must also be set to true.",
+                                    "type": "boolean"
+                                  },
+                                  "runAsUserName": {
+                                    "description": "The UserName in Windows to run the entrypoint of the container process.\nDefaults to the user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext. If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.",
+                                    "type": "string"
+                                  }
+                                },
                                 "type": "object"
                               }
                             },
@@ -490,6 +634,17 @@
                   "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                   "type": "boolean"
                 },
+                "errorTrackingStandalone": {
+                  "additionalProperties": false,
+                  "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in preview.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables Error Tracking for backend services.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "hostPortConfig": {
                   "additionalProperties": false,
                   "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8126",
@@ -558,6 +713,259 @@
                       },
                       "description": "LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.\n\u003cLibrary\u003e: \u003cVersion\u003e\nex: \"java\": \"v1.18.0\"",
                       "type": "object"
+                    },
+                    "targets": {
+                      "description": "Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be\nused. If no target matches, the auto instrumentation will not be applied.\n(Requires Cluster Agent 7.64.0+)",
+                      "items": {
+                        "additionalProperties": false,
+                        "description": "SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.",
+                        "properties": {
+                          "ddTraceConfigs": {
+                            "description": "TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added\nas environment variables in addition to the injected tracer.",
+                            "items": {
+                              "additionalProperties": false,
+                              "description": "EnvVar represents an environment variable present in a Container.",
+                              "properties": {
+                                "name": {
+                                  "description": "Name of the environment variable. Must be a C_IDENTIFIER.",
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "description": "Variable references $(VAR_NAME) are expanded\nusing the previously defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.\n\"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\".\nEscaped references will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".",
+                                  "type": "string"
+                                },
+                                "valueFrom": {
+                                  "additionalProperties": false,
+                                  "description": "Source for the environment variable's value. Cannot be used if value is not empty.",
+                                  "properties": {
+                                    "configMapKeyRef": {
+                                      "additionalProperties": false,
+                                      "description": "Selects a key of a ConfigMap.",
+                                      "properties": {
+                                        "key": {
+                                          "description": "The key to select.",
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "default": "",
+                                          "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                          "type": "string"
+                                        },
+                                        "optional": {
+                                          "description": "Specify whether the ConfigMap or its key must be defined",
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "key"
+                                      ],
+                                      "type": "object",
+                                      "x-kubernetes-map-type": "atomic"
+                                    },
+                                    "fieldRef": {
+                                      "additionalProperties": false,
+                                      "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['\u003cKEY\u003e']`, `metadata.annotations['\u003cKEY\u003e']`,\nspec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.",
+                                      "properties": {
+                                        "apiVersion": {
+                                          "description": "Version of the schema the FieldPath is written in terms of, defaults to \"v1\".",
+                                          "type": "string"
+                                        },
+                                        "fieldPath": {
+                                          "description": "Path of the field to select in the specified API version.",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "fieldPath"
+                                      ],
+                                      "type": "object",
+                                      "x-kubernetes-map-type": "atomic"
+                                    },
+                                    "resourceFieldRef": {
+                                      "additionalProperties": false,
+                                      "description": "Selects a resource of the container: only resources limits and requests\n(limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.",
+                                      "properties": {
+                                        "containerName": {
+                                          "description": "Container name: required for volumes, optional for env vars",
+                                          "type": "string"
+                                        },
+                                        "divisor": {
+                                          "anyOf": [
+                                            {
+                                              "type": "integer"
+                                            },
+                                            {
+                                              "type": "string"
+                                            }
+                                          ],
+                                          "description": "Specifies the output format of the exposed resources, defaults to \"1\"",
+                                          "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                          "x-kubernetes-int-or-string": true
+                                        },
+                                        "resource": {
+                                          "description": "Required: resource to select",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "resource"
+                                      ],
+                                      "type": "object",
+                                      "x-kubernetes-map-type": "atomic"
+                                    },
+                                    "secretKeyRef": {
+                                      "additionalProperties": false,
+                                      "description": "Selects a key of a secret in the pod's namespace",
+                                      "properties": {
+                                        "key": {
+                                          "description": "The key of the secret to select from.  Must be a valid secret key.",
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "default": "",
+                                          "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                          "type": "string"
+                                        },
+                                        "optional": {
+                                          "description": "Specify whether the Secret or its key must be defined",
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "key"
+                                      ],
+                                      "type": "object",
+                                      "x-kubernetes-map-type": "atomic"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              },
+                              "required": [
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            "type": "array",
+                            "x-kubernetes-list-map-keys": [
+                              "name"
+                            ],
+                            "x-kubernetes-list-type": "map"
+                          },
+                          "ddTraceVersions": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "description": "TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer\nname and the value is the version to inject.",
+                            "type": "object"
+                          },
+                          "name": {
+                            "description": "Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.",
+                            "type": "string"
+                          },
+                          "namespaceSelector": {
+                            "additionalProperties": false,
+                            "description": "NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will\nbe used in conjunction with the Selector to match the pods.",
+                            "properties": {
+                              "matchExpressions": {
+                                "description": "MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and\nexpressions are ANDed. This cannot be used with MatchNames.",
+                                "items": {
+                                  "additionalProperties": false,
+                                  "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                  "properties": {
+                                    "key": {
+                                      "description": "key is the label key that the selector applies to.",
+                                      "type": "string"
+                                    },
+                                    "operator": {
+                                      "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "type": "array",
+                                      "x-kubernetes-list-type": "atomic"
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "operator"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array"
+                              },
+                              "matchLabels": {
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are\nANDed. This cannot be used with MatchNames.",
+                                "type": "object"
+                              },
+                              "matchNames": {
+                                "description": "MatchNames is a list of namespace names to match. If empty, all namespaces are matched.",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "podSelector": {
+                            "additionalProperties": false,
+                            "description": "PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in\nconjunction with the NamespaceSelector to match the pods.",
+                            "properties": {
+                              "matchExpressions": {
+                                "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
+                                "items": {
+                                  "additionalProperties": false,
+                                  "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                  "properties": {
+                                    "key": {
+                                      "description": "key is the label key that the selector applies to.",
+                                      "type": "string"
+                                    },
+                                    "operator": {
+                                      "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                      "type": "string"
+                                    },
+                                    "values": {
+                                      "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "type": "array",
+                                      "x-kubernetes-list-type": "atomic"
+                                    }
+                                  },
+                                  "required": [
+                                    "key",
+                                    "operator"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array",
+                                "x-kubernetes-list-type": "atomic"
+                              },
+                              "matchLabels": {
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+                                "type": "object"
+                              }
+                            },
+                            "type": "object",
+                            "x-kubernetes-map-type": "atomic"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
                     }
                   },
                   "type": "object"
@@ -1681,6 +2089,17 @@
                 "enabled": {
                   "description": "Enables the service discovery check.\nDefault: false",
                   "type": "boolean"
+                },
+                "networkStats": {
+                  "additionalProperties": false,
+                  "description": "Enables the service discovery network stats collection.\nDefault: true",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
                 }
               },
               "type": "object"
@@ -2072,15 +2491,15 @@
                   "description": "The container image of the FIPS sidecar.",
                   "properties": {
                     "jmxEnabled": {
-                      "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                      "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                       "type": "boolean"
                     },
                     "name": {
-                      "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                      "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                       "type": "string"
                     },
                     "pullPolicy": {
-                      "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                      "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                       "type": "string"
                     },
                     "pullSecrets": {
@@ -2101,7 +2520,7 @@
                       "type": "array"
                     },
                     "tag": {
-                      "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                      "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                       "type": "string"
                     }
                   },
@@ -4740,15 +5159,15 @@
                 "description": "The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).",
                 "properties": {
                   "jmxEnabled": {
-                    "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                    "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                     "type": "boolean"
                   },
                   "name": {
-                    "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                    "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                     "type": "string"
                   },
                   "pullPolicy": {
-                    "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                    "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                     "type": "string"
                   },
                   "pullSecrets": {
@@ -4769,7 +5188,7 @@
                     "type": "array"
                   },
                   "tag": {
-                    "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                    "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                     "type": "string"
                   }
                 },
@@ -6817,15 +7236,15 @@
                           "description": "Image overrides the default Agent image name and tag for the Agent sidecar.",
                           "properties": {
                             "jmxEnabled": {
-                              "description": "Define whether the Agent image should support JMX.\nTo be used if the Name field does not correspond to a full image string.",
+                              "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
                               "type": "boolean"
                             },
                             "name": {
-                              "description": "Defines the Agent image name for the pod. You can provide this as:\n* \u003cNAME\u003e - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.\n  The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.\n* \u003cNAME\u003e:\u003cTAG\u003e - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.\n* \u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified\n  like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.",
+                              "description": "Defines the Agent image name for the pod. You can provide this as:\n* `\u003cNAME\u003e` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`\nfor DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.\n* `\u003cNAME\u003e:\u003cTAG\u003e` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`\nand `[key].image.jmxEnabled` are ignored.\n* `\u003cREGISTRY\u003e/\u003cNAME\u003e:\u003cTAG\u003e` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified\n  like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.",
                               "type": "string"
                             },
                             "pullPolicy": {
-                              "description": "The Kubernetes pull policy:\nUse Always, Never, or IfNotPresent.",
+                              "description": "The Kubernetes pull policy:\nUse `Always`, `Never`, or `IfNotPresent`.",
                               "type": "string"
                             },
                             "pullSecrets": {
@@ -6846,7 +7265,7 @@
                               "type": "array"
                             },
                             "tag": {
-                              "description": "Define the image tag to use.\nTo be used if the Name field does not correspond to a full image string.",
+                              "description": "Define the image tag to use.\nTo be used if the `Name` field does not correspond to a full image string.",
                               "type": "string"
                             }
                           },
@@ -7050,6 +7469,150 @@
                                       "x-kubernetes-int-or-string": true
                                     },
                                     "description": "Requests describes the minimum amount of compute resources required.\nIf Requests is omitted for a container, it defaults to Limits if that is explicitly specified,\notherwise to an implementation-defined value. Requests cannot exceed Limits.\nMore info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+                                    "type": "object"
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "securityContext": {
+                                "additionalProperties": false,
+                                "description": "SecurityContext specifies the security context for the profile.",
+                                "properties": {
+                                  "allowPrivilegeEscalation": {
+                                    "description": "AllowPrivilegeEscalation controls whether a process can gain more\nprivileges than its parent process. This bool directly controls if\nthe no_new_privs flag will be set on the container process.\nAllowPrivilegeEscalation is true always when the container is:\n1) run as Privileged\n2) has CAP_SYS_ADMIN\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "type": "boolean"
+                                  },
+                                  "appArmorProfile": {
+                                    "additionalProperties": false,
+                                    "description": "appArmorProfile is the AppArmor options to use by this container. If set, this profile\noverrides the pod's appArmorProfile.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "properties": {
+                                      "localhostProfile": {
+                                        "description": "localhostProfile indicates a profile loaded on the node that should be used.\nThe profile must be preconfigured on the node to work.\nMust match the loaded name of the profile.\nMust be set if and only if type is \"Localhost\".",
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "description": "type indicates which kind of AppArmor profile will be applied.\nValid options are:\n  Localhost - a profile pre-loaded on the node.\n  RuntimeDefault - the container runtime's default profile.\n  Unconfined - no AppArmor enforcement.",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "capabilities": {
+                                    "additionalProperties": false,
+                                    "description": "The capabilities to add/drop when running containers.\nDefaults to the default set of capabilities granted by the container runtime.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "properties": {
+                                      "add": {
+                                        "description": "Added capabilities",
+                                        "items": {
+                                          "description": "Capability represent POSIX capabilities type",
+                                          "type": "string"
+                                        },
+                                        "type": "array",
+                                        "x-kubernetes-list-type": "atomic"
+                                      },
+                                      "drop": {
+                                        "description": "Removed capabilities",
+                                        "items": {
+                                          "description": "Capability represent POSIX capabilities type",
+                                          "type": "string"
+                                        },
+                                        "type": "array",
+                                        "x-kubernetes-list-type": "atomic"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "privileged": {
+                                    "description": "Run container in privileged mode.\nProcesses in privileged containers are essentially equivalent to root on the host.\nDefaults to false.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "type": "boolean"
+                                  },
+                                  "procMount": {
+                                    "description": "procMount denotes the type of proc mount to use for the containers.\nThe default value is Default which uses the container runtime defaults for\nreadonly paths and masked paths.\nThis requires the ProcMountType feature flag to be enabled.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "type": "string"
+                                  },
+                                  "readOnlyRootFilesystem": {
+                                    "description": "Whether this container has a read-only root filesystem.\nDefault is false.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "type": "boolean"
+                                  },
+                                  "runAsGroup": {
+                                    "description": "The GID to run the entrypoint of the container process.\nUses runtime default if unset.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "format": "int64",
+                                    "type": "integer"
+                                  },
+                                  "runAsNonRoot": {
+                                    "description": "Indicates that the container must run as a non-root user.\nIf true, the Kubelet will validate the image at runtime to ensure that it\ndoes not run as UID 0 (root) and fail to start the container if it does.\nIf unset or false, no such validation will be performed.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.",
+                                    "type": "boolean"
+                                  },
+                                  "runAsUser": {
+                                    "description": "The UID to run the entrypoint of the container process.\nDefaults to user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "format": "int64",
+                                    "type": "integer"
+                                  },
+                                  "seLinuxOptions": {
+                                    "additionalProperties": false,
+                                    "description": "The SELinux context to be applied to the container.\nIf unspecified, the container runtime will allocate a random SELinux context for each\ncontainer.  May also be set in PodSecurityContext.  If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "properties": {
+                                      "level": {
+                                        "description": "Level is SELinux level label that applies to the container.",
+                                        "type": "string"
+                                      },
+                                      "role": {
+                                        "description": "Role is a SELinux role label that applies to the container.",
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "description": "Type is a SELinux type label that applies to the container.",
+                                        "type": "string"
+                                      },
+                                      "user": {
+                                        "description": "User is a SELinux user label that applies to the container.",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "type": "object"
+                                  },
+                                  "seccompProfile": {
+                                    "additionalProperties": false,
+                                    "description": "The seccomp options to use by this container. If seccomp options are\nprovided at both the pod \u0026 container level, the container options\noverride the pod options.\nNote that this field cannot be set when spec.os.name is windows.",
+                                    "properties": {
+                                      "localhostProfile": {
+                                        "description": "localhostProfile indicates a profile defined in a file on the node should be used.\nThe profile must be preconfigured on the node to work.\nMust be a descending path, relative to the kubelet's configured seccomp profile location.\nMust be set if type is \"Localhost\". Must NOT be set for any other type.",
+                                        "type": "string"
+                                      },
+                                      "type": {
+                                        "description": "type indicates which kind of seccomp profile will be applied.\nValid options are:\n\nLocalhost - a profile defined in a file on the node should be used.\nRuntimeDefault - the container runtime default profile should be used.\nUnconfined - no profile should be applied.",
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "type"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  "windowsOptions": {
+                                    "additionalProperties": false,
+                                    "description": "The Windows specific settings applied to all containers.\nIf unspecified, the options from the PodSecurityContext will be used.\nIf set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.\nNote that this field cannot be set when spec.os.name is linux.",
+                                    "properties": {
+                                      "gmsaCredentialSpec": {
+                                        "description": "GMSACredentialSpec is where the GMSA admission webhook\n(https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the\nGMSA credential spec named by the GMSACredentialSpecName field.",
+                                        "type": "string"
+                                      },
+                                      "gmsaCredentialSpecName": {
+                                        "description": "GMSACredentialSpecName is the name of the GMSA credential spec to use.",
+                                        "type": "string"
+                                      },
+                                      "hostProcess": {
+                                        "description": "HostProcess determines if a container should be run as a 'Host Process' container.\nAll of a Pod's containers must have the same effective HostProcess value\n(it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).\nIn addition, if HostProcess is true then HostNetwork must also be set to true.",
+                                        "type": "boolean"
+                                      },
+                                      "runAsUserName": {
+                                        "description": "The UserName in Windows to run the entrypoint of the container process.\nDefaults to the user specified in image metadata if unspecified.\nMay also be set in PodSecurityContext. If set in both SecurityContext and\nPodSecurityContext, the value specified in SecurityContext takes precedence.",
+                                        "type": "string"
+                                      }
+                                    },
                                     "type": "object"
                                   }
                                 },
@@ -7261,6 +7824,17 @@
                       "description": "Enabled enables Application Performance Monitoring.\nDefault: true",
                       "type": "boolean"
                     },
+                    "errorTrackingStandalone": {
+                      "additionalProperties": false,
+                      "description": "ErrorTrackingStandalone contains the configuration for the Error Tracking standalone feature.\nFeature is in preview.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enables Error Tracking for backend services.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "hostPortConfig": {
                       "additionalProperties": false,
                       "description": "HostPortConfig contains host port configuration.\nEnabled Default: false\nPort Default: 8126",
@@ -7329,6 +7903,259 @@
                           },
                           "description": "LibVersions configures injection of specific tracing library versions with Single Step Instrumentation.\n\u003cLibrary\u003e: \u003cVersion\u003e\nex: \"java\": \"v1.18.0\"",
                           "type": "object"
+                        },
+                        "targets": {
+                          "description": "Targets is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be\nused. If no target matches, the auto instrumentation will not be applied.\n(Requires Cluster Agent 7.64.0+)",
+                          "items": {
+                            "additionalProperties": false,
+                            "description": "SSITarget is a rule to apply the auto instrumentation to a specific workload using the pod and namespace selectors.",
+                            "properties": {
+                              "ddTraceConfigs": {
+                                "description": "TracerConfigs is a list of configuration options to use for the installed tracers. These options will be added\nas environment variables in addition to the injected tracer.",
+                                "items": {
+                                  "additionalProperties": false,
+                                  "description": "EnvVar represents an environment variable present in a Container.",
+                                  "properties": {
+                                    "name": {
+                                      "description": "Name of the environment variable. Must be a C_IDENTIFIER.",
+                                      "type": "string"
+                                    },
+                                    "value": {
+                                      "description": "Variable references $(VAR_NAME) are expanded\nusing the previously defined environment variables in the container and\nany service environment variables. If a variable cannot be resolved,\nthe reference in the input string will be unchanged. Double $$ are reduced\nto a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.\n\"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\".\nEscaped references will never be expanded, regardless of whether the variable\nexists or not.\nDefaults to \"\".",
+                                      "type": "string"
+                                    },
+                                    "valueFrom": {
+                                      "additionalProperties": false,
+                                      "description": "Source for the environment variable's value. Cannot be used if value is not empty.",
+                                      "properties": {
+                                        "configMapKeyRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a key of a ConfigMap.",
+                                          "properties": {
+                                            "key": {
+                                              "description": "The key to select.",
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "default": "",
+                                              "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                              "type": "string"
+                                            },
+                                            "optional": {
+                                              "description": "Specify whether the ConfigMap or its key must be defined",
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "fieldRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['\u003cKEY\u003e']`, `metadata.annotations['\u003cKEY\u003e']`,\nspec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.",
+                                          "properties": {
+                                            "apiVersion": {
+                                              "description": "Version of the schema the FieldPath is written in terms of, defaults to \"v1\".",
+                                              "type": "string"
+                                            },
+                                            "fieldPath": {
+                                              "description": "Path of the field to select in the specified API version.",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "fieldPath"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "resourceFieldRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a resource of the container: only resources limits and requests\n(limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.",
+                                          "properties": {
+                                            "containerName": {
+                                              "description": "Container name: required for volumes, optional for env vars",
+                                              "type": "string"
+                                            },
+                                            "divisor": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer"
+                                                },
+                                                {
+                                                  "type": "string"
+                                                }
+                                              ],
+                                              "description": "Specifies the output format of the exposed resources, defaults to \"1\"",
+                                              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                              "x-kubernetes-int-or-string": true
+                                            },
+                                            "resource": {
+                                              "description": "Required: resource to select",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "resource"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        },
+                                        "secretKeyRef": {
+                                          "additionalProperties": false,
+                                          "description": "Selects a key of a secret in the pod's namespace",
+                                          "properties": {
+                                            "key": {
+                                              "description": "The key of the secret to select from.  Must be a valid secret key.",
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "default": "",
+                                              "description": "Name of the referent.\nThis field is effectively required, but due to backwards compatibility is\nallowed to be empty. Instances of this type with an empty value here are\nalmost certainly wrong.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
+                                              "type": "string"
+                                            },
+                                            "optional": {
+                                              "description": "Specify whether the Secret or its key must be defined",
+                                              "type": "boolean"
+                                            }
+                                          },
+                                          "required": [
+                                            "key"
+                                          ],
+                                          "type": "object",
+                                          "x-kubernetes-map-type": "atomic"
+                                        }
+                                      },
+                                      "type": "object"
+                                    }
+                                  },
+                                  "required": [
+                                    "name"
+                                  ],
+                                  "type": "object"
+                                },
+                                "type": "array",
+                                "x-kubernetes-list-map-keys": [
+                                  "name"
+                                ],
+                                "x-kubernetes-list-type": "map"
+                              },
+                              "ddTraceVersions": {
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "TracerVersions is a map of tracer versions to inject for workloads that match the target. The key is the tracer\nname and the value is the version to inject.",
+                                "type": "object"
+                              },
+                              "name": {
+                                "description": "Name is the name of the target. It will be appended to the pod annotations to identify the target that was used.",
+                                "type": "string"
+                              },
+                              "namespaceSelector": {
+                                "additionalProperties": false,
+                                "description": "NamespaceSelector is the namespace selector to match the namespaces to apply the auto instrumentation to. It will\nbe used in conjunction with the Selector to match the pods.",
+                                "properties": {
+                                  "matchExpressions": {
+                                    "description": "MatchExpressions is a list of label selector requirements to match the labels of the namespace. The labels and\nexpressions are ANDed. This cannot be used with MatchNames.",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                      "properties": {
+                                        "key": {
+                                          "description": "key is the label key that the selector applies to.",
+                                          "type": "string"
+                                        },
+                                        "operator": {
+                                          "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array",
+                                          "x-kubernetes-list-type": "atomic"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "operator"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "matchLabels": {
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "description": "MatchLabels is a map of key-value pairs to match the labels of the namespace. The labels and expressions are\nANDed. This cannot be used with MatchNames.",
+                                    "type": "object"
+                                  },
+                                  "matchNames": {
+                                    "description": "MatchNames is a list of namespace names to match. If empty, all namespaces are matched.",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "type": "object"
+                              },
+                              "podSelector": {
+                                "additionalProperties": false,
+                                "description": "PodSelector is the pod selector to match the pods to apply the auto instrumentation to. It will be used in\nconjunction with the NamespaceSelector to match the pods.",
+                                "properties": {
+                                  "matchExpressions": {
+                                    "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
+                                    "items": {
+                                      "additionalProperties": false,
+                                      "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
+                                      "properties": {
+                                        "key": {
+                                          "description": "key is the label key that the selector applies to.",
+                                          "type": "string"
+                                        },
+                                        "operator": {
+                                          "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
+                                          "type": "string"
+                                        },
+                                        "values": {
+                                          "description": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.",
+                                          "items": {
+                                            "type": "string"
+                                          },
+                                          "type": "array",
+                                          "x-kubernetes-list-type": "atomic"
+                                        }
+                                      },
+                                      "required": [
+                                        "key",
+                                        "operator"
+                                      ],
+                                      "type": "object"
+                                    },
+                                    "type": "array",
+                                    "x-kubernetes-list-type": "atomic"
+                                  },
+                                  "matchLabels": {
+                                    "additionalProperties": {
+                                      "type": "string"
+                                    },
+                                    "description": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.",
+                                    "type": "object"
+                                  }
+                                },
+                                "type": "object",
+                                "x-kubernetes-map-type": "atomic"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "type": "array"
                         }
                       },
                       "type": "object"
@@ -8452,6 +9279,17 @@
                     "enabled": {
                       "description": "Enables the service discovery check.\nDefault: false",
                       "type": "boolean"
+                    },
+                    "networkStats": {
+                      "additionalProperties": false,
+                      "description": "Enables the service discovery network stats collection.\nDefault: true",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enables the Service Discovery Network Stats feature.\nDefault: true",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
                     }
                   },
                   "type": "object"

@@ -66,8 +66,9 @@ func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOpti
 type ExtendedDaemonsetOptions struct {
 	Enabled bool
 
-	MaxPodUnavailable      string
-	MaxPodSchedulerFailure string
+	MaxPodUnavailable         string
+	MaxPodSchedulerFailure    string
+	SlowStartAdditiveIncrease string
 
 	CanaryDuration                      time.Duration
 	CanaryReplicas                      string
@@ -92,6 +93,10 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 
 	if options.MaxPodSchedulerFailure != "" {
 		spec.Strategy.RollingUpdate.MaxPodSchedulerFailure = apiutils.NewIntOrStringPointer(options.MaxPodSchedulerFailure)
+	}
+
+	if options.SlowStartAdditiveIncrease != "" {
+		spec.Strategy.RollingUpdate.SlowStartAdditiveIncrease = apiutils.NewIntOrStringPointer(options.SlowStartAdditiveIncrease)
 	}
 
 	if options.CanaryDuration != 0 {

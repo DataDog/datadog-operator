@@ -3,10 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package enabledefault
+//go:build fips
 
-const (
-	DDAgentDaemonSet             = "AGENT_DAEMONSET"
-	DDClusterAgentDeployment     = "CLUSTER_AGENT_DEPLOYMENT"
-	DDDatadogAgentCustomResource = "DATADOGAGENT_CR_NAME"
-)
+package controller
+
+import _ "crypto/tls/fipsonly"

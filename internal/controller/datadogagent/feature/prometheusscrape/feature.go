@@ -77,7 +77,7 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *prometheusScrapeFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
