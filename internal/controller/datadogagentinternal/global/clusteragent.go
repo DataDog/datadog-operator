@@ -7,7 +7,7 @@ package global
 
 import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 )
 
 func applyClusterAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent) {

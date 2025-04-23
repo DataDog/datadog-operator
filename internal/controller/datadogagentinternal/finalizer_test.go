@@ -7,9 +7,9 @@ import (
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
+	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"

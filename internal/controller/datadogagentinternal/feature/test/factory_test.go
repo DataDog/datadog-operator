@@ -8,14 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/apm"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/enabledefault"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/gpu"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/livecontainer"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/npm"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/apm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/gpu"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/livecontainer"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/npm"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/otelcollector"
 )
 
 func TestBuilder(t *testing.T) {

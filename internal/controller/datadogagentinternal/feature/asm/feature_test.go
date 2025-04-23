@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/test"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/stretchr/testify/require"

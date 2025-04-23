@@ -16,11 +16,11 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"

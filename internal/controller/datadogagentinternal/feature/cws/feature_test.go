@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	corev1 "k8s.io/api/core/v1"
@@ -18,9 +18,9 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/test"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"

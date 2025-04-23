@@ -6,7 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
 )
 
 var initContainerNames = []common.AgentContainerName{common.InitConfigContainerName, common.InitVolumeContainerName, common.SeccompSetupContainerName}

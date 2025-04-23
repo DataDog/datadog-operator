@@ -16,11 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )

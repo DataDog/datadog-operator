@@ -8,7 +8,7 @@ package agent
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	netv1 "k8s.io/api/networking/v1"
