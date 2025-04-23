@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/google/go-cmp/cmp"
@@ -58,7 +59,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 
 	tests := []struct {
 		name                           string
-		dda                            *v2alpha1.DatadogAgent
+		ddai                           *v1alpha1.DatadogAgentInternal
 		singleContainerStrategyEnabled bool
 		wantCoreAgentVolumeMounts      []*corev1.VolumeMount
 		wantVolumeMounts               []*corev1.VolumeMount
@@ -71,7 +72,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: false,
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
@@ -137,7 +138,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Kubelet volume configured",
 			singleContainerStrategyEnabled: true,
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
 				WithCredentials("apiKey", "appKey").
@@ -203,7 +204,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Checks tag cardinality set to orchestrator",
 			singleContainerStrategyEnabled: false,
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithChecksTagCardinality("orchestrator").
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -260,7 +261,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Unified origin detection activated",
 			singleContainerStrategyEnabled: false,
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithOriginDetectionUnified(true).
 				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
@@ -317,7 +318,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Global environment variable configured",
 			singleContainerStrategyEnabled: false,
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithCredentials("apiKey", "appKey").
 				WithEnvVars([]corev1.EnvVar{
 					{
@@ -387,10 +388,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Secret backend - global permissions",
 			singleContainerStrategyEnabled: false,
-			dda: addNameNamespaceToDDA(
+			ddai: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				testutils.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentInternalBuilder().
 					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
@@ -457,10 +458,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Secret backend - specific secret permissions",
 			singleContainerStrategyEnabled: false,
-			dda: addNameNamespaceToDDA(
+			ddai: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				testutils.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentInternalBuilder().
 					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
@@ -527,10 +528,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "Credentials + token from existing secret",
 			singleContainerStrategyEnabled: false,
-			dda: addNameNamespaceToDDA(
+			ddai: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				testutils.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentInternalBuilder().
 					WithCredentialsFromSecret("apiKeyName", "apiKeyKey", "appKeyName", "appKeyKey").
 					WithDCATokenFromSecret("tokenName", "tokenKey").
 					BuildWithDefaults(),
@@ -584,10 +585,10 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 		{
 			name:                           "One cred from existing secret, token specified",
 			singleContainerStrategyEnabled: false,
-			dda: addNameNamespaceToDDA(
+			ddai: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
-				testutils.NewDatadogAgentBuilder().
+				testutils.NewDatadogAgentInternalBuilder().
 					WithCredentialsFromSecret("apiKeyName", "apiKeyKey", "", "").
 					WithDCAToken("token").
 					BuildWithDefaults(),
@@ -632,15 +633,15 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
-			store := store.NewStore(tt.dda, storeOptions)
+			store := store.NewStore(tt.ddai, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 			reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
 			requiredComponents := feature.RequiredComponents{
 				ClusterAgent: reqComp,
 				Agent:        reqComp,
 			}
-			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
+			ApplyGlobalComponentDependencies(logger, tt.ddai, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.ddai, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected
@@ -777,7 +778,7 @@ func getExpectedVolumeMounts(configs ...volumeConfig) []*corev1.VolumeMount {
 	return mounts
 }
 
-func addNameNamespaceToDDA(name string, namespace string, dda *v2alpha1.DatadogAgent) *v2alpha1.DatadogAgent {
+func addNameNamespaceToDDA(name string, namespace string, dda *v1alpha1.DatadogAgentInternal) *v1alpha1.DatadogAgentInternal {
 	dda.Name = name
 	dda.Namespace = namespace
 	return dda

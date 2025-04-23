@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -66,13 +67,13 @@ defaults
 
 	tests := []struct {
 		name            string
-		dda             *v2alpha1.DatadogAgent
+		ddai            *v1alpha1.DatadogAgentInternal
 		existingManager func() *fake.PodTemplateManagers
 		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *store.Store)
 	}{
 		{
 			name: "FIPS enabled",
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 				}).
@@ -101,7 +102,7 @@ defaults
 		},
 		{
 			name: "FIPS custom image",
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					Image: &v2alpha1.AgentImageConfig{
@@ -135,7 +136,7 @@ defaults
 		},
 		{
 			name: "FIPS custom port",
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					Port:    apiutils.NewInt32Pointer(2),
@@ -165,7 +166,7 @@ defaults
 		},
 		{
 			name: "FIPS custom config - config map",
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
@@ -206,7 +207,7 @@ defaults
 		},
 		{
 			name: "FIPS custom config - config data",
-			dda: testutils.NewDatadogAgentBuilder().
+			ddai: testutils.NewDatadogAgentInternalBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
@@ -249,10 +250,10 @@ defaults
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			podTemplateManager := tt.existingManager()
-			store := store.NewStore(tt.dda, storeOptions)
+			store := store.NewStore(tt.ddai, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 
-			applyFIPSConfig(logger, podTemplateManager, tt.dda, resourcesManager)
+			applyFIPSConfig(logger, podTemplateManager, tt.ddai, resourcesManager)
 
 			tt.want(t, podTemplateManager, store)
 		})

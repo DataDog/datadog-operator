@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -25,7 +26,7 @@ import (
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
-func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal,
 	resourcesManager feature.ResourceManagers) {
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS

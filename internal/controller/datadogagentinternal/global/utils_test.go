@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -64,17 +65,17 @@ func Test_getInstallInfoValue(t *testing.T) {
 func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 	tests := []struct {
 		name     string
-		dda      *v2alpha1.DatadogAgent
+		ddai     *v1alpha1.DatadogAgentInternal
 		expected bool
 	}{
 		{
 			name:     "Empty DDA (no override)",
-			dda:      &v2alpha1.DatadogAgent{},
+			ddai:     &v1alpha1.DatadogAgentInternal{},
 			expected: false,
 		},
 		{
 			name: "Override but no custom seccomp for system probe",
-			dda: &v2alpha1.DatadogAgent{
+			ddai: &v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -97,7 +98,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 		},
 		{
 			name: "Custom seccomp for system probe",
-			dda: &v2alpha1.DatadogAgent{
+			ddai: &v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -120,7 +121,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 		},
 		{
 			name: "Custom seccomp for system probe, but uses configData (not supported)",
-			dda: &v2alpha1.DatadogAgent{
+			ddai: &v1alpha1.DatadogAgentInternal{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
 						v2alpha1.NodeAgentComponentName: {
@@ -143,7 +144,7 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := useSystemProbeCustomSeccomp(tt.dda)
+			actual := useSystemProbeCustomSeccomp(tt.ddai)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
