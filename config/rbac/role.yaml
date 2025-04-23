@@ -226,6 +226,8 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogagentinternals
+  - datadogagentinternals/finalizers
   - datadogagentprofiles
   - datadogagentprofiles/finalizers
   - datadogagents
@@ -249,6 +251,7 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogagentinternals/status
   - datadogagentprofiles/status
   - datadogagents/status
   - datadogdashboards/status
