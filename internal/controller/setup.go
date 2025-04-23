@@ -179,7 +179,7 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 		Log:      ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
 		Scheme:   mgr.GetScheme(),
 		Recorder: mgr.GetEventRecorderFor(agentInternalControllerName),
-	}).SetupWithManager(mgr)
+	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
 func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
