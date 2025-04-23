@@ -10,6 +10,7 @@ import (
 	"os"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
@@ -25,14 +26,14 @@ func getDCATokenChecksumAnnotationKey() string {
 	return object.GetChecksumAnnotationKey("dca-token")
 }
 
-func getURLEndpoint(dda *v2alpha1.DatadogAgent) string {
+func getURLEndpoint(dda *v1alpha1.DatadogAgentInternal) string {
 	if dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
 		return *dda.Spec.Global.Endpoint.URL
 	}
 	return ""
 }
 
-func setImageRegistry(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, componentName v2alpha1.ComponentName) string {
+func setImageRegistry(manager feature.PodTemplateManagers, dda *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) string {
 	// Registry is defaulted
 	if *dda.Spec.Global.Registry != defaulting.DefaultImageRegistry {
 		image := defaulting.DefaultAgentImageName
@@ -64,7 +65,7 @@ func getInstallInfoValue() string {
 	return fmt.Sprintf(installInfoDataTmpl, toolVersion, version.Version)
 }
 
-func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
+func useSystemProbeCustomSeccomp(dda *v1alpha1.DatadogAgentInternal) bool {
 	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if container, ok := componentOverride.Containers[apicommon.SystemProbeContainerName]; ok {
 			// Only ConfigMap is supported for now

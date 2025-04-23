@@ -6,12 +6,13 @@
 package global
 
 import (
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 )
 
-func applyClusterAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent) {
+func applyClusterAgentResources(manager feature.PodTemplateManagers, ddai *v1alpha1.DatadogAgentInternal) {
 	// Registry is the image registry to use for all Agent images.
-	setImageRegistry(manager, dda, v2alpha1.ClusterAgentComponentName)
+	setImageRegistry(manager, ddai, v2alpha1.ClusterAgentComponentName)
 
 }
