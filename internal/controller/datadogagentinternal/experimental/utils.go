@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 )
 
@@ -18,9 +18,9 @@ func getExperimentalAnnotationKey(subkey string) string {
 	return fmt.Sprintf("%s/%s", ExperimentalAnnotationPrefix, subkey)
 }
 
-func getExperimentalAnnotation(dda *v2alpha1.DatadogAgent, annotationSubkey string) string {
+func getExperimentalAnnotation(ddai *v1alpha1.DatadogAgentInternal, annotationSubkey string) string {
 	annotationKey := getExperimentalAnnotationKey(annotationSubkey)
-	if annotationValue, ok := dda.Annotations[annotationKey]; ok {
+	if annotationValue, ok := ddai.Annotations[annotationKey]; ok {
 		return annotationValue
 	}
 
@@ -28,9 +28,9 @@ func getExperimentalAnnotation(dda *v2alpha1.DatadogAgent, annotationSubkey stri
 }
 
 // ApplyExperimentalOverrides applies any configured experimental overrides for the the given DatadogAgent resource.
-func ApplyExperimentalOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
+func ApplyExperimentalOverrides(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, manager feature.PodTemplateManagers) {
 	elogger := logger.WithName("ExperimentalOverrides")
 	elogger.V(2).Info("Applying experimental overrides")
 
-	applyExperimentalImageOverrides(elogger, dda, manager)
+	applyExperimentalImageOverrides(elogger, ddai, manager)
 }
