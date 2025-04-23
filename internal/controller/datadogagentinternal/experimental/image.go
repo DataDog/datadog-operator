@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -33,8 +34,8 @@ type imageOverride struct {
 	Tag string `json:"tag,omitempty"`
 }
 
-func getImageOverrideConfig(dda *v2alpha1.DatadogAgent) (imageOverrides, error) {
-	imageOverrideConfigRaw := getExperimentalAnnotation(dda, ExperimentalImageOverrideConfigSubkey)
+func getImageOverrideConfig(ddai *v1alpha1.DatadogAgentInternal) (imageOverrides, error) {
+	imageOverrideConfigRaw := getExperimentalAnnotation(ddai, ExperimentalImageOverrideConfigSubkey)
 	if imageOverrideConfigRaw == "" {
 		return nil, nil
 	}
@@ -58,12 +59,12 @@ func overrideImage(currentImg string, overrideImg imageOverride) string {
 	return common.OverrideAgentImage(currentImg, overrideImgConfig)
 }
 
-func applyExperimentalImageOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
+func applyExperimentalImageOverrides(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, manager feature.PodTemplateManagers) {
 	// We support overriding the image used for any non-init container in the Agent's pod spec.
 	//
 	// We grab the image override configuration from the `image-override-config` experimental annotation, and for each
 	// container defined in the pod template's spec, we see if there is a defined override. If so, we apply it.
-	imageOverrides, err := getImageOverrideConfig(dda)
+	imageOverrides, err := getImageOverrideConfig(ddai)
 	if err != nil {
 		logger.Error(err, "Failed to deserialize image override config")
 		return
