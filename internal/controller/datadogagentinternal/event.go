@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package datadogagent
+package datadogagentinternal
 
 import (
 	corev1 "k8s.io/api/core/v1"

@@ -1,4 +1,4 @@
-package datadogagent
+package datadogagentinternal
 
 import (
 	"context"
