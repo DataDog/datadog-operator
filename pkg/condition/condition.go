@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
@@ -36,6 +37,17 @@ const (
 // UpdateDatadogAgentStatusConditions used to update a specific string in conditions
 func UpdateDatadogAgentStatusConditions(status *v2alpha1.DatadogAgentStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
 	idConditionComplete := getIndexForConditionType(status, t)
+	if idConditionComplete >= 0 {
+		updateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, conditionStatus, reason, message)
+	} else if conditionStatus == metav1.ConditionTrue || writeFalseIfNotExist {
+		// Only add if the condition is True
+		status.Conditions = append(status.Conditions, newDatadogAgentStatusCondition(t, conditionStatus, now, reason, message))
+	}
+}
+
+// UpdateDatadogAgentInternalStatusConditions used to update a specific string in conditions
+func UpdateDatadogAgentInternalStatusConditions(status *v1alpha1.DatadogAgentInternalStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
+	idConditionComplete := getIndexForConditionTypeDDAI(status, t)
 	if idConditionComplete >= 0 {
 		updateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, conditionStatus, reason, message)
 	} else if conditionStatus == metav1.ConditionTrue || writeFalseIfNotExist {
@@ -84,6 +96,22 @@ func GetMetav1ConditionStatus(status bool) metav1.ConditionStatus {
 }
 
 func getIndexForConditionType(status *v2alpha1.DatadogAgentStatus, t string) int {
+	idCondition := -1
+	if status == nil {
+		return idCondition
+	}
+
+	for i, condition := range status.Conditions {
+		if condition.Type == t {
+			idCondition = i
+			break
+		}
+	}
+
+	return idCondition
+}
+
+func getIndexForConditionTypeDDAI(status *v1alpha1.DatadogAgentInternalStatus, t string) int {
 	idCondition := -1
 	if status == nil {
 		return idCondition
@@ -205,6 +233,47 @@ func UpdateDaemonSetStatus(dsName string, ds *appsv1.DaemonSet, dsStatus []*v2al
 	return dsStatus
 }
 
+// UpdateDaemonSetStatusDDAI updates a daemonset's DaemonSetStatus
+func UpdateDaemonSetStatusDDAI(dsName string, ds *appsv1.DaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
+	if dsStatus == nil {
+		dsStatus = &v2alpha1.DaemonSetStatus{}
+	}
+
+	if ds == nil {
+		dsStatus.State = string(DatadogAgentStateFailed)
+		dsStatus.Status = string(DatadogAgentStateFailed)
+		dsStatus.DaemonsetName = dsName
+	} else {
+		dsStatus.Desired = ds.Status.DesiredNumberScheduled
+		dsStatus.Current = ds.Status.CurrentNumberScheduled
+		dsStatus.Ready = ds.Status.NumberReady
+		dsStatus.Available = ds.Status.NumberAvailable
+		dsStatus.UpToDate = ds.Status.UpdatedNumberScheduled
+		dsStatus.DaemonsetName = ds.ObjectMeta.Name
+		if updateTime != nil {
+			dsStatus.LastUpdate = updateTime
+		}
+		if hash, ok := ds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
+			dsStatus.CurrentHash = hash
+		}
+
+		var deploymentState DatadogAgentState
+		switch {
+		case dsStatus.UpToDate != dsStatus.Desired:
+			deploymentState = DatadogAgentStateUpdating
+		case dsStatus.Ready == 0 && dsStatus.Desired != 0:
+			deploymentState = DatadogAgentStateProgressing
+		default:
+			deploymentState = DatadogAgentStateRunning
+		}
+
+		dsStatus.State = fmt.Sprintf("%v", deploymentState)
+		dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	}
+
+	return dsStatus
+}
+
 // UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
 func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*v2alpha1.DaemonSetStatus, updateTime *metav1.Time) []*v2alpha1.DaemonSetStatus {
 	if dsStatus == nil {
@@ -253,6 +322,44 @@ func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	if !found {
 		dsStatus = append(dsStatus, &newStatus)
 	}
+
+	return dsStatus
+}
+
+// UpdateExtendedDaemonSetStatusDDAI updates an ExtendedDaemonSet's DaemonSetStatus
+func UpdateExtendedDaemonSetStatusDDAI(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *v2alpha1.DaemonSetStatus, updateTime *metav1.Time) *v2alpha1.DaemonSetStatus {
+	if dsStatus == nil {
+		dsStatus = &v2alpha1.DaemonSetStatus{}
+	}
+
+	dsStatus.Desired = eds.Status.Desired
+	dsStatus.Current = eds.Status.Current
+	dsStatus.Ready = eds.Status.Ready
+	dsStatus.Available = eds.Status.Available
+	dsStatus.UpToDate = eds.Status.UpToDate
+	dsStatus.DaemonsetName = eds.ObjectMeta.Name
+
+	if updateTime != nil {
+		dsStatus.LastUpdate = updateTime
+	}
+	if hash, ok := eds.Annotations[constants.MD5AgentDeploymentAnnotationKey]; ok {
+		dsStatus.CurrentHash = hash
+	}
+
+	var deploymentState DatadogAgentState
+	switch {
+	case eds.Status.Canary != nil:
+		deploymentState = DatadogAgentStateCanary
+	case dsStatus.UpToDate != dsStatus.Desired:
+		deploymentState = DatadogAgentStateUpdating
+	case dsStatus.Ready == 0 && dsStatus.Desired != 0:
+		deploymentState = DatadogAgentStateProgressing
+	default:
+		deploymentState = DatadogAgentStateRunning
+	}
+
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 
 	return dsStatus
 }
