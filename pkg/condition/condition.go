@@ -76,6 +76,13 @@ func DeleteDatadogAgentStatusCondition(status *v2alpha1.DatadogAgentStatus, cond
 	}
 }
 
+func DeleteDatadogAgentInternalStatusCondition(status *v1alpha1.DatadogAgentInternalStatus, conditionType string) {
+	idConditionComplete := getIndexForConditionTypeDDAI(status, conditionType)
+	if idConditionComplete >= 0 {
+		status.Conditions = append(status.Conditions[:idConditionComplete], status.Conditions[idConditionComplete+1:]...)
+	}
+}
+
 // newDatadogAgentStatusCondition returns new metav1.Condition instance
 func newDatadogAgentStatusCondition(conditionType string, conditionStatus metav1.ConditionStatus, now metav1.Time, reason, message string) metav1.Condition {
 	return metav1.Condition{
