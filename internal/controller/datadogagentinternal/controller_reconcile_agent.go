@@ -12,10 +12,8 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -31,7 +29,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -215,134 +212,6 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, ddai *datadog
 func deleteStatusWithAgent(newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) {
 	newStatus.Agent = nil
 	condition.DeleteDatadogAgentInternalStatusCondition(newStatus, common.AgentReconcileConditionType)
-}
-
-func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	if err := r.labelNodesWithProfiles(ctx, profilesByNode); err != nil {
-		return err
-	}
-
-	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// labelNodesWithProfiles sets the "agent.datadoghq.com/datadogagentprofile" label only in
-// the nodes where a profile is applied
-func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName) error {
-	for nodeName, profileNamespacedName := range profilesByNode {
-		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-
-		node := &corev1.Node{}
-		if err := r.client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
-			return err
-		}
-
-		newLabels := map[string]string{}
-		labelsToRemove := map[string]bool{}
-		labelsToAddOrChange := map[string]string{}
-
-		// If the profile is the default one and the label exists in the node,
-		// it should be removed.
-		if isDefaultProfile {
-			if _, profileLabelExists := node.Labels[agentprofile.ProfileLabelKey]; profileLabelExists {
-				labelsToRemove[agentprofile.ProfileLabelKey] = true
-			}
-		} else {
-			// If the profile is not the default one and the label does not exist in
-			// the node, it should be added. If the label value is outdated, it
-			// should be updated.
-			if profileLabelValue := node.Labels[agentprofile.ProfileLabelKey]; profileLabelValue != profileNamespacedName.Name {
-				labelsToAddOrChange[agentprofile.ProfileLabelKey] = profileNamespacedName.Name
-			}
-		}
-
-		// Remove old profile label key if it is present
-		if _, oldProfileLabelExists := node.Labels[agentprofile.OldProfileLabelKey]; oldProfileLabelExists {
-			labelsToRemove[agentprofile.OldProfileLabelKey] = true
-		}
-
-		if len(labelsToRemove) > 0 || len(labelsToAddOrChange) > 0 {
-			for k, v := range node.Labels {
-				if _, ok := labelsToRemove[k]; ok {
-					continue
-				}
-				newLabels[k] = v
-			}
-
-			for k, v := range labelsToAddOrChange {
-				newLabels[k] = v
-			}
-		}
-
-		if len(newLabels) == 0 {
-			continue
-		}
-
-		modifiedNode := node.DeepCopy()
-		modifiedNode.Labels = newLabels
-
-		err := r.client.Patch(ctx, modifiedNode, client.MergeFrom(node))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// cleanupPodsForProfilesThatNoLongerApply deletes the agent pods that should
-// not be running according to the profiles that need to be applied. This is
-// needed because in the affinities we use
-// "RequiredDuringSchedulingIgnoredDuringExecution" which means that the pods
-// might not always be evicted when there's a change in the profiles to apply.
-// Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
-// available in Kubernetes yet.
-func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	agentPods := &corev1.PodList{}
-	err := r.client.List(
-		ctx,
-		agentPods,
-		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-		}),
-		client.InNamespace(ddaNamespace),
-	)
-	if err != nil {
-		return err
-	}
-
-	for _, agentPod := range agentPods.Items {
-		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
-		if !found {
-			continue
-		}
-
-		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-		expectedProfileLabelValue := profileNamespacedName.Name
-
-		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
-
-		deletePod := (isDefaultProfile && profileLabelExists) ||
-			(!isDefaultProfile && !profileLabelExists) ||
-			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
-
-		if deletePod {
-			toDelete := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: agentPod.Namespace,
-					Name:      agentPod.Name,
-				},
-			}
-			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.

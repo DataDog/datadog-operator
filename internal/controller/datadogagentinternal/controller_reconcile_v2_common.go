@@ -8,7 +8,6 @@ package datadogagentinternal
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -20,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -32,8 +30,6 @@ import (
 const (
 	updateSucceeded = "UpdateSucceeded"
 	createSucceeded = "CreateSucceeded"
-
-	profileWaitForCanaryKey = "agent.datadoghq.com/profile-wait-for-canary"
 )
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -361,48 +357,4 @@ func ensureSelectorInPodTemplateLabels(logger logr.Logger, selector *metav1.Labe
 	}
 
 	return labels
-}
-
-func shouldCheckCreateStrategyStatus(profile *v1alpha1.DatadogAgentProfile) bool {
-	if profile == nil {
-		return false
-	}
-
-	if profile.Name == "" || profile.Name == "default" {
-		return false
-	}
-
-	if profile.Status.CreateStrategy == nil {
-		return false
-	}
-
-	return profile.Status.CreateStrategy.Status != v1alpha1.CompletedStatus
-}
-
-// getDDALastUpdatedTime returns the latest timestamp from managedFields
-// ignoring the `status` subresource. If there are no managed fields, it uses
-// the creation timestamp
-func getDDALastUpdatedTime(managedFields []metav1.ManagedFieldsEntry, creationTimestamp metav1.Time) metav1.Time {
-	lastUpdateTime := creationTimestamp
-	for _, mf := range managedFields {
-		if mf.Subresource != "status" {
-			if mf.Time != nil && mf.Time.After(lastUpdateTime.Time) {
-				lastUpdateTime = *mf.Time
-			}
-		}
-	}
-	return lastUpdateTime
-}
-
-// shouldProfileWaitForCanary returns the value of the profile-wait-for-canary annotation
-func shouldProfileWaitForCanary(logger logr.Logger, annotations map[string]string) bool {
-	if val, exists := annotations[profileWaitForCanaryKey]; exists {
-		waitForCanary, err := strconv.ParseBool(val)
-		if err != nil {
-			logger.Error(err, "Failed to parse annotation value", "key", profileWaitForCanaryKey, "value", val)
-			return false
-		}
-		return waitForCanary
-	}
-	return false
 }
