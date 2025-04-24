@@ -6,6 +6,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
@@ -172,12 +173,12 @@ func Test_getValidDaemonSetNames(t *testing.T) {
 func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 	testCases := []struct {
 		name       string
-		dda        *datadoghqv2alpha1.DatadogAgent
+		ddai       *datadoghqv1alpha1.DatadogAgentInternal
 		wantDSName string
 	}{
 		{
 			name: "no node override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -186,7 +187,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 		},
 		{
 			name: "node override with no name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -202,7 +203,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 		},
 		{
 			name: "node override with name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -219,7 +220,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 		},
 		{
 			name: "dca override with name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -238,7 +239,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.dda)
+			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.ddai)
 			assert.Equal(t, tt.wantDSName, dsName)
 		})
 	}
@@ -1310,7 +1311,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				},
 			}
 
-			dda := datadoghqv2alpha1.DatadogAgent{
+			dda := datadoghqv1alpha1.DatadogAgentInternal{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "DatadogAgent",
 					APIVersion: "datadoghq.com/v2alpha1",
@@ -1320,7 +1321,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					Namespace: "ns-1",
 				},
 			}
-			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
+			ddaStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
 			err := r.cleanupExtraneousDaemonSets(ctx, logger, &dda, &ddaStatus, tt.providerList, tt.profiles)
 			assert.NoError(t, err)
@@ -1335,124 +1336,6 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 
 			assert.Equal(t, tt.wantDS, dsList)
 			assert.Equal(t, tt.wantEDS, edsList)
-		})
-	}
-}
-
-func Test_removeStaleStatus(t *testing.T) {
-	testCases := []struct {
-		name       string
-		ddaStatus  *datadoghqv2alpha1.DatadogAgentStatus
-		dsName     string
-		wantStatus *datadoghqv2alpha1.DatadogAgentStatus
-	}{
-		{
-			name: "no status to delete",
-			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{
-					{
-						Desired:       1,
-						Current:       1,
-						Ready:         1,
-						Available:     1,
-						DaemonsetName: "foo",
-					},
-				},
-			},
-			dsName: "bar",
-			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{
-					{
-						Desired:       1,
-						Current:       1,
-						Ready:         1,
-						Available:     1,
-						DaemonsetName: "foo",
-					},
-				},
-			},
-		},
-		{
-			name: "delete status",
-			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{
-					{
-						Desired:       1,
-						Current:       1,
-						Ready:         1,
-						Available:     1,
-						DaemonsetName: "foo",
-					},
-					{
-						Desired:       2,
-						Current:       2,
-						Ready:         1,
-						Available:     1,
-						UpToDate:      1,
-						DaemonsetName: "bar",
-					},
-				},
-			},
-			dsName: "bar",
-			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{
-					{
-						Desired:       1,
-						Current:       1,
-						Ready:         1,
-						Available:     1,
-						DaemonsetName: "foo",
-					},
-				},
-			},
-		},
-		{
-			name: "delete only status",
-			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{
-					{
-						Desired:       2,
-						Current:       2,
-						Ready:         1,
-						Available:     1,
-						UpToDate:      1,
-						DaemonsetName: "bar",
-					},
-				},
-			},
-			dsName: "bar",
-			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{},
-			},
-		},
-		{
-			name: "agent status is empty",
-			ddaStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{},
-			},
-			dsName: "bar",
-			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{
-				AgentList: []*datadoghqv2alpha1.DaemonSetStatus{},
-			},
-		},
-		{
-			name:       "dda status is empty",
-			ddaStatus:  &datadoghqv2alpha1.DatadogAgentStatus{},
-			dsName:     "bar",
-			wantStatus: &datadoghqv2alpha1.DatadogAgentStatus{},
-		},
-		{
-			name:       "status is nil",
-			ddaStatus:  nil,
-			dsName:     "bar",
-			wantStatus: nil,
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			removeStaleStatus(tt.ddaStatus, tt.dsName)
-			assert.Equal(t, tt.wantStatus, tt.ddaStatus)
 		})
 	}
 }

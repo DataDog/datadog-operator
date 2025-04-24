@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
@@ -196,24 +196,24 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 				Logger:        logger,
 				Scheme:        r.scheme,
 			}
-			instance := &datadoghqv2alpha1.DatadogAgent{}
+			instance := &datadoghqv1alpha1.DatadogAgentInternal{}
 			defaults.DefaultDatadogAgent(instance.DeepCopy())
 			depsStore := store.NewStore(instance, storeOptions)
 			resourcesManager := feature.NewResourceManagers(depsStore)
 
-			dda := datadoghqv2alpha1.DatadogAgent{
+			ddai := datadoghqv1alpha1.DatadogAgentInternal{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "DatadogAgent",
-					APIVersion: "datadoghq.com/v2alpha1",
+					Kind:       "DatadogAgentInternal",
+					APIVersion: "datadoghq.com/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dda-foo",
 					Namespace: "ns-1",
 				},
 			}
-			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
+			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldDCADeployments(ctx, logger, &dda, resourcesManager, &ddaStatus)
+			err := r.cleanupOldDCADeployments(ctx, logger, &ddai, resourcesManager, &ddaiStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}

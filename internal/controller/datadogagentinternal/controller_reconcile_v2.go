@@ -85,7 +85,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 	// Update the status to make it the ClusterAgentReconcileConditionType successful
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.b. Node Agent and profiles
 	// TODO: ignore profiles and introspection for DDAI
@@ -100,7 +100,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
 	// Update the status to set ClusterChecksRunnerReconcileConditionType to successful
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ClusterChecksRunnerReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// TODO: this feels like it should be moved somewhere else
 	userSpecifiedClusterAgentToken := instance.Spec.Global.ClusterAgentToken != nil || instance.Spec.Global.ClusterAgentTokenSecret != nil
@@ -128,9 +128,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, result reconcile.Result, currentError error, now metav1.Time) (reconcile.Result, error) {
 	if currentError == nil {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
 	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
@@ -167,7 +167,7 @@ func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alp
 func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) {
 	if r.options.OperatorMetricsEnabled {
 		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
-			condition.UpdateDatadogAgentStatusConditions(
+			condition.UpdateDatadogAgentInternalStatusConditions(
 				newStatus,
 				forwarderCondition.LastUpdateTime,
 				forwarderCondition.ConditionType,
