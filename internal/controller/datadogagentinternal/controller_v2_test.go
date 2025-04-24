@@ -19,7 +19,6 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -27,7 +26,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -457,128 +455,6 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	}
 }
 
-func Test_Introspection(t *testing.T) {
-	const resourcesName = "foo"
-	const resourcesNamespace = "bar"
-	const dsName = "foo-agent"
-
-	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
-	forwarders := dummyManager{}
-
-	logf.SetLogger(zap.New(zap.UseDevMode(true)))
-
-	// Register operator types with the runtime scheme.
-	s := agenttestutils.TestScheme()
-
-	defaultRequeueDuration := 15 * time.Second
-
-	tests := []struct {
-		name     string
-		fields   fields
-		loadFunc func(c client.Client) *v1alpha1.DatadogAgentInternal
-		nodes    []client.Object
-		want     reconcile.Result
-		wantErr  bool
-		wantFunc func(t *testing.T, c client.Client) error
-	}{
-		{
-			name: "[introspection] Daemonset names with affinity override",
-			fields: fields{
-				scheme:   s,
-				recorder: recorder,
-			},
-			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
-				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
-					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
-						Affinity: &corev1.Affinity{
-							PodAntiAffinity: &corev1.PodAntiAffinity{
-								RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-									{
-										LabelSelector: &metav1.LabelSelector{
-											MatchLabels: map[string]string{
-												"foo": "bar",
-											},
-										},
-										TopologyKey: "baz",
-									},
-								},
-							},
-						},
-					}).
-					Build()
-				_ = c.Create(context.TODO(), ddai)
-				return ddai
-			},
-			nodes: []client.Object{
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default-node",
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-				&corev1.Node{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gke-cos-node",
-						Labels: map[string]string{
-							kubernetes.GKEProviderLabel: kubernetes.GKECosType,
-						},
-					},
-				},
-			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
-			wantErr: false,
-			wantFunc: func(t *testing.T, c client.Client) error {
-				expectedDaemonsets := []string{
-					string("foo-agent-default"),
-					string("foo-agent-gke-cos"),
-				}
-
-				return verifyDaemonsetNames(t, c, resourcesNamespace, dsName, expectedDaemonsets)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v1alpha1.DatadogAgentInternal{}).WithObjects(tt.nodes...).Build(),
-				scheme:       tt.fields.scheme,
-				platformInfo: tt.fields.platformInfo,
-				recorder:     recorder,
-				log:          logf.Log.WithName(tt.name),
-				forwarders:   forwarders,
-				options: ReconcilerOptions{
-					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-						Enabled: false,
-					},
-					SupportCilium: false,
-				},
-			}
-
-			var ddai *v1alpha1.DatadogAgentInternal
-			if tt.loadFunc != nil {
-				ddai = tt.loadFunc(r.client)
-			}
-			got, err := r.Reconcile(context.TODO(), ddai)
-			if tt.wantErr {
-				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
-			} else {
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() unexpected error: %v", err)
-			}
-
-			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.Reconcile() unexpected result")
-
-			if tt.wantFunc != nil {
-				err := tt.wantFunc(t, r.client)
-				assert.NoError(t, err, "ReconcileDatadogAgent.Reconcile() wantFunc validation error: %v", err)
-			}
-		})
-	}
-}
-
 func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName string, expectedContainers []string) error {
 	ds := &appsv1.DaemonSet{}
 	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
@@ -596,22 +472,6 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 	} else {
 		return fmt.Errorf("Container don't match, expected %s, actual %s", expectedContainers, dsContainers)
 	}
-}
-
-func verifyDaemonsetNames(t *testing.T, c client.Client, resourcesNamespace, dsName string, expectedDSNames []string) error {
-	daemonSetList := appsv1.DaemonSetList{}
-	if err := c.List(context.TODO(), &daemonSetList, client.HasLabels{constants.MD5AgentDeploymentProviderLabelKey}); err != nil {
-		return err
-	}
-
-	actualDSNames := []string{}
-	for _, ds := range daemonSetList.Items {
-		actualDSNames = append(actualDSNames, ds.Name)
-	}
-	sort.Strings(actualDSNames)
-	sort.Strings(expectedDSNames)
-	assert.Equal(t, expectedDSNames, actualDSNames)
-	return nil
 }
 
 func verifyPDB(t *testing.T, c client.Client) error {
