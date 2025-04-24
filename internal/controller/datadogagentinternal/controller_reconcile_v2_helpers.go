@@ -26,7 +26,7 @@ import (
 // STEP 2 of the reconcile loop: reconcile 3 components
 
 // setupDependencies initializes the store and resource managers.
-func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
+func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentInternal, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		PlatformInfo:  r.platformInfo,
@@ -39,21 +39,21 @@ func (r *Reconciler) setupDependencies(instance *datadoghqv2alpha1.DatadogAgent,
 }
 
 // manageGlobalDependencies manages the global dependencies for a component.
-func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
+func (r *Reconciler) manageGlobalDependencies(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, resourceManagers feature.ResourceManagers, requiredComponents feature.RequiredComponents) error {
 	var errs []error
 	// Non component specific dependencies
-	if err := global.ApplyGlobalDependencies(logger, dda, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(logger, ddai, resourceManagers); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
 	// Component specific dependencies
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(logger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(logger, ddai, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
@@ -79,7 +79,7 @@ func (r *Reconciler) manageFeatureDependencies(logger logr.Logger, features []fe
 }
 
 // overrideDependencies wraps the dependency override logic.
-func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv2alpha1.DatadogAgent) error {
+func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers feature.ResourceManagers, instance *datadoghqv1alpha1.DatadogAgentInternal) error {
 	errs := override.Dependencies(logger, resourceManagers, instance)
 	if len(errs) > 0 {
 		return errors.NewAggregate(errs)
@@ -88,7 +88,7 @@ func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers f
 }
 
 // reconcileAgentProfiles handles profiles and agent reconciliation.
-func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, requiredComponents feature.RequiredComponents, features []feature.Feature, resourceManagers feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, now metav1.Time) (reconcile.Result, error) {
+func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents, features []feature.Feature, resourceManagers feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, now metav1.Time) (reconcile.Result, error) {
 	// Start with a default profile and provider.
 	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
 	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
@@ -134,7 +134,7 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
 		return result, errors.NewAggregate(errs)
 	}
-	condition.UpdateDatadogAgentStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 	return reconcile.Result{}, nil
 }
 
@@ -143,7 +143,7 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 // *************************************
 
 // cleanupExtraneousResources groups the cleanup calls for old components.
-func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, resourceManagers feature.ResourceManagers) error {
+func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
 	now := metav1.NewTime(time.Now())

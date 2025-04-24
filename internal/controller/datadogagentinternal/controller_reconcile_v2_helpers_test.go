@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
@@ -30,7 +30,7 @@ func (df *dummyFeature) ID() feature.IDType {
 }
 
 // Configure returns a predefined RequiredComponents value.
-func (df *dummyFeature) Configure(dda *datadoghqv2alpha1.DatadogAgent) feature.RequiredComponents {
+func (df *dummyFeature) Configure(ddai *datadoghqv1alpha1.DatadogAgentInternal) feature.RequiredComponents {
 	return df.ConfigureReturn
 }
 
@@ -62,7 +62,7 @@ func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateMa
 // Test_setupDependencies verifies that store and resource managers are initialized.
 func Test_setupDependencies(t *testing.T) {
 	// Create a dummy DatadogAgent instance.
-	dummyAgent := &datadoghqv2alpha1.DatadogAgent{}
+	dummyAgent := &datadoghqv1alpha1.DatadogAgentInternal{}
 	dummyPlatformInfo := kubernetes.PlatformInfo{}
 	dummyLogger := logr.Discard()
 	dummyOpts := &ReconcilerOptions{
