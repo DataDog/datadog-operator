@@ -21,6 +21,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -39,7 +40,7 @@ import (
 )
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
 	provider string, providerList map[string]struct{}, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
@@ -63,11 +64,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	if (r.options.ExtendedDaemonsetOptions.Enabled && !r.options.DatadogAgentProfileEnabled) || (r.options.ExtendedDaemonsetOptions.Enabled &&
 		r.options.DatadogAgentProfileEnabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name)) {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -78,7 +79,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 		var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
-		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 			componentOverrides = append(componentOverrides, componentOverride)
 		}
 
@@ -106,16 +107,16 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabledByOverride = true
 			}
-			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 
-		experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+		experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
 
 		if disabledByOverride {
 			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-				condition.UpdateDatadogAgentStatusConditions(
+				condition.UpdateDatadogAgentInternalStatusConditions(
 					newStatus,
 					metav1.NewTime(time.Now()),
 					common.OverrideReconcileConflictConditionType,
@@ -125,20 +126,20 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 					true,
 				)
 			}
-			if err := r.deleteV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus); err != nil {
+			if err := r.deleteV2ExtendedDaemonSet(daemonsetLogger, ddai, eds, newStatus); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
 		}
 
-		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, ddai, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
+	daemonset = componentagent.NewDefaultAgentDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, ddai, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -155,7 +156,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
-	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		componentOverrides = append(componentOverrides, componentOverride)
 	}
 
@@ -183,16 +184,16 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
-		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, ddai.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
 
-	experimental.ApplyExperimentalOverrides(logger, dda, podManagers)
+	experimental.ApplyExperimentalOverrides(logger, ddai, podManagers)
 
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
-			condition.UpdateDatadogAgentStatusConditions(
+			condition.UpdateDatadogAgentInternalStatusConditions(
 				newStatus,
 				metav1.NewTime(time.Now()),
 				common.OverrideReconcileConflictConditionType,
@@ -202,29 +203,27 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 				true,
 			)
 		}
-		if err := r.deleteV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus); err != nil {
+		if err := r.deleteV2DaemonSet(daemonsetLogger, ddai, daemonset, newStatus); err != nil {
 			return reconcile.Result{}, err
 		}
 		deleteStatusWithAgent(newStatus)
 		return reconcile.Result{}, nil
 	}
 
-	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent, profile)
+	return r.createOrUpdateDaemonset(daemonsetLogger, ddai, daemonset, newStatus, updateDSStatusV2WithAgent, profile)
 }
 
-func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = condition.UpdateDaemonSetStatus(dsName, ds, newStatus.AgentList, &updateTime)
-	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.Agent = condition.UpdateDaemonSetStatusDDAI(dsName, ds, newStatus.Agent, &updateTime)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
 }
 
-func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.AgentList = condition.UpdateExtendedDaemonSetStatus(eds, newStatus.AgentList, &updateTime)
-	condition.UpdateDatadogAgentStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
-	newStatus.Agent = condition.UpdateCombinedDaemonSetStatus(newStatus.AgentList)
+func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.Agent = condition.UpdateExtendedDaemonSetStatusDDAI(eds, newStatus.Agent, &updateTime)
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, updateTime, common.AgentReconcileConditionType, status, reason, message, true)
 }
 
-func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
 	err := r.client.Delete(context.TODO(), ds)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -234,13 +233,13 @@ func (r *Reconciler) deleteV2DaemonSet(logger logr.Logger, dda *datadoghqv2alpha
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
 	event := buildEventInfo(ds.Name, ds.Namespace, kubernetes.DaemonSetKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
-	removeStaleStatus(newStatus, ds.Name)
+	r.recordEvent(ddai, event)
+	newStatus.Agent = nil
 
 	return nil
 }
 
-func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus) error {
+func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
 	err := r.client.Delete(context.TODO(), eds)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -250,29 +249,15 @@ func (r *Reconciler) deleteV2ExtendedDaemonSet(logger logr.Logger, dda *datadogh
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
 	event := buildEventInfo(eds.Name, eds.Namespace, kubernetes.ExtendedDaemonSetKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
-	removeStaleStatus(newStatus, eds.Name)
+	r.recordEvent(ddai, event)
+	newStatus.Agent = nil
 
 	return nil
 }
 
-func deleteStatusWithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+func deleteStatusWithAgent(newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) {
 	newStatus.Agent = nil
-	condition.DeleteDatadogAgentStatusCondition(newStatus, common.AgentReconcileConditionType)
-}
-
-// removeStaleStatus removes a DaemonSet's status from a DatadogAgent's
-// status based on the DaemonSet's name
-func removeStaleStatus(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus, name string) {
-	if ddaStatus != nil {
-		for i, dsStatus := range ddaStatus.AgentList {
-			if dsStatus.DaemonsetName == name {
-				newStatus := make([]*datadoghqv2alpha1.DaemonSetStatus, 0, len(ddaStatus.AgentList)-1)
-				newStatus = append(newStatus, ddaStatus.AgentList[:i]...)
-				ddaStatus.AgentList = append(newStatus, ddaStatus.AgentList[i+1:]...)
-			}
-		}
-	}
+	condition.DeleteDatadogAgentInternalStatusCondition(newStatus, common.AgentReconcileConditionType)
 }
 
 func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
@@ -408,15 +393,15 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 // - a DaemonSet's name is changed using node overrides
 // - introspection is disabled or enabled
 // - a profile is deleted
-func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
+func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
 	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
-		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(ddai).String(),
 	}
 
-	dsName := component.GetDaemonSetNameFromDatadogAgent(dda)
+	dsName := component.GetDaemonSetNameFromDatadogAgent(ddai)
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
 
 	// Only the default profile uses an EDS when profiles are enabled
@@ -429,7 +414,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 
 		for _, eds := range edsList.Items {
 			if _, ok := validExtendedDaemonSetNames[eds.Name]; !ok {
-				if err := r.deleteV2ExtendedDaemonSet(logger, dda, &eds, newStatus); err != nil {
+				if err := r.deleteV2ExtendedDaemonSet(logger, ddai, &eds, newStatus); err != nil {
 					return err
 				}
 			}
@@ -443,7 +428,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 
 	for _, daemonSet := range daemonSetList.Items {
 		if _, ok := validDaemonSetNames[daemonSet.Name]; !ok {
-			if err := r.deleteV2DaemonSet(logger, dda, &daemonSet, newStatus); err != nil {
+			if err := r.deleteV2DaemonSet(logger, ddai, &daemonSet, newStatus); err != nil {
 				return err
 			}
 		}

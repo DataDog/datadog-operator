@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -24,12 +25,12 @@ import (
 func Test_getDeploymentNameFromCCR(t *testing.T) {
 	testCases := []struct {
 		name               string
-		dda                *datadoghqv2alpha1.DatadogAgent
+		ddai               *datadoghqv1alpha1.DatadogAgentInternal
 		wantDeploymentName string
 	}{
 		{
 			name: "ccr no override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -38,7 +39,7 @@ func Test_getDeploymentNameFromCCR(t *testing.T) {
 		},
 		{
 			name: "ccr override with no name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -54,7 +55,7 @@ func Test_getDeploymentNameFromCCR(t *testing.T) {
 		},
 		{
 			name: "ccr override with name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
+			ddai: &datadoghqv1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo",
 				},
@@ -73,7 +74,7 @@ func Test_getDeploymentNameFromCCR(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			deploymentName := getDeploymentNameFromCCR(tt.dda)
+			deploymentName := getDeploymentNameFromCCR(tt.ddai)
 			assert.Equal(t, tt.wantDeploymentName, deploymentName)
 		})
 	}
@@ -247,19 +248,19 @@ func Test_cleanupOldCCRDeployments(t *testing.T) {
 				recorder: recorder,
 			}
 
-			dda := datadoghqv2alpha1.DatadogAgent{
+			ddai := datadoghqv1alpha1.DatadogAgentInternal{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "DatadogAgent",
-					APIVersion: "datadoghq.com/v2alpha1",
+					Kind:       "DatadogAgentInternal",
+					APIVersion: "datadoghq.com/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "dda-foo",
 					Namespace: "ns-1",
 				},
 			}
-			ddaStatus := datadoghqv2alpha1.DatadogAgentStatus{}
+			ddaiStatus := datadoghqv1alpha1.DatadogAgentInternalStatus{}
 
-			err := r.cleanupOldCCRDeployments(ctx, logger, &dda, &ddaStatus)
+			err := r.cleanupOldCCRDeployments(ctx, logger, &ddai, &ddaiStatus)
 			assert.NoError(t, err)
 
 			deploymentList := &appsv1.DeploymentList{}
