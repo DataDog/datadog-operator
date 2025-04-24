@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
@@ -34,7 +35,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	now := metav1.Now()
 
-	dda := &datadoghqv2alpha1.DatadogAgent{
+	ddai := &datadoghqv1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "foo",
 			Name:       "bar",
@@ -49,9 +50,9 @@ func Test_handleFinalizer(t *testing.T) {
 			},
 		},
 	}
-	dda.DeletionTimestamp = &now // Mark for deletion
+	ddai.DeletionTimestamp = &now // Mark for deletion
 
-	initialKubeObjects := []client.Object{dda}
+	initialKubeObjects := []client.Object{ddai}
 
 	// These are some cluster roles that we know that the reconciler creates by
 	// default
@@ -62,7 +63,7 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: agent.GetAgentRoleName(dda),
+				Name: agent.GetAgentRoleName(ddai),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
 				},
@@ -74,7 +75,7 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: component.GetClusterAgentName(dda),
+				Name: component.GetClusterAgentName(ddai),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
 				},
@@ -91,7 +92,7 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: agent.GetAgentRoleName(dda), // Same name as the cluster role
+				Name: agent.GetAgentRoleName(ddai), // Same name as the cluster role
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
 				},
@@ -103,7 +104,7 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: component.GetClusterAgentName(dda),
+				Name: component.GetClusterAgentName(ddai),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
 				},
@@ -130,7 +131,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer V2 test"), dda, reconciler.finalizeDadV2)
+	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer V2 test"), ddai, reconciler.finalizeDadV2)
 	assert.NoError(t, err)
 
 	// Check that the cluster roles associated with the Datadog Agent have been deleted
