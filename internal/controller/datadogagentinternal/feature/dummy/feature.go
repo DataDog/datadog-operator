@@ -57,13 +57,13 @@ func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 

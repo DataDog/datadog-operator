@@ -67,7 +67,7 @@ func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplate
 	return nil
 }
 
-func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
@@ -80,21 +80,21 @@ func (p processDiscoveryFeature) ManageNodeAgent(managers feature.PodTemplateMan
 	if !p.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName
 	}
-	p.manageNodeAgent(containerName, managers, provider)
+	p.manageNodeAgent(containerName, managers)
 	return nil
 }
 
-func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p processDiscoveryFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&p.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
-	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+	p.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
-func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (p processDiscoveryFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(common.PasswdVolumeName, common.PasswdHostPath, common.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)

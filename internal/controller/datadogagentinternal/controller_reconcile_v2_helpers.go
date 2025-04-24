@@ -2,25 +2,16 @@ package datadogagentinternal
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
-	"github.com/DataDog/datadog-operator/internal/controller/metrics"
-	"github.com/DataDog/datadog-operator/pkg/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -87,57 +78,6 @@ func (r *Reconciler) overrideDependencies(logger logr.Logger, resourceManagers f
 	return nil
 }
 
-// reconcileAgentProfiles handles profiles and agent reconciliation.
-func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgentInternal, requiredComponents feature.RequiredComponents, features []feature.Feature, resourceManagers feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, now metav1.Time) (reconcile.Result, error) {
-	// Start with a default profile and provider.
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
-	metrics.IntrospectionEnabled.Set(metrics.FalseValue)
-	metrics.DAPEnabled.Set(metrics.FalseValue)
-
-	// If profiles or introspection is enabled, get the node list and update providers.
-	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
-		nodeList, err := r.getNodeList(ctx)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		if r.options.IntrospectionEnabled {
-			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			metrics.IntrospectionEnabled.Set(metrics.TrueValue)
-		}
-		if r.options.DatadogAgentProfileEnabled {
-			metrics.DAPEnabled.Set(metrics.TrueValue)
-			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, instance)
-			// TODO: in main, we error on err instead of e here
-			// https://github.com/DataDog/datadog-operator/blob/8ba3647fbad340015d835b6fc1cb48639502c33d/internal/controller/datadogagent/controller_reconcile_v2.go#L179-L182
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-			if err = r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
-	// Reconcile the agent for every profile and provider.
-	var errs []error
-	var result reconcile.Result
-	for _, profile := range profiles {
-		for provider := range providerList {
-			res, err := r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, provider, providerList, &profile)
-			if utils.ShouldReturn(res, err) {
-				errs = append(errs, err)
-			}
-		}
-	}
-	if utils.ShouldReturn(result, errors.NewAggregate(errs)) {
-		return result, errors.NewAggregate(errs)
-	}
-	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
-	return reconcile.Result{}, nil
-}
-
 // *************************************
 // STEP 3 of the reconcile loop: cleanup
 // *************************************
@@ -146,36 +86,8 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, resourceManagers feature.ResourceManagers) error {
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
-	now := metav1.NewTime(time.Now())
-	providerList := map[string]struct{}{kubernetes.LegacyProvider: {}}
-	profiles := []datadoghqv1alpha1.DatadogAgentProfile{{}}
 
-	// Repeat of the code from reconcileAgentProfiles, but this will be removed in DDAI controller since this logic will be from DDA to DDAI.
-	if r.options.DatadogAgentProfileEnabled || r.options.IntrospectionEnabled {
-		// Get a node list for profiles and introspection
-		nodeList, e := r.getNodeList(ctx)
-		if e != nil {
-			return e
-		}
-
-		if r.options.IntrospectionEnabled {
-			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-		}
-
-		if r.options.DatadogAgentProfileEnabled {
-			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, instance)
-			if e != nil {
-				return e
-			}
-
-			if err := r.handleProfiles(ctx, profilesByNode, instance.Namespace); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus, providerList, profiles); err != nil {
+	if err := r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DaemonSets")
 	}

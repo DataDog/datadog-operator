@@ -142,8 +142,8 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 
 	// When ADP is enabled, we set `DD_USE_DOGSTATSD` to `false`, and `DD_ADP_ENABLED` to `true`.
 	//
@@ -162,27 +162,27 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// When ADP is enabled, we apply the DSD configuration to the ADP container instead, and set `DD_USE_DOGSTATSD` to
 	// `false` on the Core Agent container. This disables DSD in the Core Agent, and allows ADP to take over.
 	//
 	// While we _could_ leave the DSD-specific configuration set on the Core Agent -- it doesn't so matter as long as
 	// DSD is disabled -- it's cleaner to remote it entirely to avoid confusion.
 	if f.adpEnabled {
-		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers, provider)
+		f.manageNodeAgent(apicommon.AgentDataPlaneContainerName, managers)
 
 		managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  common.DDDogstatsdEnabled,
 			Value: "false",
 		})
 	} else {
-		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers, provider)
+		f.manageNodeAgent(apicommon.CoreAgentContainerName, managers)
 	}
 
 	return nil
 }
 
-func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
 		Name:          defaultDogstatsdPortName,
