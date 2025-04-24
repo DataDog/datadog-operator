@@ -17,7 +17,6 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 // TestScheme return a runtime.Scheme for testing purposes
@@ -40,7 +39,7 @@ func TestScheme() *runtime.Scheme {
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
-	s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 
 	return s
 }

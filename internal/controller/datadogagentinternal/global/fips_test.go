@@ -31,7 +31,7 @@ func Test_ApplyFIPSConfig(t *testing.T) {
 	logger := logf.Log.WithName("Test_ApplyFIPSConfig")
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}

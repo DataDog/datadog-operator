@@ -8,7 +8,7 @@ package merger
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
@@ -59,12 +59,12 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 	}
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
-	owner := &v2alpha1.DatadogAgent{
+	owner := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
@@ -193,12 +193,12 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 	}
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
-	owner := &v2alpha1.DatadogAgent{
+	owner := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
@@ -283,12 +283,12 @@ func TestRBACManager_AddServiceAccountAnnotations(t *testing.T) {
 	name := "foo"
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
 
-	owner := &v2alpha1.DatadogAgent{
+	owner := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: ns,
 			Name:      name,
