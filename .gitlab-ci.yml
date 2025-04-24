@@ -263,9 +263,12 @@ e2e:
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
-    - echo "Running e2e test with target image $TARGET_IMAGE"
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests 
-    - echo $? > exit_code.txt
+    - |
+      set +e
+      echo "Running e2e test with target image $TARGET_IMAGE"
+      IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests 
+      echo $? > exit_code.txt
+      set -e
     - echo "test finished with exit code:"
     - cat exit_code.txt
     - echo "exiting"
