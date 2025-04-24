@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // FeatureTestSuite use define several tests on a Feature
@@ -53,22 +52,21 @@ type Options struct{}
 
 // ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
-	CreateFunc func(testing.TB) (feature.PodTemplateManagers, string)
+	CreateFunc func(testing.TB) feature.PodTemplateManagers
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
 }
 
 // NewDefaultComponentTest returns a default ComponentTest
 func NewDefaultComponentTest() *ComponentTest {
-	defaultProvider := kubernetes.DefaultProvider
 	return &ComponentTest{
-		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
-			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), defaultProvider
+		CreateFunc: func(t testing.TB) feature.PodTemplateManagers {
+			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 		},
 	}
 }
 
 // WithCreateFunc sets CreateFunc
-func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) (feature.PodTemplateManagers, string)) *ComponentTest {
+func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) feature.PodTemplateManagers) *ComponentTest {
 	ct.CreateFunc = f
 	return ct
 }
@@ -134,24 +132,24 @@ func runTest(t *testing.T, tt FeatureTest) {
 
 		// check Manage functions
 		if tt.ClusterAgent != nil {
-			tplManager, _ := tt.ClusterAgent.CreateFunc(t)
+			tplManager := tt.ClusterAgent.CreateFunc(t)
 			_ = feat.ManageClusterAgent(tplManager)
 			tt.ClusterAgent.WantFunc(t, tplManager)
 		}
 
 		if tt.Agent != nil {
-			tplManager, provider := tt.Agent.CreateFunc(t)
+			tplManager := tt.Agent.CreateFunc(t)
 			if len(gotConfigure.Agent.Containers) > 0 && gotConfigure.Agent.Containers[0] == common.UnprivilegedSingleAgentContainerName {
-				_ = feat.ManageSingleContainerNodeAgent(tplManager, provider)
+				_ = feat.ManageSingleContainerNodeAgent(tplManager)
 			} else {
-				_ = feat.ManageNodeAgent(tplManager, provider)
+				_ = feat.ManageNodeAgent(tplManager)
 			}
 
 			tt.Agent.WantFunc(t, tplManager)
 		}
 
 		if tt.ClusterChecksRunner != nil {
-			tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
+			tplManager := tt.ClusterChecksRunner.CreateFunc(t)
 			_ = feat.ManageClusterChecksRunner(tplManager)
 			tt.ClusterChecksRunner.WantFunc(t, tplManager)
 		}

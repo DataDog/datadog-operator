@@ -45,12 +45,12 @@ func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers)
 }
 
 // ManageNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageNodeAgentError
 }
 
 // ManageSingleContainerNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return df.ManageSingleContainerAgentError
 }
 

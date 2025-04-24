@@ -14,6 +14,7 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
@@ -65,7 +66,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 	tests := []struct {
 		name     string
 		fields   fields
-		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
+		loadFunc func(c client.Client) *v1alpha1.DatadogAgentInternal
 		want     reconcile.Result
 		wantErr  bool
 		wantFunc func(c client.Client) error
@@ -73,15 +74,15 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent default, create Daemonset with core and trace agents",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -97,16 +98,16 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent singleProcessContainer, create Daemonset with core and agents",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithSingleContainerStrategy(false).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -122,16 +123,16 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent default, create Daemonset with a single container",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithSingleContainerStrategy(true).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -146,17 +147,17 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM enabled, create Daemonset with core and process agents",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithSingleContainerStrategy(false).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -172,17 +173,17 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM enabled, create Daemonset with a single container",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithSingleContainerStrategy(true).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -197,18 +198,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM and CWS enables, create Daemonset with four agents",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithCWSEnabled(true).
 					WithSingleContainerStrategy(false).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -226,19 +227,19 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM and CWS enables, create Daemonset with four agents",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithCWSEnabled(true).
 					WithSingleContainerStrategy(true).
 					Build()
 
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -256,18 +257,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithOOMKillEnabled(true).
 					WithSingleContainerStrategy(false).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -284,18 +285,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "[single container] DatadogAgent with APM and OOMKill enabled, create Daemonset with core, trace, and system-probe",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithAPMEnabled(true).
 					WithOOMKillEnabled(true).
 					WithSingleContainerStrategy(true).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -312,19 +313,19 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with FIPS enabled",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
 				fipsConfig := v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 				}
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithFIPS(fipsConfig).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -341,12 +342,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with PDB enabled",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}, &policyv1.PodDisruptionBudget{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}, &policyv1.PodDisruptionBudget{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.ClusterAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
 					}).
@@ -355,8 +356,8 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 						CreatePodDisruptionBudget: apiutils.NewBoolPointer(true),
 					}).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -367,16 +368,16 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with container monitoring in process agent",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithProcessChecksInCoreAgent(false).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -393,18 +394,18 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with override.nodeAgent.disabled true",
 			fields: fields{
-				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v2alpha1.DatadogAgent{}).Build(),
+				client:   fake.NewClientBuilder().WithStatusSubresource(&appsv1.DaemonSet{}, &v1alpha1.DatadogAgentInternal{}).Build(),
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 						Disabled: apiutils.NewBoolPointer(true),
 					}).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
@@ -435,7 +436,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				},
 			}
 
-			var dda *v2alpha1.DatadogAgent
+			var dda *v1alpha1.DatadogAgentInternal
 			if tt.loadFunc != nil {
 				dda = tt.loadFunc(r.client)
 			}
@@ -475,7 +476,7 @@ func Test_Introspection(t *testing.T) {
 	tests := []struct {
 		name     string
 		fields   fields
-		loadFunc func(c client.Client) *v2alpha1.DatadogAgent
+		loadFunc func(c client.Client) *v1alpha1.DatadogAgentInternal
 		nodes    []client.Object
 		want     reconcile.Result
 		wantErr  bool
@@ -487,8 +488,8 @@ func Test_Introspection(t *testing.T) {
 				scheme:   s,
 				recorder: recorder,
 			},
-			loadFunc: func(c client.Client) *v2alpha1.DatadogAgent {
-				dda := testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+			loadFunc: func(c client.Client) *v1alpha1.DatadogAgentInternal {
+				ddai := testutils.NewInitializedDatadogAgentInternalBuilder(resourcesNamespace, resourcesName).
 					WithComponentOverride(v2alpha1.NodeAgentComponentName, v2alpha1.DatadogAgentComponentOverride{
 						Affinity: &corev1.Affinity{
 							PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -506,8 +507,8 @@ func Test_Introspection(t *testing.T) {
 						},
 					}).
 					Build()
-				_ = c.Create(context.TODO(), dda)
-				return dda
+				_ = c.Create(context.TODO(), ddai)
+				return ddai
 			},
 			nodes: []client.Object{
 				&corev1.Node{
@@ -543,7 +544,7 @@ func Test_Introspection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
-				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v2alpha1.DatadogAgent{}).WithObjects(tt.nodes...).Build(),
+				client:       fake.NewClientBuilder().WithStatusSubresource(&corev1.Node{}, &v1alpha1.DatadogAgentInternal{}).WithObjects(tt.nodes...).Build(),
 				scheme:       tt.fields.scheme,
 				platformInfo: tt.fields.platformInfo,
 				recorder:     recorder,
@@ -553,16 +554,15 @@ func Test_Introspection(t *testing.T) {
 					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
 						Enabled: false,
 					},
-					SupportCilium:        false,
-					IntrospectionEnabled: true,
+					SupportCilium: false,
 				},
 			}
 
-			var dda *v2alpha1.DatadogAgent
+			var ddai *v1alpha1.DatadogAgentInternal
 			if tt.loadFunc != nil {
-				dda = tt.loadFunc(r.client)
+				ddai = tt.loadFunc(r.client)
 			}
-			got, err := r.Reconcile(context.TODO(), dda)
+			got, err := r.Reconcile(context.TODO(), ddai)
 			if tt.wantErr {
 				assert.Error(t, err, "ReconcileDatadogAgent.Reconcile() expected an error")
 			} else {

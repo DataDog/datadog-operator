@@ -20,7 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -40,8 +39,7 @@ import (
 )
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
-	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
-	provider string, providerList map[string]struct{}, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
+	ddai *datadoghqv1alpha1.DatadogAgentInternal, resourcesManager feature.ResourceManagers, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -61,8 +59,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// DaemonSets.
 	// This is to make deployments simpler. With multiple EDS there would be
 	// multiple canaries, etc.
-	if (r.options.ExtendedDaemonsetOptions.Enabled && !r.options.DatadogAgentProfileEnabled) || (r.options.ExtendedDaemonsetOptions.Enabled &&
-		r.options.DatadogAgentProfileEnabled && agentprofile.IsDefaultProfile(profile.Namespace, profile.Name)) {
+	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(ddai, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
@@ -72,7 +69,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		}
@@ -81,26 +78,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
 		if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 			componentOverrides = append(componentOverrides, componentOverride)
-		}
-
-		if r.options.DatadogAgentProfileEnabled {
-			// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-			overrideFromProfile := agentprofile.OverrideFromProfile(profile)
-			componentOverrides = append(componentOverrides, &overrideFromProfile)
-		}
-
-		if r.options.IntrospectionEnabled {
-			// use the last name override in the list to generate a provider-specific name
-			overrideName := eds.Name
-			for _, componentOverride := range componentOverrides {
-				if componentOverride.Name != nil && *componentOverride.Name != "" {
-					overrideName = *componentOverride.Name
-				}
-			}
-			overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-			componentOverrides = append(componentOverrides, &overrideFromProvider)
-		} else {
-			eds.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 		}
 
 		for _, componentOverride := range componentOverrides {
@@ -144,11 +121,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
 		if singleContainerStrategyEnabled {
-			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, provider); errFeat != nil {
+			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		} else {
-			if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		}
@@ -158,26 +135,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
 	if componentOverride, ok := ddai.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		componentOverrides = append(componentOverrides, componentOverride)
-	}
-
-	if r.options.DatadogAgentProfileEnabled {
-		// Apply overrides from profiles after override from manifest, so they can override what's defined in the DDA.
-		overrideFromProfile := agentprofile.OverrideFromProfile(profile)
-		componentOverrides = append(componentOverrides, &overrideFromProfile)
-	}
-
-	if r.options.IntrospectionEnabled {
-		// use the last name override in the list to generate a provider-specific name
-		overrideName := daemonset.Name
-		for _, componentOverride := range componentOverrides {
-			if componentOverride.Name != nil && *componentOverride.Name != "" {
-				overrideName = *componentOverride.Name
-			}
-		}
-		overrideFromProvider := kubernetes.ComponentOverrideFromProvider(overrideName, provider, providerList)
-		componentOverrides = append(componentOverrides, &overrideFromProvider)
-	} else {
-		daemonset.Labels[constants.MD5AgentDeploymentProviderLabelKey] = kubernetes.LegacyProvider
 	}
 
 	for _, componentOverride := range componentOverrides {
@@ -210,7 +167,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		return reconcile.Result{}, nil
 	}
 
-	return r.createOrUpdateDaemonset(daemonsetLogger, ddai, daemonset, newStatus, updateDSStatusV2WithAgent, profile)
+	return r.createOrUpdateDaemonset(daemonsetLogger, ddai, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
 func updateDSStatusV2WithAgent(dsName string, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
@@ -393,8 +350,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 // - a DaemonSet's name is changed using node overrides
 // - introspection is disabled or enabled
 // - a profile is deleted
-func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus,
-	providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) error {
+func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger logr.Logger, ddai *datadoghqv1alpha1.DatadogAgentInternal, newStatus *datadoghqv1alpha1.DatadogAgentInternalStatus) error {
 	matchLabels := client.MatchingLabels{
 		apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
@@ -402,7 +358,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 	}
 
 	dsName := component.GetDaemonSetNameFromDatadogAgent(ddai)
-	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
+	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName)
 
 	// Only the default profile uses an EDS when profiles are enabled
 	// Multiple EDSs can be created with introspection
@@ -438,68 +394,17 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 }
 
 // getValidDaemonSetNames generates a list of valid DS and EDS names
-func (r *Reconciler) getValidDaemonSetNames(dsName string, providerList map[string]struct{}, profiles []v1alpha1.DatadogAgentProfile) (map[string]struct{}, map[string]struct{}) {
+func (r *Reconciler) getValidDaemonSetNames(dsName string) (map[string]struct{}, map[string]struct{}) {
 	validDaemonSetNames := map[string]struct{}{}
 	validExtendedDaemonSetNames := map[string]struct{}{}
 
-	// Introspection includes names with a provider suffix
-	if r.options.IntrospectionEnabled {
-		for provider := range providerList {
-			if r.options.ExtendedDaemonsetOptions.Enabled {
-				validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-			} else {
-				validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-			}
+	if r.options.ExtendedDaemonsetOptions.Enabled {
+		validExtendedDaemonSetNames = map[string]struct{}{
+			dsName: {},
 		}
-	}
-	// Profiles include names with the profile prefix and the DS/EDS name for the default profile
-	if r.options.DatadogAgentProfileEnabled {
-		for _, profile := range profiles {
-			name := types.NamespacedName{
-				Namespace: profile.Namespace,
-				Name:      profile.Name,
-			}
-			dsProfileName := agentprofile.DaemonSetName(name)
-
-			// The default profile can be a DS or an EDS and uses the DS/EDS name
-			if agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-				if r.options.IntrospectionEnabled {
-					for provider := range providerList {
-						if r.options.ExtendedDaemonsetOptions.Enabled {
-							validExtendedDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						} else {
-							validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsName, provider)] = struct{}{}
-						}
-					}
-				} else {
-					if r.options.ExtendedDaemonsetOptions.Enabled {
-						validExtendedDaemonSetNames[dsName] = struct{}{}
-					} else {
-						validDaemonSetNames[dsName] = struct{}{}
-					}
-				}
-			}
-			// Non-default profiles can only be DaemonSets
-			if r.options.IntrospectionEnabled {
-				for provider := range providerList {
-					validDaemonSetNames[kubernetes.GetAgentNameWithProvider(dsProfileName, provider)] = struct{}{}
-				}
-			} else {
-				validDaemonSetNames[dsProfileName] = struct{}{}
-			}
-		}
-	}
-
-	// If neither introspection nor profiles are enabled, only the current DS/EDS name is valid
-	if !r.options.IntrospectionEnabled && !r.options.DatadogAgentProfileEnabled {
-		if r.options.ExtendedDaemonsetOptions.Enabled {
-			validExtendedDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
-		} else {
-			validDaemonSetNames = map[string]struct{}{
-				dsName: {},
-			}
+	} else {
+		validDaemonSetNames = map[string]struct{}{
+			dsName: {},
 		}
 	}
 
