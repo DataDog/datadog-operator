@@ -52,7 +52,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	logger := logf.Log.WithName("TestRequiredComponents")
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}

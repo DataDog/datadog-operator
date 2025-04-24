@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"
@@ -122,7 +122,7 @@ func TestStore_AddOrUpdate(t *testing.T) {
 		},
 	}
 
-	owner := &v2alpha1.DatadogAgent{
+	owner := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "bar",
 			Name:      "foo",
@@ -130,7 +130,7 @@ func TestStore_AddOrUpdate(t *testing.T) {
 	}
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 
 	type fields struct {
 		deps map[kubernetes.ObjectKind]map[string]client.Object

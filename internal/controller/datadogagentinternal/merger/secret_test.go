@@ -8,7 +8,7 @@ package merger
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -26,7 +26,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	secretAnnotations := map[string]string{
 		"checksum/default-custom-config": "0fe60b5fsweqe3224werwer",
 	}
-	owner := &v2alpha1.DatadogAgent{
+	owner := &v1alpha1.DatadogAgentInternal{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: secretNs,
 			Name:      secretName,
@@ -34,7 +34,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	}
 
 	testScheme := runtime.NewScheme()
-	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	testScheme.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 	storeOptions := &store.StoreOptions{
 		Scheme: testScheme,
 	}
