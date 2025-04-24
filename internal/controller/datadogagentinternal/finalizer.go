@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -69,11 +70,11 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
 	// We need to apply the defaults to be able to delete the resources
 	// associated with those defaults.
-	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
-	defaults.DefaultDatadogAgent(dda)
+	ddai := obj.(*datadoghqv1alpha1.DatadogAgentInternal).DeepCopy()
+	defaults.DefaultDatadogAgent(ddai)
 
 	if r.options.OperatorMetricsEnabled {
-		r.forwarders.Unregister(dda)
+		r.forwarders.Unregister(ddai)
 	}
 
 	// To delete the resources associated with the DatadogAgent that we need to
@@ -81,7 +82,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	// store, and then call the DeleteAll function of the store.
 
 	_, enabledFeatures, requiredComponents := feature.BuildFeatures(
-		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
+		ddai, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
 
 	storeOptions := &store.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
@@ -89,22 +90,22 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 		Scheme:        r.scheme,
 		PlatformInfo:  r.platformInfo,
 	}
-	depsStore := store.NewStore(dda, storeOptions)
+	depsStore := store.NewStore(ddai, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
 
 	// Global dependencies
-	if err := global.ApplyGlobalDependencies(reqLogger, dda, resourceManagers); len(err) > 0 {
+	if err := global.ApplyGlobalDependencies(reqLogger, ddai, resourceManagers); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
 		errs = append(errs, err...)
 	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
 		errs = append(errs, err...)
 	}
 
@@ -116,7 +117,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda)...)
+	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, ddai)...)
 
 	if len(errs) > 0 {
 		return fmt.Errorf("errors calculating dependencies while finalizing the DatadogAgent: %v", errs)
