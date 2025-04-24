@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -68,13 +67,13 @@ func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateM
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommon.SystemProbeContainerName)
 
@@ -84,12 +83,13 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
-	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue != kubernetes.GKECosType {
-		srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
-		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
-		managers.Volume().AddVolume(&srcVol)
-	}
+	// TODO: remove this once we have a way to get the provider from the DDAI (e.g. possibly from the DDAI name)
+	// _, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+	// if providerValue != kubernetes.GKECosType {
+	srcVol, srcVolMount := volume.GetVolumes(common.SrcVolumeName, common.SrcVolumePath, common.SrcVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommon.SystemProbeContainerName)
+	managers.Volume().AddVolume(&srcVol)
+	// }
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(common.DebugfsVolumeName, common.DebugfsPath, common.DebugfsPath, false)

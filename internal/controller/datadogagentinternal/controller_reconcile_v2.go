@@ -14,7 +14,6 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -87,12 +86,12 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// Update the status to make it the ClusterAgentReconcileConditionType successful
 	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.ClusterAgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
-	// 2.b. Node Agent and profiles
-	// TODO: ignore profiles and introspection for DDAI
-
-	if result, err = r.reconcileAgentProfiles(ctx, logger, instance, requiredComponents, append(configuredFeatures, enabledFeatures...), resourceManagers, newStatus, now); utils.ShouldReturn(result, err) {
+	// 2.b. Node Agent
+	result, err = r.reconcileV2Agent(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
+	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
 	}
+	condition.UpdateDatadogAgentInternalStatusConditions(newStatus, now, common.AgentReconcileConditionType, metav1.ConditionTrue, "reconcile_succeed", "reconcile succeed", false)
 
 	// 2.c. Cluster Checks Runner
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, append(configuredFeatures, enabledFeatures...), instance, resourceManagers, newStatus)
@@ -217,54 +216,4 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv1alpha1.Data
 
 		r.forwarders.SetEnabledFeatures(dda, featureIDs)
 	}
-}
-
-// profilesToApply gets a list of profiles and returns the ones that should be
-// applied in the cluster.
-// - If there are no profiles, it returns the default profile.
-// - If there are no conflicting profiles, it returns all the profiles plus the default one.
-// - If there are conflicting profiles, it returns a subset that does not
-// conflict plus the default one. When there are conflicting profiles, the
-// oldest one is the one that takes precedence. When two profiles share an
-// identical creation timestamp, the profile whose name is alphabetically first
-// is considered to have priority.
-// This function also returns a map that maps each node name to the profile that
-// should be applied to it.
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time, dda *datadoghqv1alpha1.DatadogAgentInternal) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
-	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
-	err := r.client.List(ctx, &profilesList)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var profileListToApply []datadoghqv1alpha1.DatadogAgentProfile
-	profileAppliedByNode := make(map[string]types.NamespacedName, len(nodeList))
-
-	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
-	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
-		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
-		r.updateDAPStatus(logger, &profile)
-		if err != nil {
-			// profile is invalid or conflicts
-			logger.Error(err, "profile cannot be applied", "datadogagentprofile", profile.Name, "datadogagentprofile_namespace", profile.Namespace)
-			continue
-		}
-		profileListToApply = append(profileListToApply, profile)
-	}
-
-	// add default profile
-	profileListToApply = agentprofile.ApplyDefaultProfile(profileListToApply, profileAppliedByNode, nodeList)
-
-	return profileListToApply, profileAppliedByNode, nil
-}
-
-func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
-	nodeList := corev1.NodeList{}
-	err := r.client.List(ctx, &nodeList)
-	if err != nil {
-		return nodeList.Items, err
-	}
-
-	return nodeList.Items, nil
 }

@@ -171,7 +171,7 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
@@ -258,7 +258,7 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (o *otelCollectorFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 

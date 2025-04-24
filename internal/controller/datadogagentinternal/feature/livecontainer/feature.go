@@ -78,19 +78,19 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveContainerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
 		Value: apiutils.BoolToString(&f.runInCoreAgent),
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommon.UnprivilegedSingleAgentContainerName, runInCoreAgentEnvVar)
-	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers, provider)
+	f.manageNodeAgent(apicommon.UnprivilegedSingleAgentContainerName, managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// Always add this envvar to Core and Process containers
 	runInCoreAgentEnvVar := &corev1.EnvVar{
 		Name:  common.DDProcessConfigRunInCoreAgent,
@@ -103,11 +103,11 @@ func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	if !f.runInCoreAgent {
 		containerName = apicommon.ProcessAgentContainerName
 	}
-	f.manageNodeAgent(containerName, managers, provider)
+	f.manageNodeAgent(containerName, managers)
 	return nil
 }
 
-func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers, provider string) error {
+func (f *liveContainerFeature) manageNodeAgent(agentContainerName apicommon.AgentContainerName, managers feature.PodTemplateManagers) error {
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(common.CgroupsVolumeName, common.CgroupsHostPath, common.CgroupsMountPath, true)

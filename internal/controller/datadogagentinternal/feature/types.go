@@ -138,11 +138,11 @@ type Feature interface {
 	ManageClusterAgent(managers PodTemplateManagers) error
 	// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageNodeAgent(managers PodTemplateManagers, provider string) error
+	ManageNodeAgent(managers PodTemplateManagers) error
 	// ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 	// if SingleContainerStrategy is enabled and can be used with the configured feature set.
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageSingleContainerNodeAgent(managers PodTemplateManagers, provider string) error
+	ManageSingleContainerNodeAgent(managers PodTemplateManagers) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error

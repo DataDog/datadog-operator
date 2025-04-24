@@ -134,15 +134,15 @@ func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	return nil
 }
 
-func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// This feature doesn't set env vars on specific containers, so no specific logic for the single agent
-	p.ManageNodeAgent(managers, provider)
+	p.ManageNodeAgent(managers)
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),

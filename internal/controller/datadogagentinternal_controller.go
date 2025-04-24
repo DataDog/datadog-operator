@@ -7,7 +7,6 @@ package controller
 
 import (
 	"context"
-	"reflect"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -18,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
@@ -29,10 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -201,28 +197,6 @@ func (r *DatadogAgentInternalReconciler) SetupWithManager(mgr ctrl.Manager, metr
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
-	if r.Options.DatadogAgentProfileEnabled {
-		builder.Watches(
-			&datadoghqv1alpha1.DatadogAgentProfile{},
-			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
-			ctrlbuilder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.Funcs{
-				DeleteFunc: func(e event.DeleteEvent) bool {
-					metrics.CleanupMetricsByProfile(e.Object)
-					return true
-				},
-			}),
-			))
-	}
-
-	// Watch nodes and reconcile all DatadogAgents for node creation, node deletion, and node label change events
-	if r.Options.DatadogAgentProfileEnabled || r.Options.IntrospectionEnabled {
-		builder.Watches(
-			&corev1.Node{},
-			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
-			ctrlbuilder.WithPredicates(r.enqueueIfNodeLabelsChange()),
-		)
-	}
-
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
@@ -280,45 +254,4 @@ func enqueueIfOwnedByDatadogAgentInternal(ctx context.Context, obj client.Object
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}
-}
-
-func (r *DatadogAgentInternalReconciler) enqueueIfNodeLabelsChange() predicate.Funcs {
-	return predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels())
-		},
-		CreateFunc: func(e event.CreateEvent) bool {
-			return true
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return true
-		},
-	}
-}
-
-func (r *DatadogAgentInternalReconciler) enqueueRequestsForAllDDAs() handler.MapFunc {
-	return func(ctx context.Context, obj client.Object) []reconcile.Request {
-		var requests []reconcile.Request
-
-		ddaList := datadoghqv2alpha1.DatadogAgentList{}
-		// Should we rather use passed context here?
-		// if err := r.List(ctx, &ddaList); err != nil {
-		if err := r.List(context.Background(), &ddaList); err != nil {
-			return requests
-		}
-
-		for _, dda := range ddaList.Items {
-			requests = append(
-				requests,
-				reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Namespace: dda.Namespace,
-						Name:      dda.Name,
-					},
-				},
-			)
-		}
-
-		return requests
-	}
 }

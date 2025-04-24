@@ -232,7 +232,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec
 // if SingleContainerStrategy is enabled and can be used with the configured feature set.
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	// Add the env var to explicitly disable this feature
 	// Otherwise, this feature is enabled by default in the Agent code
 	managers.EnvVar().AddEnvVar(f.getEnabledEnvVar())
@@ -249,7 +249,7 @@ func (f *orchestratorExplorerFeature) ManageSingleContainerNodeAgent(managers fe
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	containers := []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 	if f.processAgentRequired {
 		containers = append(containers, apicommon.ProcessAgentContainerName)

@@ -112,11 +112,11 @@ func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
-func (f *asmFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageSingleContainerNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
-func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers, _ string) error {
+func (f *asmFeature) ManageNodeAgent(_ feature.PodTemplateManagers) error {
 	return nil
 }
 
