@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -147,18 +146,6 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	}
 
 	return result, currentError
-}
-
-func (r *Reconciler) updateDAPStatus(logger logr.Logger, profile *datadoghqv1alpha1.DatadogAgentProfile) {
-	// update dap status for non-default profiles only
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		if err := r.client.Status().Update(context.TODO(), profile); err != nil {
-			if apierrors.IsConflict(err) {
-				logger.V(1).Info("unable to update DatadogAgentProfile status due to update conflict")
-			}
-			logger.Error(err, "unable to update DatadogAgentProfile status")
-		}
-	}
 }
 
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
