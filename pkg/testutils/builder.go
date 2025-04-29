@@ -913,6 +913,37 @@ func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *Data
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithCredentialsFromSecret(apiSecretName, apiSecretKey, appSecretName, appSecretKey string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{}
+	if apiSecretName != "" && apiSecretKey != "" {
+		builder.datadogAgent.Spec.Global.Credentials.APISecret = &v2alpha1.SecretConfig{
+			SecretName: apiSecretName,
+			KeyName:    apiSecretKey,
+		}
+	}
+	if appSecretName != "" && appSecretKey != "" {
+		builder.datadogAgent.Spec.Global.Credentials.AppSecret = &v2alpha1.SecretConfig{
+			SecretName: appSecretName,
+			KeyName:    appSecretKey,
+		}
+	}
+	return builder
+}
+
+// Global DCA Token
+func (builder *DatadogAgentBuilder) WithDCAToken(token string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ClusterAgentToken = apiutils.NewStringPointer(token)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithDCATokenFromSecret(secretName, secretKey string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ClusterAgentTokenSecret = &v2alpha1.SecretConfig{
+		SecretName: secretName,
+		KeyName:    secretKey,
+	}
+	return builder
+}
+
 // Global OriginDetectionUnified
 
 func (builder *DatadogAgentBuilder) WithOriginDetectionUnified(enabled bool) *DatadogAgentBuilder {

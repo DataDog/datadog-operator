@@ -131,7 +131,10 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda)
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
 		}
 		if ac.FailurePolicy != nil && *ac.FailurePolicy != "" {
 			f.failurePolicy = *ac.FailurePolicy
@@ -237,7 +240,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	return reqComp
 }
 
-func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	ns := f.owner.GetNamespace()
 	rbacName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
 

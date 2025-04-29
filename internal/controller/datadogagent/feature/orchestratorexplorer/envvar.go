@@ -21,12 +21,15 @@ const (
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
 )
 
+func (f *orchestratorExplorerFeature) getEnabledEnvVar() *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name:  DDOrchestratorExplorerEnabled,
+		Value: apiutils.BoolToString(&f.enabled),
+	}
+}
+
 func (f *orchestratorExplorerFeature) getEnvVars() []*corev1.EnvVar {
 	envVarsList := []*corev1.EnvVar{
-		{
-			Name:  DDOrchestratorExplorerEnabled,
-			Value: "true",
-		},
 		{
 			Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
 			Value: apiutils.BoolToString(&f.scrubContainers),

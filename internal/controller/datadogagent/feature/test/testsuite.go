@@ -107,7 +107,10 @@ func runTest(t *testing.T, tt FeatureTest) {
 	}
 	featureOptions.Logger = logger
 	if tt.DDA != nil {
-		features, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		var configuredFeatures []feature.Feature
+		var enabledFeatures []feature.Feature
+		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		features = append(configuredFeatures, enabledFeatures...)
 		dda = tt.DDA
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
@@ -120,7 +123,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 	store, depsManager := initDependencies(tt, logger, dda)
 
 	for _, feat := range features {
-		if err := feat.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
+		if err := feat.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
 			t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 			return
 		}
@@ -180,11 +183,11 @@ func verifyFeatures(t *testing.T, tt FeatureTest, features []feature.Feature, go
 			"it should be 1 if when features is enabled, 0 otherwise. Check code")
 	}
 
-	if tt.WantConfigure && len(features) == 0 {
+	if tt.WantConfigure && gotConfigure.IsEnabled() && len(features) == 0 {
 		t.Errorf("feature wanted but feature.BuildFeatures() return empty slice")
 	}
 
-	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
+	if gotConfigure.IsConfigured() != tt.WantConfigure {
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsConfigured(), tt.WantConfigure)
 	}
 }
