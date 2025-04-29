@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -112,25 +111,6 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	}
 
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
-}
-
-// namespacedName implements the datadog.MonitoredObject interface
-// used to convert reconcile.Request into datadog.MonitoredObject
-type namespacedName struct {
-	reconcile.Request
-}
-
-func (nsn namespacedName) GetNamespace() string {
-	return nsn.Namespace
-}
-
-func (nsn namespacedName) GetName() string {
-	return nsn.Name
-}
-
-// getMonitoredObj returns a namespacedName from a reconcile.Request object
-func getMonitoredObj(req reconcile.Request) namespacedName {
-	return namespacedName{req}
 }
 
 // getReplicas returns the desired replicas of a

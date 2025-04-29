@@ -135,7 +135,10 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
 		}
 	}
 
@@ -144,7 +147,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	ns := f.owner.GetNamespace()
 	// service
 	emPorts := []corev1.ServicePort{

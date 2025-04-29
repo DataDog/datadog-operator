@@ -6,7 +6,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
@@ -23,64 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
-
-func Test_getDeploymentNameFromDCA(t *testing.T) {
-	testCases := []struct {
-		name               string
-		dda                *datadoghqv2alpha1.DatadogAgent
-		wantDeploymentName string
-	}{
-		{
-			name: "dca no override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-			},
-			wantDeploymentName: "foo-cluster-agent",
-		},
-		{
-			name: "dca override with no name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-				Spec: datadoghqv2alpha1.DatadogAgentSpec{
-					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
-						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Replicas: apiutils.NewInt32Pointer(10),
-						},
-					},
-				},
-			},
-			wantDeploymentName: "foo-cluster-agent",
-		},
-		{
-			name: "dca override with name override",
-			dda: &datadoghqv2alpha1.DatadogAgent{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo",
-				},
-				Spec: datadoghqv2alpha1.DatadogAgentSpec{
-					Override: map[datadoghqv2alpha1.ComponentName]*datadoghqv2alpha1.DatadogAgentComponentOverride{
-						datadoghqv2alpha1.ClusterAgentComponentName: {
-							Name:     apiutils.NewStringPointer("bar"),
-							Replicas: apiutils.NewInt32Pointer(10),
-						},
-					},
-				},
-			},
-			wantDeploymentName: "bar",
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			deploymentName := getDeploymentNameFromDCA(tt.dda)
-			assert.Equal(t, tt.wantDeploymentName, deploymentName)
-		})
-	}
-}
 
 func Test_cleanupOldDCADeployments(t *testing.T) {
 	sch := runtime.NewScheme()
