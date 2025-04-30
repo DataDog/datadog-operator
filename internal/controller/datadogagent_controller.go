@@ -71,7 +71,7 @@ type DatadogAgentReconciler struct {
 // Finalizer
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=deletecollection
 // +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=deletecollection
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=apiservices,verbs=deletecollection
+// +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=deletecollection
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations;mutatingwebhookconfigurations,verbs=*
