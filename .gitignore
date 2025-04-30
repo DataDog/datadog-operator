@@ -100,3 +100,5 @@ tags
 .idea/
 # test errors
 errors
+### Cursor ###
+.cursor/*
