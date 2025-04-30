@@ -1666,7 +1666,7 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
+	Env []corev1.EnvVar `json:"env,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
 
 	// EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables.
 	// Priority is env > envFrom.
@@ -1754,6 +1754,7 @@ type DatadogAgentComponentOverride struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+	//+mapType=granular
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// Host networking requested for this pod. Use the host's network namespace.

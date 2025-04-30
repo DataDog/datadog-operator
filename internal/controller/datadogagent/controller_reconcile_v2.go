@@ -41,6 +41,11 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
+	if r.options.DatadogAgentInternalEnabled {
+		if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAWithDDAI); utils.ShouldReturn(result, err) {
+			return result, err
+		}
+	}
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -50,7 +55,50 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	defaults.DefaultDatadogAgent(instanceCopy)
 
 	// 4. Delegate to the main reconcile function.
+	if r.options.DatadogAgentInternalEnabled {
+		return r.reconcileInstanceV3(ctx, reqLogger, instanceCopy)
+	}
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
+}
+
+func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+	var result reconcile.Result
+	now := metav1.NewTime(time.Now())
+	ddais := []*datadoghqv1alpha1.DatadogAgentInternal{}
+
+	// Manage dependencies
+	if err := r.manageDDADependenciesWithDDAI(ctx, logger, instance); err != nil {
+		return result, err
+	}
+
+	// Generate default DDAI object from DDA
+	ddai, err := r.generateDDAIFromDDA(instance)
+	if err != nil {
+		return result, err
+	}
+	ddais = append(ddais, ddai)
+
+	// Profiles
+	// TODO: introspection
+	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
+	if r.options.DatadogAgentProfileEnabled {
+		profileDDAIs, err := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
+		if err != nil {
+			return result, err
+		}
+		ddais = profileDDAIs
+	}
+
+	// Create or update the DDAI object in k8s
+	for _, ddai := range ddais {
+		if err := r.createOrUpdateDDAI(logger, ddai); err != nil {
+			return result, err
+		}
+	}
+
+	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
+	result.RequeueAfter = defaultRequeuePeriod
+	return result, nil
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -229,7 +277,7 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 // is considered to have priority.
 // This function also returns a map that maps each node name to the profile that
 // should be applied to it.
-func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time, dda *datadoghqv2alpha1.DatadogAgent) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
+func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, nodeList []corev1.Node, now metav1.Time, ddaSpec *datadoghqv2alpha1.DatadogAgentSpec) ([]datadoghqv1alpha1.DatadogAgentProfile, map[string]types.NamespacedName, error) {
 	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
 	err := r.client.List(ctx, &profilesList)
 	if err != nil {
@@ -241,7 +289,7 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 
 	sortedProfiles := agentprofile.SortProfiles(profilesList.Items)
 	for _, profile := range sortedProfiles {
-		maxUnavailable := agentprofile.GetMaxUnavailable(logger, dda, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
+		maxUnavailable := agentprofile.GetMaxUnavailable(logger, ddaSpec, &profile, len(nodeList), &r.options.ExtendedDaemonsetOptions)
 		profileAppliedByNode, err = agentprofile.ApplyProfile(logger, &profile, nodeList, profileAppliedByNode, now, maxUnavailable)
 		r.updateDAPStatus(logger, &profile)
 		if err != nil {

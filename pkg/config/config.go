@@ -52,6 +52,7 @@ var (
 	monitorObj         = &datadoghqv1alpha1.DatadogMonitor{}
 	sloObj             = &datadoghqv1alpha1.DatadogSLO{}
 	profileObj         = &datadoghqv1alpha1.DatadogAgentProfile{}
+	agentInternalObj   = &datadoghqv1alpha1.DatadogAgentInternal{}
 	podObj             = &corev1.Pod{}
 	nodeObj            = &corev1.Node{}
 )
@@ -174,6 +175,14 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 
 				return newNode, nil
 			},
+		}
+	}
+
+	if opts.DatadogAgentInternalEnabled {
+		agentInternalNamespaces := getWatchNamespacesFromEnv(logger, agentWatchNamespaceEnvVar)
+		logger.Info("DatadogAgentInternal Enabled", "watching namespaces", maps.Keys(agentInternalNamespaces))
+		byObject[agentInternalObj] = cache.ByObject{
+			Namespaces: agentInternalNamespaces,
 		}
 	}
 
