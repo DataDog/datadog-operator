@@ -65,6 +65,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: agent.GetAgentRoleName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -77,6 +79,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: component.GetClusterAgentName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -94,6 +98,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: agent.GetAgentRoleName(dda), // Same name as the cluster role
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -106,6 +112,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: component.GetClusterAgentName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},

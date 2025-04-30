@@ -147,17 +147,26 @@ rules:
 - apiGroups:
   - authorization.k8s.io
   resources:
-  - subjectaccessreviews
+  - apiservices
   verbs:
-  - create
-  - get
+  - deletecollection
 - apiGroups:
   - authorization.k8s.io
-  - rbac.authorization.k8s.io
-  - roles.rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
   - clusterroles
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authorization.k8s.io
+  resources:
   - rolebindings
   - roles
   verbs:
@@ -168,6 +177,13 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+  - get
 - apiGroups:
   - autoscaling
   resources:
@@ -352,6 +368,22 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - rbac.authorization.k8s.io
+  - roles.rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - security.openshift.io
   resourceNames:
