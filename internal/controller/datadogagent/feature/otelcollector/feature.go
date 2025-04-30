@@ -232,10 +232,10 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 				Name:  DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
-			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
+			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, enableEnvVar)
 		}
 	} else {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})
