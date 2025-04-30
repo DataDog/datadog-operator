@@ -46,55 +46,11 @@ func TestGetLatestAgentImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/foo:latest",
 		},
-		{
-			name: "with jmx",
-			opts: []ImageOptions{
-				WithImageName("foo"),
-				WithTag("latest"),
-				WithJMX(true),
-			},
-			want: "gcr.io/datadoghq/foo:latest-jmx",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetLatestAgentImage(tt.opts...); got != tt.want {
 				t.Errorf("GetLatestAgentImage() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetLatestAgentImageJMX(t *testing.T) {
-	tests := []struct {
-		name string
-		opts []ImageOptions
-		want string
-	}{
-		{
-			name: "default registry",
-			want: fmt.Sprintf("gcr.io/datadoghq/agent:%s-jmx", AgentLatestVersion),
-		},
-
-		{
-			name: "docker.io",
-			opts: []ImageOptions{
-				WithRegistry(DockerHubContainerRegistry),
-			},
-			want: fmt.Sprintf("docker.io/datadog/agent:%s-jmx", AgentLatestVersion),
-		},
-		{
-			name: "with tag",
-			opts: []ImageOptions{
-				WithTag("latest"),
-			},
-			want: "gcr.io/datadoghq/agent:latest-jmx",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetLatestAgentImageJMX(tt.opts...); got != tt.want {
-				t.Errorf("GetLatestAgentImageJMX() = %v, want %v", got, tt.want)
 			}
 		})
 	}

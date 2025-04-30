@@ -97,7 +97,10 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommon.AgentContainerName{
@@ -130,7 +133,7 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Create configMap if one does not already exist and ConfigData is defined
 	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
 		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cspmConfFileName)

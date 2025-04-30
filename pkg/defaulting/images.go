@@ -16,11 +16,11 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion corresponds to the latest stable agent release
-	AgentLatestVersion = "7.62.2"
+	AgentLatestVersion = "7.64.3"
 	// ClusterAgentLatestVersion corresponds to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.62.2"
+	ClusterAgentLatestVersion = "7.64.3"
 	// FIPSProxyLatestVersion corresponds to the latest stable fips-proxy release
-	FIPSProxyLatestVersion = "1.1.7"
+	FIPSProxyLatestVersion = "1.1.9"
 	// GCRContainerRegistry corresponds to the datadoghq GCR registry
 	GCRContainerRegistry ContainerRegistry = "gcr.io/datadoghq"
 	// DockerHubContainerRegistry corresponds to the datadoghq docker.io registry
@@ -34,14 +34,12 @@ const (
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
 	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
-	// JMXTagSuffix prefix tag for agent JMX images
+	// JMXTagSuffix suffix tag for agent JMX images
 	JMXTagSuffix = "-jmx"
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
-	AgentDevImageName                   = "datadog/agent-dev"
-	// Nightly dev image tag for otel agent
-	OTelAgentNightlyTag = "nightly-ot-beta-main"
+	OTelAgentBetaTag                    = "7.63.0-ot-beta-jmx"
 )
 
 // imageHasTag identifies whether an image string contains a tag suffix
@@ -86,18 +84,6 @@ func GetLatestAgentImage(opts ...ImageOptions) string {
 	return image.String()
 }
 
-// GetLatestAgentImageJMX return the latest JMX stable agent release version
-func GetLatestAgentImageJMX(opts ...ImageOptions) string {
-	image := &Image{
-		registry:  DefaultImageRegistry,
-		imageName: DefaultAgentImageName,
-		tag:       AgentLatestVersion,
-	}
-	processOptions(image, opts...)
-	image.tag = fmt.Sprintf("%s%s", image.tag, JMXTagSuffix)
-	return image.String()
-}
-
 // GetLatestClusterAgentImage return the latest stable agent release version
 func GetLatestClusterAgentImage(opts ...ImageOptions) string {
 	image := &Image{
@@ -127,13 +113,6 @@ func WithTag(tag string) ImageOptions {
 func WithImageName(name string) ImageOptions {
 	return func(image *Image) {
 		image.imageName = name
-	}
-}
-
-// WithJMX ImageOptions to specify if the JMX prefix should be added
-func WithJMX(jmx bool) ImageOptions {
-	return func(image *Image) {
-		image.isJMX = jmx
 	}
 }
 

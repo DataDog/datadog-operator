@@ -66,13 +66,16 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
 
 	return feature.RequiredComponents{
-		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+		},
 	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Hack to trigger an error if admission feature is not enabled as we cannot return an error in configure
 	if !f.admissionControllerActivated {
 		return errors.New("admission controller feature must be enabled to use the autoscaling feature")

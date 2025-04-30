@@ -106,7 +106,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -163,11 +163,7 @@ func (f *dogstatsdFeature) ManageSingleContainerNodeAgent(managers feature.PodTe
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// When ADP is enabled, we apply the DSD configuration to the ADP container instead, and set `DD_USE_DOGSTATSD` to
-	// `false`, and `DD_ADP_ENABLED` to `true`, on the Core Agent container.
-	//
-	// This disables DSD in the Core Agent, and additionally informs it that DSD is disabled because ADP is enabled and
-	// taking over responsibilities, rather than DSD simply being disabled intentionally, such as in the case of the
-	// Cluster Checks Runner.
+	// `false` on the Core Agent container. This disables DSD in the Core Agent, and allows ADP to take over.
 	//
 	// While we _could_ leave the DSD-specific configuration set on the Core Agent -- it doesn't so matter as long as
 	// DSD is disabled -- it's cleaner to remote it entirely to avoid confusion.

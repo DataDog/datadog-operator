@@ -73,6 +73,7 @@ func TestBuildDashboard(t *testing.T) {
 	assert.Equal(t, datadogV1.DashboardReflowType(*db.Spec.ReflowType), dashboard.GetReflowType(), "discrepancy found in parameter: ReflowType")
 	assert.Equal(t, db.Spec.Tags, dashboard.GetTags(), "discrepancy found in parameter: Tags")
 	assert.Equal(t, db.Spec.Title, dashboard.GetTitle(), "discrepancy found in parameter: Title")
+	assert.Nil(t, dashboard.IsReadOnly, "discrepancy found in parameter: IsReadOnly")
 }
 
 func Test_getDashboard(t *testing.T) {

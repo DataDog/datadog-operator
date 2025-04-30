@@ -36,11 +36,11 @@ spec:
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
 | features.admissionController.agentSidecarInjection.clusterAgentCommunicationEnabled | ClusterAgentCommunicationEnabled enables communication between Agent sidecars and the Cluster Agent. Default : true |
 | features.admissionController.agentSidecarInjection.enabled | Enables Sidecar injections. Default: false |
-| features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| features.admissionController.agentSidecarInjection.image.name | Defines the Agent image name for the pod. You can provide this as: * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.   The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled. * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored. * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified   like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored. |
-| features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
+| features.admissionController.agentSidecarInjection.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
+| features.admissionController.agentSidecarInjection.image.pullPolicy | The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`. |
 | features.admissionController.agentSidecarInjection.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| features.admissionController.agentSidecarInjection.image.tag | Define the image tag to use. To be used if the `Name` field does not correspond to a full image string. |
 | features.admissionController.agentSidecarInjection.profiles | Define the sidecar configuration override. Only one profile is supported. |
 | features.admissionController.agentSidecarInjection.provider | Is used to add infrastructure provider-specific configurations to the Agent sidecar. Currently only "fargate" is supported. To use the feature in other environments (including local testing) omit the config. See also: https://docs.datadoghq.com/integrations/eks_fargate |
 | features.admissionController.agentSidecarInjection.registry | Overrides the default registry for the sidecar Agent. |
@@ -57,6 +57,7 @@ spec:
 | features.admissionController.validation.enabled | Enables the Admission Controller validation webhook. Default: true |
 | features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enables Application Performance Monitoring. Default: true |
+| features.apm.errorTrackingStandalone.enabled | Enables Error Tracking for backend services. Default: false |
 | features.apm.hostPortConfig.enabled | Enables host port configuration |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.apm.instrumentation.disabledNamespaces | DisabledNamespaces disables injecting the Datadog APM libraries into pods in specific namespaces. |
@@ -65,6 +66,7 @@ spec:
 | features.apm.instrumentation.injector.imageTag | Set the image tag to use for the APM Injector. (Requires Cluster Agent 7.57.0+) |
 | features.apm.instrumentation.languageDetection.enabled | Enables Language Detection to automatically detect languages of user workloads (beta). Requires SingleStepInstrumentation.Enabled to be true. Default: true |
 | features.apm.instrumentation.libVersions | LibVersions configures injection of specific tracing library versions with Single Step Instrumentation. <Library>: <Version> ex: "java": "v1.18.0" |
+| features.apm.instrumentation.targets | Is a list of targets to apply the auto instrumentation to. The first target that matches the pod will be used. If no target matches, the auto instrumentation will not be applied. (Requires Cluster Agent 7.64.0+) |
 | features.apm.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Defines the socket path used when enabled. |
 | features.asm.iast.enabled | Enables Interactive Application Security Testing (IAST). Default: false |
@@ -175,6 +177,7 @@ spec:
 | features.sbom.host.analyzers | To use for SBOM collection. |
 | features.sbom.host.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.serviceDiscovery.enabled | Enables the service discovery check. Default: false |
+| features.serviceDiscovery.networkStats.enabled | Enables the Service Discovery Network Stats feature. Default: true |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enables Universal Service Monitoring. Default: false |
 | global.checksTagCardinality | ChecksTagCardinality configures tag cardinality for the metrics collected by integrations (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#tags-cardinality. Not set by default to avoid overriding existing DD_CHECKS_TAG_CARDINALITY configurations, the default value in the Agent is low. Ref: https://github.com/DataDog/datadog-agent/blob/856cf4a66142ce91fd4f8a278149436eb971184a/pkg/config/setup/config.go#L625. |
@@ -204,8 +207,8 @@ spec:
 | global.fips.customFIPSConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | global.fips.customFIPSConfig.configMap.name | Is the name of the ConfigMap. |
 | global.fips.enabled | Enable FIPS sidecar. |
-| global.fips.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| global.fips.image.name | Defines the Agent image name for the pod. You can provide this as: * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.   The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled. * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored. * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified   like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored. |
+| global.fips.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
+| global.fips.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
 | global.fips.image.pullPolicy | The Kubernetes pull policy for the FIPS sidecar image. Values: Always, Never, IfNotPresent. |
 | global.fips.image.pullSecrets | Specifies Docker registry credentials (https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) for the FIPS sidecar. |
 | global.fips.image.tag | Defines the tag of the FIPS sidecar image. This parameter is used if global.fips.image.name does not correspond to a full image string. |
@@ -399,11 +402,11 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].extraConfd.configMap.name | Name is the name of the ConfigMap. |
 | [key].hostNetwork | Host networking requested for this pod. Use the host's network namespace. |
 | [key].hostPID | Use the host's PID namespace. |
-| [key].image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| [key].image.name | Defines the Agent image name for the pod. You can provide this as: * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.   The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled. * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored. * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified   like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored. |
-| [key].image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
+| [key].image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
+| [key].image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
+| [key].image.pullPolicy | The Kubernetes pull policy: Use `Always`, `Never`, or `IfNotPresent`. |
 | [key].image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| [key].image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
+| [key].image.tag | Define the image tag to use. To be used if the `Name` field does not correspond to a full image string. |
 | [key].labels `map[string]string` | AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
 | [key].name | Name overrides the default name for the resource |
 | [key].nodeSelector `map[string]string` | A map of key-value pairs. For this pod to run on a specific node, the node must have these key-value pairs as labels. See https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |

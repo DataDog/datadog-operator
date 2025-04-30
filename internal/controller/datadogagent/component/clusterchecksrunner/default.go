@@ -30,6 +30,11 @@ func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
 }
 
+// GetCCRRbacResourcesName returns the Cluster Checks Runner RBAC resource name
+func GetCCRRbacResourcesName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), constants.DefaultClusterChecksRunnerResourceSuffix)
+}
+
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
 	deployment := common.NewDeployment(dda, constants.DefaultClusterChecksRunnerResourceSuffix, GetClusterChecksRunnerName(dda), common.GetAgentVersion(dda), nil)
@@ -56,6 +61,7 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 		common.GetVolumeForConfig(),
 		common.GetVolumeForRmCorechecks(),
 		common.GetVolumeForLogs(),
+		common.GetVolumeForChecksd(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -84,6 +90,17 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 	}
 
 	return template
+}
+
+func volumeMountsForInitConfig() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		common.GetVolumeMountForInstallInfo(),
+		common.GetVolumeMountForConfig(),
+		common.GetVolumeMountForLogs(),
+		common.GetVolumeMountForTmp(),
+		common.GetVolumeMountForRmCorechecks(),
+		common.GetVolumeMountForChecksd(),
+	}
 }
 
 func GetClusterChecksRunnerPodDisruptionBudgetName(dda metav1.Object) string {
@@ -129,7 +146,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func clusterChecksRunnerImage() string {
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return defaulting.GetLatestAgentImage()
 }
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
@@ -143,7 +160,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Args: []string{
 					"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 				},
-				VolumeMounts: volumeMounts,
+				VolumeMounts: volumeMountsForInitConfig(),
 			},
 		},
 		Containers: []corev1.Container{
@@ -244,6 +261,10 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 					FieldPath: common.FieldPathSpecNodeName,
 				},
 			},
+		},
+		{
+			Name:  common.DDAPMErrorTrackingStandaloneEnabled,
+			Value: "false",
 		},
 	}
 

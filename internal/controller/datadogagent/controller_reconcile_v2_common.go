@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -35,6 +36,8 @@ import (
 const (
 	updateSucceeded = "UpdateSucceeded"
 	createSucceeded = "CreateSucceeded"
+
+	profileWaitForCanaryKey = "agent.datadoghq.com/profile-wait-for-canary"
 )
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -242,9 +245,11 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		// won't filter labels with "datadoghq.com" in the key
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
-		var updateProfileDS bool
-		ddaLastSpecUpdate := getDDALastUpdatedTime(dda.ManagedFields, dda.CreationTimestamp)
-		updateProfileDS, err = r.shouldUpdateProfileDaemonSet(profile, ddaLastSpecUpdate, now)
+		updateProfileDS := true
+		if shouldProfileWaitForCanary(logger, dda.Annotations) {
+			ddaLastSpecUpdate := getDDALastUpdatedTime(dda.ManagedFields, dda.CreationTimestamp)
+			updateProfileDS, err = r.shouldUpdateProfileDaemonSet(profile, ddaLastSpecUpdate, now)
+		}
 		if err != nil {
 			return result, err
 		}
@@ -526,4 +531,17 @@ func getDDALastUpdatedTime(managedFields []metav1.ManagedFieldsEntry, creationTi
 		}
 	}
 	return lastUpdateTime
+}
+
+// shouldProfileWaitForCanary returns the value of the profile-wait-for-canary annotation
+func shouldProfileWaitForCanary(logger logr.Logger, annotations map[string]string) bool {
+	if val, exists := annotations[profileWaitForCanaryKey]; exists {
+		waitForCanary, err := strconv.ParseBool(val)
+		if err != nil {
+			logger.Error(err, "Failed to parse annotation value", "key", profileWaitForCanaryKey, "value", val)
+			return false
+		}
+		return waitForCanary
+	}
+	return false
 }

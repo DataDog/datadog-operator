@@ -16,8 +16,10 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -58,7 +60,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			DDA: testutils.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(false).
 				Build(),
-			WantConfigure: false,
+			WantConfigure: true,
 		},
 		{
 			Name: "orchestrator explorer enabled",
@@ -73,6 +75,36 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  orchestratorExplorerClusterAgentWantFuncV2(),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentNoProcessAgentWantFunc),
+		},
+		{
+			Name: "orchestrator explorer enabled with autoscaling and custom CRs",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOrchestratorExplorerEnabled(true).
+				WithWorkloadAutoscalerEnabled(true).
+				WithOrchestratorExplorerCustomResources([]string{"datadoghq.com/v1alpha1/datadogpodautoscalers", "datadoghq.com/v1alpha1/watermarkpodautoscalers"}).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, sc store.StoreClient) {
+				cm, found := sc.Get(kubernetes.ConfigMapKind, "", "-orchestrator-explorer-config")
+				assert.True(t, found)
+				assert.NotNil(t, cm)
+
+				cmData := cm.(*corev1.ConfigMap).Data["orchestrator.yaml"]
+				want := `---
+cluster_check: false
+ad_identifiers:
+  - _kube_orchestrator
+init_config:
+
+instances:
+  - skip_leader_election: false
+    crd_collectors:
+      - datadoghq.com/v1alpha1/watermarkpodautoscalers
+      - datadoghq.com/v1alpha2/datadogpodautoscalers
+`
+
+				assert.Equal(t, want, cmData)
+			},
 		},
 		{
 			Name: "orchestrator explorer enabled and runs on cluster checks runner",
@@ -128,7 +160,7 @@ func orchestratorExplorerNodeAgentNoProcessAgentWantFunc(t testing.TB, mgrInterf
 
 func orchestratorExplorerClusterChecksRunnerWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
-	runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]
+	runnerEnvs := append(mgr.EnvVarMgr.EnvVarsByC[apicommon.AllContainers], mgr.EnvVarMgr.EnvVarsByC[apicommon.ClusterChecksRunnersContainerName]...)
 	assert.True(t, apiutils.IsEqualStruct(runnerEnvs, expectedOrchestratorEnvsV2), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, expectedOrchestratorEnvsV2))
 }
 

@@ -18,6 +18,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -79,7 +80,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 	// delete, we figure out its dependencies, store them in the dependencies
 	// store, and then call the DeleteAll function of the store.
 
-	features, requiredComponents := feature.BuildFeatures(
+	_, enabledFeatures, requiredComponents := feature.BuildFeatures(
 		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
 
 	storeOptions := &store.StoreOptions{
@@ -93,9 +94,23 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 
 	var errs []error
 
+	// Global dependencies
+	if err := global.ApplyGlobalDependencies(reqLogger, dda, resourceManagers); len(err) > 0 {
+		errs = append(errs, err...)
+	}
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
+		errs = append(errs, err...)
+	}
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
+		errs = append(errs, err...)
+	}
+	if err := global.ApplyGlobalComponentDependencies(reqLogger, dda, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
+		errs = append(errs, err...)
+	}
+
 	// Set up dependencies required by enabled features
-	for _, feat := range features {
-		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
+	for _, feat := range enabledFeatures {
+		if featErr := feat.ManageDependencies(resourceManagers); featErr != nil {
 			errs = append(errs, featErr)
 		}
 	}
