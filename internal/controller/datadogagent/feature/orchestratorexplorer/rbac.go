@@ -99,6 +99,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.PolicyAPIGroup},
 			Resources: []string{rbac.PodDisruptionBudgetsResource},
 		},
+		{
+			APIGroups: []string{rbac.DiscoveryAPIGroup},
+			Resources: []string{rbac.EndpointsSlicesResource},
+		},
 	}
 
 	groupResources := mapAPIGroupsResources(logger, crs)
