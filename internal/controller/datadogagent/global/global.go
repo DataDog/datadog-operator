@@ -236,9 +236,10 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Apply FIPS config
-	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	if config.FIPS != nil {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
+
 }
 
 func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.PodTemplateManagers) {

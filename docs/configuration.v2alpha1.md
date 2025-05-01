@@ -206,15 +206,17 @@ spec:
 | global.fips.customFIPSConfig.configData | ConfigData corresponds to the configuration file content. |
 | global.fips.customFIPSConfig.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | global.fips.customFIPSConfig.configMap.name | Is the name of the ConfigMap. |
-| global.fips.enabled | Enable FIPS sidecar. |
+| global.fips.enabled | Enable FIPS sidecar. Deprecated; use ProxyEnabled. |
 | global.fips.image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the `Name` field does not correspond to a full image string. |
 | global.fips.image.name | Defines the Agent image name for the pod. You can provide this as: * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd` for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`. * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag` and `[key].image.jmxEnabled` are ignored. * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified   like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored. |
 | global.fips.image.pullPolicy | The Kubernetes pull policy for the FIPS sidecar image. Values: Always, Never, IfNotPresent. |
 | global.fips.image.pullSecrets | Specifies Docker registry credentials (https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) for the FIPS sidecar. |
 | global.fips.image.tag | Defines the tag of the FIPS sidecar image. This parameter is used if global.fips.image.name does not correspond to a full image string. |
 | global.fips.localAddress | The local IP address of the FIPS sidecar. Default: 127.0.0.1. |
-| global.fips.port | Specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803 |
+| global.fips.modeEnabled | Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used. (Requires Agent and Cluster Agent 7.64.0+.) |
+| global.fips.port | Specifies which port is used by the containers to communicate to the FIPS sidecar. Only used if ProxyEnabled is `true`. Default: 9803 |
 | global.fips.portRange | The number of ports used by the containers to communicate to the FIPS sidecar. Default: 15 |
+| global.fips.proxyEnabled | Enable FIPS sidecar. |
 | global.fips.resources.claims | Lists the names of resources, defined in spec.resourceClaims, that are used by this container.  This is an alpha field and requires enabling the DynamicResourceAllocation feature gate.  This field is immutable. It can only be set for containers. |
 | global.fips.resources.limits | Resource limits for the FIPS sidecar. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |
 | global.fips.resources.requests | Resource requests for the FIPS sidecar. If undefined, defaults to global.fips.resources.limits (if set), then to an implementation-defined value. See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#resource-requests-and-limits-of-pod-and-container . |

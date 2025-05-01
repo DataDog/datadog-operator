@@ -21,111 +21,124 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
-func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) {
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS
 
-	// Add FIPS env vars to all containers except System Probe
-	for _, cont := range manager.PodTemplateSpec().Spec.Containers {
-		if cont.Name != string(apicommon.SystemProbeContainerName) {
-			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  DDFIPSEnabled,
-				Value: "true",
-			})
-			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  DDFIPSPortRangeStart,
-				Value: strconv.Itoa(int(*fipsConfig.Port)),
-			})
-			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  DDFIPSUseHTTPS,
-				Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
-			})
-			manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
-				Name:  DDFIPSLocalAddress,
-				Value: *fipsConfig.LocalAddress,
-			})
+	if apiutils.BoolValue(fipsConfig.ModeEnabled) {
+		// Add -fips suffix to each container image
+		for i, container := range manager.PodTemplateSpec().Spec.Containers {
+			// Note: if an image override is configured, this image tag will be overwritten
+			manager.PodTemplateSpec().Spec.Containers[i].Image = container.Image + defaulting.FIPSTagSuffix
 		}
+		for i, container := range manager.PodTemplateSpec().Spec.InitContainers {
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = container.Image + defaulting.FIPSTagSuffix
+		}
+		return
 	}
 
-	// Configure FIPS container
-	fipsContainer := getFIPSProxyContainer(fipsConfig)
-
-	image := common.GetImage(fipsConfig.Image, globalConfig.Registry)
-	fipsContainer.Image = image
-	if fipsConfig.Image.PullPolicy != nil {
-		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
-	}
-
-	// Add FIPS container to pod
-	found := false
-	for i, cont := range manager.PodTemplateSpec().Spec.Containers {
-		if cont.Name == fipsContainer.Name {
-			manager.PodTemplateSpec().Spec.Containers[i] = fipsContainer
-			found = true
-		}
-	}
-	if !found {
-		manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, fipsContainer)
-	}
-
-	vol := getFIPSDefaultVolume(dda.Name)
-	if fipsConfig.CustomFIPSConfig != nil {
-		volMount := corev1.VolumeMount{
-			Name:      FIPSProxyCustomConfigVolumeName,
-			MountPath: FIPSProxyCustomConfigMountPath,
-			SubPath:   FIPSProxyCustomConfigFileName,
-			ReadOnly:  true,
+	if apiutils.BoolValue(fipsConfig.ProxyEnabled) || apiutils.BoolValue(fipsConfig.Enabled) {
+		// Add FIPS env vars to all containers except System Probe
+		for _, cont := range manager.PodTemplateSpec().Spec.Containers {
+			if cont.Name != string(apicommon.SystemProbeContainerName) {
+				manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
+					Name:  DDFIPSEnabled,
+					Value: "true",
+				})
+				manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
+					Name:  DDFIPSPortRangeStart,
+					Value: strconv.Itoa(int(*fipsConfig.Port)),
+				})
+				manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
+					Name:  DDFIPSUseHTTPS,
+					Value: apiutils.BoolToString(fipsConfig.UseHTTPS),
+				})
+				manager.EnvVar().AddEnvVarToContainer(apicommon.AgentContainerName(cont.Name), &corev1.EnvVar{
+					Name:  DDFIPSLocalAddress,
+					Value: *fipsConfig.LocalAddress,
+				})
+			}
 		}
 
-		// Add md5 hash annotation to component for custom config
-		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for custom config", "filename", FIPSProxyCustomConfigFileName)
-		}
-		annotationKey := object.GetChecksumAnnotationKey(string(FIPSProxyCustomConfigFileName))
-		if annotationKey != "" && hash != "" {
-			manager.Annotation().AddAnnotation(annotationKey, hash)
+		// Configure FIPS container
+		fipsContainer := getFIPSProxyContainer(fipsConfig)
+
+		image := common.GetImage(fipsConfig.Image, globalConfig.Registry)
+		fipsContainer.Image = image
+		if fipsConfig.Image.PullPolicy != nil {
+			fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
 		}
 
-		// configMap takes priority over configData
-		if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
-			vol = volume.GetVolumeFromConfigMap(
-				fipsConfig.CustomFIPSConfig.ConfigMap,
-				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
-				FIPSProxyCustomConfigVolumeName,
-			)
-			// configData
-		} else if fipsConfig.CustomFIPSConfig.ConfigData != nil {
-			cm, err := configmap.BuildConfigMapMulti(
-				dda.Namespace,
-				map[string]string{FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
-				fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
-				false,
-			)
+		// Add FIPS container to pod
+		found := false
+		for i, cont := range manager.PodTemplateSpec().Spec.Containers {
+			if cont.Name == fipsContainer.Name {
+				manager.PodTemplateSpec().Spec.Containers[i] = fipsContainer
+				found = true
+			}
+		}
+		if !found {
+			manager.PodTemplateSpec().Spec.Containers = append(manager.PodTemplateSpec().Spec.Containers, fipsContainer)
+		}
+
+		vol := getFIPSDefaultVolume(dda.Name)
+		if fipsConfig.CustomFIPSConfig != nil {
+			volMount := corev1.VolumeMount{
+				Name:      FIPSProxyCustomConfigVolumeName,
+				MountPath: FIPSProxyCustomConfigMountPath,
+				SubPath:   FIPSProxyCustomConfigFileName,
+				ReadOnly:  true,
+			}
+			// Add md5 hash annotation to component for custom config
+			hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
 			if err != nil {
-				logger.Error(err, "couldn't generate config map data for fips custom config")
+				logger.Error(err, "couldn't generate hash for custom config", "filename", FIPSProxyCustomConfigFileName)
+			}
+			annotationKey := object.GetChecksumAnnotationKey(string(FIPSProxyCustomConfigFileName))
+			if annotationKey != "" && hash != "" {
+				manager.Annotation().AddAnnotation(annotationKey, hash)
 			}
 
-			if cm != nil {
-				// Add custom config hash annotation to configMap
-				annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "*")
-				cm.SetAnnotations(annotations)
+			// configMap takes priority over configData
+			if fipsConfig.CustomFIPSConfig.ConfigMap != nil {
+				vol = volume.GetVolumeFromConfigMap(
+					fipsConfig.CustomFIPSConfig.ConfigMap,
+					fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
+					FIPSProxyCustomConfigVolumeName,
+				)
+				// configData
+			} else if fipsConfig.CustomFIPSConfig.ConfigData != nil {
+				cm, err := configmap.BuildConfigMapMulti(
+					dda.Namespace,
+					map[string]string{FIPSProxyCustomConfigFileName: *fipsConfig.CustomFIPSConfig.ConfigData},
+					fmt.Sprintf(FIPSProxyCustomConfigMapName, dda.Name),
+					false,
+				)
+				if err != nil {
+					logger.Error(err, "couldn't generate config map data for fips custom config")
+				}
 
-				resourcesManager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
+				if cm != nil {
+					// Add custom config hash annotation to configMap
+					annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "*")
+					cm.SetAnnotations(annotations)
+
+					resourcesManager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm)
+				}
 			}
+			manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.CoreAgentContainerName)
+			manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.FIPSProxyContainerName)
 		}
-		manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.CoreAgentContainerName)
-		manager.VolumeMount().AddVolumeMountToContainer(&volMount, apicommon.FIPSProxyContainerName)
-	}
-	manager.Volume().AddVolume(&vol)
+		manager.Volume().AddVolume(&vol)
 
-	if fipsConfig.Resources != nil {
-		fipsContainer.Resources = *fipsConfig.Resources
+		if fipsConfig.Resources != nil {
+			fipsContainer.Resources = *fipsConfig.Resources
+		}
 	}
 }
 

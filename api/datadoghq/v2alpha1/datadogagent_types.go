@@ -1855,32 +1855,43 @@ const (
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true
 type FIPSConfig struct {
+	// Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used.
+	// (Requires Agent and Cluster Agent 7.64.0+.)
+	// +optional
+	ModeEnabled *bool `json:"modeEnabled,omitempty"`
+
 	// Enable FIPS sidecar.
 	// +optional
+	// Deprecated; use ProxyEnabled.
 	Enabled *bool `json:"enabled,omitempty"`
-	// The container image of the FIPS sidecar.
+
+	// Enable FIPS sidecar.
+	// +optional
+	ProxyEnabled *bool `json:"proxyEnabled,omitempty"`
+
+	// The container image of the FIPS sidecar. Only used if ProxyEnabled is `true`.
 	// +optional
 	Image *AgentImageConfig `json:"image,omitempty"`
-	// Set the local IP address.
+	// Set the local IP address. Only used if ProxyEnabled is `true`.
 	// Default: `127.0.0.1`
 	// +optional
 	LocalAddress *string `json:"localAddress,omitempty"`
-	// Port specifies which port is used by the containers to communicate to the FIPS sidecar.
+	// Port specifies which port is used by the containers to communicate to the FIPS sidecar. Only used if ProxyEnabled is `true`.
 	// Default: 9803
 	// +optional
 	Port *int32 `json:"port,omitempty"`
-	// PortRange specifies the number of ports used.
+	// PortRange specifies the number of ports used. Only used if ProxyEnabled is `true`.
 	// Default: 15
 	// +optional
 	PortRange *int32 `json:"portRange,omitempty"`
-	// Resources is the requests and limits for the FIPS sidecar container.
+	// Resources is the requests and limits for the FIPS sidecar container. Only used if ProxyEnabled is `true`.
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-	// UseHTTPS enables HTTPS.
+	// UseHTTPS enables HTTPS. Only used if ProxyEnabled is `true`.
 	// Default: false
 	// +optional
 	UseHTTPS *bool `json:"useHTTPS,omitempty"`
-	// CustomFIPSConfig configures a custom configMap to provide the FIPS configuration.
+	// CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Only used if ProxyEnabled is `true`.
 	// Specify custom contents for the FIPS proxy sidecar container config
 	// (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS
 	// proxy sidecar container config is used.
