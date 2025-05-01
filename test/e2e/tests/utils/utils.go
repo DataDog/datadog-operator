@@ -32,7 +32,7 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 	require.NoError(c, err)
 	assert.NotNil(c, podsList)
 	assert.NotEmpty(c, podsList.Items)
-	assert.Len(c, numPods, len(podsList.Items))
+	assert.Len(c, podsList.Items, numPods)
 }
 
 func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, selector string) {
