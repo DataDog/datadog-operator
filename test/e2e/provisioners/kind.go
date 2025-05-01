@@ -33,7 +33,6 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 )
 
@@ -94,7 +93,7 @@ func newAWSK8sProvisionerOpts(params *KubernetesProvisionerParams) []awskubernet
 		awskubernetes.WithExtraConfigParams(extraConfig),
 		awskubernetes.WithWorkloadApp(KustomizeWorkloadAppFunc(params.testName, params.kustomizeResources)),
 		awskubernetes.WithFakeIntakeOptions(params.fakeintakeOptions...),
-		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData)}...),
+		awskubernetes.WithEC2VMOptions([]ec2.VMOption{ec2.WithUserData(UserData), ec2.WithInstanceType("m5.xlarge")}...),
 	}
 
 	for _, yamlWorkload := range params.yamlWorkloads {

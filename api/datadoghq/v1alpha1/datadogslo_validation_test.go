@@ -6,9 +6,9 @@
 package v1alpha1
 
 import (
+	"errors"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"

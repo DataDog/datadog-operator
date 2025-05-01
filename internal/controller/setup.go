@@ -53,9 +53,10 @@ type SetupOptions struct {
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
 type ExtendedDaemonsetOptions struct {
-	Enabled                bool
-	MaxPodUnavailable      string
-	MaxPodSchedulerFailure string
+	Enabled                   bool
+	MaxPodUnavailable         string
+	MaxPodSchedulerFailure    string
+	SlowStartAdditiveIncrease string
 
 	CanaryDuration                      time.Duration
 	CanaryReplicas                      string
@@ -149,6 +150,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 				Enabled:                             options.SupportExtendedDaemonset.Enabled,
 				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
 				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
 				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
 				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
 				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,

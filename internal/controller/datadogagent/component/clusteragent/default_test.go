@@ -249,5 +249,21 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
 			Value: "",
 		},
+		{
+			Name:  "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "AGENT_DAEMONSET",
+			Value: "foo-agent",
+		},
+		{
+			Name:  "CLUSTER_AGENT_DEPLOYMENT",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "DATADOGAGENT_CR_NAME",
+			Value: "foo",
+		},
 	}
 }

@@ -134,7 +134,7 @@ func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap,
 	return nil, nil
 }
 
-func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// check if an otel collector config was provided. If not, use default.
 	if o.customConfig == nil {
 		o.customConfig = &v2alpha1.CustomConfig{}
@@ -232,10 +232,10 @@ func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManag
 				Name:  DDOtelCollectorCoreConfigEnabled,
 				Value: apiutils.BoolToString(o.coreAgentConfig.enabled),
 			}
-			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, enableEnvVar)
+			managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, enableEnvVar)
 		}
 	} else {
-		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName, apicommon.OtelAgent}, &corev1.EnvVar{
 			Name:  DDOtelCollectorCoreConfigEnabled,
 			Value: "true",
 		})

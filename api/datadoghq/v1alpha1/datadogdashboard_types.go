@@ -17,6 +17,8 @@ type DatadogDashboardSpec struct {
 	// +optional
 	Description string `json:"description,omitempty"`
 	// LayoutType is the layout type of the dashboard.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=ordered;free
 	LayoutType datadogV1.DashboardLayoutType `json:"layoutType,omitempty"`
 	// NotifyList is the list of handles of users to notify when changes are made to this dashboard.
 	// +listType=set
@@ -42,6 +44,8 @@ type DatadogDashboardSpec struct {
 	// +optional
 	TemplateVariables []DashboardTemplateVariable `json:"templateVariables,omitempty"`
 	// Title is the title of the dashboard.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	Title string `json:"title,omitempty"`
 	// Widgets is a JSON string representation of a list of Datadog API Widgets
 	// +optional
