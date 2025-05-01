@@ -8,19 +8,14 @@ package provisioners
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
-
-	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 	awskubernetes "github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners/aws/kubernetes"
-
-	"path/filepath"
-
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/utils/optional"
-	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/test-infra-definitions/common/config"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
@@ -29,6 +24,7 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
 	"github.com/DataDog/test-infra-definitions/resources/local"
+	"github.com/DataDog/test-infra-definitions/scenarios/aws/ec2"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/fakeintake"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
@@ -37,6 +33,8 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+
+	"github.com/DataDog/datadog-operator/test/e2e/common"
 )
 
 const (
@@ -242,10 +240,10 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 	provisioner = provisioners.NewTypedPulumiProvisioner(provisionerName, func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 		// and it's easy to forget about it, leading to hard to debug issues.
-		params := newKubernetesProvisionerParams()
-		_ = optional.ApplyOptions(params, opts)
+		pprams := newKubernetesProvisionerParams()
+		_ = optional.ApplyOptions(pprams, opts)
 
-		return localKindRunFunc(ctx, env, params)
+		return localKindRunFunc(ctx, env, pprams)
 
 	}, params.extraConfigParams)
 
@@ -281,9 +279,9 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 		fakeintakeOpts := []fakeintake.Option{fakeintake.WithLoadBalancer()}
 		params.fakeintakeOptions = append(fakeintakeOpts, params.fakeintakeOptions...)
 
-		fakeIntake, err := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
-		if err != nil {
-			return err
+		fakeIntake, intakeErr := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
+		if intakeErr != nil {
+			return intakeErr
 		}
 		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
 			return err
@@ -335,9 +333,9 @@ func localKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 			params.ddaOptions,
 			agentwithoperatorparams.WithPulumiResourceOptions(ddaResourceOpts...))
 
-		ddaComp, err := agent.NewDDAWithOperator(&localEnv, params.name, kindKubeProvider, params.ddaOptions...)
-		if err != nil {
-			return err
+		ddaComp, aErr := agent.NewDDAWithOperator(&localEnv, params.name, kindKubeProvider, params.ddaOptions...)
+		if aErr != nil {
+			return aErr
 		}
 
 		if err = ddaComp.Export(ctx, &env.Agent.KubernetesAgentOutput); err != nil {
