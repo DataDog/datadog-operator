@@ -178,9 +178,10 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.FIPS == nil {
 		ddaSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
 	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.ProxyEnabled, defaultFIPSEnabled)
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
 
-	if *ddaSpec.Global.FIPS.Enabled {
+	if *ddaSpec.Global.FIPS.ProxyEnabled || *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {
 			ddaSpec.Global.FIPS.Image = &v2alpha1.AgentImageConfig{}
 		}

@@ -8,6 +8,7 @@ package global
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -71,7 +72,25 @@ defaults
 		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *store.Store)
 	}{
 		{
-			name: "FIPS enabled",
+			name: "FIPS mode enabled",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithFIPS(v2alpha1.FIPSConfig{
+					ModeEnabled: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer, *processAgentContainer, *systemProbeContainer},
+					},
+				})
+			},
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+				checkFIPSImages(t, mgr)
+			},
+		},
+		{
+			name: "FIPS proxy enabled (deprecated parameter)",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -100,10 +119,39 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom image",
+			name: "FIPS proxy enabled",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					ProxyEnabled: apiutils.NewBoolPointer(true),
+				}).
+				BuildWithDefaults(),
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer, *processAgentContainer, *systemProbeContainer},
+					},
+				})
+			},
+			want: func(t testing.TB, mgr *fake.PodTemplateManagers, store *store.Store) {
+				// fips env var
+				checkFIPSContainerEnvVars(t, mgr)
+				// fips port
+				checkFIPSPort(t, mgr, int32(9803))
+
+				// component env var
+				checkComponentContainerEnvVars(t, mgr, 9803)
+
+				// volume
+				checkVolume(t, mgr, false)
+				// volume mounts
+				checkVolumeMounts(t, mgr, false)
+			},
+		},
+		{
+			name: "FIPS proxy enabled, custom image",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithFIPS(v2alpha1.FIPSConfig{
+					ProxyEnabled: apiutils.NewBoolPointer(true),
 					Image: &v2alpha1.AgentImageConfig{
 						Name: "registry/custom:tag",
 					},
@@ -134,11 +182,11 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom port",
+			name: "FIPS proxy enabled, custom port",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-					Port:    apiutils.NewInt32Pointer(2),
+					ProxyEnabled: apiutils.NewBoolPointer(true),
+					Port:         apiutils.NewInt32Pointer(2),
 				}).
 				BuildWithDefaults(),
 			existingManager: func() *fake.PodTemplateManagers {
@@ -164,10 +212,10 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom config - config map",
+			name: "FIPS proxy enabled, custom config - config map",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					ProxyEnabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
 						ConfigMap: &v2alpha1.ConfigMapConfig{
 							Name: "foo",
@@ -205,10 +253,10 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom config - config data",
+			name: "FIPS proxy enabled, custom config - config data",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+					ProxyEnabled: apiutils.NewBoolPointer(true),
 					CustomFIPSConfig: &v2alpha1.CustomConfig{
 						ConfigData: apiutils.NewStringPointer(customConfig),
 					},
@@ -319,6 +367,12 @@ func getFIPSVolumeMount() corev1.VolumeMount {
 		MountPath: FIPSProxyCustomConfigMountPath,
 		SubPath:   FIPSProxyCustomConfigFileName,
 		ReadOnly:  true,
+	}
+}
+
+func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
+	for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
 	}
 }
 

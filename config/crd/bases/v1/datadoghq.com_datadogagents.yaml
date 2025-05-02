@@ -2428,7 +2428,7 @@ spec:
                           type: string
                         modeEnabled:
                           description: |-
-                            Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used.
+                            Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used.
                             (Requires Agent and Cluster Agent 7.64.0+.)
                           type: boolean
                         port:

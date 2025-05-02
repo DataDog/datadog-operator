@@ -1855,7 +1855,7 @@ const (
 // FIPSConfig contains the FIPS configuration.
 // +k8s:openapi-gen=true
 type FIPSConfig struct {
-	// Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used.
+	// Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used.
 	// (Requires Agent and Cluster Agent 7.64.0+.)
 	// +optional
 	ModeEnabled *bool `json:"modeEnabled,omitempty"`

@@ -213,7 +213,7 @@ spec:
 | global.fips.image.pullSecrets | Specifies Docker registry credentials (https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) for the FIPS sidecar. |
 | global.fips.image.tag | Defines the tag of the FIPS sidecar image. This parameter is used if global.fips.image.name does not correspond to a full image string. |
 | global.fips.localAddress | The local IP address of the FIPS sidecar. Default: 127.0.0.1. |
-| global.fips.modeEnabled | Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used. (Requires Agent and Cluster Agent 7.64.0+.) |
+| global.fips.modeEnabled | Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used. (Requires Agent and Cluster Agent 7.64.0+.) |
 | global.fips.port | Specifies which port is used by the containers to communicate to the FIPS sidecar. Only used if ProxyEnabled is `true`. Default: 9803 |
 | global.fips.portRange | The number of ports used by the containers to communicate to the FIPS sidecar. Default: 15 |
 | global.fips.proxyEnabled | Enable FIPS sidecar. |
