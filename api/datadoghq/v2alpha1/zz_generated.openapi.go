@@ -959,7 +959,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref common.Refere
 				Properties: map[string]spec.Schema{
 					"modeEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images will be used. (Requires Agent and Cluster Agent 7.64.0+.)",
+							Description: "Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used. (Requires Agent and Cluster Agent 7.64.0+.)",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
