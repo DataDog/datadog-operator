@@ -37,13 +37,16 @@ func Test_ApplyFIPSConfig(t *testing.T) {
 	}
 
 	agentContainer := &corev1.Container{
-		Name: string(apicommon.CoreAgentContainerName),
+		Name:  string(apicommon.CoreAgentContainerName),
+		Image: string("gcr.io/datadoghq/operator:7.64.0"),
 	}
 	processAgentContainer := &corev1.Container{
-		Name: string(apicommon.ProcessAgentContainerName),
+		Name:  string(apicommon.ProcessAgentContainerName),
+		Image: string("gcr.io/datadoghq/operator:7.64.0"),
 	}
 	systemProbeContainer := &corev1.Container{
-		Name: string(apicommon.SystemProbeContainerName),
+		Name:  string(apicommon.SystemProbeContainerName),
+		Image: string("gcr.io/datadoghq/operator:7.64.0"),
 	}
 
 	customConfig := `global
