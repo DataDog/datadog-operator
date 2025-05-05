@@ -64,7 +64,7 @@ func (f *helmCheckFeature) ID() feature.IDType {
 	return feature.HelmCheckIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *helmCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	f.owner = ddai
 	helmCheck := ddai.Spec.Features.HelmCheck

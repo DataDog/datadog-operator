@@ -37,7 +37,7 @@ func (f *gpuFeature) ID() feature.IDType {
 	return feature.GPUIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *gpuFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	if ddai.Spec.Features == nil || ddai.Spec.Features.GPU == nil || !apiutils.BoolValue(ddai.Spec.Features.GPU.Enabled) {
 		return reqComp

@@ -40,7 +40,7 @@ func (f *liveProcessFeature) ID() feature.IDType {
 	return feature.LiveProcessIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *liveProcessFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	if ddai.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddai.Spec.Features.LiveProcessCollection.Enabled) {
 		if ddai.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {

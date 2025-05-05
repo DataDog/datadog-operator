@@ -74,7 +74,7 @@ func (f *otlpFeature) ID() feature.IDType {
 	return feature.OTLPIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *otlpFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	otlp := ddai.Spec.Features.OTLP
 	f.owner = ddai
