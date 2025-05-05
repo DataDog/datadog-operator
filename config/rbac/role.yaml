@@ -148,20 +148,16 @@ rules:
 - apiGroups:
   - authorization.k8s.io
   resources:
-  - clusterrolebindings
-  - clusterroles
+  - subjectaccessreviews
   verbs:
   - create
-  - delete
-  - deletecollection
   - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - authorization.k8s.io
+  - roles.rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
+  - clusterroles
   - rolebindings
   - roles
   verbs:
@@ -172,13 +168,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
-  - get
 - apiGroups:
   - autoscaling
   resources:
@@ -365,10 +354,21 @@ rules:
   - list
 - apiGroups:
   - rbac.authorization.k8s.io
-  - roles.rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
   - clusterroles
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - rolebindings
   - roles
   verbs:
