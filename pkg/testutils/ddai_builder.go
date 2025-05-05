@@ -180,6 +180,16 @@ func (builder *DatadogAgentInternalBuilder) WithProcessChecksInCoreAgent(enabled
 	return builder
 }
 
+func (builder *DatadogAgentInternalBuilder) WithWorkloadAutoscalerEnabled(enabled bool) *DatadogAgentInternalBuilder {
+	builder.datadogAgentInternal.Spec.Features.Autoscaling = &v2alpha1.AutoscalingFeatureConfig{
+		Workload: &v2alpha1.WorkloadAutoscalingFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(enabled),
+		},
+	}
+
+	return builder
+}
+
 // Admission Controller
 func (builder *DatadogAgentInternalBuilder) initAdmissionController() {
 	if builder.datadogAgentInternal.Spec.Features.AdmissionController == nil {
@@ -580,6 +590,12 @@ func (builder *DatadogAgentInternalBuilder) WithOrchestratorExplorerCustomConfig
 	builder.datadogAgentInternal.Spec.Features.OrchestratorExplorer.Conf = &v2alpha1.CustomConfig{
 		ConfigData: &customConfigData,
 	}
+	return builder
+}
+
+func (builder *DatadogAgentInternalBuilder) WithOrchestratorExplorerCustomResources(customResources []string) *DatadogAgentInternalBuilder {
+	builder.initOE()
+	builder.datadogAgentInternal.Spec.Features.OrchestratorExplorer.CustomResources = customResources
 	return builder
 }
 
