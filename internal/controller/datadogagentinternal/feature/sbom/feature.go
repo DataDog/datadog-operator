@@ -142,7 +142,7 @@ func (p sbomFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplate
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),

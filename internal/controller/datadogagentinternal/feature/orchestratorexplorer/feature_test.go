@@ -78,7 +78,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 		{
 			Name: "orchestrator explorer enabled with autoscaling and custom CRs",
-			DDA: testutils.NewDatadogAgentBuilder().
+			DDAI: testutils.NewDatadogAgentInternalBuilder().
 				WithOrchestratorExplorerEnabled(true).
 				WithWorkloadAutoscalerEnabled(true).
 				WithOrchestratorExplorerCustomResources([]string{"datadoghq.com/v1alpha1/datadogpodautoscalers", "datadoghq.com/v1alpha1/watermarkpodautoscalers"}).
