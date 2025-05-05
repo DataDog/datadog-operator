@@ -957,21 +957,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref common.Refere
 				Description: "FIPSConfig contains the FIPS configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"modeEnabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used. (Requires Agent and Cluster Agent 7.64.0+.)",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enable FIPS sidecar. Deprecated; use ProxyEnabled.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"proxyEnabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable FIPS sidecar.",
 							Type:        []string{"boolean"},
@@ -980,47 +966,47 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_FIPSConfig(ref common.Refere
 					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The container image of the FIPS sidecar. Only used if ProxyEnabled is `true`.",
+							Description: "The container image of the FIPS sidecar.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.AgentImageConfig"),
 						},
 					},
 					"localAddress": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set the local IP address. Only used if ProxyEnabled is `true`. Default: `127.0.0.1`",
+							Description: "Set the local IP address. Default: `127.0.0.1`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"port": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Only used if ProxyEnabled is `true`. Default: 9803",
+							Description: "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Default: 9803",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"portRange": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PortRange specifies the number of ports used. Only used if ProxyEnabled is `true`. Default: 15",
+							Description: "PortRange specifies the number of ports used. Default: 15",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Resources is the requests and limits for the FIPS sidecar container. Only used if ProxyEnabled is `true`.",
+							Description: "Resources is the requests and limits for the FIPS sidecar container.",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
 					"useHTTPS": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UseHTTPS enables HTTPS. Only used if ProxyEnabled is `true`. Default: false",
+							Description: "UseHTTPS enables HTTPS. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"customFIPSConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Only used if ProxyEnabled is `true`. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.",
+							Description: "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Specify custom contents for the FIPS proxy sidecar container config (/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS proxy sidecar container config is used.",
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
 						},
 					},

@@ -2430,7 +2430,7 @@
               "properties": {
                 "customFIPSConfig": {
                   "additionalProperties": false,
-                  "description": "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration. Only used if ProxyEnabled is `true`.\nSpecify custom contents for the FIPS proxy sidecar container config\n(/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS\nproxy sidecar container config is used.",
+                  "description": "CustomFIPSConfig configures a custom configMap to provide the FIPS configuration.\nSpecify custom contents for the FIPS proxy sidecar container config\n(/etc/datadog-fips-proxy/datadog-fips-proxy.cfg). If empty, the default FIPS\nproxy sidecar container config is used.",
                   "properties": {
                     "configData": {
                       "description": "ConfigData corresponds to the configuration file content.",
@@ -2483,12 +2483,12 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enable FIPS sidecar.\nDeprecated; use ProxyEnabled.",
+                  "description": "Enable FIPS sidecar.",
                   "type": "boolean"
                 },
                 "image": {
                   "additionalProperties": false,
-                  "description": "The container image of the FIPS sidecar. Only used if ProxyEnabled is `true`.",
+                  "description": "The container image of the FIPS sidecar.",
                   "properties": {
                     "jmxEnabled": {
                       "description": "Define whether the Agent image should support JMX.\nTo be used if the `Name` field does not correspond to a full image string.",
@@ -2527,30 +2527,22 @@
                   "type": "object"
                 },
                 "localAddress": {
-                  "description": "Set the local IP address. Only used if ProxyEnabled is `true`.\nDefault: `127.0.0.1`",
+                  "description": "Set the local IP address.\nDefault: `127.0.0.1`",
                   "type": "string"
                 },
-                "modeEnabled": {
-                  "description": "Enable the Agent containers in FIPS mode. Unless image overrides are configured, the FIPS version of the Agent images is used.\n(Requires Agent and Cluster Agent 7.64.0+.)",
-                  "type": "boolean"
-                },
                 "port": {
-                  "description": "Port specifies which port is used by the containers to communicate to the FIPS sidecar. Only used if ProxyEnabled is `true`.\nDefault: 9803",
+                  "description": "Port specifies which port is used by the containers to communicate to the FIPS sidecar.\nDefault: 9803",
                   "format": "int32",
                   "type": "integer"
                 },
                 "portRange": {
-                  "description": "PortRange specifies the number of ports used. Only used if ProxyEnabled is `true`.\nDefault: 15",
+                  "description": "PortRange specifies the number of ports used.\nDefault: 15",
                   "format": "int32",
                   "type": "integer"
                 },
-                "proxyEnabled": {
-                  "description": "Enable FIPS sidecar.",
-                  "type": "boolean"
-                },
                 "resources": {
                   "additionalProperties": false,
-                  "description": "Resources is the requests and limits for the FIPS sidecar container. Only used if ProxyEnabled is `true`.",
+                  "description": "Resources is the requests and limits for the FIPS sidecar container.",
                   "properties": {
                     "claims": {
                       "description": "Claims lists the names of resources, defined in spec.resourceClaims,\nthat are used by this container.\n\nThis is an alpha field and requires enabling the\nDynamicResourceAllocation feature gate.\n\nThis field is immutable. It can only be set for containers.",
@@ -2614,7 +2606,7 @@
                   "type": "object"
                 },
                 "useHTTPS": {
-                  "description": "UseHTTPS enables HTTPS. Only used if ProxyEnabled is `true`.\nDefault: false",
+                  "description": "UseHTTPS enables HTTPS.\nDefault: false",
                   "type": "boolean"
                 }
               },
@@ -2972,6 +2964,10 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "set"
+            },
+            "useFIPSAgent": {
+              "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
+              "type": "boolean"
             }
           },
           "type": "object"

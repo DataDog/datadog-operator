@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -235,8 +236,19 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	if apiutils.BoolValue(config.UseFIPSAgent) {
+		// Add -fips suffix to each container image
+		for i, container := range manager.PodTemplateSpec().Spec.Containers {
+			// Note: if an image override is configured, this image tag will be overwritten
+			manager.PodTemplateSpec().Spec.Containers[i].Image = container.Image + defaulting.FIPSTagSuffix
+		}
+		for i, container := range manager.PodTemplateSpec().Spec.InitContainers {
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = container.Image + defaulting.FIPSTagSuffix
+		}
+	}
+
 	// Apply FIPS config
-	if config.FIPS != nil {
+	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
