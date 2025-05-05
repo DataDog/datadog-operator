@@ -63,7 +63,7 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 	return feature.DogstatsdIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *dogstatsdFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	dogstatsd := ddai.Spec.Features.Dogstatsd
 	f.owner = ddai

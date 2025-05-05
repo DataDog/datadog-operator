@@ -37,7 +37,7 @@ func (f *ebpfCheckFeature) ID() feature.IDType {
 	return feature.EBPFCheckIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *ebpfCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	if ddai.Spec.Features != nil && ddai.Spec.Features.EBPFCheck != nil && apiutils.BoolValue(ddai.Spec.Features.EBPFCheck.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{

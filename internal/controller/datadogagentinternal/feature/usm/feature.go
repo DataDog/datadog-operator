@@ -38,7 +38,7 @@ func (f *usmFeature) ID() feature.IDType {
 	return feature.USMIDType
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *usmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
 	mergeConfigs(&ddai.Spec, &ddai.Status)

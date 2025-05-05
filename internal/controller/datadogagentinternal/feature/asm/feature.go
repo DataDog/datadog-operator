@@ -50,7 +50,7 @@ func (f *asmFeature) shouldEnableASM(ddai *v1alpha1.DatadogAgentInternal) bool {
 	return apiutils.BoolValue(asm.SCA.Enabled) || apiutils.BoolValue(asm.Threats.Enabled) || apiutils.BoolValue(asm.IAST.Enabled)
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *asmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.RequiredComponents {
 	f.owner = ddai
 	asm := ddai.Spec.Features.ASM

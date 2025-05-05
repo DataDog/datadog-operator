@@ -121,7 +121,7 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 	return false
 }
 
-// Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
+// Configure is used to configure the feature from a v1alpha1.DatadogAgentInternal instance.
 func (f *apmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp feature.RequiredComponents) {
 	f.owner = ddai
 	apm := ddai.Spec.Features.APM

@@ -31,7 +31,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 	return nil
 }
 
-// BuildFeatures use to build a list features depending of the v2alpha1.DatadogAgent instance
+// BuildFeatures use to build a list features depending of the v1alpha1.DatadogAgentInternal instance
 func BuildFeatures(ddai *v1alpha1.DatadogAgentInternal, options *Options) ([]Feature, []Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
