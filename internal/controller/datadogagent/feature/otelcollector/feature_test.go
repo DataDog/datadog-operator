@@ -304,9 +304,14 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			// check env vars
 			wantEnvVars := []*corev1.EnvVar{}
+			wantEnvVarsOTel := []*corev1.EnvVar{}
 
 			if expectedEnvVars.agent_ipc_port.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  DDAgentIpcPort,
+					Value: expectedEnvVars.agent_ipc_port.value,
+				})
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
 					Name:  DDAgentIpcPort,
 					Value: expectedEnvVars.agent_ipc_port.value,
 				})
@@ -317,10 +322,18 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 					Name:  DDAgentIpcConfigRefreshInterval,
 					Value: expectedEnvVars.agent_ipc_refresh.value,
 				})
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
+					Name:  DDAgentIpcConfigRefreshInterval,
+					Value: expectedEnvVars.agent_ipc_refresh.value,
+				})
 			}
 
 			if expectedEnvVars.enabled.present {
 				wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+					Name:  DDOtelCollectorCoreConfigEnabled,
+					Value: expectedEnvVars.enabled.value,
+				})
+				wantEnvVarsOTel = append(wantEnvVarsOTel, &corev1.EnvVar{
 					Name:  DDOtelCollectorCoreConfigEnabled,
 					Value: expectedEnvVars.enabled.value,
 				})
@@ -345,7 +358,9 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 			}
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
+			otelAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.OtelAgent]
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
+			assert.True(t, apiutils.IsEqualStruct(otelAgentEnvVars, wantEnvVarsOTel), "OTel Agent envvars \ndiff = %s", cmp.Diff(otelAgentEnvVars, wantEnvVarsOTel))
 
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations
