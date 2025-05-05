@@ -6,6 +6,7 @@
 package defaults
 
 import (
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
@@ -135,76 +136,76 @@ const (
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
-func DefaultDatadogAgent(dda *v2alpha1.DatadogAgent) {
-	defaultGlobalConfig(&dda.Spec)
+func DefaultDatadogAgent(ddai *v1alpha1.DatadogAgentInternal) {
+	defaultGlobalConfig(&ddai.Spec)
 
-	defaultFeaturesConfig(&dda.Spec)
+	defaultFeaturesConfig(&ddai.Spec)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
-func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
-	if ddaSpec.Global == nil {
-		ddaSpec.Global = &v2alpha1.GlobalConfig{}
+func defaultGlobalConfig(ddaiSpec *v2alpha1.DatadogAgentSpec) {
+	if ddaiSpec.Global == nil {
+		ddaiSpec.Global = &v2alpha1.GlobalConfig{}
 	}
 
-	if ddaSpec.Global.Site == nil {
-		ddaSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
+	if ddaiSpec.Global.Site == nil {
+		ddaiSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
 	}
 
-	if ddaSpec.Global.Registry == nil {
-		switch *ddaSpec.Global.Site {
+	if ddaiSpec.Global.Registry == nil {
+		switch *ddaiSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
+			ddaiSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
+			ddaiSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
+			ddaiSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
+			ddaiSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
+			ddaiSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
 		}
 	}
 
-	if ddaSpec.Global.LogLevel == nil {
-		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+	if ddaiSpec.Global.LogLevel == nil {
+		ddaiSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
 	}
 
-	if ddaSpec.Global.ContainerStrategy == nil {
+	if ddaiSpec.Global.ContainerStrategy == nil {
 		dcs := defaultContainerStrategy
-		ddaSpec.Global.ContainerStrategy = &dcs
+		ddaiSpec.Global.ContainerStrategy = &dcs
 	}
 
-	if ddaSpec.Global.FIPS == nil {
-		ddaSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
+	if ddaiSpec.Global.FIPS == nil {
+		ddaiSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaiSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
 
-	if *ddaSpec.Global.FIPS.Enabled {
-		if ddaSpec.Global.FIPS.Image == nil {
-			ddaSpec.Global.FIPS.Image = &v2alpha1.AgentImageConfig{}
+	if *ddaiSpec.Global.FIPS.Enabled {
+		if ddaiSpec.Global.FIPS.Image == nil {
+			ddaiSpec.Global.FIPS.Image = &v2alpha1.AgentImageConfig{}
 		}
-		if ddaSpec.Global.FIPS.Image.Name == "" {
-			ddaSpec.Global.FIPS.Image.Name = defaultFIPSImageName
+		if ddaiSpec.Global.FIPS.Image.Name == "" {
+			ddaiSpec.Global.FIPS.Image.Name = defaultFIPSImageName
 		}
-		if ddaSpec.Global.FIPS.Image.Tag == "" {
-			ddaSpec.Global.FIPS.Image.Tag = defaultFIPSImageTag
+		if ddaiSpec.Global.FIPS.Image.Tag == "" {
+			ddaiSpec.Global.FIPS.Image.Tag = defaultFIPSImageTag
 		}
-		apiutils.DefaultStringIfUnset(&ddaSpec.Global.FIPS.LocalAddress, defaultFIPSLocalAddress)
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.Port, defaultFIPSPort)
-		apiutils.DefaultInt32IfUnset(&ddaSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
+		apiutils.DefaultStringIfUnset(&ddaiSpec.Global.FIPS.LocalAddress, defaultFIPSLocalAddress)
+		apiutils.DefaultInt32IfUnset(&ddaiSpec.Global.FIPS.Port, defaultFIPSPort)
+		apiutils.DefaultInt32IfUnset(&ddaiSpec.Global.FIPS.PortRange, defaultFIPSPortRange)
+		apiutils.DefaultBooleanIfUnset(&ddaiSpec.Global.FIPS.UseHTTPS, defaultFIPSUseHTTPS)
 	}
 
-	if ddaSpec.Global.Kubelet == nil {
-		ddaSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
+	if ddaiSpec.Global.Kubelet == nil {
+		ddaiSpec.Global.Kubelet = &v2alpha1.KubeletConfig{}
 	}
 
-	if ddaSpec.Global.Kubelet.PodResourcesSocketPath == "" {
-		ddaSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
+	if ddaiSpec.Global.Kubelet.PodResourcesSocketPath == "" {
+		ddaiSpec.Global.Kubelet.PodResourcesSocketPath = defaultKubeletPodResourcesSocketDir
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
+	apiutils.DefaultBooleanIfUnset(&ddaiSpec.Global.RunProcessChecksInCoreAgent, defaultRunProcessChecksInCoreAgent)
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.
