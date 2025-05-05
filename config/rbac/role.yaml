@@ -94,6 +94,7 @@ rules:
   - apiservices
   verbs:
   - '*'
+  - deletecollection
   - list
   - watch
 - apiGroups:
@@ -153,7 +154,6 @@ rules:
   - get
 - apiGroups:
   - authorization.k8s.io
-  - rbac.authorization.k8s.io
   - roles.rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
@@ -355,6 +355,33 @@ rules:
   verbs:
   - get
   - list
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - security.openshift.io
   resourceNames:
