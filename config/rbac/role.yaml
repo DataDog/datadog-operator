@@ -94,6 +94,7 @@ rules:
   - apiservices
   verbs:
   - '*'
+  - deletecollection
   - list
   - watch
 - apiGroups:
@@ -144,12 +145,6 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - apiservices
-  verbs:
-  - deletecollection
 - apiGroups:
   - authorization.k8s.io
   resources:
