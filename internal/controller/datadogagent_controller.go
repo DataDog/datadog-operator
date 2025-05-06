@@ -58,14 +58,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 
 // Finalizer (cluster-scoped resources)
@@ -171,8 +163,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=list;watch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=list;watch
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch
-// +kubebuilder:rbac:groups=apps,resources=replicationcontrollers,verbs=list;watch
-// +kubebuilder:rbac:groups=apps;extensions,resources=daemonsets;deployments;replicasets,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=replicationcontrollers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
@@ -183,7 +173,6 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
-// +kubebuilder:rbac:groups=extensions,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
 
 // Profiles
