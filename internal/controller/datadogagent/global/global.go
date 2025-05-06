@@ -236,6 +236,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Configure FIPS Agent image or FIPS proxy.
 	if apiutils.BoolValue(config.UseFIPSAgent) {
 		// Add -fips suffix to each container image
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
@@ -245,10 +246,7 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		for i, container := range manager.PodTemplateSpec().Spec.InitContainers {
 			manager.PodTemplateSpec().Spec.InitContainers[i].Image = container.Image + defaulting.FIPSTagSuffix
 		}
-	}
-
-	// Apply FIPS config
-	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	} else if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
