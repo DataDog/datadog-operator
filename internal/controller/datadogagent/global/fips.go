@@ -25,8 +25,7 @@ import (
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
-func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) {
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS
 
@@ -81,7 +80,6 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 			SubPath:   FIPSProxyCustomConfigFileName,
 			ReadOnly:  true,
 		}
-
 		// Add md5 hash annotation to component for custom config
 		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
 		if err != nil {

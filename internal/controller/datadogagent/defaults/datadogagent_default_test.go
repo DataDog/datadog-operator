@@ -102,14 +102,28 @@ func Test_defaultGlobal(t *testing.T) {
 			},
 		},
 		{
-			name: "test FIPS defaulting - disabled",
+			name: "test FIPS Agent defaulting - disabled",
+			ddaSpec: &v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{},
+			},
+			want: &v2alpha1.DatadogAgentSpec{
+				Global: &v2alpha1.GlobalConfig{
+					UseFIPSAgent: apiutils.NewBoolPointer(defaultUseFIPSAgent),
+					Site:         apiutils.NewStringPointer(defaultSite),
+					Registry:     apiutils.NewStringPointer(defaulting.DefaultImageRegistry),
+					LogLevel:     apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test FIPS proxy defaulting - disabled",
 			ddaSpec: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
 				Global: &v2alpha1.GlobalConfig{
 					FIPS: &v2alpha1.FIPSConfig{
-						Enabled: apiutils.NewBoolPointer(defaultFIPSEnabled),
+						Enabled: apiutils.NewBoolPointer(defaultFIPSProxyEnabled),
 					},
 					Site:     apiutils.NewStringPointer(defaultSite),
 					Registry: apiutils.NewStringPointer(defaulting.DefaultImageRegistry),

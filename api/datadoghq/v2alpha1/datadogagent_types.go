@@ -1473,6 +1473,11 @@ type GlobalConfig struct {
 	// +optional
 	ContainerStrategy *ContainerStrategyType `json:"containerStrategy,omitempty"`
 
+	// UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+	// Default: 'false'
+	// +optional
+	UseFIPSAgent *bool `json:"useFIPSAgent,omitempty"`
+
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
 	FIPS *FIPSConfig `json:"fips,omitempty"`
 
@@ -1858,6 +1863,7 @@ type FIPSConfig struct {
 	// Enable FIPS sidecar.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
 	// The container image of the FIPS sidecar.
 	// +optional
 	Image *AgentImageConfig `json:"image,omitempty"`

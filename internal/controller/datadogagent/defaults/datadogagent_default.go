@@ -125,7 +125,8 @@ const (
 	defaultHelmCheckEnabled       bool = false
 	defaultHelmCheckCollectEvents bool = false
 
-	defaultFIPSEnabled      bool   = false
+	defaultUseFIPSAgent     bool   = false
+	defaultFIPSProxyEnabled bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
 	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
 	defaultFIPSLocalAddress string = "127.0.0.1"
@@ -175,10 +176,12 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Global.ContainerStrategy = &dcs
 	}
 
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.UseFIPSAgent, defaultUseFIPSAgent)
+
 	if ddaSpec.Global.FIPS == nil {
 		ddaSpec.Global.FIPS = &v2alpha1.FIPSConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Global.FIPS.Enabled, defaultFIPSProxyEnabled)
 
 	if *ddaSpec.Global.FIPS.Enabled {
 		if ddaSpec.Global.FIPS.Image == nil {

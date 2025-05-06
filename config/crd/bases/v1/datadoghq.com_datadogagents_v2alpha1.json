@@ -2964,6 +2964,10 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "set"
+            },
+            "useFIPSAgent": {
+              "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
+              "type": "boolean"
             }
           },
           "type": "object"

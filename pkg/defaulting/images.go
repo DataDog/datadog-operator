@@ -36,6 +36,8 @@ const (
 	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
 	// JMXTagSuffix suffix tag for agent JMX images
 	JMXTagSuffix = "-jmx"
+	// FIPSTagSuffix suffix tag for agent FIPS images
+	FIPSTagSuffix = "-fips"
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"

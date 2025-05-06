@@ -1771,6 +1771,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(ContainerStrategyType)
 		**out = **in
 	}
+	if in.UseFIPSAgent != nil {
+		in, out := &in.UseFIPSAgent, &out.UseFIPSAgent
+		*out = new(bool)
+		**out = **in
+	}
 	if in.FIPS != nil {
 		in, out := &in.FIPS, &out.FIPS
 		*out = new(FIPSConfig)
