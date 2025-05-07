@@ -10,7 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -24,7 +24,7 @@ func agentSupportsRunInCoreAgent(dda *v2alpha1.DatadogAgent) bool {
 			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), ProcessConfigRunInCoreAgentMinVersion)
 		}
 	}
-	return utils.IsAboveMinVersion(defaulting.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion)
+	return utils.IsAboveMinVersion(images.AgentLatestVersion, ProcessConfigRunInCoreAgentMinVersion)
 }
 
 // OverrideProcessConfigRunInCoreAgent determines whether to respect the currentVal based on

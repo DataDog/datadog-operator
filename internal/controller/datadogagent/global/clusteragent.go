@@ -11,7 +11,4 @@ import (
 )
 
 func applyClusterAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent) {
-	// Registry is the image registry to use for all Agent images.
-	setImageRegistry(manager, dda, v2alpha1.ClusterAgentComponentName)
-
 }

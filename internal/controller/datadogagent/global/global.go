@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -236,20 +236,33 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
-	// Configure FIPS Agent image or FIPS proxy.
-	if apiutils.BoolValue(config.UseFIPSAgent) {
-		// Add -fips suffix to each container image
-		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			// Note: if an image override is configured, this image tag will be overwritten
-			manager.PodTemplateSpec().Spec.Containers[i].Image = container.Image + defaulting.FIPSTagSuffix
-		}
-		for i, container := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = container.Image + defaulting.FIPSTagSuffix
-		}
-	} else if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	// Update images with Global Registry and UseFIPSAgent configurations
+	updateContainerImages(config, manager)
+
+	// Apply FIPS proxy settings - UseFIPSAgent must be false
+	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
 	}
 
+}
+
+func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
+	image := &images.Image{}
+	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
+		image = images.FromString(container.Image)
+		image.WithRegistry(*config.Registry)
+		image.WithFIPS(*config.UseFIPSAgent)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		podTemplateManager.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+	}
+
+	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
+		image = images.FromString(container.Image)
+		image.WithRegistry(*config.Registry)
+		image.WithFIPS(*config.UseFIPSAgent)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		podTemplateManager.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+	}
 }
 
 func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.PodTemplateManagers) {
