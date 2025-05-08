@@ -7,7 +7,7 @@ metadata:
   namespace: default
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.9.1
+    helm.sh/chart: datadog-operator-2.9.2
     app.kubernetes.io/instance: operator-eks-addon
     app.kubernetes.io/version: "1.14.0"
     app.kubernetes.io/managed-by: eks-addon
@@ -20,7 +20,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogagents.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.7.0'
+    helm.sh/chart: 'datadogCRDs-2.6.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -4918,7 +4918,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogmetrics.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.7.0'
+    helm.sh/chart: 'datadogCRDs-2.6.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5046,7 +5046,7 @@ metadata:
     controller-gen.kubebuilder.io/version: v0.16.3
   name: datadogpodautoscalers.datadoghq.com
   labels:
-    helm.sh/chart: 'datadogCRDs-2.7.0'
+    helm.sh/chart: 'datadogCRDs-2.6.0'
     app.kubernetes.io/managed-by: eks-addon
     app.kubernetes.io/name: 'datadogCRDs'
     app.kubernetes.io/instance: 'operator-eks-addon'
@@ -5193,10 +5193,10 @@ spec:
                       default: All
                       description: |-
                         ApplyMode determines recommendations that should be applied by the controller:
-                        - All: Apply all recommendations (regular and manual).
+                        - All: Apply all recommendations (regular manual).
                         - Manual: Apply only manual recommendations (recommendations manually validated by user in the Datadog app).
                         - None: Prevent the controller to apply any recommendations.
-                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` and `Update` fields.
+                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `Upscale`, `Downscale` `Update` fields.
                       enum:
                         - All
                         - Manual
@@ -5215,7 +5215,7 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
                                 format: int32
                                 maximum: 1800
                                 minimum: 1
@@ -5281,7 +5281,7 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
                                 format: int32
                                 maximum: 1800
                                 minimum: 1
@@ -5349,10 +5349,10 @@ spec:
                   type: object
                 targets:
                   description: |-
-                    Targets are objectives to reach and maintain for the target resource.
+                    Targets are objectives to reach maintain for the target resource.
                     Default to a single target to maintain 80% POD CPU utilization.
                   items:
-                    description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
+                    description: DatadogPodAutoscalerObjective defines the objectives to reach maintain for the target workload.
                     properties:
                       containerResource:
                         description: ContainerResource allows to set a container-level resource objective.
@@ -5681,8 +5681,8 @@ spec:
                       description: |-
                         Mode determines recommendations that should be applied by the controller:
                         - Apply: Apply all recommendations.
-                        - Preview: Recommendations are received and visible through .Status, but the controller does not apply them.
-                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` and `Update` fields.
+                        - Preview: Recommendations are received visible through .Status, but the controller does not apply them.
+                        It's also possible to selectively deactivate upscale, downscale or update actions thanks to the `ScaleUp`, `ScaleDown` `Update` fields.
                       enum:
                         - Apply
                         - Preview
@@ -5700,7 +5700,7 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
                                 format: int32
                                 maximum: 1800
                                 minimum: 1
@@ -5756,7 +5756,7 @@ spec:
                               periodSeconds:
                                 description: |-
                                   PeriodSeconds specifies the window of time for which the policy should hold true.
-                                  PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
+                                  PeriodSeconds must be greater than zero less than or equal to 1800 (30 min).
                                 format: int32
                                 maximum: 1800
                                 minimum: 1
@@ -5866,10 +5866,10 @@ spec:
                   type: object
                 objectives:
                   description: |-
-                    Objectives are the objectives to reach and maintain for the target resource.
+                    Objectives are the objectives to reach maintain for the target resource.
                     Default to a single objective to maintain 80% POD CPU utilization.
                   items:
-                    description: DatadogPodAutoscalerObjective defines the objectives to reach and maintain for the target workload.
+                    description: DatadogPodAutoscalerObjective defines the objectives to reach maintain for the target workload.
                     properties:
                       containerResource:
                         description: ContainerResource allows to set a container-level resource objective.
@@ -6166,7 +6166,7 @@ metadata:
   name: operator-eks-addon-datadog-operator
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.9.1
+    helm.sh/chart: datadog-operator-2.9.2
     app.kubernetes.io/instance: operator-eks-addon
     app.kubernetes.io/version: "1.14.0"
     app.kubernetes.io/managed-by: eks-addon
@@ -6546,7 +6546,7 @@ metadata:
   namespace: default
   labels:
     app.kubernetes.io/name: datadog-operator
-    helm.sh/chart: datadog-operator-2.9.1
+    helm.sh/chart: datadog-operator-2.9.2
     app.kubernetes.io/instance: operator-eks-addon
     app.kubernetes.io/version: "1.14.0"
     app.kubernetes.io/managed-by: eks-addon

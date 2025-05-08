@@ -12,4 +12,4 @@ dependencies:
 - name: datadog-operator
   version: "=2.9.1"
   alias: datadog-operator
-  repository: file://../datadog-operator/
+  repository: file://./charts/datadog-operator/
