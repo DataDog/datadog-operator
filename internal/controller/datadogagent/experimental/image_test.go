@@ -44,7 +44,7 @@ func TestImageOverride(t *testing.T) {
 			imageOverrideConfig: `{"trace-agent":{"name":"override-image-tagged:1.2.3"}}`,
 			validateContainer: func(t *testing.T, container *v1.Container) {
 				// When using a _name_ that has both the name and tag specified, it replaces the original image entirely.
-				assert.Equal(t, "override-image-tagged:1.2.3", container.Image)
+				assert.Equal(t, "docker.io/datadog/override-image-tagged:1.2.3", container.Image)
 			},
 		},
 		{
@@ -76,7 +76,7 @@ func TestImageOverride(t *testing.T) {
 			validateContainer: func(t *testing.T, container *v1.Container) {
 				// When using a _name_ that has both the name and tag specified, it replaces the original image
 				// entirely... even if we also specify a tag.
-				assert.Equal(t, "override-image-tagged:1.2.3", container.Image)
+				assert.Equal(t, "docker.io/datadog/override-image-tagged:1.2.3", container.Image)
 			},
 		},
 		{

@@ -53,7 +53,7 @@ func TestGetLatestClusterAgentImage(t *testing.T) {
 	}
 }
 
-func TestNewImage(t *testing.T) {
+func Test_newImage(t *testing.T) {
 	type args struct {
 		registry string
 		name     string
@@ -125,8 +125,8 @@ func TestNewImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewImage("gcr.io/datadoghq", tt.args.name, tt.args.tag, tt.args.isJMX, tt.args.isFIPS); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewImage() = %v, want %v", got, tt.want)
+			if got := newImage("gcr.io/datadoghq", tt.args.name, tt.args.tag, tt.args.isJMX, tt.args.isFIPS); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("newImage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -381,6 +381,58 @@ func Test_OverrideAgentImage(t *testing.T) {
 				JMXEnabled: true,
 			},
 			want: "gcr.io/datadoghq/agent:latest-jmx",
+		},
+		{
+			name:         "image name is full name",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "docker.io/datadog/agent:latest",
+			},
+			want: "docker.io/datadog/agent:latest",
+		},
+		{
+			name:         "image name is full name, ignore tag",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "docker.io/datadog/agent:latest",
+				Tag:  "other-tag",
+			},
+			want: "docker.io/datadog/agent:latest",
+		},
+		{
+			name:         "image name is full name, ignore JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "docker.io/datadog/agent:latest",
+				JMXEnabled: true,
+			},
+			want: "docker.io/datadog/agent:latest",
+		},
+		{
+			name:         "image name is name:tag",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:latest",
+			},
+			want: "gcr.io/datadoghq/agent:latest",
+		},
+		{
+			name:         "image name is name:tag, ignore tag",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:latest",
+				Tag:  "other-tag",
+			},
+			want: "gcr.io/datadoghq/agent:latest",
+		},
+		{
+			name:         "image name is name:tag, ignore JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "agent:latest",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:latest",
 		},
 	}
 	for _, tt := range tests {

@@ -62,9 +62,9 @@ type Image struct {
 	isFIPS   bool
 }
 
-// NewImage return a new Image instance
+// newImage return a new Image instance
 // Assumes that tag suffixes have already been trimmed and booleans updated accordingly
-func NewImage(registry, name, tag string, isJMX bool, isFIPS bool) *Image {
+func newImage(registry, name, tag string, isJMX bool, isFIPS bool) *Image {
 	return &Image{
 		registry: registry,
 		name:     name,
@@ -74,44 +74,49 @@ func NewImage(registry, name, tag string, isJMX bool, isFIPS bool) *Image {
 	}
 }
 
-func (i *Image) WithRegistry(registry string) {
+func (i *Image) WithRegistry(registry string) *Image {
 	if registry == "" {
-		return
+		return i
 	}
 	i.registry = registry
+	return i
 }
 
-func (i *Image) WithTag(tag string) {
+func (i *Image) WithTag(tag string) *Image {
 	if tag == "" {
-		return
+		return i
 	}
 	i.tag = tag
+	return i
 }
 
-func (i *Image) WithName(name string) {
+func (i *Image) WithName(name string) *Image {
 	if name == "" {
-		return
+		return i
 	}
 	i.name = name
+	return i
 }
 
-func (i *Image) WithJMX(isJMX bool) {
+func (i *Image) WithJMX(isJMX bool) *Image {
 	i.isJMX = isJMX
+	return i
 }
 
-func (i *Image) WithFIPS(isFIPS bool) {
+func (i *Image) WithFIPS(isFIPS bool) *Image {
 	i.isFIPS = isFIPS
+	return i
 }
 
 // GetLatestAgentImage return the latest stable agent release version
 func GetLatestAgentImage() string {
-	image := NewImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false)
+	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false)
 	return image.ToString()
 }
 
 // GetLatestClusterAgentImage return the latest stable agent release version
 func GetLatestClusterAgentImage() string {
-	image := NewImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false)
+	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false)
 	return image.ToString()
 }
 
@@ -131,7 +136,7 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 		tag = strings.TrimSuffix(imageSpec.Tag, JMXTagSuffix)
 	}
 
-	img := NewImage(registry, imageSpec.Name, tag, imageSpec.JMXEnabled, false)
+	img := newImage(registry, imageSpec.Name, tag, imageSpec.JMXEnabled, false)
 
 	return img.ToString()
 }
@@ -141,10 +146,12 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 	image := FromString(currentImage)
 	overrideImage := fromImageConfig(overrideImageSpec)
 
-	image.WithName(overrideImage.name)
-	image.WithTag(overrideImage.tag)
-	image.WithJMX(overrideImage.isJMX)
-	image.WithFIPS(overrideImage.isFIPS)
+	image.WithRegistry(overrideImage.registry).
+		WithName(overrideImage.name).
+		WithTag(overrideImage.tag).
+		WithJMX(overrideImage.isJMX).
+		WithFIPS(overrideImage.isFIPS)
+
 	return image.ToString()
 }
 
@@ -181,23 +188,50 @@ func FromString(stringImage string) *Image {
 		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
 	}
 
-	return NewImage(registry, name, tag, isJMX, isFIPS)
+	return newImage(registry, name, tag, isJMX, isFIPS)
 }
 
+// fromImageConfig creates an Image instance from the AgentImageConfig spec object
+// We accept the imageConfig.name in the following formats:
+// - name
+// - name:tag
+// - registry/name:tag
+// (Notably, we do not accept "registry/name".)
+// Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
 func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
-	tag := imageConfig.Tag
+	registry := ""
+	imageName := imageConfig.Name
+	imageTag := imageConfig.Tag
 
-	// Check if this tag has JMX or FIPS suffixes
-	// JMX would be on the outside
-	isJMX := imageConfig.JMXEnabled || strings.HasSuffix(tag, JMXTagSuffix)
-	if isJMX {
-		tag = strings.TrimSuffix(tag, JMXTagSuffix)
+	nameContainsTag := false
+	isJMX := false
+	isFIPS := false
+
+	if strings.Contains(imageName, ":") {
+		nameContainsTag = true
+		splitRes := strings.SplitN(imageName, ":", 2)
+		imageName, imageTag = splitRes[0], splitRes[1]
+
+	}
+	if nameContainsTag && strings.Contains(imageName, "/") {
+		lastIdx := strings.LastIndex(imageName, "/")
+		registry = imageName[:lastIdx]
+		imageName = imageName[lastIdx+1:]
 	}
 
-	isFIPS := strings.HasSuffix(tag, FIPSTagSuffix)
-	if isFIPS {
-		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
+	if !nameContainsTag {
+		// Check if this tag has JMX or FIPS suffixes
+		// JMX would be on the outside
+		isJMX = imageConfig.JMXEnabled || strings.HasSuffix(imageTag, JMXTagSuffix)
+		if isJMX {
+			imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
+		}
+
+		isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
+		if isFIPS {
+			imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
+		}
 	}
 
-	return NewImage("", imageConfig.Name, tag, isJMX, isFIPS)
+	return newImage(registry, imageName, imageTag, isJMX, isFIPS)
 }
