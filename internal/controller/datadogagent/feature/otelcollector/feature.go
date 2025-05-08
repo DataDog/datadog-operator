@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -49,6 +50,9 @@ type otelCollectorFeature struct {
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
 
+	forceEnableLocalService bool
+	localServiceName        string
+
 	logger logr.Logger
 }
 
@@ -68,6 +72,11 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 		o.customConfig = dda.Spec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
+
+	if dda.Spec.Global.LocalService != nil {
+		o.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	}
+	o.localServiceName = constants.GetLocalAgentServiceName(dda)
 
 	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
 		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
@@ -163,6 +172,33 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 			return err
 		}
 	}
+
+	platformInfo := managers.Store().GetPlatformInfo()
+	internalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), o.forceEnableLocalService) {
+		otlpGrpcPort := &corev1.ServicePort{
+			Name:       "otlpgrpcport",
+			Port:       4317,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(4317),
+		}
+		otlpHttpPort := &corev1.ServicePort{
+			Name:       "otlphttpport",
+			Port:       4318,
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(4318),
+		}
+		if err := managers.ServiceManager().AddService(
+			o.localServiceName,
+			o.owner.GetNamespace(),
+			common.GetAgentLocalServiceSelector(o.owner),
+			[]corev1.ServicePort{*otlpGrpcPort, *otlpHttpPort},
+			&internalTrafficPolicy,
+		); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
