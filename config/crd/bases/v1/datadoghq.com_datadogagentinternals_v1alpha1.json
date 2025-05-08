@@ -5199,7 +5199,8 @@
                   "type": "string"
                 },
                 "description": "AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.",
-                "type": "object"
+                "type": "object",
+                "x-kubernetes-map-type": "granular"
               },
               "name": {
                 "description": "Name overrides the default name for the resource",
