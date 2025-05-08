@@ -62,11 +62,11 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, logger logr.Lo
 
 	// For all profiles, create DDAI objects
 	for _, profile := range profiles {
-		ddai, err = r.computeProfileMerge(ddai, &profile)
+		mergedDDAI, err := r.computeProfileMerge(ddai, &profile)
 		if err != nil {
 			return nil, err
 		}
-		ddais = append(ddais, ddai)
+		ddais = append(ddais, mergedDDAI)
 	}
 
 	return ddais, nil
@@ -77,14 +77,15 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	profileDDAI := ddai.DeepCopy()
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		// Clear owner reference since we want to tie GC to the profile
-		ddai.OwnerReferences = []metav1.OwnerReference{}
+		profileDDAI.OwnerReferences = []metav1.OwnerReference{}
 		profileDDAI.Spec = *profile.Spec.Config
 	}
 
 	// Add profile settings to "fake" DDAI
 	setProfileDDAIAffinity(profileDDAI, profile)
-	setProfileDDAIMeta(profileDDAI, profile, r.scheme)
-
+	if err := setProfileDDAIMeta(profileDDAI, profile, r.scheme); err != nil {
+		return nil, err
+	}
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
 		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)

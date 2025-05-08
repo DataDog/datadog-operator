@@ -210,3 +210,15 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 	}
 	return nil
 }
+
+// generateNewStatusFromDDA generates a new status from a DDA status.
+// If an existing DCA token is present, it is copied to the new status.
+func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) datadoghqv2alpha1.DatadogAgentStatus {
+	status := datadoghqv2alpha1.DatadogAgentStatus{}
+	if ddaStatus != nil && ddaStatus.ClusterAgent != nil && ddaStatus.ClusterAgent.GeneratedToken != "" {
+		status.ClusterAgent = &datadoghqv2alpha1.DeploymentStatus{
+			GeneratedToken: ddaStatus.ClusterAgent.GeneratedToken,
+		}
+	}
+	return status
+}

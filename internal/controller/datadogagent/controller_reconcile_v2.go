@@ -65,16 +65,18 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	ddais := []*datadoghqv1alpha1.DatadogAgentInternal{}
+	ddaStatusCopy := instance.Status.DeepCopy()
+	newDDAStatus := generateNewStatusFromDDA(ddaStatusCopy)
 
 	// Manage dependencies
 	if err := r.manageDDADependenciesWithDDAI(ctx, logger, instance); err != nil {
-		return result, err
+		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 
 	// Generate default DDAI object from DDA
 	ddai, err := r.generateDDAIFromDDA(instance)
 	if err != nil {
-		return result, err
+		return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 	}
 	ddais = append(ddais, ddai)
 
@@ -84,7 +86,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	if r.options.DatadogAgentProfileEnabled {
 		profileDDAIs, err := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
 		if err != nil {
-			return result, err
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
 		ddais = profileDDAIs
 	}
@@ -92,13 +94,20 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
 		if err := r.createOrUpdateDDAI(logger, ddai); err != nil {
-			return result, err
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
+
+		// Add DDAI status to DDA status
+		if err := r.addDDAIStatusToDDAStatus(logger, &newDDAStatus, ddai.ObjectMeta); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		}
+
+		// TODO: copy remote config status from DDA to DDAI
 	}
 
 	// Prevent the reconcile loop from stopping by requeueing the DDAI object after a period of time
 	result.RequeueAfter = defaultRequeuePeriod
-	return result, nil
+	return r.updateStatusIfNeededV2(logger, instance, &newDDAStatus, result, err, now)
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
