@@ -45,6 +45,7 @@ type otelCollectorFeature struct {
 	configMapName   string
 	ports           []*corev1.ContainerPort
 	coreAgentConfig coreAgentConfig
+	featureGates    *string
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -92,6 +93,10 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 		}
 	} else {
 		o.ports = dda.Spec.Features.OtelCollector.Ports
+	}
+
+	if dda.Spec.Features.OtelCollector.FeatureGates != nil {
+		o.featureGates = dda.Spec.Features.OtelCollector.FeatureGates
 	}
 
 	var reqComp feature.RequiredComponents
