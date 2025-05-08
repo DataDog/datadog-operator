@@ -7,12 +7,10 @@ package datadogagent
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
@@ -25,10 +23,6 @@ import (
 
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
 	var globFilter glob.Glob

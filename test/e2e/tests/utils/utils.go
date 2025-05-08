@@ -7,15 +7,16 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeClient "k8s.io/client-go/kubernetes"
+
+	"github.com/DataDog/datadog-operator/test/e2e/common"
 )
 
 func VerifyOperator(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface) {
@@ -28,15 +29,15 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 		LabelSelector: selector,
 		FieldSelector: "status.phase=Running",
 	})
-	assert.NoError(c, err)
+	require.NoError(c, err)
 	assert.NotNil(c, podsList)
 	assert.NotEmpty(c, podsList.Items)
-	assert.Equal(c, numPods, len(podsList.Items))
+	assert.Len(c, podsList.Items, numPods)
 }
 
 func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, selector string) {
 	nodesList, err := k8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	assert.NoError(c, err)
+	require.NoError(c, err)
 	assert.NotNil(c, nodesList)
 	assert.NotEmpty(c, nodesList.Items)
 	VerifyNumPodsForSelector(t, c, namespace, k8sClient, len(nodesList.Items), selector)
@@ -72,7 +73,7 @@ func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
 				assert.Greater(c, totalMetricSamples, float64(0))
 			}
 		} else {
-			assert.True(c, found, fmt.Sprintf("Check %s not found or not yet running.", checkName))
+			assert.True(c, found, "Check %s not found or not yet running.", checkName)
 		}
 	}
 }
@@ -83,29 +84,30 @@ func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
 
 	tailedIntegrations := 0
 	if logsJson != nil {
-		agentLogs, ok := logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
+		var ok bool
+		agentLogs, ok = logsJson["logsStats"].(map[string]interface{})["integrations"].([]interface{})
 		assert.True(c, ok)
-		assert.Greater(c, len(agentLogs), 0)
+		assert.NotEmpty(c, agentLogs)
 		for _, log := range agentLogs {
-			if integration, ok := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); ok {
+			if integration, integrationOk := log.(map[string]interface{})["sources"].([]interface{})[0].(map[string]interface{}); integrationOk {
 				messages, exists := integration["messages"].([]interface{})
 				assert.True(c, exists)
-				assert.Greater(c, len(messages), 0)
+				assert.NotEmpty(c, messages)
 
-				message, ok := messages[0].(string)
-				assert.True(c, ok)
-				assert.Greater(c, len(message), 0)
+				message, msgOk := messages[0].(string)
+				assert.True(c, msgOk)
+				assert.NotEmpty(c, message)
 				num, _ := strconv.Atoi(string(message[0]))
 				if num > 0 && strings.Contains(message, "files tailed") {
 					tailedIntegrations++
 				}
 			} else {
-				assert.True(c, ok, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
+				assert.True(c, integrationOk, "Failed to get sources from logs. Possible causes: missing 'sources' field, empty array, or incorrect data format.")
 			}
 		}
 	}
 	totalIntegrations := len(agentLogs)
-	assert.True(c, tailedIntegrations >= totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
+	assert.GreaterOrEqual(c, tailedIntegrations, totalIntegrations*80/100, "Expected at least 80%% of integrations to be tailed, got %d/%d", tailedIntegrations, totalIntegrations)
 }
 
 // isInternalTrafficPolicySupported checks if the internalTrafficPolicy field is supported in the current Kubernetes version.

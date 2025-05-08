@@ -6,9 +6,10 @@
 package v1alpha1
 
 import (
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 )
 
 // spec:
