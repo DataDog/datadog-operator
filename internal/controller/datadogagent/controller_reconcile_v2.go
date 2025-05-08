@@ -84,8 +84,8 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// TODO: introspection
 	sendProfileEnabledMetric(r.options.DatadogAgentProfileEnabled)
 	if r.options.DatadogAgentProfileEnabled {
-		profileDDAIs, err := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
-		if err != nil {
+		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
+		if e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
 		ddais = profileDDAIs
@@ -93,13 +93,13 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
-		if err := r.createOrUpdateDDAI(logger, ddai); err != nil {
+		if e := r.createOrUpdateDDAI(logger, ddai); e != nil {
 			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
 		}
 
 		// Add DDAI status to DDA status
-		if err := r.addDDAIStatusToDDAStatus(logger, &newDDAStatus, ddai.ObjectMeta); err != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+		if e := r.addDDAIStatusToDDAStatus(logger, &newDDAStatus, ddai.ObjectMeta); e != nil {
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// TODO: copy remote config status from DDA to DDAI

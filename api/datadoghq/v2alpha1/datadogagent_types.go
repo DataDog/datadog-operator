@@ -1666,7 +1666,7 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty" patchStrategy:"merge" patchMergeKey:"name"`
+	Env []corev1.EnvVar `json:"env,omitempty" patchMergeKey:"name" patchStrategy:"merge"`
 
 	// EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables.
 	// Priority is env > envFrom.
