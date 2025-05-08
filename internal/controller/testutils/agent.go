@@ -291,8 +291,8 @@ func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2al
 	)
 }
 
-// NewDatadogAgentWithOTLP returns an agent with OTLP enabled
-func NewDatadogAgentWithOTLP(namespace string, name string) v2alpha1.DatadogAgent {
+// NewDatadogAgentWithOTLPReceiver returns an agent with OTLP receiver enabled
+func NewDatadogAgentWithOTLPReceiver(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
 		namespace,
 		name,
@@ -307,6 +307,21 @@ func NewDatadogAgentWithOTLP(namespace string, name string) v2alpha1.DatadogAgen
 							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
+				},
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithOTLPLogs returns an agent with OTLP logs enabled
+func NewDatadogAgentWithOTLPLogs(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			OTLP: &v2alpha1.OTLPFeatureConfig{
+				Logs: v2alpha1.OTLPLogsConfig{
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
