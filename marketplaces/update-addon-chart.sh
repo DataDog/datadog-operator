@@ -48,5 +48,5 @@ sed -i '' "s#{{- end -}}{{- end -}}#{{- end -}}#g" ./charts/operator-eks-addon/c
 sed -i '' 's#gcr.io/datadoghq/operator#709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator#g' ./charts/operator-eks-addon/charts/datadog-operator/values.yaml
 
 # template the chart with default values
-helm template operator-eks-addon ./charts/operator-eks-addon > addon_manifest.yaml
+helm template operator-eks-addon ./charts/operator-eks-addon -n datadog-agent > addon_manifest.yaml
 echo "Chart updated and templated to addon_manifest.yaml"

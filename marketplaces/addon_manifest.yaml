@@ -4,7 +4,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: operator-eks-addon-datadog-operator
-  namespace: default
+  namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
     helm.sh/chart: datadog-operator-2.9.2
@@ -6536,14 +6536,14 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: operator-eks-addon-datadog-operator
-    namespace: default
+    namespace: datadog-agent
 ---
 # Source: operator-eks-addon/charts/datadog-operator/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: operator-eks-addon-datadog-operator
-  namespace: default
+  namespace: datadog-agent
   labels:
     app.kubernetes.io/name: datadog-operator
     helm.sh/chart: datadog-operator-2.9.2
