@@ -144,13 +144,18 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 // OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
 func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentImageConfig) string {
 	image := FromString(currentImage)
-	overrideImage := fromImageConfig(overrideImageSpec)
+	overrideImage, nameContainsTag := fromImageConfig(overrideImageSpec)
 
 	image.WithRegistry(overrideImage.registry).
 		WithName(overrideImage.name).
 		WithTag(overrideImage.tag).
-		WithJMX(overrideImage.isJMX).
-		WithFIPS(overrideImage.isFIPS)
+		WithJMX(overrideImage.isJMX)
+
+	// FIPS suffix is appended in the Global spec processing code.
+	// If the tag is not present in the override Image name, then FIPS suffix should be preserved from the current Image
+	if nameContainsTag {
+		image.WithFIPS(image.isFIPS)
+	}
 
 	return image.ToString()
 }
@@ -198,7 +203,7 @@ func FromString(stringImage string) *Image {
 // - registry/name:tag
 // (Notably, we do not accept "registry/name".)
 // Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
-func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
+func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) (*Image, bool) {
 	registry := ""
 	imageName := imageConfig.Name
 	imageTag := imageConfig.Tag
@@ -219,13 +224,12 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 	}
 
 	if !nameContainsTag {
-		// Check if this tag has JMX or FIPS suffixes
-		// JMX would be on the outside
+		// Check if this tag has JMX suffix
 		isJMX = imageConfig.JMXEnabled || strings.HasSuffix(imageTag, JMXTagSuffix)
 		if isJMX {
 			imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
 		}
 	}
 
-	return newImage(registry, imageName, imageTag, isJMX, false)
+	return newImage(registry, imageName, imageTag, isJMX, false), nameContainsTag
 }

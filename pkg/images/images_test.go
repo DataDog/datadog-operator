@@ -335,7 +335,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 		want              string
 	}{
 		{
-			name:         "change name",
+			name:         "override image name",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "custom-agent",
@@ -344,7 +344,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/custom-agent:7.64.0",
 		},
 		{
-			name:         "change tag",
+			name:         "override image tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent",
@@ -353,7 +353,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:latest",
 		},
 		{
-			name:         "with jmx",
+			name:         "override image with jmx suffix",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
@@ -363,7 +363,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:7.64.0-jmx",
 		},
 		{
-			name:         "with jmx and tag suffix",
+			name:         "override image with jmx and tag suffix",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
@@ -373,7 +373,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:7.64.0-jmx",
 		},
 		{
-			name:         "change tag with jmx",
+			name:         "override image tag and jmx suffix",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent",
@@ -383,7 +383,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
-			name:         "image name is full name",
+			name:         "override image name is full name",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "docker.io/datadog/agent:latest",
@@ -391,7 +391,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "docker.io/datadog/agent:latest",
 		},
 		{
-			name:         "image name is full name, ignore tag",
+			name:         "override image name is full name, ignore tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "docker.io/datadog/agent:latest",
@@ -400,7 +400,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "docker.io/datadog/agent:latest",
 		},
 		{
-			name:         "image name is full name, ignore JMX",
+			name:         "override image name is full name, ignore JMX",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "docker.io/datadog/agent:latest",
@@ -409,7 +409,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "docker.io/datadog/agent:latest",
 		},
 		{
-			name:         "image name is name:tag",
+			name:         "override image name is name:tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent:latest",
@@ -417,7 +417,7 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:latest",
 		},
 		{
-			name:         "image name is name:tag, ignore tag",
+			name:         "override image name is name:tag, ignore tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name: "agent:latest",
@@ -426,13 +426,21 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "gcr.io/datadoghq/agent:latest",
 		},
 		{
-			name:         "image name is name:tag, ignore JMX",
+			name:         "override image name is name:tag, ignore JMX",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
 				Name:       "agent:latest",
 				JMXEnabled: true,
 			},
 			want: "gcr.io/datadoghq/agent:latest",
+		},
+		{
+			name:         "current image includes FIPS suffix and override enables jmx",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
 		},
 	}
 	for _, tt := range tests {
