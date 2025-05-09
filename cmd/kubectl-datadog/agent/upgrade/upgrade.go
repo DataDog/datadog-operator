@@ -17,14 +17,14 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var (
 	image          string
 	latest         bool
-	latestImage    = defaulting.GetLatestAgentImage()
+	latestImage    = images.GetLatestAgentImage()
 	upgradeExample = `
   # upgrade the version of the datadog agent to known release (%[2]s)
   %[1]s upgrade --latest
@@ -60,7 +60,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "upgrade [flags]",
 		Short:        "Upgrade the Datadog Agent version",
-		Example:      fmt.Sprintf(upgradeExample, "kubectl datadog agent", defaulting.AgentLatestVersion),
+		Example:      fmt.Sprintf(upgradeExample, "kubectl datadog agent", images.AgentLatestVersion),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {
@@ -74,7 +74,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&image, "image", "i", "", "The image of the Datadog Agent")
-	cmd.Flags().BoolVarP(&latest, "latest", "l", false, fmt.Sprintf("Upgrade to %s", defaulting.GetLatestAgentImage()))
+	cmd.Flags().BoolVarP(&latest, "latest", "l", false, fmt.Sprintf("Upgrade to %s", images.GetLatestAgentImage()))
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 

@@ -11,8 +11,8 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 type imageOverrides map[string]imageOverride
@@ -55,7 +55,7 @@ func overrideImage(currentImg string, overrideImg imageOverride) string {
 		Tag:  overrideImg.Tag,
 	}
 
-	return common.OverrideAgentImage(currentImg, overrideImgConfig)
+	return images.OverrideAgentImage(currentImg, overrideImgConfig)
 }
 
 func applyExperimentalImageOverrides(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.PodTemplateManagers) {
