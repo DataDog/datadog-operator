@@ -205,7 +205,6 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 
 	nameContainsTag := false
 	isJMX := false
-	isFIPS := false
 
 	if strings.Contains(imageName, ":") {
 		nameContainsTag = true
@@ -226,12 +225,7 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 		if isJMX {
 			imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
 		}
-
-		isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
-		if isFIPS {
-			imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
-		}
 	}
 
-	return newImage(registry, imageName, imageTag, isJMX, isFIPS)
+	return newImage(registry, imageName, imageTag, isJMX, false)
 }
