@@ -9,7 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
@@ -128,7 +128,7 @@ const (
 	defaultUseFIPSAgent     bool   = false
 	defaultFIPSProxyEnabled bool   = false
 	defaultFIPSImageName    string = "fips-proxy"
-	defaultFIPSImageTag     string = defaulting.FIPSProxyLatestVersion
+	defaultFIPSImageTag     string = images.FIPSProxyLatestVersion
 	defaultFIPSLocalAddress string = "127.0.0.1"
 	defaultFIPSPort         int32  = 9803
 	defaultFIPSPortRange    int32  = 15
@@ -155,15 +155,15 @@ func defaultGlobalConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 	if ddaSpec.Global.Registry == nil {
 		switch *ddaSpec.Global.Site {
 		case defaultEuropeSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultEuropeImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultEuropeImageRegistry)
 		case defaultAsiaSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAsiaImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAsiaImageRegistry)
 		case defaultAzureSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultAzureImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultAzureImageRegistry)
 		case defaultGovSite:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultGovImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultGovImageRegistry)
 		default:
-			ddaSpec.Global.Registry = apiutils.NewStringPointer(defaulting.DefaultImageRegistry)
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(images.DefaultImageRegistry)
 		}
 	}
 

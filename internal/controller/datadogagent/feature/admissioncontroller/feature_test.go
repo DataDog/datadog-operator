@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
-	defaulting "github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
@@ -111,7 +111,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding global registry",
@@ -122,7 +122,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", defaulting.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "globalRegistry", "globalRegistry", "agent", images.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding both sidecar and global registry",
@@ -134,7 +134,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", defaulting.AgentLatestVersion, false, false)),
+				sidecarInjectionWantFunc("", "globalRegistry", "sidecarRegistry", "agent", images.AgentLatestVersion, false, false)),
 		},
 		{
 			Name: "Admission Controller enabled with sidecar injection adding test sidecar image and tag",
@@ -194,7 +194,7 @@ func Test_admissionControllerFeature_Configure(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
-				sidecarInjectionWantFunc("", "", "", "agent", defaulting.AgentLatestVersion, true, true)),
+				sidecarInjectionWantFunc("", "", "", "agent", images.AgentLatestVersion, true, true)),
 		},
 	}
 
