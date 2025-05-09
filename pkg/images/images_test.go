@@ -442,6 +442,15 @@ func Test_OverrideAgentImage(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
 		},
+		{
+			name:         "current image includes FIPS suffix and override also includes FIPS suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "agent:7.65.0-fips",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-fips",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

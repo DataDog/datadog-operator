@@ -144,7 +144,7 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 // OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
 func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentImageConfig) string {
 	image := FromString(currentImage)
-	overrideImage, nameContainsTag := fromImageConfig(overrideImageSpec)
+	overrideImage, overrideNameContainsTag := fromImageConfig(overrideImageSpec)
 
 	image.WithRegistry(overrideImage.registry).
 		WithName(overrideImage.name).
@@ -152,9 +152,10 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 		WithJMX(overrideImage.isJMX)
 
 	// FIPS suffix is appended in the Global spec processing code.
-	// If the tag is not present in the override Image name, then FIPS suffix should be preserved from the current Image
-	if nameContainsTag {
-		image.WithFIPS(image.isFIPS)
+	// If the tag is present in the override Image name, then the FIPS suffix should never be added.
+	// Otherwise the FIPS suffix should be preserved from the current Image (implicit)
+	if overrideNameContainsTag {
+		image.WithFIPS(false)
 	}
 
 	return image.ToString()
@@ -172,6 +173,7 @@ func (i *Image) ToString() string {
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
 }
 
+// FromString translates a string Image in the format registry/name:tag to an Image object
 func FromString(stringImage string) *Image {
 	splitImg := strings.Split(stringImage, "/")
 	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
