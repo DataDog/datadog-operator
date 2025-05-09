@@ -1817,7 +1817,7 @@ spec:
                         enabled:
                           description: |-
                             Enabled enables the OTel Agent.
-                            Default: true
+                            Default: false
                           type: boolean
                         ports:
                           description: |-
@@ -9155,7 +9155,7 @@ spec:
                             enabled:
                               description: |-
                                 Enabled enables the OTel Agent.
-                                Default: true
+                                Default: false
                               type: boolean
                             ports:
                               description: |-

@@ -1433,7 +1433,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables the OTel Agent. Default: true",
+							Description: "Enabled enables the OTel Agent. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
