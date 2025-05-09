@@ -22,6 +22,8 @@ const (
 	// DefaultProvider Default provider name
 	DefaultProvider = "default"
 
+	TalosProvider = "talos"
+
 	// GKE provider types: https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
 	// GKECosType is the Container-Optimized OS node image offered by GKE
 	GKECosType = "cos"
@@ -39,14 +41,18 @@ var providerValueAllowlist = map[string]struct{}{
 }
 
 // determineProvider creates a Provider based on a map of labels
-func determineProvider(labels map[string]string) string {
-	if len(labels) > 0 {
+func determineProvider(node *corev1.Node) string {
+	if len(node.Labels) > 0 {
 		// GKE
-		if val, ok := labels[GKEProviderLabel]; ok {
+		if val, ok := node.Labels[GKEProviderLabel]; ok {
 			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
 				return provider
 			}
 		}
+	}
+
+	if strings.Contains(node.Status.NodeInfo.OSImage, "Talos") {
+		return TalosProvider
 	}
 
 	return DefaultProvider
@@ -183,7 +189,7 @@ func GetAgentNameWithProvider(overrideDSName, provider string) string {
 func GetProviderListFromNodeList(nodeList []corev1.Node, logger logr.Logger) map[string]struct{} {
 	providerList := make(map[string]struct{})
 	for _, node := range nodeList {
-		provider := determineProvider(node.Labels)
+		provider := determineProvider(&node)
 		if _, ok := providerList[provider]; !ok {
 			providerList[provider] = struct{}{}
 			logger.V(1).Info("New provider detected", "provider", provider)
