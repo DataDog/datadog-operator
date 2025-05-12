@@ -791,7 +791,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 // +k8s:openapi-gen=true
 type OtelCollectorFeatureConfig struct {
 	// Enabled enables the OTel Agent.
-	// Default: true
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
