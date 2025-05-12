@@ -1853,7 +1853,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the OTel Agent.\nDefault: true",
+                  "description": "Enabled enables the OTel Agent.\nDefault: false",
                   "type": "boolean"
                 },
                 "ports": {
@@ -9112,7 +9112,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the OTel Agent.\nDefault: true",
+                      "description": "Enabled enables the OTel Agent.\nDefault: false",
                       "type": "boolean"
                     },
                     "ports": {
