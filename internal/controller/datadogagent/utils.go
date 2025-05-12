@@ -7,13 +7,18 @@ package datadogagent
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	goruntime "runtime"
 	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
@@ -128,4 +133,33 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 	}
 
 	return apiutils.NewInt32Pointer(*newReplicas)
+}
+
+// getDDAICRDFromConfig is only used in tests
+//
+//lint:ignore U1000
+func getDDAICRDFromConfig(sch *runtime.Scheme) (*apiextensionsv1.CustomResourceDefinition, error) {
+	_, filename, _, ok := goruntime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("unable to get caller")
+	}
+	path := filepath.Join(filepath.Dir(filename), "..", "..", "..", "config", "crd", "bases", "v1", "datadoghq.com_datadogagentinternals.yaml")
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	codecs := serializer.NewCodecFactory(sch)
+	decoder := codecs.UniversalDeserializer()
+	obj, _, err := decoder.Decode(body, nil, &apiextensionsv1.CustomResourceDefinition{})
+	if err != nil {
+		return nil, err
+	}
+
+	if crd, ok := obj.(*apiextensionsv1.CustomResourceDefinition); ok {
+		return crd, nil
+	}
+
+	return nil, fmt.Errorf("decoded object is not a CustomResourceDefinition")
 }

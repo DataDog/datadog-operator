@@ -9,11 +9,15 @@ import (
 	"fmt"
 	"os"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -74,4 +78,51 @@ func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
 		}
 	}
 	return false
+}
+
+func SetGlobalFromDDA(dda *v2alpha1.DatadogAgent, ddaiGlobal *v2alpha1.GlobalConfig) {
+	setCredentialsFromDDA(dda, ddaiGlobal)
+	setDCATokenFromDDA(dda, ddaiGlobal)
+}
+
+// setCredentialsFromDDA sets credentials in the DDAI based on the DDA
+// ddaiGlobal is copied from the DDA's global config
+func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
+	// Use new credentials struct so we don't keep plain text credentials from the DDA
+	newCredentials := &v2alpha1.DatadogCredentials{
+		APISecret: &v2alpha1.SecretConfig{
+			SecretName: secrets.GetDefaultCredentialsSecretName(dda),
+			KeyName:    v2alpha1.DefaultAPIKeyKey,
+		},
+	}
+	// Prioritize existing secret
+	if isValidSecretConfig(ddaiGlobal.Credentials.APISecret) {
+		newCredentials.APISecret = ddaiGlobal.Credentials.APISecret
+	}
+
+	// App key is optional so it may not be set
+	if ddaiGlobal.Credentials.AppSecret != nil || ddaiGlobal.Credentials.AppKey != nil {
+		newCredentials.AppSecret = &v2alpha1.SecretConfig{
+			SecretName: secrets.GetDefaultCredentialsSecretName(dda),
+			KeyName:    v2alpha1.DefaultAPPKeyKey,
+		}
+		// Prioritize existing secret
+		if isValidSecretConfig(ddaiGlobal.Credentials.AppSecret) {
+			newCredentials.AppSecret = ddaiGlobal.Credentials.AppSecret
+		}
+	}
+	ddaiGlobal.Credentials = newCredentials
+}
+
+func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
+	// Use existing ClusterAgentTokenSecret if already set
+	if isValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
+		return
+	}
+
+	// Otherwise use default secret name and key since a token will be generated in the global dependencies
+	ddaiGlobal.ClusterAgentTokenSecret = &v2alpha1.SecretConfig{
+		SecretName: secrets.GetDefaultDCATokenSecretName(dda),
+		KeyName:    common.DefaultTokenKey,
+	}
 }

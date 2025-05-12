@@ -174,13 +174,13 @@ func OverrideFromProfile(profile *v1alpha1.DatadogAgentProfile) v2alpha1.Datadog
 
 	profileComponentOverride := v2alpha1.DatadogAgentComponentOverride{
 		Name:     &overrideDSName,
-		Affinity: affinityOverride(profile),
+		Affinity: AffinityOverride(profile),
 		Labels:   labelsOverride(profile),
 	}
 
 	if !IsDefaultProfile(profile.Namespace, profile.Name) && profile.Spec.Config != nil {
 		// We only support overrides for the node agent
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
 			profileComponentOverride.Containers = containersOverride(nodeAgentOverride)
 			profileComponentOverride.PriorityClassName = nodeAgentOverride.PriorityClassName
 			profileComponentOverride.RuntimeClassName = nodeAgentOverride.RuntimeClassName
@@ -218,7 +218,7 @@ func defaultProfile() v1alpha1.DatadogAgentProfile {
 	}
 }
 
-func affinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
+func AffinityOverride(profile *v1alpha1.DatadogAgentProfile) *v1.Affinity {
 	if IsDefaultProfile(profile.Namespace, profile.Name) {
 		return affinityOverrideForDefaultProfile()
 	}
@@ -300,7 +300,7 @@ func podAntiAffinityOverride() *v1.PodAntiAffinity {
 	}
 }
 
-func containersOverride(nodeAgentOverride *v1alpha1.Override) map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
+func containersOverride(nodeAgentOverride *v2alpha1.DatadogAgentComponentOverride) map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer {
 	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
@@ -335,7 +335,7 @@ func labelsOverride(profile *v1alpha1.DatadogAgentProfile) map[string]string {
 	labels := map[string]string{}
 
 	if profile.Spec.Config != nil {
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
 			for labelName, labelVal := range nodeAgentOverride.Labels {
 				labels[labelName] = labelVal
 			}
@@ -471,14 +471,14 @@ func CreateStrategyEnabled() bool {
 
 // GetMaxUnavailable gets the maxUnavailable value as in int.
 // Priority is DAP > DDA > Kubernetes default value
-func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
+func GetMaxUnavailable(logger logr.Logger, ddaSpec *v2alpha1.DatadogAgentSpec, profile *v1alpha1.DatadogAgentProfile, numNodes int, edsOptions *agent.ExtendedDaemonsetOptions) int {
 	// Kubernetes default for DaemonSet MaxUnavailable is 1
 	// https://github.com/kubernetes/kubernetes/blob/4aca09bc0c45acc69cfdb425d1eea8818eee04d9/pkg/apis/apps/v1/defaults.go#L87
 	defaultMaxUnavailable := 1
 
 	// maxUnavailable from profile
 	if profile.Spec.Config != nil {
-		if nodeAgentOverride, ok := profile.Spec.Config.Override[v1alpha1.NodeAgentComponentName]; ok {
+		if nodeAgentOverride, ok := profile.Spec.Config.Override[v2alpha1.NodeAgentComponentName]; ok {
 			if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
 				numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
 				if err != nil {
@@ -491,7 +491,7 @@ func GetMaxUnavailable(logger logr.Logger, dda *v2alpha1.DatadogAgent, profile *
 	}
 
 	// maxUnavilable from DDA
-	if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+	if nodeAgentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if nodeAgentOverride.UpdateStrategy != nil && nodeAgentOverride.UpdateStrategy.RollingUpdate != nil {
 			numToScale, err := intstr.GetScaledValueFromIntOrPercent(nodeAgentOverride.UpdateStrategy.RollingUpdate.MaxUnavailable, numNodes, true)
 			if err != nil {

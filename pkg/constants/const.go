@@ -67,6 +67,8 @@ const (
 	MD5AgentDeploymentProviderLabelKey = "agent.datadoghq.com/provider"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
+	// MD5DDAIDeploymentAnnotationKey annotation key is used on a DatadogAgentInternal resource to identify if changes have been made to the spec.
+	MD5DDAIDeploymentAnnotationKey = "agent.datadoghq.com/ddaispechash"
 	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
 	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
 )
