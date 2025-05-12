@@ -18,6 +18,7 @@ import (
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
@@ -76,16 +77,16 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		// Clear owner reference since we want to tie GC to the profile
-		profileDDAI.OwnerReferences = []metav1.OwnerReference{}
-		profileDDAI.Spec = *profile.Spec.Config
+		// Clear owner reference for ddai since we want to tie GC to the profile
+		// We don't update the actual ddai object spec in k8s
+		ddai.OwnerReferences = []metav1.OwnerReference{}
 	}
-
 	// Add profile settings to "fake" DDAI
-	setProfileDDAIAffinity(profileDDAI, profile)
+	setProfileSpec(profileDDAI, profile)
 	if err := setProfileDDAIMeta(profileDDAI, profile, r.scheme); err != nil {
 		return nil, err
 	}
+
 	crd := &apiextensionsv1.CustomResourceDefinition{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
 		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
@@ -108,6 +109,23 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 		return nil, err
 	}
 	return typedObj, nil
+}
+
+func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		ddai.Spec = *profile.Spec.Config
+		// DCA and CCR are auto disabled for user created profiles
+		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
+		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
+	}
+	setProfileDDAIAffinity(ddai, profile)
+}
+
+func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
+	if _, ok := ddai.Spec.Override[componentName]; !ok {
+		ddai.Spec.Override[componentName] = &v2alpha1.DatadogAgentComponentOverride{}
+	}
+	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
 }
 
 func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
