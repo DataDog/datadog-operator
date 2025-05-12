@@ -15,7 +15,7 @@ package upgrade
 // 	commonv1 "github.com/DataDog/datadog-operator/api/datadoghq/common/v1"
 // 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 // 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-// 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+// 	"github.com/DataDog/datadog-operator/pkg/images"
 
 // 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 // 	"k8s.io/apimachinery/pkg/types"
@@ -46,7 +46,7 @@ package upgrade
 // 				_ = c.Create(context.TODO(), dd)
 // 				return dd
 // 			},
-// 			image:   defaulting.GetLatestClusterAgentImage(),
+// 			image:   images.GetLatestClusterAgentImage(),
 // 			wantErr: false,
 // 			wantFunc: func(c client.Client, image string) error {
 // 				dd := &datadoghqv1alpha1.DatadogAgent{}

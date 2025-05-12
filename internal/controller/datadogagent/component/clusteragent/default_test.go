@@ -10,7 +10,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
@@ -83,7 +83,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 		Containers: []corev1.Container{
 			{
 				Name:      "cluster-agent",
-				Image:     defaulting.GetLatestClusterAgentImage(),
+				Image:     images.GetLatestClusterAgentImage(),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{

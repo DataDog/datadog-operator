@@ -11,9 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
@@ -29,29 +27,6 @@ func getURLEndpoint(dda *v2alpha1.DatadogAgent) string {
 	if dda.Spec.Global.Endpoint != nil && dda.Spec.Global.Endpoint.URL != nil {
 		return *dda.Spec.Global.Endpoint.URL
 	}
-	return ""
-}
-
-func setImageRegistry(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, componentName v2alpha1.ComponentName) string {
-	// Registry is defaulted
-	if *dda.Spec.Global.Registry != defaulting.DefaultImageRegistry {
-		image := defaulting.DefaultAgentImageName
-		version := defaulting.AgentLatestVersion
-		if componentName == v2alpha1.ClusterAgentComponentName {
-			image = defaulting.DefaultClusterAgentImageName
-			version = defaulting.ClusterAgentLatestVersion
-		}
-		fullImage := fmt.Sprintf("%s/%s:%s", *dda.Spec.Global.Registry, image, version)
-
-		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[idx].Image = fullImage
-		}
-
-		for idx := range manager.PodTemplateSpec().Spec.Containers {
-			manager.PodTemplateSpec().Spec.Containers[idx].Image = fullImage
-		}
-	}
-
 	return ""
 }
 

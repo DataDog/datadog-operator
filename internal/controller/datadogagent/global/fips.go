@@ -15,12 +15,12 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -54,7 +54,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	// Configure FIPS container
 	fipsContainer := getFIPSProxyContainer(fipsConfig)
 
-	image := common.GetImage(fipsConfig.Image, globalConfig.Registry)
+	image := images.AssembleImage(fipsConfig.Image, *globalConfig.Registry)
 	fipsContainer.Image = image
 	if fipsConfig.Image.PullPolicy != nil {
 		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy

@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
@@ -112,7 +112,7 @@ func defaultPodSpec(dda *v2alpha1.DatadogAgent, volumes []corev1.Volume, volumeM
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommon.ClusterAgentContainerName),
-				Image: defaulting.GetLatestClusterAgentImage(),
+				Image: images.GetLatestClusterAgentImage(),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
