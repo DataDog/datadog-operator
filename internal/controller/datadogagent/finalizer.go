@@ -66,6 +66,15 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	return reconcile.Result{}, nil
 }
 
+func (r *Reconciler) finalizeDDAWithDDAI(reqLogger logr.Logger, obj client.Object) error {
+	// Dependencies are deleted automatically through owner reference
+	// Unregister forwarder
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.Unregister(obj)
+	}
+	return nil
+}
+
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
 	// We need to apply the defaults to be able to delete the resources
 	// associated with those defaults.

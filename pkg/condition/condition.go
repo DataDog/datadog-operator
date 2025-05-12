@@ -426,3 +426,52 @@ func assignNumeralState(state string) int {
 		return 0
 	}
 }
+
+func CombineDaemonSetStatus(dsStatus *v2alpha1.DaemonSetStatus, ddaiStatus *v2alpha1.DaemonSetStatus) *v2alpha1.DaemonSetStatus {
+	if ddaiStatus == nil {
+		return dsStatus
+	}
+	if dsStatus == nil {
+		dsStatus = &v2alpha1.DaemonSetStatus{}
+	}
+	dsStatus.Desired += ddaiStatus.Desired
+	dsStatus.Current += ddaiStatus.Current
+	dsStatus.Ready += ddaiStatus.Ready
+	dsStatus.Available += ddaiStatus.Available
+	dsStatus.UpToDate += ddaiStatus.UpToDate
+	if dsStatus.LastUpdate == nil {
+		dsStatus.LastUpdate = ddaiStatus.LastUpdate
+	}
+	if dsStatus.LastUpdate.Before(ddaiStatus.LastUpdate) {
+		dsStatus.LastUpdate = ddaiStatus.LastUpdate
+	}
+	dsStatus.State = getCombinedState(dsStatus.State, ddaiStatus.State)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", dsStatus.State, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	return dsStatus
+}
+
+func CombineDeploymentStatus(deploymentStatus *v2alpha1.DeploymentStatus, ddaiStatus *v2alpha1.DeploymentStatus) *v2alpha1.DeploymentStatus {
+	if ddaiStatus == nil {
+		return deploymentStatus
+	}
+	if deploymentStatus == nil {
+		deploymentStatus = &v2alpha1.DeploymentStatus{}
+	}
+	deploymentStatus.Replicas += ddaiStatus.Replicas
+	deploymentStatus.UpdatedReplicas += ddaiStatus.UpdatedReplicas
+	deploymentStatus.ReadyReplicas += ddaiStatus.ReadyReplicas
+	deploymentStatus.AvailableReplicas += ddaiStatus.AvailableReplicas
+	deploymentStatus.UnavailableReplicas += ddaiStatus.UnavailableReplicas
+	// TODO: Set DCA token in dependencies
+	if deploymentStatus.LastUpdate == nil {
+		deploymentStatus.LastUpdate = ddaiStatus.LastUpdate
+	}
+	if deploymentStatus.LastUpdate.Before(ddaiStatus.LastUpdate) {
+		deploymentStatus.LastUpdate = ddaiStatus.LastUpdate
+	}
+	deploymentStatus.CurrentHash = ddaiStatus.CurrentHash
+	deploymentStatus.Status = ddaiStatus.Status
+	deploymentStatus.State = ddaiStatus.State
+	deploymentStatus.DeploymentName = ddaiStatus.DeploymentName
+	return deploymentStatus
+}

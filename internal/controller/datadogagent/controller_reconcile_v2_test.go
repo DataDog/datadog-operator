@@ -462,10 +462,10 @@ func Test_profilesToApply(t *testing.T) {
 						Name:      "invalid-no-affinity",
 					},
 					Spec: v1alpha1.DatadogAgentProfileSpec{
-						Config: &v1alpha1.Config{
-							Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-								v1alpha1.NodeAgentComponentName: {
-									Containers: map[common.AgentContainerName]*v1alpha1.Container{
+						Config: &v2alpha1.DatadogAgentSpec{
+							Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+								v2alpha1.NodeAgentComponentName: {
+									Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 										common.CoreAgentContainerName: {
 											Resources: &corev1.ResourceRequirements{
 												Requests: corev1.ResourceList{
@@ -565,7 +565,7 @@ func Test_profilesToApply(t *testing.T) {
 				},
 			}
 
-			profilesToApply, profileAppliedByNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1), &v2alpha1.DatadogAgent{})
+			profilesToApply, profileAppliedByNode, err := r.profilesToApply(ctx, logger, tt.nodeList, metav1.NewTime(t1), &v2alpha1.DatadogAgentSpec{})
 			require.NoError(t, err)
 
 			wantProfilesToApply := tt.wantProfilesToApply()
@@ -623,10 +623,10 @@ func exampleProfile(i string, creationTime time.Time) v1alpha1.DatadogAgentProfi
 					},
 				},
 			},
-			Config: &v1alpha1.Config{
-				Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-					v1alpha1.NodeAgentComponentName: {
-						Containers: map[common.AgentContainerName]*v1alpha1.Container{
+			Config: &v2alpha1.DatadogAgentSpec{
+				Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+					v2alpha1.NodeAgentComponentName: {
+						Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 							common.CoreAgentContainerName: {
 								Resources: &corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
