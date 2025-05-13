@@ -62,7 +62,7 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
-						Enabled: utils.NewPointer[bool](true),
+						Enabled: utils.NewPointer(true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
 							MinAllowed: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -130,7 +130,7 @@ func TestNewDatadogPodAutoscalerFromV1Alpha1(t *testing.T) {
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
-						Enabled: utils.NewPointer[bool](true),
+						Enabled: utils.NewPointer(true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
 							MinAllowed: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -203,7 +203,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
-						Enabled: utils.NewPointer[bool](true),
+						Enabled: utils.NewPointer(true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
 							MinAllowed: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -271,7 +271,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 				Containers: []common.DatadogPodAutoscalerContainerConstraints{
 					{
 						Name:    "foo",
-						Enabled: utils.NewPointer[bool](true),
+						Enabled: utils.NewPointer(true),
 						Requests: &common.DatadogPodAutoscalerContainerResourceConstraints{
 							MinAllowed: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -286,7 +286,7 @@ func TestNewDatadogPodAutoscalerToV1Alpha1(t *testing.T) {
 				},
 			},
 			Policy: &v1alpha1.DatadogPodAutoscalerPolicy{
-				ApplyMode: v1alpha1.DatadogPodAutoscalerManualApplyMode,
+				ApplyMode: v1alpha1.DatadogPodAutoscalerNoneApplyMode,
 				Update: &common.DatadogPodAutoscalerUpdatePolicy{
 					Strategy: common.DatadogPodAutoscalerDisabledUpdateStrategy,
 				},

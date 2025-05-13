@@ -97,7 +97,7 @@ func ConvertDatadogPodAutoscalerSpecToV1Alpha1(in DatadogPodAutoscalerSpec) v1al
 		case DatadogPodAutoscalerApplyModeApply:
 			out.Policy.ApplyMode = v1alpha1.DatadogPodAutoscalerAllApplyMode
 		case DatadogPodAutoscalerApplyModePreview:
-			out.Policy.ApplyMode = v1alpha1.DatadogPodAutoscalerManualApplyMode
+			out.Policy.ApplyMode = v1alpha1.DatadogPodAutoscalerNoneApplyMode
 		}
 	}
 
