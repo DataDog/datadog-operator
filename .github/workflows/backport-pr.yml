@@ -60,7 +60,7 @@ jobs:
             
             // Parse the backport PR number from the JSON output
             const backportData = JSON.parse(process.env.BACKPORT_PR);
-            const prNumber = backportData.backport;
+            const prNumber = Object.values(backportData)[0];
             console.log('Parsed PR number:', prNumber);
             console.log(`Copying milestone ${milestoneNumber} to PR ${prNumber}`);
             
