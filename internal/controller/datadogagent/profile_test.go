@@ -183,7 +183,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile-foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "7ba49be76dac54ba665e2567210bf320",
+						constants.MD5DDAIDeploymentAnnotationKey: "fb25e5160453e69437f7a77848f5c0d9",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -247,6 +247,12 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "newvalue",
 								},
 							},
+						},
+						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
+							Disabled: apiutils.NewBoolPointer(true),
+						},
+						v2alpha1.ClusterChecksRunnerComponentName: &v2alpha1.DatadogAgentComponentOverride{
+							Disabled: apiutils.NewBoolPointer(true),
 						},
 					},
 				},

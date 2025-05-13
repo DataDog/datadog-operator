@@ -86,7 +86,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	if r.options.DatadogAgentProfileEnabled {
 		profileDDAIs, e := r.applyProfilesToDDAISpec(ctx, logger, ddai, now)
 		if e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 		ddais = profileDDAIs
 	}
@@ -94,7 +94,7 @@ func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger
 	// Create or update the DDAI object in k8s
 	for _, ddai := range ddais {
 		if e := r.createOrUpdateDDAI(logger, ddai); e != nil {
-			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, err, now)
+			return r.updateStatusIfNeededV2(logger, instance, ddaStatusCopy, result, e, now)
 		}
 
 		// Add DDAI status to DDA status
