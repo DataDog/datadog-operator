@@ -218,6 +218,16 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, ddai *dat
 		// won't filter labels with "datadoghq.com" in the key
 		delete(updateDaemonset.Labels, agentprofile.OldProfileLabelKey)
 
+		logger.Info("Updating Daemonset")
+		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
+		if err != nil {
+			updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, kubernetes.DaemonSetKind, datadog.UpdateEvent)
+		r.recordEvent(ddai, event)
+		updateStatusFunc(updateDaemonset.Name, updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
+
 	} else {
 		// From here the PodTemplateSpec should be ready, we can generate the hash that will be added to this daemonset.
 		_, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
