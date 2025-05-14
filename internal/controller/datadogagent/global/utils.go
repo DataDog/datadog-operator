@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"os"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -82,7 +84,7 @@ func useSystemProbeCustomSeccomp(dda *v2alpha1.DatadogAgent) bool {
 
 func SetGlobalFromDDA(dda *v2alpha1.DatadogAgent, ddaiGlobal *v2alpha1.GlobalConfig) {
 	setCredentialsFromDDA(dda, ddaiGlobal)
-	setDCATokenFromDDA(dda, ddaiGlobal)
+	setDCAFromDDA(dda, ddaiGlobal)
 }
 
 // setCredentialsFromDDA sets credentials in the DDAI based on the DDA
@@ -114,7 +116,13 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 	ddaiGlobal.Credentials = newCredentials
 }
 
-func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
+func setDCAFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
+	// Set DCA service env var
+	ddaiGlobal.Env = append(ddaiGlobal.Env, corev1.EnvVar{
+		Name:  common.DDClusterAgentKubeServiceName,
+		Value: componentdca.GetClusterAgentServiceName(dda),
+	})
+
 	// Use existing ClusterAgentTokenSecret if already set
 	if isValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
 		return

@@ -11,7 +11,9 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger logr.Logger, instance *v2alpha1.DatadogAgent) error {
@@ -23,6 +25,10 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 	}
 	// DCA token
 	if err := global.AddDCATokenDependencies(logger, instance, resourceManagers); err != nil {
+		return err
+	}
+	// DCA service
+	if err := resourceManagers.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(instance)); err != nil {
 		return err
 	}
 

@@ -62,6 +62,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, logger logr.Lo
 	}
 
 	// For all profiles, create DDAI objects
+	// Note: profiles includes the default profile to allow the default affinity to be set
 	for _, profile := range profiles {
 		mergedDDAI, err := r.computeProfileMerge(ddai, &profile)
 		if err != nil {
@@ -112,13 +113,15 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 }
 
 func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+	ensureNodeAgentOverrideExists(ddai)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		ddai.Spec = *profile.Spec.Config
 		// DCA and CCR are auto disabled for user created profiles
 		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
+		setProfileDDAILabels(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
 	}
-	setProfileDDAIAffinity(ddai, profile)
+	setProfileDDAIAffinity(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
 }
 
 func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
@@ -128,12 +131,21 @@ func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha
 	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
 }
 
-func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
-	override, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
-	if !ok {
-		override = &v2alpha1.DatadogAgentComponentOverride{}
+func ensureNodeAgentOverrideExists(ddai *v1alpha1.DatadogAgentInternal) {
+	if _, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]; !ok {
+		ddai.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{}
 	}
+}
+
+func setProfileDDAIAffinity(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
 	override.Affinity = common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
+}
+
+func setProfileDDAILabels(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
+	if override.Labels == nil {
+		override.Labels = make(map[string]string)
+	}
+	override.Labels[agentprofile.ProfileLabelKey] = profile.Name
 }
 
 func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile, scheme *runtime.Scheme) error {
@@ -149,6 +161,11 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 		}
 		ddai.SetOwnerReferences([]metav1.OwnerReference{*ownerRef})
 	}
+	// Labels
+	if ddai.Labels == nil {
+		ddai.Labels = make(map[string]string)
+	}
+	ddai.Labels[agentprofile.ProfileLabelKey] = profile.Name
 	return nil
 }
 

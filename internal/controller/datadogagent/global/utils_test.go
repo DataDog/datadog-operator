@@ -10,11 +10,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
 type InstallInfoData struct {
@@ -334,7 +336,7 @@ func Test_setCredentialsFromDDA(t *testing.T) {
 	}
 }
 
-func Test_setDCATokenFromDDA(t *testing.T) {
+func Test_setDCAFromDDA(t *testing.T) {
 	tests := []struct {
 		name        string
 		dda         metav1.Object
@@ -351,6 +353,12 @@ func Test_setDCATokenFromDDA(t *testing.T) {
 				ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
 					SecretName: "foo-token",
 					KeyName:    "token",
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  common.DDClusterAgentKubeServiceName,
+						Value: "foo-cluster-agent",
+					},
 				},
 			},
 		},
@@ -370,13 +378,19 @@ func Test_setDCATokenFromDDA(t *testing.T) {
 					SecretName: "bar",
 					KeyName:    "key",
 				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  common.DDClusterAgentKubeServiceName,
+						Value: "foo-cluster-agent",
+					},
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setDCATokenFromDDA(tt.dda, tt.ddaiFromDDA)
+			setDCAFromDDA(tt.dda, tt.ddaiFromDDA)
 			assert.Equal(t, tt.expected, tt.ddaiFromDDA)
 		})
 	}
