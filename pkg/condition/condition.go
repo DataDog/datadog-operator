@@ -463,9 +463,6 @@ func CombineDeploymentStatus(deploymentStatus *v2alpha1.DeploymentStatus, ddaiSt
 	deploymentStatus.AvailableReplicas += ddaiStatus.AvailableReplicas
 	deploymentStatus.UnavailableReplicas += ddaiStatus.UnavailableReplicas
 	// TODO: Set DCA token in dependencies
-	// We need to set the DCA token to avoid regenerating it when not user-provided.
-	// TODO: could we add it instead in the DCA status when generating it in the DDA controller ?
-	deploymentStatus.GeneratedToken = ddaiStatus.GeneratedToken
 	if deploymentStatus.LastUpdate == nil {
 		deploymentStatus.LastUpdate = ddaiStatus.LastUpdate
 	}
