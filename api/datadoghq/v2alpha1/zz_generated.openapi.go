@@ -1593,6 +1593,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref comm
 							Format:      "int32",
 						},
 					},
+					"refreshInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The refresh interval for secrets (0 disables refreshing). Default: `0`.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"enableGlobalPermissions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`.",

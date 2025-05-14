@@ -970,21 +970,23 @@ func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string)
 
 // Global SecretBackend
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(true),
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, refreshInterval int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(false),
 		Roles: []*v2alpha1.SecretBackendRolesConfig{
 			{
