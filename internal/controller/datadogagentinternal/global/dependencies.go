@@ -24,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -49,9 +48,7 @@ func addComponentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInte
 	var errs []error
 
 	if componentName == v2alpha1.ClusterAgentComponentName {
-		if err := addDCATokenDependencies(logger, dda, manager); err != nil {
-			errs = append(errs, err)
-		}
+		// DCA token is managed by the DDA controller
 
 		// Resources as tags
 		if err := resourcesAsTagsDependencies(logger, dda, manager); err != nil {
@@ -142,51 +139,6 @@ func addCredentialDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInt
 			if err := manager.SecretManager().AddSecret(dda.Namespace, secretName, v2alpha1.DefaultAPPKeyKey, *global.Credentials.AppKey); err != nil {
 				logger.Error(err, "Error adding app key secret")
 			}
-		}
-	}
-
-	return nil
-}
-
-func addDCATokenDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, manager feature.ResourceManagers) error {
-	global := dda.Spec.Global
-	var token string
-
-	// Prioritize existing secret
-	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
-		return nil
-	}
-
-	// User specifies token
-	var key string
-	var hash string
-	var err error
-	if global.ClusterAgentToken != nil && *global.ClusterAgentToken != "" {
-		token = *global.ClusterAgentToken
-		// Generate hash
-		key = getDCATokenChecksumAnnotationKey()
-		hash, err = comparison.GenerateMD5ForSpec(map[string]string{common.DefaultTokenKey: token})
-		if err != nil {
-			logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
-		} else {
-			logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
-		}
-	} else if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" { // no token specified
-		token = apiutils.GenerateRandomString(32)
-	} else {
-		token = dda.Status.ClusterAgent.GeneratedToken // token already generated
-	}
-
-	// Create secret
-	secretName := secrets.GetDefaultDCATokenSecretName(dda)
-	if err := manager.SecretManager().AddSecret(dda.Namespace, secretName, common.DefaultTokenKey, token); err != nil {
-		logger.Error(err, "Error adding dca token secret")
-	}
-
-	if key != "" && hash != "" {
-		// Add annotation to secret
-		if err := manager.SecretManager().AddAnnotations(logger, dda.Namespace, secretName, map[string]string{key: hash}); err != nil {
-			logger.Error(err, "Error adding dca token secret annotations")
 		}
 	}
 
