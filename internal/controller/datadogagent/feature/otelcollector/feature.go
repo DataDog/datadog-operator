@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -171,6 +172,22 @@ func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateMa
 }
 
 func (o *otelCollectorFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	// // Use -full image for all containers
+	image := &images.Image{}
+	for i, container := range managers.PodTemplateSpec().Spec.Containers {
+		image = images.FromString(container.Image).
+			WithFull(true)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		managers.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+	}
+
+	for i, container := range managers.PodTemplateSpec().Spec.InitContainers {
+		image = images.FromString(container.Image).
+			WithFull(true)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		managers.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
+	}
+
 	var vol corev1.Volume
 	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
 		// Custom config is referenced via ConfigMap
