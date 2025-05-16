@@ -29,8 +29,8 @@ import (
 )
 
 const (
-	// operatorStoreLabelKey used to identified which resource is managed by the store.
-	operatorStoreLabelKey = "operator.datadoghq.com/managed-by-store"
+	// OperatorStoreLabelKey used to identified which resource is managed by the store.
+	OperatorStoreLabelKey = "operator.datadoghq.com/managed-by-store"
 )
 
 // StoreClient dependencies store client interface
@@ -98,7 +98,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	if obj.GetLabels() == nil {
 		obj.SetLabels(map[string]string{})
 	}
-	obj.GetLabels()[operatorStoreLabelKey] = "true"
+	obj.GetLabels()[OperatorStoreLabelKey] = "true"
 
 	if ds.owner != nil {
 		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), common.GetAgentVersion(ds.owner))
@@ -257,7 +257,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 
 	var errs []error
 
-	requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
+	requirementLabel, _ := labels.NewRequirement(OperatorStoreLabelKey, selection.Exists, nil)
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.NewSelector().Add(*requirementLabel),
 	}
@@ -297,7 +297,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	var objsToDelete []client.Object
 
 	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
-		requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
+		requirementLabel, _ := labels.NewRequirement(OperatorStoreLabelKey, selection.Exists, nil)
 		listOptions := &client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*requirementLabel),
 		}

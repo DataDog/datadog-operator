@@ -7,7 +7,6 @@ package datadogagentinternal
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -15,40 +14,36 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 const (
-	datadogAgentFinalizer = "finalizer.agent.datadoghq.com"
+	datadogAgentInternalFinalizer = "finalizer.datadoghq.com/datadogagentinternal"
 )
 
-type finalizerDadFunc func(reqLogger logr.Logger, dda client.Object) error
+type finalizerDDAIFunc func(reqLogger logr.Logger, dda client.Object) error
 
-func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, finalizerDad finalizerDadFunc) (reconcile.Result, error) {
-	// Check if the DatadogAgent instance is marked to be deleted, which is
+func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, ddai client.Object, finalizerDDAI finalizerDDAIFunc) (reconcile.Result, error) {
+	// Check if the DatadogAgentInternal instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
-	isDadMarkedToBeDeleted := dda.GetDeletionTimestamp() != nil
-	if isDadMarkedToBeDeleted {
-		if utils.ContainsString(dda.GetFinalizers(), datadogAgentFinalizer) {
+	isDDAIMarkedToBeDeleted := ddai.GetDeletionTimestamp() != nil
+	if isDDAIMarkedToBeDeleted {
+		if utils.ContainsString(ddai.GetFinalizers(), datadogAgentInternalFinalizer) {
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			if err := finalizerDad(reqLogger, dda); err != nil {
+			if err := finalizerDDAI(reqLogger, ddai); err != nil {
 				return reconcile.Result{}, err
 			}
 
 			// Remove datadogAgentFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
-			dda.SetFinalizers(utils.RemoveString(dda.GetFinalizers(), datadogAgentFinalizer))
-			err := r.client.Update(context.TODO(), dda)
+			ddai.SetFinalizers(utils.RemoveString(ddai.GetFinalizers(), datadogAgentInternalFinalizer))
+			err := r.client.Update(context.TODO(), ddai)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -57,8 +52,8 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	}
 
 	// Add finalizer for this CR
-	if !utils.ContainsString(dda.GetFinalizers(), datadogAgentFinalizer) {
-		if err := r.addFinalizer(reqLogger, dda); err != nil {
+	if !utils.ContainsString(ddai.GetFinalizers(), datadogAgentInternalFinalizer) {
+		if err := r.addFinalizer(reqLogger, ddai); err != nil {
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{Requeue: true}, nil
@@ -67,83 +62,31 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, f
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) error {
-	// We need to apply the defaults to be able to delete the resources
-	// associated with those defaults.
-	ddai := obj.(*datadoghqv1alpha1.DatadogAgentInternal).DeepCopy()
-	defaults.DefaultDatadogAgent(ddai)
-
+func (r *Reconciler) finalizeDDAI(reqLogger logr.Logger, obj client.Object) error {
 	if r.options.OperatorMetricsEnabled {
-		r.forwarders.Unregister(ddai)
+		r.forwarders.Unregister(obj)
 	}
 
-	// To delete the resources associated with the DatadogAgent that we need to
-	// delete, we figure out its dependencies, store them in the dependencies
-	// store, and then call the DeleteAll function of the store.
-
-	_, enabledFeatures, requiredComponents := feature.BuildFeatures(
-		ddai, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
-
-	storeOptions := &store.StoreOptions{
-		SupportCilium: r.options.SupportCilium,
-		Logger:        reqLogger,
-		Scheme:        r.scheme,
-		PlatformInfo:  r.platformInfo,
-	}
-	depsStore := store.NewStore(ddai, storeOptions)
-	resourceManagers := feature.NewResourceManagers(depsStore)
-
-	var errs []error
-
-	// Global dependencies
-	if err := global.ApplyGlobalDependencies(reqLogger, ddai, resourceManagers); len(err) > 0 {
-		errs = append(errs, err...)
-	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.ClusterAgentComponentName, requiredComponents.ClusterAgent); len(err) > 0 {
-		errs = append(errs, err...)
-	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent); len(err) > 0 {
-		errs = append(errs, err...)
-	}
-	if err := global.ApplyGlobalComponentDependencies(reqLogger, ddai, resourceManagers, datadoghqv2alpha1.ClusterChecksRunnerComponentName, requiredComponents.ClusterChecksRunner); len(err) > 0 {
-		errs = append(errs, err...)
-	}
-
-	// Set up dependencies required by enabled features
-	for _, feat := range enabledFeatures {
-		if featErr := feat.ManageDependencies(resourceManagers); featErr != nil {
-			errs = append(errs, featErr)
-		}
-	}
-
-	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, ddai)...)
-
-	if len(errs) > 0 {
-		return fmt.Errorf("errors calculating dependencies while finalizing the DatadogAgent: %v", errs)
-	}
-
-	deleteErrs := depsStore.DeleteAll(context.TODO(), r.client)
-	if len(deleteErrs) > 0 {
-		return fmt.Errorf("error deleting dependencies while finalizing the DatadogAgent: %v", deleteErrs)
-	}
+	// Namespaced resources from the store are deleted thanks to owner references.
+	// Cluster level resources must be deleted manually since they cannot have an owner reference.
+	r.cleanUpClusterLevelResources(reqLogger, obj)
 
 	if err := r.profilesCleanup(); err != nil {
 		return err
 	}
 
-	reqLogger.Info("Successfully finalized DatadogAgent")
+	reqLogger.Info("Successfully finalized DatadogAgentInternal")
 	return nil
 }
 
-func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {
-	reqLogger.Info("Adding Finalizer for the DatadogAgent")
-	dda.SetFinalizers(append(dda.GetFinalizers(), datadogAgentFinalizer))
+func (r *Reconciler) addFinalizer(reqLogger logr.Logger, ddai client.Object) error {
+	reqLogger.Info("Adding Finalizer for the DatadogAgentInternal")
+	ddai.SetFinalizers(append(ddai.GetFinalizers(), datadogAgentInternalFinalizer))
 
 	// Update CR
-	err := r.client.Update(context.TODO(), dda)
+	err := r.client.Update(context.TODO(), ddai)
 	if err != nil {
-		reqLogger.Error(err, "Failed to update DatadogAgent with finalizer")
+		reqLogger.Error(err, "Failed to update DatadogAgentInternal with finalizer")
 		return err
 	}
 	return nil
@@ -183,5 +126,26 @@ func (r *Reconciler) profilesCleanup() error {
 		}
 	}
 
+	return nil
+}
+
+func (r *Reconciler) cleanUpClusterLevelResources(_ logr.Logger, ddai client.Object) error {
+	// Cluster level resources must be deleted manually since they cannot have an owner reference
+	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo))
+	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo))
+	deleteObjectsForResource(r.client, ddai, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo))
+
+	return nil
+}
+
+func deleteObjectsForResource(c client.Client, ddai client.Object, kind client.Object) error {
+	matchingLabels := client.MatchingLabels{
+		store.OperatorStoreLabelKey:              "true",
+		kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(ddai).String(),
+		kubernetes.AppKubernetesManageByLabelKey: "datadog-operator",
+	}
+	if err := c.DeleteAllOf(context.TODO(), kind, matchingLabels); err != nil {
+		return err
+	}
 	return nil
 }

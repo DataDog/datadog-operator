@@ -401,7 +401,7 @@ func TestStore_Cleanup(t *testing.T) {
 			Namespace: "bar",
 			Name:      "foo",
 			Labels: map[string]string{
-				operatorStoreLabelKey:                  "true",
+				OperatorStoreLabelKey:                  "true",
 				kubernetes.AppKubernetesPartOfLabelKey: "namespace--test-dda--test",
 			},
 		},
@@ -516,7 +516,7 @@ func TestStore_GetOrCreate(t *testing.T) {
 			Namespace: "bar",
 			Name:      "foo",
 			Labels: map[string]string{
-				operatorStoreLabelKey: "true",
+				OperatorStoreLabelKey: "true",
 			},
 		},
 	}
@@ -625,7 +625,7 @@ func TestStore_DeleteAll(t *testing.T) {
 			Namespace: "ns1",
 			Name:      "some_name",
 			Labels: map[string]string{
-				operatorStoreLabelKey: "true",
+				OperatorStoreLabelKey: "true",
 			},
 		},
 	}
@@ -639,7 +639,7 @@ func TestStore_DeleteAll(t *testing.T) {
 			Namespace: "ns2",
 			Name:      "another_name",
 			Labels: map[string]string{
-				operatorStoreLabelKey: "true",
+				OperatorStoreLabelKey: "true",
 			},
 		},
 	}
@@ -661,7 +661,7 @@ func TestStore_DeleteAll(t *testing.T) {
 			Namespace: "ns3",
 			Name:      "some_name",
 			Labels: map[string]string{
-				operatorStoreLabelKey: "true",
+				OperatorStoreLabelKey: "true",
 			},
 		},
 	}

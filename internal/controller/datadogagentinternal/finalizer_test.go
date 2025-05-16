@@ -29,17 +29,22 @@ import (
 
 func Test_handleFinalizer(t *testing.T) {
 	// This is not an exhaustive test. The finalizer should remove all the
-	// kubernetes resources associated with the Datadog Agent being removed, but
+	// kubernetes resources associated with the DatadogAgentInternal being removed, but
 	// to simplify a bit, this test doesn't check all the resources, it just
 	// checks a few ones (cluster roles, cluster role bindings, profile labels).
 
 	now := metav1.Now()
+	operatorStoreLabels := map[string]string{
+		"operator.datadoghq.com/managed-by-store": "true",
+		"app.kubernetes.io/part-of":               "foo-bar",
+		"app.kubernetes.io/managed-by":            "datadog-operator",
+	}
 
 	ddai := &datadoghqv1alpha1.DatadogAgentInternal{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "foo",
 			Name:       "bar",
-			Finalizers: []string{"finalizer.agent.datadoghq.com"},
+			Finalizers: []string{datadogAgentInternalFinalizer},
 		},
 		Spec: datadoghqv2alpha1.DatadogAgentSpec{
 			Global: &datadoghqv2alpha1.GlobalConfig{
@@ -63,10 +68,8 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: agent.GetAgentRoleName(ddai),
-				Labels: map[string]string{
-					"operator.datadoghq.com/managed-by-store": "true",
-				},
+				Name:   agent.GetAgentRoleName(ddai),
+				Labels: operatorStoreLabels,
 			},
 		},
 		{
@@ -75,10 +78,8 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: component.GetClusterAgentName(ddai),
-				Labels: map[string]string{
-					"operator.datadoghq.com/managed-by-store": "true",
-				},
+				Name:   component.GetClusterAgentName(ddai),
+				Labels: operatorStoreLabels,
 			},
 		},
 	}
@@ -92,10 +93,8 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: agent.GetAgentRoleName(ddai), // Same name as the cluster role
-				Labels: map[string]string{
-					"operator.datadoghq.com/managed-by-store": "true",
-				},
+				Name:   agent.GetAgentRoleName(ddai), // Same name as the cluster role
+				Labels: operatorStoreLabels,
 			},
 		},
 		{
@@ -104,10 +103,8 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: component.GetClusterAgentName(ddai),
-				Labels: map[string]string{
-					"operator.datadoghq.com/managed-by-store": "true",
-				},
+				Name:   component.GetClusterAgentName(ddai),
+				Labels: operatorStoreLabels,
 			},
 		},
 	}
@@ -131,7 +128,7 @@ func Test_handleFinalizer(t *testing.T) {
 
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer V2 test"), ddai, reconciler.finalizeDadV2)
+	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle DDAI Finalizer test"), ddai, reconciler.finalizeDDAI)
 	assert.NoError(t, err)
 
 	// Check that the cluster roles associated with the Datadog Agent have been deleted

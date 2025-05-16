@@ -36,7 +36,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 	// }
 
 	// 2. Handle finalizer logic.
-	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAI); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
