@@ -159,18 +159,18 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 // OverrideAgentImage takes an existing image reference and potentially overrides portions of it based on the provided image configuration
 func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentImageConfig) string {
 	image := FromString(currentImage)
-	overrideImage, overrideNameContainsTag := fromImageConfig(overrideImageSpec)
+	overrideImage := fromImageConfig(overrideImageSpec)
 
 	image.WithRegistry(overrideImage.registry).
 		WithName(overrideImage.name).
 		WithTag(overrideImage.tag).
 		WithJMX(overrideImage.isJMX)
 
-	// FIPS suffix is appended in the Global spec processing code.
-	// If the tag is present in the override Image name, then the FIPS suffix should never be added.
-	// Otherwise the FIPS suffix should be preserved from the current Image (implicit)
-	if overrideNameContainsTag {
-		image.WithFIPS(false)
+	// If an override tag (whether from the tag or name) is provided, then the FIPS and full suffixes present in this tag
+	// should take precedence over the current image suffixes. If it's not provided, then preserve the original
+	if overrideImage.tag != "" {
+		image.WithFIPS(overrideImage.isFIPS).
+			WithFull(overrideImage.isFull)
 	}
 
 	return image.ToString()
@@ -240,13 +240,15 @@ func FromString(stringImage string) *Image {
 // - registry/name:tag
 // (Notably, we do not accept "registry/name".)
 // Note that if the name includes a tag, then we ignore imageConfig.tag and imageConfig.JMXEnabled
-func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) (*Image, bool) {
+func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) *Image {
 	registry := ""
 	imageName := imageConfig.Name
 	imageTag := imageConfig.Tag
 
 	nameContainsTag := false
 	isJMX := false
+	isFIPS := false
+	isFull := false
 
 	if strings.Contains(imageName, ":") {
 		nameContainsTag = true
@@ -260,13 +262,30 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) (*Image, bool) {
 		imageName = imageName[lastIdx+1:]
 	}
 
-	if !nameContainsTag {
-		// Check if this tag has JMX suffix
+	// Check if tag has JMX suffix
+	// If override name contains JMX tag, isJMX should be true
+	// if override name contains non-JMX tag, isJMX should be false
+	if nameContainsTag {
+		isJMX = strings.HasSuffix(imageTag, JMXTagSuffix)
+	} else {
 		isJMX = imageConfig.JMXEnabled || strings.HasSuffix(imageTag, JMXTagSuffix)
-		if isJMX {
-			imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
-		}
 	}
 
-	return newImage(registry, imageName, imageTag, isJMX, false, false), nameContainsTag
+	if isJMX {
+		imageTag = strings.TrimSuffix(imageTag, JMXTagSuffix)
+	}
+
+	// Check if tag has FIPS suffix
+	isFIPS = strings.HasSuffix(imageTag, FIPSTagSuffix)
+	if isFIPS {
+		imageTag = strings.TrimSuffix(imageTag, FIPSTagSuffix)
+	}
+
+	// Check if tag has full suffix
+	isFull = strings.HasSuffix(imageTag, FullTagSuffix)
+	if isFull {
+		imageTag = strings.TrimSuffix(imageTag, FullTagSuffix)
+	}
+
+	return newImage(registry, imageName, imageTag, isJMX, isFIPS, isFull)
 }

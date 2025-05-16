@@ -486,6 +486,24 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "docker.io/datadog/agent:latest",
 		},
 		{
+			name:         "override image name is full name with JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "docker.io/datadog/agent:latest-jmx",
+				JMXEnabled: true,
+			},
+			want: "docker.io/datadog/agent:latest-jmx",
+		},
+		{
+			name:         "override image tag is with JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag:        "latest-jmx",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:latest-jmx",
+		},
+		{
 			name:         "override image name is name:tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
@@ -527,6 +545,64 @@ func Test_OverrideAgentImage(t *testing.T) {
 				JMXEnabled: true,
 			},
 			want: "gcr.io/datadoghq/agent:7.65.0-fips",
+		},
+		{
+			name:         "current image includes FIPS suffix and override tag does not include FIPS suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0",
+		},
+		{
+			name:         "current image includes full suffix and override also includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override tag also includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override also includes full suffix, jmx enabled",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "agent:7.65.0-full",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override tag also includes full suffix, jmx enabled",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag:        "7.65.0-full",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes fips suffix and override includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes fips suffix and override tag includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
 		},
 	}
 	for _, tt := range tests {
