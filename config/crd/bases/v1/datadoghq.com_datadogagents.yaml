@@ -2791,6 +2791,12 @@ spec:
                             Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
                             Default: `false`.
                           type: boolean
+                        refreshInterval:
+                          description: |-
+                            The refresh interval for secrets (0 disables refreshing).
+                            Default: `0`.
+                          format: int32
+                          type: integer
                         roles:
                           description: |-
                             Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.

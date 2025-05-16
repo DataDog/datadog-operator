@@ -2745,6 +2745,11 @@ func (in *SecretBackendConfig) DeepCopyInto(out *SecretBackendConfig) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.RefreshInterval != nil {
+		in, out := &in.RefreshInterval, &out.RefreshInterval
+		*out = new(int32)
+		**out = **in
+	}
 	if in.EnableGlobalPermissions != nil {
 		in, out := &in.EnableGlobalPermissions, &out.EnableGlobalPermissions
 		*out = new(bool)
