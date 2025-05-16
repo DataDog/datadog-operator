@@ -10,10 +10,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 )
 
 type InstallInfoData struct {
@@ -145,6 +148,250 @@ func Test_useSystemProbeCustomSeccomp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			actual := useSystemProbeCustomSeccomp(tt.dda)
 			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func Test_setCredentialsFromDDA(t *testing.T) {
+	tests := []struct {
+		name        string
+		dda         metav1.Object
+		ddaiFromDDA *v2alpha1.GlobalConfig
+		expected    *v2alpha1.GlobalConfig
+	}{
+		{
+			name: "Empty credentials",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "api_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key set in plain text",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APIKey: apiutils.NewStringPointer("api_key"),
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "api_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key set in plain text and as secret",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APIKey: apiutils.NewStringPointer("api_key"),
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key set in plain text, app key set in secret",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APIKey: apiutils.NewStringPointer("api_key"),
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "api_key",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key set in secret, app key set in plain text",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+					AppKey: apiutils.NewStringPointer("api_key"),
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "app_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key and app key set in secret",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "app_key",
+					},
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "bar_key",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "bar",
+						KeyName:    "app_key",
+					},
+				},
+			},
+		},
+		{
+			name: "API key and app key set in plain text",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APIKey: apiutils.NewStringPointer("api_key"),
+					AppKey: apiutils.NewStringPointer("app_key"),
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				Credentials: &v2alpha1.DatadogCredentials{
+					APISecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "api_key",
+					},
+					AppSecret: &v2alpha1.SecretConfig{
+						SecretName: "foo-secret",
+						KeyName:    "app_key",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setCredentialsFromDDA(tt.dda, tt.ddaiFromDDA)
+			assert.Equal(t, tt.expected, tt.ddaiFromDDA)
+		})
+	}
+}
+
+func Test_setDCAFromDDA(t *testing.T) {
+	tests := []struct {
+		name        string
+		dda         metav1.Object
+		ddaiFromDDA *v2alpha1.GlobalConfig
+		expected    *v2alpha1.GlobalConfig
+	}{
+		{
+			name: "No dca token secret",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{},
+			expected: &v2alpha1.GlobalConfig{
+				ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+					SecretName: "foo-token",
+					KeyName:    "token",
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  common.DDClusterAgentKubeServiceName,
+						Value: "foo-cluster-agent",
+					},
+				},
+			},
+		},
+		{
+			name: "DCA token secret set",
+			dda: &metav1.ObjectMeta{
+				Name: "foo",
+			},
+			ddaiFromDDA: &v2alpha1.GlobalConfig{
+				ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+					SecretName: "bar",
+					KeyName:    "key",
+				},
+			},
+			expected: &v2alpha1.GlobalConfig{
+				ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+					SecretName: "bar",
+					KeyName:    "key",
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  common.DDClusterAgentKubeServiceName,
+						Value: "foo-cluster-agent",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setDCAFromDDA(tt.dda, tt.ddaiFromDDA)
+			assert.Equal(t, tt.expected, tt.ddaiFromDDA)
 		})
 	}
 }

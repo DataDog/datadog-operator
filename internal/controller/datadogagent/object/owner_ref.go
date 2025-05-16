@@ -47,6 +47,23 @@ func SetOwnerReference(owner, object metav1.Object, scheme *runtime.Scheme) erro
 	return nil
 }
 
+// CreateOwnerRef replaces the existing OwnerReference with owner.
+func CreateOwnerRef(owner metav1.Object, scheme *runtime.Scheme) (*metav1.OwnerReference, error) {
+	ro, ok := owner.(runtime.Object)
+	if !ok {
+		return nil, fmt.Errorf("%T is not a runtime.Object, cannot call SetControllerReference", owner)
+	}
+
+	gvk, err := apiutil.GVKForObject(ro, scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new ref
+	ref := newOwnerRef(owner, schema.GroupVersionKind{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind})
+	return ref, nil
+}
+
 // newOwnerRef creates an OwnerReference pointing to the given owner.
 func newOwnerRef(owner metav1.Object, gvk schema.GroupVersionKind) *metav1.OwnerReference {
 	blockOwnerDeletion := true

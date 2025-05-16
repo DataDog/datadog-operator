@@ -1,0 +1,142 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 2.0.0-alpha.3
+  name: kube-state-metrics
+rules:
+  # Note we use apigroups instead of apiGroups for yaml.Unmarshal to work correctly.
+  - apigroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - limitranges
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - persistentvolumes
+      - pods
+      - replicationcontrollers
+      - resourcequotas
+      - secrets
+      - services
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - extensions
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - customresourcedefinitions
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - list
+      - watch
+  ## The authentication and authorization groups are not used in the first version of the KSM core check.
+  #  - apigroups:
+  #      - authentication.k8s.io
+  #    resources:
+  #      - tokenreviews
+  #    verbs:
+  #      - create
+  #  - apigroups:
+  #      - authorization.k8s.io
+  #    resources:
+  #      - subjectaccessreviews
+  #    verbs:
+  #      - create
+  - apigroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+      - volumeattachments
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - autoscaling.k8s.io
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - apiregistration.k8s.io
+    resources:
+      - apiservices
+    verbs:
+      - list
+      - watch

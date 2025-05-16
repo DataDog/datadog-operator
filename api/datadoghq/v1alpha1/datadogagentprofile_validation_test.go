@@ -8,11 +8,12 @@ package v1alpha1
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
-
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+
+	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 func TestIsValidDatadogAgentProfile(t *testing.T) {
@@ -27,10 +28,10 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				},
 			},
 		},
-		Config: &Config{
-			Override: map[ComponentName]*Override{
-				NodeAgentComponentName: {
-					Containers: map[common.AgentContainerName]*Container{
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 						common.CoreAgentContainerName: {
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
@@ -53,16 +54,74 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				},
 			},
 		},
-		Config: &Config{
-			Override: map[ComponentName]*Override{
-				NodeAgentComponentName: {
-					Containers: map[common.AgentContainerName]*Container{
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 						common.CoreAgentContainerName: {
 							Resources: &corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
 								},
 							},
+						},
+						common.TraceAgentContainerName: {},
+					},
+				},
+			},
+		},
+	}
+	invalidComponentOverride := &DatadogAgentProfileSpec{
+		ProfileAffinity: &ProfileAffinity{
+			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+				{
+					Key:      "foo",
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"bar"},
+				},
+			},
+		},
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					NodeSelector: map[string]string{
+						"foo": "bar",
+					},
+					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						common.CoreAgentContainerName: {
+							Resources: &corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+								},
+							},
+						},
+						common.TraceAgentContainerName: {},
+					},
+				},
+			},
+		},
+	}
+	invalidContainerOverride := &DatadogAgentProfileSpec{
+		ProfileAffinity: &ProfileAffinity{
+			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+				{
+					Key:      "foo",
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"bar"},
+				},
+			},
+		},
+		Config: &v2alpha1.DatadogAgentSpec{
+			Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+				v2alpha1.NodeAgentComponentName: {
+					Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+						common.CoreAgentContainerName: {
+							Resources: &corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+								},
+							},
+							Command: []string{"foo", "bar"},
 						},
 						common.TraceAgentContainerName: {},
 					},
@@ -80,7 +139,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 				},
 			},
 		},
-		Config: &Config{},
+		Config: &v2alpha1.DatadogAgentSpec{},
 	}
 	missingConfig := &DatadogAgentProfileSpec{
 		ProfileAffinity: &ProfileAffinity{
@@ -115,6 +174,16 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 		{
 			name: "valid dap, resources specified in one container only",
 			spec: validResourceOverrideInOneContainerOnly,
+		},
+		{
+			name:    "invalid component override",
+			spec:    invalidComponentOverride,
+			wantErr: "component node selector override is not supported",
+		},
+		{
+			name:    "invalid container override",
+			spec:    invalidContainerOverride,
+			wantErr: "container command override is not supported",
 		},
 		{
 			name:    "missing override",

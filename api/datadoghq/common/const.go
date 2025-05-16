@@ -13,4 +13,6 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
+	// OperatorDatadogeAgentLabelKey is used to link a DatadogAgent to a resource
+	OperatorDatadogAgentLabelKey = "operator.datadoghq.com/datadogagent"
 )

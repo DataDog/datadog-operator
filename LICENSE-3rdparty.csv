@@ -139,11 +139,12 @@ core,google.golang.org/genproto/protobuf/field_mask,Apache-2.0
 core,google.golang.org/grpc,Apache-2.0
 core,google.golang.org/protobuf,BSD-3-Clause
 core,gopkg.in/DataDog/dd-trace-go.v1,Apache-2.0
+core,gopkg.in/evanphx/json-patch.v4,BSD-3-Clause
 core,gopkg.in/inf.v0,BSD-3-Clause
 core,gopkg.in/yaml.v2,Apache-2.0
 core,gopkg.in/yaml.v3,MIT
 core,k8s.io/api,Apache-2.0
-core,k8s.io/apiextensions-apiserver/pkg/apis/apiextensions,Apache-2.0
+core,k8s.io/apiextensions-apiserver/pkg,Apache-2.0
 core,k8s.io/apimachinery/pkg,Apache-2.0
 core,k8s.io/apimachinery/third_party/forked/golang,BSD-3-Clause
 core,k8s.io/apiserver,Apache-2.0
@@ -156,6 +157,7 @@ core,k8s.io/kube-openapi/pkg/internal/third_party/go-json-experiment/json,BSD-3-
 core,k8s.io/kube-openapi/pkg/validation/errors,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/spec,Apache-2.0
 core,k8s.io/kube-openapi/pkg/validation/strfmt,Apache-2.0
+core,k8s.io/kube-openapi/pkg/validation/validate,Apache-2.0
 core,k8s.io/utils,Apache-2.0
 core,k8s.io/utils/internal/third_party/forked/golang,BSD-3-Clause
 core,sigs.k8s.io/apiserver-network-proxy/konnectivity-client,Apache-2.0
