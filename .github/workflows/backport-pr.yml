@@ -30,7 +30,7 @@ jobs:
         id: backport
         with:
           label_pattern: "^backport/(?<base>([^ ]+))$" 
-          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot']) %>"
+          labels_template: "<%= JSON.stringify([...labels, 'backport', 'bot', 'qa/skip-qa']) %>"
           github_token: ${{ steps.app-token.outputs.token }}
           title_template: "[Backport <%- base %>] <%- title %>"
           body_template: |
