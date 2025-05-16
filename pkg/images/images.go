@@ -33,10 +33,12 @@ const (
 	DefaultEuropeImageRegistry string = "eu.gcr.io/datadoghq"
 	DefaultAsiaImageRegistry   string = "asia.gcr.io/datadoghq"
 	DefaultGovImageRegistry    string = "public.ecr.aws/datadog"
-	// JMXTagSuffix suffix tag for agent JMX images
+	// JMXTagSuffix tag suffix for agent JMX images
 	JMXTagSuffix = "-jmx"
-	// FIPSTagSuffix suffix tag for agent FIPS images
+	// FIPSTagSuffix tag suffix for agent FIPS images
 	FIPSTagSuffix = "-fips"
+	// FullTagSuffix tag suffix for full agent images
+	FullTagSuffix = "-full"
 	// Default Image names
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
@@ -60,17 +62,19 @@ type Image struct {
 	tag      string
 	isJMX    bool
 	isFIPS   bool
+	isFull   bool
 }
 
 // newImage return a new Image instance
 // Assumes that tag suffixes have already been trimmed and booleans updated accordingly
-func newImage(registry, name, tag string, isJMX bool, isFIPS bool) *Image {
+func newImage(registry, name, tag string, isJMX, isFIPS, isFull bool) *Image {
 	return &Image{
 		registry: registry,
 		name:     name,
 		tag:      tag,
 		isJMX:    isJMX,
 		isFIPS:   isFIPS,
+		isFull:   isFull,
 	}
 }
 
@@ -108,15 +112,26 @@ func (i *Image) WithFIPS(isFIPS bool) *Image {
 	return i
 }
 
-// GetLatestAgentImage return the latest stable agent release version
+func (i *Image) WithFull(isFull bool) *Image {
+	i.isFull = isFull
+	return i
+}
+
+// GetLatestAgentImage returns the latest stable agent release version
 func GetLatestAgentImage() string {
-	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false)
+	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, false, false, false)
 	return image.ToString()
 }
 
-// GetLatestClusterAgentImage return the latest stable agent release version
+// GetLatestAgentImageWithSuffix returns the latest stable agent release version
+func GetLatestAgentImageWithSuffix(withJMX, withFIPS, withFull bool) string {
+	image := newImage(DefaultImageRegistry, DefaultAgentImageName, AgentLatestVersion, withJMX, withFIPS, withFull)
+	return image.ToString()
+}
+
+// GetLatestClusterAgentImage returns the latest stable agent release version
 func GetLatestClusterAgentImage() string {
-	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false)
+	image := newImage(DefaultImageRegistry, DefaultClusterAgentImageName, ClusterAgentLatestVersion, false, false, false)
 	return image.ToString()
 }
 
@@ -136,7 +151,7 @@ func AssembleImage(imageSpec *v2alpha1.AgentImageConfig, registry string) string
 		tag = strings.TrimSuffix(imageSpec.Tag, JMXTagSuffix)
 	}
 
-	img := newImage(registry, imageSpec.Name, tag, imageSpec.JMXEnabled, false)
+	img := newImage(registry, imageSpec.Name, tag, imageSpec.JMXEnabled, false, false)
 
 	return img.ToString()
 }
@@ -164,12 +179,24 @@ func OverrideAgentImage(currentImage string, overrideImageSpec *v2alpha1.AgentIm
 // String return the string representation of an image
 func (i *Image) ToString() string {
 	suffix := ""
-	if i.isFIPS {
-		suffix = FIPSTagSuffix
-	}
+	// FIPS is a global setting, JMX is an override setting and Full is a feature setting.
+	// Order of priority is JMX -> FIPS -> Full
 	if i.isJMX {
-		suffix = suffix + JMXTagSuffix
+		if i.isFIPS {
+			suffix = FIPSTagSuffix + JMXTagSuffix
+		} else if i.isFull {
+			// Since JMX is compatible with the Full image, iff isJMX and isFull are true then use the Full suffix
+			suffix = FullTagSuffix
+		} else {
+			suffix = JMXTagSuffix
+
+		}
+	} else if i.isFIPS {
+		suffix = FIPSTagSuffix
+	} else if i.isFull {
+		suffix = FullTagSuffix
 	}
+
 	return fmt.Sprintf("%s/%s:%s%s", i.registry, i.name, i.tag, suffix)
 }
 
@@ -183,6 +210,14 @@ func FromString(stringImage string) *Image {
 	name := splitName[0]
 	tag := splitName[1]
 
+	// Check if this tag has Full suffix
+	// If it does, return because it is incompatible with the other two suffixes
+	isFull := strings.HasSuffix(tag, FullTagSuffix)
+	if isFull {
+		tag = strings.TrimSuffix(tag, FullTagSuffix)
+		return newImage(registry, name, tag, false, false, isFull)
+	}
+
 	// Check if this tag has JMX or FIPS suffixes
 	// JMX would be on the outside
 	isJMX := strings.HasSuffix(tag, JMXTagSuffix)
@@ -195,7 +230,7 @@ func FromString(stringImage string) *Image {
 		tag = strings.TrimSuffix(tag, FIPSTagSuffix)
 	}
 
-	return newImage(registry, name, tag, isJMX, isFIPS)
+	return newImage(registry, name, tag, isJMX, isFIPS, isFull)
 }
 
 // fromImageConfig creates an Image instance from the AgentImageConfig spec object
@@ -233,5 +268,5 @@ func fromImageConfig(imageConfig *v2alpha1.AgentImageConfig) (*Image, bool) {
 		}
 	}
 
-	return newImage(registry, imageName, imageTag, isJMX, false), nameContainsTag
+	return newImage(registry, imageName, imageTag, isJMX, false, false), nameContainsTag
 }

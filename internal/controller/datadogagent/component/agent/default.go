@@ -334,9 +334,8 @@ func agentImage() string {
 	return images.GetLatestAgentImage()
 }
 
-func otelAgentImage() string {
-	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
-	return fmt.Sprintf("%s/%s:%s", images.DefaultImageRegistry, images.DefaultAgentImageName, images.OTelAgentBetaTag)
+func fullAgentImage() string {
+	return images.GetLatestAgentImageWithSuffix(false, false, true)
 
 }
 
@@ -440,7 +439,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: otelAgentImage(),
+		Image: fullAgentImage(),
 		Command: []string{
 			"otel-agent",
 			"--config=" + otelCustomConfigVolumePath,
