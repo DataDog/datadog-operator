@@ -1546,6 +1546,11 @@ type SecretBackendConfig struct {
 	// +optional
 	Timeout *int32 `json:"timeout,omitempty"`
 
+	// The refresh interval for secrets (0 disables refreshing).
+	// Default: `0`.
+	// +optional
+	RefreshInterval *int32 `json:"refreshInterval,omitempty"`
+
 	// Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
 	// Default: `false`.
 	// +optional

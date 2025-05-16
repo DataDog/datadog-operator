@@ -234,6 +234,14 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Value: strconv.FormatInt(int64(*config.SecretBackend.Timeout), 10),
 			})
 		}
+
+		// Set secret backend refresh interval
+		if config.SecretBackend.RefreshInterval != nil && *config.SecretBackend.RefreshInterval > 0 {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDSecretRefreshInterval,
+				Value: strconv.FormatInt(int64(*config.SecretBackend.RefreshInterval), 10),
+			})
+		}
 	}
 
 	// Update images with Global Registry and UseFIPSAgent configurations
