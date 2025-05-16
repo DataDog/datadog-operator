@@ -10,11 +10,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -62,7 +64,19 @@ func NewDefaultComponentTest() *ComponentTest {
 	defaultProvider := kubernetes.DefaultProvider
 	return &ComponentTest{
 		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, string) {
-			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), defaultProvider
+			// Bare minimum PodTemplateSpec with one agent container
+			newPTS := v1.PodTemplateSpec{
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:    string(apicommon.CoreAgentContainerName),
+							Image:   images.GetLatestAgentImage(),
+							Command: []string{"agent", "run"},
+						},
+					},
+				},
+			}
+			return fake.NewPodTemplateManagers(t, newPTS), defaultProvider
 		},
 	}
 }

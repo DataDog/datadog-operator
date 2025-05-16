@@ -60,6 +60,7 @@ func Test_newImage(t *testing.T) {
 		tag      string
 		isJMX    bool
 		isFIPS   bool
+		isFull   bool
 	}
 	tests := []struct {
 		name string
@@ -122,10 +123,28 @@ func Test_newImage(t *testing.T) {
 				isFIPS:   true,
 			},
 		},
+		{
+			name: "full suffix",
+			args: args{
+				name:   "foo",
+				tag:    "bar",
+				isJMX:  false,
+				isFIPS: false,
+				isFull: true,
+			},
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "foo",
+				tag:      "bar",
+				isJMX:    false,
+				isFIPS:   false,
+				isFull:   true,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := newImage("gcr.io/datadoghq", tt.args.name, tt.args.tag, tt.args.isJMX, tt.args.isFIPS); !reflect.DeepEqual(got, tt.want) {
+			if got := newImage("gcr.io/datadoghq", tt.args.name, tt.args.tag, tt.args.isJMX, tt.args.isFIPS, tt.args.isFull); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("newImage() = %v, want %v", got, tt.want)
 			}
 		})
@@ -263,6 +282,54 @@ func Test_ToString(t *testing.T) {
 			},
 			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
 		},
+		{
+			name: "with full",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isJMX:    false,
+				isFIPS:   false,
+				isFull:   true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-full",
+		},
+		{
+			name: "with full and jmx",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isJMX:    true,
+				isFIPS:   false,
+				isFull:   true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-full",
+		},
+		{
+			name: "with full and fips",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isJMX:    false,
+				isFIPS:   true,
+				isFull:   true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-fips",
+		},
+		{
+			name: "with full, jmx and fips",
+			image: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isJMX:    true,
+				isFIPS:   true,
+				isFull:   true,
+			},
+			want: "gcr.io/datadoghq/agent:7.64.0-fips-jmx",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -316,6 +383,16 @@ func Test_FromString(t *testing.T) {
 				tag:      "7.64.0",
 				isJMX:    true,
 				isFIPS:   true,
+			},
+		},
+		{
+			name:        "with full",
+			imageString: "gcr.io/datadoghq/agent:7.64.0-full",
+			want: &Image{
+				registry: "gcr.io/datadoghq",
+				name:     "agent",
+				tag:      "7.64.0",
+				isFull:   true,
 			},
 		},
 	}
@@ -409,6 +486,24 @@ func Test_OverrideAgentImage(t *testing.T) {
 			want: "docker.io/datadog/agent:latest",
 		},
 		{
+			name:         "override image name is full name with JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "docker.io/datadog/agent:latest-jmx",
+				JMXEnabled: true,
+			},
+			want: "docker.io/datadog/agent:latest-jmx",
+		},
+		{
+			name:         "override image tag is with JMX",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag:        "latest-jmx",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:latest-jmx",
+		},
+		{
 			name:         "override image name is name:tag",
 			currentImage: "gcr.io/datadoghq/agent:7.64.0",
 			overrideImageSpec: &v2alpha1.AgentImageConfig{
@@ -450,6 +545,64 @@ func Test_OverrideAgentImage(t *testing.T) {
 				JMXEnabled: true,
 			},
 			want: "gcr.io/datadoghq/agent:7.65.0-fips",
+		},
+		{
+			name:         "current image includes FIPS suffix and override tag does not include FIPS suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0",
+		},
+		{
+			name:         "current image includes full suffix and override also includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override tag also includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override also includes full suffix, jmx enabled",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name:       "agent:7.65.0-full",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes full suffix and override tag also includes full suffix, jmx enabled",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-full",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag:        "7.65.0-full",
+				JMXEnabled: true,
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes fips suffix and override includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Name: "agent:7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
+		},
+		{
+			name:         "current image includes fips suffix and override tag includes full suffix",
+			currentImage: "gcr.io/datadoghq/agent:7.64.0-fips",
+			overrideImageSpec: &v2alpha1.AgentImageConfig{
+				Tag: "7.65.0-full",
+			},
+			want: "gcr.io/datadoghq/agent:7.65.0-full",
 		},
 	}
 	for _, tt := range tests {
