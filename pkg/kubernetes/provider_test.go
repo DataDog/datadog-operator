@@ -183,6 +183,14 @@ func Test_getProviderNodeAffinity(t *testing.T) {
 			wantAffinity: nil,
 		},
 		{
+			name: "single talos provider",
+			existingProviders: map[string]struct{}{
+				TalosProvider: {},
+			},
+			provider:     TalosProvider,
+			wantAffinity: nil,
+		},
+		{
 			name: "single cos provider",
 			existingProviders: map[string]struct{}{
 				gkeCosProvider: {},
