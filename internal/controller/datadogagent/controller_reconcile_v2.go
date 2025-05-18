@@ -383,9 +383,5 @@ func (r *Reconciler) profilesToApply(ctx context.Context, logger logr.Logger, no
 func (r *Reconciler) getNodeList(ctx context.Context) ([]corev1.Node, error) {
 	nodeList := corev1.NodeList{}
 	err := r.client.List(ctx, &nodeList)
-	if err != nil {
-		return nodeList.Items, err
-	}
-
-	return nodeList.Items, nil
+	return nodeList.Items, err
 }

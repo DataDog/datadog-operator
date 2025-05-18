@@ -169,6 +169,9 @@ func CacheOptions(logger logr.Logger, opts WatchOptions) cache.Options {
 						Name:   node.Name,
 						Labels: node.Labels,
 					},
+					Status: corev1.NodeStatus{
+						NodeInfo: node.Status.NodeInfo,
+					},
 				}
 
 				return newNode, nil
