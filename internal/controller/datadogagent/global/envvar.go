@@ -26,6 +26,7 @@ const (
 	DDSecretBackendCommand                 = "DD_SECRET_BACKEND_COMMAND"
 	DDSecretBackendArguments               = "DD_SECRET_BACKEND_ARGUMENTS"
 	DDSecretBackendTimeout                 = "DD_SECRET_BACKEND_TIMEOUT"
+	DDSecretRefreshInterval                = "DD_SECRET_REFRESH_INTERVAL"
 	DDTags                                 = "DD_TAGS"
 	DockerHost                             = "DOCKER_HOST"
 	DDKubernetesResourcesLabelsAsTags      = "DD_KUBERNETES_RESOURCES_LABELS_AS_TAGS"
