@@ -23,7 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
@@ -331,12 +331,11 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return defaulting.GetLatestAgentImage()
+	return images.GetLatestAgentImage()
 }
 
-func otelAgentImage() string {
-	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
-	return fmt.Sprintf("%s/%s:%s", defaulting.DefaultImageRegistry, defaulting.DefaultAgentImageName, defaulting.OTelAgentBetaTag)
+func fullAgentImage() string {
+	return images.GetLatestAgentImageWithSuffix(false, false, true)
 
 }
 
@@ -440,7 +439,7 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 func otelAgentContainer(_ metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(apicommon.OtelAgent),
-		Image: otelAgentImage(),
+		Image: fullAgentImage(),
 		Command: []string{
 			"otel-agent",
 			"--config=" + otelCustomConfigVolumePath,

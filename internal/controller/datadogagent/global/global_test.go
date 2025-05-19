@@ -8,6 +8,7 @@ package global
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -366,7 +367,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				testutils.NewDatadogAgentBuilder().
-					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
+					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 0).
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
 			),
@@ -425,13 +426,82 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantDependency:            assertSecretBackendGlobalPerms,
 		},
 		{
+			name:                           "Secret backend - with refresh interval",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 3600).
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  DDSecretBackendCommand,
+					Value: secretBackendCommand,
+				},
+				{
+					Name:  DDSecretBackendArguments,
+					Value: secretBackendArgs,
+				},
+				{
+					Name:  DDSecretBackendTimeout,
+					Value: "60",
+				},
+				{
+					Name:  DDSecretRefreshInterval,
+					Value: "3600",
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+			wantDependency:            assertSecretBackendGlobalPerms,
+		},
+		{
 			name:                           "Secret backend - specific secret permissions",
 			singleContainerStrategyEnabled: false,
 			dda: addNameNamespaceToDDA(
 				ddaName,
 				ddaNamespace,
 				testutils.NewDatadogAgentBuilder().
-					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
+					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 0, secretNamespace, secretNames).
 					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
 			),
@@ -831,5 +901,71 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 			apiutils.IsEqualStruct(rb.Subjects, expectedSubject),
 			"RoleBinding Subject \ndiff = %s", cmp.Diff(rb.Subjects, expectedSubject),
 		)
+	}
+}
+
+func Test_UseFIPSAgent(t *testing.T) {
+	logger := logf.Log.WithName("Test_UseFIPSAgent")
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &store.StoreOptions{
+		Scheme: testScheme,
+	}
+
+	noFipsAgentImage := "gcr.io/datadoghq/agent:7.64.0"
+
+	initContainer := &corev1.Container{
+		Name:  string(apicommon.CoreAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	agentContainer := &corev1.Container{
+		Name:  string(apicommon.CoreAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	processAgentContainer := &corev1.Container{
+		Name:  string(apicommon.ProcessAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	systemProbeContainer := &corev1.Container{
+		Name:  string(apicommon.SystemProbeContainerName),
+		Image: noFipsAgentImage,
+	}
+
+	dda := testutils.NewDatadogAgentBuilder().
+		WithCredentials("api-key", "app-key").
+		WithUseFIPSAgent().
+		BuildWithDefaults()
+
+	store := store.NewStore(dda, storeOptions)
+
+	existingManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{*initContainer},
+			Containers:     []corev1.Container{*agentContainer, *processAgentContainer, *systemProbeContainer},
+		},
+	})
+
+	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	requiredComponents := feature.RequiredComponents{
+		ClusterAgent: reqComp,
+		Agent:        reqComp,
+	}
+
+	t.Run("test", func(t *testing.T) {
+		resourcesManager := feature.NewResourceManagers(store)
+
+		applyGlobalSettings(logger, existingManager, dda, resourcesManager, requiredComponents)
+
+		checkFIPSImages(t, existingManager)
+	})
+}
+
+func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
+	for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
+	}
+	for _, container := range mgr.PodTemplateSpec().Spec.InitContainers {
+		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
 	}
 }

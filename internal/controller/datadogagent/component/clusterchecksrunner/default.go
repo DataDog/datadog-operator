@@ -22,7 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
@@ -146,7 +146,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func clusterChecksRunnerImage() string {
-	return defaulting.GetLatestAgentImage()
+	return images.GetLatestAgentImage()
 }
 
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {

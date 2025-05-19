@@ -145,7 +145,7 @@ func (c *Client) ApplyConfig(configRequest ConfigurationRequest) (*Configuration
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusBadRequest {
@@ -154,15 +154,15 @@ func (c *Client) ApplyConfig(configRequest ConfigurationRequest) (*Configuration
 
 	if resp.StatusCode == http.StatusBadRequest {
 		var errorResponse ErrorResponse
-		err := json.Unmarshal(respBody, &errorResponse)
-		if err != nil {
-			fmt.Println("Error unmarshalling JSON:", err)
-			return nil, err
+		jsonErr := json.Unmarshal(respBody, &errorResponse)
+		if jsonErr != nil {
+			fmt.Println("Error unmarshalling JSON:", jsonErr) // nolint: forbidigo
+			return nil, jsonErr
 		}
 		if strings.HasPrefix(errorResponse.Errors[0].Title, "configuration already exists") {
 			// Extract the ID from the error message
 			existingID := extractIDFromError(errorResponse.Errors[0].Title)
-			fmt.Println("using the policy that already exists:", existingID)
+			fmt.Println("using the policy that already exists:", existingID) // nolint: forbidigo
 			resp, err = c.makeRequest(configRequest, "PATCH", existingID)
 			if err != nil {
 				return nil, err
@@ -171,7 +171,7 @@ func (c *Client) ApplyConfig(configRequest ConfigurationRequest) (*Configuration
 
 			respBody, err = io.ReadAll(resp.Body)
 			if err != nil {
-				return nil, fmt.Errorf("error reading response: %v", err)
+				return nil, fmt.Errorf("error reading response: %w", err)
 			}
 		} else {
 			return nil, fmt.Errorf("failed to create config, status code: %d, response: %s", resp.StatusCode, string(respBody))
@@ -194,32 +194,32 @@ func (c *Client) makeRequest(configRequest ConfigurationRequest, method string, 
 	url := "https://app.datadoghq.com/api/unstable/remote_config/products/configurator/configurations"
 	reqBody, err := json.Marshal(configRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling JSON: %v", err)
+		return nil, fmt.Errorf("error marshalling JSON: %w", err)
 	}
 
 	// create new config
 	if method == "POST" {
 		req, err = http.NewRequest(method, url, bytes.NewBuffer(reqBody))
 		if err != nil {
-			return nil, fmt.Errorf("error creating request: %v", err)
+			return nil, fmt.Errorf("error creating request: %w", err)
 		}
 	} else {
 		url = fmt.Sprintf("%s/%s", url, existingPolicyID)
 		req, err = http.NewRequest(method, url, bytes.NewBuffer(reqBody))
 		if err != nil {
-			return nil, fmt.Errorf("error creating request: %v", err)
+			return nil, fmt.Errorf("error creating request: %w", err)
 		}
 	}
 
-	req.Header.Add("accept", "application/json")
-	req.Header.Add("content-type", "application/json")
-	req.Header.Add("origin", "https://app.datadoghq.com")
-	req.Header.Add("DD-API-KEY", c.apiKey)
-	req.Header.Add("DD-APPLICATION-KEY", c.appKey)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Origin", "https://app.datadoghq.com")
+	req.Header.Add("Dd-Api-Key", c.apiKey)
+	req.Header.Add("Dd-Application-Key", c.appKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	return resp, nil
 }
@@ -227,17 +227,17 @@ func (c *Client) makeRequest(configRequest ConfigurationRequest, method string, 
 func (c *Client) DeleteConfig(configID string) error {
 	url := fmt.Sprintf("https://app.datadoghq.com/api/unstable/remote_config/products/configurator/configurations/%s", configID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest("DELETE", url, nil) // nolint: noctx
 	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
+		return fmt.Errorf("error creating request: %w", err)
 	}
 
-	req.Header.Set("DD-API-KEY", c.apiKey)
-	req.Header.Set("DD-APPLICATION-KEY", c.appKey)
+	req.Header.Set("Dd-Api-Key", c.apiKey)
+	req.Header.Set("Dd-Application-Key", c.appKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
+		return fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 

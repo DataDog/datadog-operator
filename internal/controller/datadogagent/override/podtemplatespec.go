@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 func getAgentContainersMap() map[apicommon.AgentContainerName]string {
@@ -54,7 +55,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		agentContainersMap := getAgentContainersMap()
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
 			if _, ok := agentContainersMap[apicommon.AgentContainerName(container.Name)]; ok {
-				manager.PodTemplateSpec().Spec.Containers[i].Image = common.OverrideAgentImage(container.Image, override.Image)
+				manager.PodTemplateSpec().Spec.Containers[i].Image = images.OverrideAgentImage(container.Image, override.Image)
 				if override.Image.PullPolicy != nil {
 					manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
 				}
@@ -62,7 +63,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = common.OverrideAgentImage(initContainer.Image, override.Image)
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = images.OverrideAgentImage(initContainer.Image, override.Image)
 			if override.Image.PullPolicy != nil {
 				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
 			}

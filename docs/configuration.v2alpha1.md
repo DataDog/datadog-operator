@@ -153,7 +153,7 @@ spec:
 | features.otelCollector.coreConfig.enabled | Marks otelcollector as enabled in core agent. |
 | features.otelCollector.coreConfig.extensionTimeout | Extension URL provides the timout of the ddflareextension to the core agent. |
 | features.otelCollector.coreConfig.extensionURL | Extension URL provides the URL of the ddflareextension to the core agent. |
-| features.otelCollector.enabled | Enables the OTel Agent. Default: true |
+| features.otelCollector.enabled | Enables the OTel Agent. Default: false |
 | features.otelCollector.ports | Contains the ports for the otel-agent. Defaults: otel-grpc:4317 / otel-http:4318. Note: setting 4317 or 4318 manually is *only* supported if name match default names (otel-grpc, otel-http). If not, this will lead to a port conflict. This limitation will be lifted once annotations support is removed. |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. Host port is enabled by default and can be disabled. |
 | features.otlp.receiver.protocols.grpc.endpoint | For OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
@@ -253,10 +253,12 @@ spec:
 | global.secretBackend.args | List of arguments to pass to the command (space-separated strings). |
 | global.secretBackend.command | The secret backend command to use. Datadog provides a pre-defined binary `/readsecret_multiple_providers.sh`. Read more about `/readsecret_multiple_providers.sh` at https://docs.datadoghq.com/agent/configuration/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers. |
 | global.secretBackend.enableGlobalPermissions | Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets. Default: `false`. |
+| global.secretBackend.refreshInterval | The refresh interval for secrets (0 disables refreshing). Default: `0`. |
 | global.secretBackend.roles | For Datadog to read the specified secrets, replacing `enableGlobalPermissions`. They are defined as a list of namespace/secrets. Each defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`. See also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent. |
 | global.secretBackend.timeout | The command timeout in seconds. Default: `30`. |
 | global.site | Is the Datadog intake site Agent data are sent to. Set to 'datadoghq.com' to send data to the US1 site (default). Set to 'datadoghq.eu' to send data to the EU site. Set to 'us3.datadoghq.com' to send data to the US3 site. Set to 'us5.datadoghq.com' to send data to the US5 site. Set to 'ddog-gov.com' to send data to the US1-FED site. Set to 'ap1.datadoghq.com' to send data to the AP1 site. Default: 'datadoghq.com' |
 | global.tags | Contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
+| global.useFIPSAgent | UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled. Default: 'false' |
 | override | The default configurations of the agents |
 <br>
 

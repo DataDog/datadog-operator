@@ -14,7 +14,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 type DatadogAgentBuilder struct {
@@ -277,7 +277,7 @@ func (builder *DatadogAgentBuilder) WithSidecarInjectionEnabled(enabled bool) *D
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.ClusterAgentCommunicationEnabled = apiutils.NewBoolPointer(enabled)
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Provider = apiutils.NewStringPointer("fargate")
 		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Name = "agent"
-		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = defaulting.AgentLatestVersion
+		builder.datadogAgent.Spec.Features.AdmissionController.AgentSidecarInjection.Image.Tag = images.AgentLatestVersion
 	}
 	return builder
 }
@@ -970,21 +970,23 @@ func (builder *DatadogAgentBuilder) WithChecksTagCardinality(cardinality string)
 
 // Global SecretBackend
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendGlobalPerms(command string, args string, timeout int32, refreshInterval int32) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(true),
 	}
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithGlobalSecretBackendSpecificRoles(command string, args string, timeout int32, refreshInterval int32, secretNs string, secretNames []string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.SecretBackend = &v2alpha1.SecretBackendConfig{
 		Command:                 apiutils.NewStringPointer(command),
 		Args:                    apiutils.NewStringPointer(args),
 		Timeout:                 apiutils.NewInt32Pointer(timeout),
+		RefreshInterval:         apiutils.NewInt32Pointer(refreshInterval),
 		EnableGlobalPermissions: apiutils.NewBoolPointer(false),
 		Roles: []*v2alpha1.SecretBackendRolesConfig{
 			{
@@ -1008,6 +1010,15 @@ func (builder *DatadogAgentBuilder) WithComponentOverride(componentName v2alpha1
 }
 
 // FIPS
+
+func (builder *DatadogAgentBuilder) WithUseFIPSAgent() *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Global == nil {
+		builder.datadogAgent.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgent.Spec.Global.UseFIPSAgent = apiutils.NewBoolPointer(true)
+	return builder
+}
 
 func (builder *DatadogAgentBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Global == nil {

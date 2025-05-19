@@ -1433,7 +1433,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables the OTel Agent. Default: true",
+							Description: "Enabled enables the OTel Agent. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1589,6 +1589,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_SecretBackendConfig(ref comm
 					"timeout": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The command timeout in seconds. Default: `30`.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"refreshInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The refresh interval for secrets (0 disables refreshing). Default: `0`.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

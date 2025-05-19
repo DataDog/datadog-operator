@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -233,11 +234,42 @@ func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Value: strconv.FormatInt(int64(*config.SecretBackend.Timeout), 10),
 			})
 		}
+
+		// Set secret backend refresh interval
+		if config.SecretBackend.RefreshInterval != nil && *config.SecretBackend.RefreshInterval > 0 {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDSecretRefreshInterval,
+				Value: strconv.FormatInt(int64(*config.SecretBackend.RefreshInterval), 10),
+			})
+		}
 	}
 
-	// Apply FIPS config
-	if config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
+	// Update images with Global Registry and UseFIPSAgent configurations
+	updateContainerImages(config, manager)
+
+	// Apply FIPS proxy settings - UseFIPSAgent must be false
+	if !*config.UseFIPSAgent && config.FIPS != nil && apiutils.BoolValue(config.FIPS.Enabled) {
 		applyFIPSConfig(logger, manager, dda, resourcesManager)
+	}
+
+}
+
+func updateContainerImages(config *v2alpha1.GlobalConfig, podTemplateManager feature.PodTemplateManagers) {
+	image := &images.Image{}
+	for i, container := range podTemplateManager.PodTemplateSpec().Spec.Containers {
+		image = images.FromString(container.Image).
+			WithRegistry(*config.Registry).
+			WithFIPS(*config.UseFIPSAgent)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		podTemplateManager.PodTemplateSpec().Spec.Containers[i].Image = image.ToString()
+	}
+
+	for i, container := range podTemplateManager.PodTemplateSpec().Spec.InitContainers {
+		image = images.FromString(container.Image)
+		image.WithRegistry(*config.Registry)
+		image.WithFIPS(*config.UseFIPSAgent)
+		// Note: if an image tag override is configured, this image tag will be overwritten
+		podTemplateManager.PodTemplateSpec().Spec.InitContainers[i].Image = image.ToString()
 	}
 }
 

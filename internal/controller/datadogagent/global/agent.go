@@ -21,9 +21,6 @@ import (
 func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, singleContainerStrategyEnabled bool) {
 	config := dda.Spec.Global
 
-	// Registry is the image registry to use for all Agent images.
-	setImageRegistry(manager, dda, v2alpha1.NodeAgentComponentName)
-
 	// Kubelet contains the kubelet configuration parameters.
 	// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
 	if config.Kubelet != nil {

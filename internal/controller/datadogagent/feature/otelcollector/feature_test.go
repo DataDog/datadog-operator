@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
@@ -359,8 +360,10 @@ func testExpectedAgent(agentContainerName apicommon.AgentContainerName, expected
 
 			agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
 			otelAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.OtelAgent]
+			image := mgr.PodTemplateSpec().Spec.Containers[0].Image
 			assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 			assert.True(t, apiutils.IsEqualStruct(otelAgentEnvVars, wantEnvVarsOTel), "OTel Agent envvars \ndiff = %s", cmp.Diff(otelAgentEnvVars, wantEnvVarsOTel))
+			assert.Equal(t, images.GetLatestAgentImageWithSuffix(false, false, true), image)
 
 			// annotations
 			agentAnnotations := mgr.AnnotationMgr.Annotations

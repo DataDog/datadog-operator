@@ -1853,7 +1853,7 @@
                   "type": "object"
                 },
                 "enabled": {
-                  "description": "Enabled enables the OTel Agent.\nDefault: true",
+                  "description": "Enabled enables the OTel Agent.\nDefault: false",
                   "type": "boolean"
                 },
                 "ports": {
@@ -2917,6 +2917,11 @@
                   "description": "Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.\nDefault: `false`.",
                   "type": "boolean"
                 },
+                "refreshInterval": {
+                  "description": "The refresh interval for secrets (0 disables refreshing).\nDefault: `0`.",
+                  "format": "int32",
+                  "type": "integer"
+                },
                 "roles": {
                   "description": "Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.\nThey are defined as a list of namespace/secrets.\nEach defined namespace needs to be present in the DatadogAgent controller using `WATCH_NAMESPACE` or `DD_AGENT_WATCH_NAMESPACE`.\nSee also: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md#how-to-deploy-the-agent-components-using-the-secret-backend-feature-with-datadogagent.",
                   "items": {
@@ -2964,6 +2969,10 @@
               },
               "type": "array",
               "x-kubernetes-list-type": "set"
+            },
+            "useFIPSAgent": {
+              "description": "UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.\nDefault: 'false'",
+              "type": "boolean"
             }
           },
           "type": "object"
@@ -9108,7 +9117,7 @@
                       "type": "object"
                     },
                     "enabled": {
-                      "description": "Enabled enables the OTel Agent.\nDefault: true",
+                      "description": "Enabled enables the OTel Agent.\nDefault: false",
                       "type": "boolean"
                     },
                     "ports": {

@@ -791,7 +791,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 // +k8s:openapi-gen=true
 type OtelCollectorFeatureConfig struct {
 	// Enabled enables the OTel Agent.
-	// Default: true
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -1473,6 +1473,11 @@ type GlobalConfig struct {
 	// +optional
 	ContainerStrategy *ContainerStrategyType `json:"containerStrategy,omitempty"`
 
+	// UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
+	// Default: 'false'
+	// +optional
+	UseFIPSAgent *bool `json:"useFIPSAgent,omitempty"`
+
 	// FIPS contains configuration used to customize the FIPS proxy sidecar.
 	FIPS *FIPSConfig `json:"fips,omitempty"`
 
@@ -1540,6 +1545,11 @@ type SecretBackendConfig struct {
 	// Default: `30`.
 	// +optional
 	Timeout *int32 `json:"timeout,omitempty"`
+
+	// The refresh interval for secrets (0 disables refreshing).
+	// Default: `0`.
+	// +optional
+	RefreshInterval *int32 `json:"refreshInterval,omitempty"`
 
 	// Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
 	// Default: `false`.
@@ -1858,6 +1868,7 @@ type FIPSConfig struct {
 	// Enable FIPS sidecar.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
 	// The container image of the FIPS sidecar.
 	// +optional
 	Image *AgentImageConfig `json:"image,omitempty"`

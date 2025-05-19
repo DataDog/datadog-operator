@@ -1771,6 +1771,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(ContainerStrategyType)
 		**out = **in
 	}
+	if in.UseFIPSAgent != nil {
+		in, out := &in.UseFIPSAgent, &out.UseFIPSAgent
+		*out = new(bool)
+		**out = **in
+	}
 	if in.FIPS != nil {
 		in, out := &in.FIPS, &out.FIPS
 		*out = new(FIPSConfig)
@@ -2737,6 +2742,11 @@ func (in *SecretBackendConfig) DeepCopyInto(out *SecretBackendConfig) {
 	}
 	if in.Timeout != nil {
 		in, out := &in.Timeout, &out.Timeout
+		*out = new(int32)
+		**out = **in
+	}
+	if in.RefreshInterval != nil {
+		in, out := &in.RefreshInterval, &out.RefreshInterval
 		*out = new(int32)
 		**out = **in
 	}
