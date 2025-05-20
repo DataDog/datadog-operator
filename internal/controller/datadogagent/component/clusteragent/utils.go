@@ -39,7 +39,7 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.OperatorDatadogAgentLabelKey:     dda.GetName(),
+				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 				apicommon.AgentDeploymentComponentLabelKey: constants.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
