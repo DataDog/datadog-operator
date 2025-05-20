@@ -10,13 +10,10 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -32,7 +29,9 @@ func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*
 		return nil, err
 	}
 	// Spec
-	generateSpecFromDDA(dda, ddai)
+	if err := generateSpecFromDDA(dda, ddai); err != nil {
+		return nil, err
+	}
 
 	// Set hash
 	if _, err := comparison.SetMD5GenerationAnnotation(&ddai.ObjectMeta, ddai.Spec, constants.MD5DDAIDeploymentAnnotationKey); err != nil {
@@ -46,9 +45,9 @@ func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent,
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        getDDAINameFromDDA(dda.Name),
 		Namespace:   dda.Namespace,
+		Labels:      dda.Labels,
 		Annotations: dda.Annotations,
 	}
-	ddai.ObjectMeta.Labels = getDDAILabelsFromDDA(ddai, dda.Name)
 	if err := object.SetOwnerReference(dda, ddai, r.scheme); err != nil {
 		return err
 	}
@@ -59,15 +58,8 @@ func getDDAINameFromDDA(ddaName string) string {
 	return fmt.Sprintf(ddaiNameTemplate, ddaName)
 }
 
-func getDDAILabelsFromDDA(ddai metav1.Object, ddaName string) map[string]string {
-	// TODO: set `version` label value, currently ""
-	labels := common.GetDefaultLabels(ddai, "datadogagentinternal", ddai.GetName(), "")
-	labels[apicommon.OperatorDatadogAgentLabelKey] = ddaName
-	return labels
-}
-
-func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) {
+func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
 	ddai.Spec = dda.Spec
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
-	override.SetOverrideFromDDA(dda, ddai.Spec.Override)
+	return nil
 }

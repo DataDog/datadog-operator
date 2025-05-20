@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -184,7 +183,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile-foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "4cefba750d1df33a09f0849e669ef562",
+						constants.MD5DDAIDeploymentAnnotationKey: "fb25e5160453e69437f7a77848f5c0d9",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -247,9 +246,6 @@ func Test_computeProfileMerge(t *testing.T) {
 									Name:  "EXISTING",
 									Value: "newvalue",
 								},
-							},
-							Labels: map[string]string{
-								agentprofile.ProfileLabelKey: "foo-profile",
 							},
 						},
 						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
