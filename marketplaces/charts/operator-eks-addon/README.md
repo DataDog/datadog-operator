@@ -22,7 +22,7 @@ Below steps have been validated using `Helm v3.12.0`.
 * Merge `main` branch into `operator-eks-addon` branch: This will require you to manually resolve conflicts.
 * Update:
     * `charts/operator-eks-addon/CHANGELOG.md`: provide an entry for the new version.
-    * `charts/operator-eks-addon/Chart.yaml`: update the version and the `datadog-operator` version dependency
+    * `charts/operator-eks-addon/Chart.yaml`: Update the version and the `datadog-operator` version dependency
     * `charts/operator-eks-addon/README.md`: add a row to the version mapping
 * Build dependencies - this step is necessary to update the dependent charts under `charts/operator-eks-addon/charts` and `charts/datadog-operator/charts`. Latter is necessary to include correct version of `datadog-crds` chart in the `datadog-operator`.
 ```sh
