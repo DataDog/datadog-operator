@@ -10,6 +10,5 @@ maintainers:
   email: support@datadoghq.com
 dependencies:
 - name: datadog-operator
-  version: "=2.9.1"
   alias: datadog-operator
-  repository: file://./charts/datadog-operator/
+  version: 2.9.2

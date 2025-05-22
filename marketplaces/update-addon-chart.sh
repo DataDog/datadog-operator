@@ -5,19 +5,29 @@
 
 set -euo pipefail
 
-# CHART_CRD="datadog/datadog-crds"
-# CHART_CRD_VERSION="2.6.0"
 CHART_OPERATOR="datadog/datadog-operator"
-CHART_OPERATOR_VERSION="${1:-2.9.2}"
-SUBCHART_DIR="./charts/operator-eks-addon/charts"
+CHART_DIR="./charts/operator-eks-addon"
+SUBCHART_DIR="$CHART_DIR/charts"
+WRAPPER_CHART_VERSION="$(yq .version $CHART_DIR/Chart.yaml)"
+OPERATOR_DEPENDENCY_VERSION="$(yq '.dependencies[] | select(.name == "'"datadog-operator"'") | .version' $CHART_DIR/Chart.yaml)"
 
 mkdir -p "$SUBCHART_DIR"
 
-echo "Pulling $CHART_OPERATOR@$CHART_OPERATOR_VERSION..."
+echo "Updating helm repo"
+helm repo update 2>/dev/null
 
-helm repo update
+echo "Pulling $CHART_OPERATOR@$OPERATOR_DEPENDENCY_VERSION"
 rm -fr "./charts/operator-eks-addon/charts/datadog-operator"
-helm pull "$CHART_OPERATOR" --version "$CHART_OPERATOR_VERSION" --untar --untardir "$SUBCHART_DIR"
+helm pull "$CHART_OPERATOR" --version "$OPERATOR_DEPENDENCY_VERSION" --untar --untardir "$SUBCHART_DIR"
+
+CRDS_SUBCHART_VERSION="$(yq .version $CHART_DIR/charts/datadog-operator/charts/datadog-crds/Chart.yaml)"
+OPERATOR_SUBCHART_VERSION="$(yq .version $CHART_DIR/charts/datadog-operator/Chart.yaml)"
+OPERATOR_SUBCHART_APPVERSION="$(yq .appVersion $CHART_DIR/charts/datadog-operator/Chart.yaml)"
+
+if [[ "$OPERATOR_SUBCHART_VERSION" != "$OPERATOR_DEPENDENCY_VERSION" ]]; then
+    echo "ERROR: subchart version $OPERATOR_SUBCHART_VERSION does not match dependency version $OPERATOR_DEPENDENCY_VERSION from Chart.yaml"
+    exit 1
+fi
 
 # clean-up sub-charts to pass add-on validation
 
@@ -50,3 +60,9 @@ sed -i '' 's#gcr.io/datadoghq/operator#709825985650.dkr.ecr.us-east-1.amazonaws.
 # template the chart with default values
 helm template operator-eks-addon ./charts/operator-eks-addon -n datadog-agent > addon_manifest.yaml
 echo "Chart updated and templated to addon_manifest.yaml"
+cat <<EOF
+operator-eks-addon              $WRAPPER_CHART_VERSION
+datadog-operator                $OPERATOR_SUBCHART_VERSION
+datadog-operator appVersion     $OPERATOR_SUBCHART_APPVERSION
+datadog-crds                    $CRDS_SUBCHART_VERSION
+EOF

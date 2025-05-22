@@ -17,77 +17,84 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 * 0.1.11 failed validation and didn't go through.
 
 ## Pushing Add-on Chart
+
 The below steps have been validated using `Helm v3.12.0`.
 
-* Merge `main` branch into `operator-eks-addon` branch: This will require you to manually resolve conflicts.
-* Update:
-    * `charts/operator-eks-addon/CHANGELOG.md`: Provide an entry for the new version.
-    * `charts/operator-eks-addon/Chart.yaml`: Update the version and the `datadog-operator` version dependency
-    * `charts/operator-eks-addon/README.md`: Add a row to the version mapping
-* Build dependencies: This step is necessary to update the dependent charts under `charts/operator-eks-addon/charts` and `charts/datadog-operator/charts`. The latter is necessary to include correct version of `datadog-crds` chart in the `datadog-operator`.
-```sh
-helm dependency update ./charts/datadog-operator
-helm dependency build ./charts/datadog-operator
-helm dependency update ./charts/operator-eks-addon
-helm dependency build ./charts/operator-eks-addon
-```
+Prepare Chart:
 
-* Package chart: This step creates a chart archive. For example, `operator-eks-addon-0.1.0.tgz`
-```sh
-helm package ./charts/operator-eks-addon
-```
+* Update the `datadog-operator` dependency version in `charts/operator-eks-addon/Chart.yaml`.
+* Bump `operator-eks-addon` chart version.
+* Run:
+    ```sh
+    ./update-addon-chart.sh
+    ```
+  * Script vendors `datadog-operator` and `datadog-crds` charts and drops helm constructs incompatible with the add-on workflows.
+  * It also also updates `addon-manifest.yaml`, `operator-eks-addon` rendering with default values.
+* Update above table with new versions.
+* Review changes in `addon-manifest.yaml`, create a PR and get it merged.
+
+Package chart and validate:
+
+* This step creates a chart archive. For example, `operator-eks-addon-0.1.0.tgz`
+    ```sh
+    helm package ./charts/operator-eks-addon
+    ```
 
 * Validate the artifact
-```sh
-# Unpack the chart and go the the chart folder
-tar -xzf operator-eks-addon-0.1.3.tgz -C /tmp/
-cd /tmp/operator-eks-addon
+    ```sh
+    # Unpack the chart and go the the chart folder
+    tar -xzf operator-eks-addon-0.1.3.tgz -C /tmp/
+    cd /tmp/operator-eks-addon
 
-# Review chart version and dependency version are correct
-Ensure in all the manifests/templates the absence of unsupported Helm objects.
+    # Review chart version and dependency version are correct
+    Ensure in all the manifests/templates the absence of unsupported Helm objects.
 
-# Render chart in a file
-helm template datadog-operator . -n datadog-agent > operator-addon.yaml
+    # Render chart in a file
+    helm template datadog-operator . -n datadog-agent > operator-addon.yaml
 
-# Render chart with a sample override
-helm template datadog-operator . --set datadog-operator.image.tag=1.2.0 > operator-addon.yaml
-```
-Make sure the rendered manifest contains the CRD, Operator tag override works and uses correct EKS repo. 
+    # Render chart with a sample override
+    helm template datadog-operator . --set datadog-operator.image.tag=1.2.0 > operator-addon.yaml
+    ```
+    Make sure the rendered manifest contains the CRD, Operator tag override works and uses correct EKS repo. 
 
-Install it on a Kind cluster after replacing registry `709825985650.dkr.ecr.us-east-1.amazonaws.com` with a public one.
+    Install it on a Kind cluster after replacing registry `709825985650.dkr.ecr.us-east-1.amazonaws.com` with a public one.
 
-```sh
-kubectl apply -f operator-addon.yaml
-```
-Confirm Operator is deployed and pods reach a running state. Afterwards, create a secret and apply the default `DatadogAgent` manifest and make sure agents reach a running state and metrics show up in the app.
+    ```sh
+    kubectl apply -f operator-addon.yaml
+    ```
+    Confirm Operator is deployed and pods reach a running state. Afterwards, create a secret and apply the default `DatadogAgent` manifest and make sure agents reach a running state and metrics show up in the app.
 
+Push the artifact to EKS repo:
+* Authenticate Helm with the repo, 
+    ```sh
+    aws ecr get-login-password --region us-east-1 | helm registry login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
+    ```
 
-* Push chart to EKS repo - first we need to authenticate Helm with the repo, then we push the chart archive to the Marketplace repository. This will upload the chart at `datadog/helm-charts/operator-eks-addon` and tag it with version `0.1.0`. See [ECR documentation][eks-helm-push] for more details.
-```sh
-aws ecr get-login-password --region us-east-1 | helm registry login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
-helm push operator-eks-addon-0.1.0.tgz oci://709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/helm-charts
-```
+* Push the chart archive to the Marketplace repository. This will upload the chart at `datadog/helm-charts/operator-eks-addon` and tag it with version `0.1.0`. See [ECR documentation][eks-helm-push] for more details.
+    ```sh
+    helm push operator-eks-addon-0.1.0.tgz oci://709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/helm-charts
+    ```
 
-* Validation - with AWS CLI we can list images in a give reposotiry.
-```sh
-aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-charts/operator-eks-addon
-{
-    "imageDetails": [
-        {
-            "registryId": "709825985650",
-            "repositoryName": "datadog/helm-charts/operator-eks-addon",
-            "imageDigest": "sha256:d6e54cbe69bfb962f0a4e16c9b29a7572f6aaf479de347f91bea8331a1a867f9",
-            "imageTags": [
-                "0.1.0"
-            ],
-            "imageSizeInBytes": 63269,
-            "imagePushedAt": 1690215560.0,
-            "imageManifestMediaType": "application/vnd.oci.image.manifest.v1+json",
-            "artifactMediaType": "application/vnd.cncf.helm.config.v1+json"
-        }
-    ]
-}
-```
+* Validate the version by listing the repository:
+    ```sh
+    aws ecr describe-images --registry-id 709825985650 --region us-east-1  --repository-name datadog/helm-charts/operator-eks-addon
+    {
+        "imageDetails": [
+            {
+                "registryId": "709825985650",
+                "repositoryName": "datadog/helm-charts/operator-eks-addon",
+                "imageDigest": "sha256:d6e54cbe69bfb962f0a4e16c9b29a7572f6aaf479de347f91bea8331a1a867f9",
+                "imageTags": [
+                    "0.1.0"
+                ],
+                "imageSizeInBytes": 63269,
+                "imagePushedAt": 1690215560.0,
+                "imageManifestMediaType": "application/vnd.oci.image.manifest.v1+json",
+                "artifactMediaType": "application/vnd.cncf.helm.config.v1+json"
+            }
+        ]
+    }
+    ```
 
 ## Pushing Container Images
 Images required during add-on installation must be available through the EKS marketplace repository. Each image can be copied by using `crane copy`. Make sure all referenced tags are uploaded to the respective repository.
