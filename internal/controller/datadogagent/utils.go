@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -116,6 +117,38 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	}
 
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
+}
+
+// createOwnerReferencePatch creates a patch from owner references
+// We assume there is only one DDAI owner reference
+func createOwnerReferencePatch(ownerRef []metav1.OwnerReference, owner metav1.Object, gvk schema.GroupVersionKind) ([]byte, error) {
+	patchedRefs := make([]metav1.OwnerReference, len(ownerRef))
+	copy(patchedRefs, ownerRef)
+
+	// Replace DDAI owner reference with new owner reference
+	for i, ref := range patchedRefs {
+		if ref.Kind == "DatadogAgentInternal" {
+			patchedRefs[i] = *newOwnerRef(owner, gvk)
+		}
+	}
+
+	// Create JSON patch for ownerReferences field
+	refBytes, err := json.Marshal(patchedRefs)
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(fmt.Sprintf(`{"metadata":{"ownerReferences":%s}}`, string(refBytes))), nil
+}
+
+// shouldUpdateOwnerReference returns true if the owner reference is a DatadogAgent
+func shouldUpdateOwnerReference(currentOwnerRef []metav1.OwnerReference) bool {
+	for _, ownerRef := range currentOwnerRef {
+		if ownerRef.Kind == "DatadogAgentInternal" {
+			return true
+		}
+	}
+	return false
 }
 
 // getReplicas returns the desired replicas of a

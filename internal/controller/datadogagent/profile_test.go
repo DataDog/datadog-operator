@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
 )
@@ -152,7 +153,8 @@ func Test_computeProfileMerge(t *testing.T) {
 			},
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "foo-profile",
+					Name:      "foo-profile",
+					Namespace: "bar",
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
 					ProfileAffinity: &v1alpha1.ProfileAffinity{
@@ -183,7 +185,7 @@ func Test_computeProfileMerge(t *testing.T) {
 					Name:      "foo-profile-foo-profile",
 					Namespace: "bar",
 					Annotations: map[string]string{
-						constants.MD5DDAIDeploymentAnnotationKey: "fb25e5160453e69437f7a77848f5c0d9",
+						constants.MD5DDAIDeploymentAnnotationKey: "fd7ddf51f586374d7556aaf2c87242a3",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -247,6 +249,10 @@ func Test_computeProfileMerge(t *testing.T) {
 									Value: "newvalue",
 								},
 							},
+							Labels: map[string]string{
+								agentprofile.ProfileLabelKey: "foo-profile",
+							},
+							Name: apiutils.NewStringPointer("datadog-agent-with-profile-bar-foo-profile"),
 						},
 						v2alpha1.ClusterAgentComponentName: &v2alpha1.DatadogAgentComponentOverride{
 							Disabled: apiutils.NewBoolPointer(true),

@@ -6,20 +6,15 @@
 package datadogagent
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-)
-
-const (
-	ddaiNameTemplate = "%s-ddai"
 )
 
 func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*datadoghqv1alpha1.DatadogAgentInternal, error) {
@@ -43,7 +38,7 @@ func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*
 
 func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
 	ddai.ObjectMeta = metav1.ObjectMeta{
-		Name:        getDDAINameFromDDA(dda.Name),
+		Name:        dda.Name,
 		Namespace:   dda.Namespace,
 		Labels:      dda.Labels,
 		Annotations: dda.Annotations,
@@ -54,12 +49,9 @@ func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent,
 	return nil
 }
 
-func getDDAINameFromDDA(ddaName string) string {
-	return fmt.Sprintf(ddaiNameTemplate, ddaName)
-}
-
 func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
 	ddai.Spec = dda.Spec
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
+	override.SetOverrideFromDDA(dda, ddai.Spec.Override)
 	return nil
 }
