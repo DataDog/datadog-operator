@@ -59,7 +59,7 @@ Install it on a Kind cluster after replacing registry `709825985650.dkr.ecr.us-e
 ```sh
 kubectl apply -f operator-addon.yaml
 ```
-Confirm Operator is deploy and pods reach running state. Afterwards, create secret and apply default `DatadogAgent` manifest and make sure agents reach running state and metric shows up in the app.
+Confirm Operator is deployed and pods reach a running state. Afterwards, create a secret and apply the default `DatadogAgent` manifest and make sure agents reach a running state and metrics show up in the app.
 
 
 * Push chart to EKS repo - first we need to authenticate Helm with the repo, then we push the chart archive to the Marketplace repository. This will upload the chart at `datadog/helm-charts/operator-eks-addon` and tag it with version `0.1.0`. See [ECR documentation][eks-helm-push] for more details.
