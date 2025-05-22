@@ -32,7 +32,7 @@ helm dependency update ./charts/operator-eks-addon
 helm dependency build ./charts/operator-eks-addon
 ```
 
-* Package chart - this step creates a chart archive e.g. `operator-eks-addon-0.1.0.tgz`
+* Package chart: This step creates a chart archive. For example, `operator-eks-addon-0.1.0.tgz`
 ```sh
 helm package ./charts/operator-eks-addon
 ```
