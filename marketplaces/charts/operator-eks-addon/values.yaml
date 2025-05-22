@@ -1,0 +1,8 @@
+datadog-operator:
+  toolVersion: eks-addon
+  datadogCRDs:
+    crds:
+      datadogMonitors: false
+  image:
+    repository: 709825985650.dkr.ecr.us-east-1.amazonaws.com/datadog/operator
+  operatorMetricsEnabled: false
