@@ -90,7 +90,7 @@ aws ecr describe-images --registry-id 709825985650 --region us-east-1  --reposit
 ```
 
 ## Pushing Container Images
-Images required during add-on instasllation must be available through the EKS marketplace repository. Each image can be copied simply by `crane copy`. Make sure all referenced tags are uploaded to the respective repository.
+Images required during add-on installation must be available through the EKS marketplace repository. Each image can be copied by using `crane copy`. Make sure all referenced tags are uploaded to the respective repository.
 ```sh
 aws ecr get-login-password --region us-east-1|crane auth login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
 
