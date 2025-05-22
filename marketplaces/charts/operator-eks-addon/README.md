@@ -17,7 +17,7 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 * 0.1.11 failed validation and didn't go through.
 
 ## Pushing Add-on Chart
-Below steps have been validated using `Helm v3.12.0`.
+The below steps have been validated using `Helm v3.12.0`.
 
 * Merge `main` branch into `operator-eks-addon` branch: This will require you to manually resolve conflicts.
 * Update:
