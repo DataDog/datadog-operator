@@ -19,7 +19,7 @@ This is a wrapper chart for installing EKS add-on. Charts required for the add-o
 ## Pushing Add-on Chart
 Below steps have been validated using `Helm v3.12.0`.
 
-* Merge `main` branch into `operator-eks-addon` branch: this will require to resolve conflicts manually.
+* Merge `main` branch into `operator-eks-addon` branch: This will require you to manually resolve conflicts.
 * Update:
     * `charts/operator-eks-addon/CHANGELOG.md`: provide an entry for the new version.
     * `charts/operator-eks-addon/Chart.yaml`: update the version and the `datadog-operator` version dependency
