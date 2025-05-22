@@ -3,11 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -74,9 +75,43 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
+				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
 				{
 					Name:  DDKubeletTLSVerify,
 					Value: "true",
@@ -101,9 +136,43 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			dda: testutils.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true, podResourcesSocketDir).
 				WithGlobalDockerSocketPath(dockerSocketPath).
+				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
 			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
 				{
 					Name:  DDKubeletTLSVerify,
 					Value: "true",
@@ -127,12 +196,48 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
 				WithChecksTagCardinality("orchestrator").
+				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
-			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  DDChecksTagCardinality,
-				Value: "orchestrator",
-			}),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  DDChecksTagCardinality,
+					Value: "orchestrator",
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
 			wantVolumes:               getExpectedVolumes(),
@@ -143,12 +248,48 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
 				WithOriginDetectionUnified(true).
+				WithCredentials("apiKey", "appKey").
 				BuildWithDefaults(),
 			wantCoreAgentEnvVars: nil,
-			wantEnvVars: getExpectedEnvVars(&corev1.EnvVar{
-				Name:  DDOriginDetectionUnified,
-				Value: "true",
-			}),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  DDOriginDetectionUnified,
+					Value: "true",
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
 			wantVolumes:               getExpectedVolumes(),
@@ -158,6 +299,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			name:                           "Global environment variable configured",
 			singleContainerStrategyEnabled: false,
 			dda: testutils.NewDatadogAgentBuilder().
+				WithCredentials("apiKey", "appKey").
 				WithEnvVars([]corev1.EnvVar{
 					{
 						Name:  "envA",
@@ -179,6 +321,39 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  "envB",
 					Value: "valueB",
 				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
@@ -192,7 +367,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				testutils.NewDatadogAgentBuilder().
-					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout).
+					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 0).
+					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
 			),
 			wantCoreAgentEnvVars: nil,
@@ -208,6 +384,108 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				{
 					Name:  DDSecretBackendTimeout,
 					Value: "60",
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+			wantDependency:            assertSecretBackendGlobalPerms,
+		},
+		{
+			name:                           "Secret backend - with refresh interval",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithGlobalSecretBackendGlobalPerms(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 3600).
+					WithCredentials("apiKey", "appKey").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name:  DDSecretBackendCommand,
+					Value: secretBackendCommand,
+				},
+				{
+					Name:  DDSecretBackendArguments,
+					Value: secretBackendArgs,
+				},
+				{
+					Name:  DDSecretBackendTimeout,
+					Value: "60",
+				},
+				{
+					Name:  DDSecretRefreshInterval,
+					Value: "3600",
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
 				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
@@ -223,7 +501,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				ddaName,
 				ddaNamespace,
 				testutils.NewDatadogAgentBuilder().
-					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, secretNamespace, secretNames).
+					WithGlobalSecretBackendSpecificRoles(secretBackendCommand, secretBackendArgs, secretBackendTimeout, 0, secretNamespace, secretNames).
+					WithCredentials("apiKey", "appKey").
 					BuildWithDefaults(),
 			),
 			wantCoreAgentEnvVars: nil,
@@ -240,12 +519,138 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 					Name:  DDSecretBackendTimeout,
 					Value: "60",
 				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
 			}...),
 			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumeMounts:          getExpectedVolumeMounts(),
 			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 			wantDependency:            assertSecretBackendSpecificPerms,
+		},
+		{
+			name:                           "Credentials + token from existing secret",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithCredentialsFromSecret("apiKeyName", "apiKeyKey", "appKeyName", "appKeyKey").
+					WithDCATokenFromSecret("tokenName", "tokenKey").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "apiKeyName",
+							},
+							Key: "apiKeyKey",
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "appKeyName",
+							},
+							Key: "appKeyKey",
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "tokenName",
+							},
+							Key: "tokenKey",
+						},
+					},
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+		},
+		{
+			name:                           "One cred from existing secret, token specified",
+			singleContainerStrategyEnabled: false,
+			dda: addNameNamespaceToDDA(
+				ddaName,
+				ddaNamespace,
+				testutils.NewDatadogAgentBuilder().
+					WithCredentialsFromSecret("apiKeyName", "apiKeyKey", "", "").
+					WithDCAToken("token").
+					BuildWithDefaults(),
+			),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "apiKeyName",
+							},
+							Key: "apiKeyKey",
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "datadog-token",
+							},
+							Key: common.DefaultTokenKey,
+						},
+					},
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
 		},
 	}
 
@@ -254,8 +659,13 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 			store := store.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
-
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled)
+			reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+			requiredComponents := feature.RequiredComponents{
+				ClusterAgent: reqComp,
+				Agent:        reqComp,
+			}
+			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected
@@ -308,7 +718,7 @@ func getExpectedEnvVars(addedEnvVars ...*corev1.EnvVar) []*corev1.EnvVar {
 			Value: "datadoghq.com",
 		},
 		{
-			Name:  DDLogLevel,
+			Name:  constants.DDLogLevel,
 			Value: "info",
 		},
 	}
@@ -491,5 +901,71 @@ func assertSecretBackendSpecificPerms(t testing.TB, resourcesManager feature.Res
 			apiutils.IsEqualStruct(rb.Subjects, expectedSubject),
 			"RoleBinding Subject \ndiff = %s", cmp.Diff(rb.Subjects, expectedSubject),
 		)
+	}
+}
+
+func Test_UseFIPSAgent(t *testing.T) {
+	logger := logf.Log.WithName("Test_UseFIPSAgent")
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &store.StoreOptions{
+		Scheme: testScheme,
+	}
+
+	noFipsAgentImage := "gcr.io/datadoghq/agent:7.64.0"
+
+	initContainer := &corev1.Container{
+		Name:  string(apicommon.CoreAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	agentContainer := &corev1.Container{
+		Name:  string(apicommon.CoreAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	processAgentContainer := &corev1.Container{
+		Name:  string(apicommon.ProcessAgentContainerName),
+		Image: noFipsAgentImage,
+	}
+	systemProbeContainer := &corev1.Container{
+		Name:  string(apicommon.SystemProbeContainerName),
+		Image: noFipsAgentImage,
+	}
+
+	dda := testutils.NewDatadogAgentBuilder().
+		WithCredentials("api-key", "app-key").
+		WithUseFIPSAgent().
+		BuildWithDefaults()
+
+	store := store.NewStore(dda, storeOptions)
+
+	existingManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{*initContainer},
+			Containers:     []corev1.Container{*agentContainer, *processAgentContainer, *systemProbeContainer},
+		},
+	})
+
+	reqComp := feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)}
+	requiredComponents := feature.RequiredComponents{
+		ClusterAgent: reqComp,
+		Agent:        reqComp,
+	}
+
+	t.Run("test", func(t *testing.T) {
+		resourcesManager := feature.NewResourceManagers(store)
+
+		applyGlobalSettings(logger, existingManager, dda, resourcesManager, requiredComponents)
+
+		checkFIPSImages(t, existingManager)
+	})
+}
+
+func checkFIPSImages(t testing.TB, mgr *fake.PodTemplateManagers) {
+	for _, container := range mgr.PodTemplateSpec().Spec.Containers {
+		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
+	}
+	for _, container := range mgr.PodTemplateSpec().Spec.InitContainers {
+		assert.True(t, strings.HasSuffix(container.Image, "-fips"), "Container %s has image %s", container.Name, container.Image)
 	}
 }

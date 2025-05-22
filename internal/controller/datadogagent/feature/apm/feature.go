@@ -28,7 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
@@ -212,7 +212,7 @@ func (f *apmFeature) shouldEnableLanguageDetection() bool {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	platformInfo := managers.Store().GetPlatformInfo()
 	// agent local service
 	if common.ShouldCreateAgentLocalService(platformInfo.GetVersionInfo(), f.forceEnableLocalService) {
@@ -380,7 +380,7 @@ func supportsInstrumentationTargets(dda *v2alpha1.DatadogAgent) bool {
 			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
 		}
 	}
-	return utils.IsAboveMinVersion(defaulting.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
+	return utils.IsAboveMinVersion(images.ClusterAgentLatestVersion, minInstrumentationTargetsVersion)
 }
 
 // ManageSingleContainerNodeAgent allows a feature to configure the Agent container for the Node Agent's corev1.PodTemplateSpec

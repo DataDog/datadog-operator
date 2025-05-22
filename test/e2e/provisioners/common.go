@@ -7,13 +7,15 @@ package provisioners
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	e2ecommon "github.com/DataDog/datadog-operator/test/e2e/common"
 	"os"
 	"path/filepath"
+
 	"sigs.k8s.io/kustomize/api/types"
 	"sigs.k8s.io/kustomize/kyaml/resid"
 	"sigs.k8s.io/yaml"
+
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	e2ecommon "github.com/DataDog/datadog-operator/test/e2e/common"
 )
 
 var (

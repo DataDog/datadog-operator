@@ -150,6 +150,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 				Enabled:                             options.SupportExtendedDaemonset.Enabled,
 				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
 				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
 				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
 				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
 				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,

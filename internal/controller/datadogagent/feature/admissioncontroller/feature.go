@@ -22,7 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 )
 
 func init() {
@@ -131,7 +131,10 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		}
 		f.localServiceName = constants.GetLocalAgentServiceName(dda)
 		reqComp = feature.RequiredComponents{
-			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+			ClusterAgent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName},
+			},
 		}
 		if ac.FailurePolicy != nil && *ac.FailurePolicy != "" {
 			f.failurePolicy = *ac.FailurePolicy
@@ -176,8 +179,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 
 			// set agent image from admissionController config or nodeAgent override image name. else, It will follow agent image name.
 			// default is "agent"
-			f.agentSidecarConfig.imageName = defaulting.DefaultAgentImageName
-			f.agentSidecarConfig.imageTag = defaulting.AgentLatestVersion
+			f.agentSidecarConfig.imageName = images.DefaultAgentImageName
+			f.agentSidecarConfig.imageTag = images.AgentLatestVersion
 
 			componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]
 			if sidecarConfig.Image != nil && sidecarConfig.Image.Name != "" {
@@ -237,7 +240,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 	return reqComp
 }
 
-func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	ns := f.owner.GetNamespace()
 	rbacName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
 

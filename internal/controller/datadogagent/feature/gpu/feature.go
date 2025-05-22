@@ -28,7 +28,7 @@ type gpuFeature struct {
 	// podRuntimeClassName is the value to set in the runtimeClassName
 	// configuration of the agent pod. If this is empty, the runtimeClassName
 	// will not be changed.
-	podRuntimeClassName string
+	podRuntimeClassName    string
 	podResourcesSocketPath string
 }
 
@@ -64,7 +64,7 @@ func (f *gpuFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *gpuFeature) ManageDependencies(feature.ResourceManagers, feature.RequiredComponents) error {
+func (f *gpuFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

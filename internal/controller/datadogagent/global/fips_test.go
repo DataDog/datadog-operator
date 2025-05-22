@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"fmt"
@@ -71,7 +71,7 @@ defaults
 		want            func(t testing.TB, manager *fake.PodTemplateManagers, store *store.Store)
 	}{
 		{
-			name: "FIPS enabled",
+			name: "FIPS proxy enabled",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -100,7 +100,7 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom image",
+			name: "FIPS proxy enabled, custom image",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -134,7 +134,7 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom port",
+			name: "FIPS proxy enabled, custom port",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -164,7 +164,7 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom config - config map",
+			name: "FIPS proxy enabled, custom config - config map",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),
@@ -205,7 +205,7 @@ defaults
 			},
 		},
 		{
-			name: "FIPS custom config - config data",
+			name: "FIPS proxy enabled, custom config - config data",
 			dda: testutils.NewDatadogAgentBuilder().
 				WithFIPS(v2alpha1.FIPSConfig{
 					Enabled: apiutils.NewBoolPointer(true),

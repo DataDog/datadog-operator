@@ -10,7 +10,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 
@@ -83,7 +83,7 @@ func clusterAgentDefaultPodSpec(dda *datadoghqv2alpha1.DatadogAgent) corev1.PodS
 		Containers: []corev1.Container{
 			{
 				Name:      "cluster-agent",
-				Image:     defaulting.GetLatestClusterAgentImage(),
+				Image:     images.GetLatestClusterAgentImage(),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -248,6 +248,22 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv2alpha1.DatadogAgent) []corev1.En
 		{
 			Name:  "DD_INSTRUMENTATION_INSTALL_ID",
 			Value: "",
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_SERVICE_ACCOUNT_NAME",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "AGENT_DAEMONSET",
+			Value: "foo-agent",
+		},
+		{
+			Name:  "CLUSTER_AGENT_DEPLOYMENT",
+			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  "DATADOGAGENT_CR_NAME",
+			Value: "foo",
 		},
 	}
 }

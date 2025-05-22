@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package override
+package global
 
 import (
 	"fmt"
@@ -19,14 +19,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // applyFIPSConfig applies FIPS related configs to a pod template spec
-func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers) {
+func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) {
 	globalConfig := dda.Spec.Global
 	fipsConfig := globalConfig.FIPS
 
@@ -55,7 +54,7 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 	// Configure FIPS container
 	fipsContainer := getFIPSProxyContainer(fipsConfig)
 
-	image := constants.GetImage(fipsConfig.Image, globalConfig.Registry)
+	image := images.AssembleImage(fipsConfig.Image, *globalConfig.Registry)
 	fipsContainer.Image = image
 	if fipsConfig.Image.PullPolicy != nil {
 		fipsContainer.ImagePullPolicy = *fipsConfig.Image.PullPolicy
@@ -81,7 +80,6 @@ func applyFIPSConfig(logger logr.Logger, manager feature.PodTemplateManagers, dd
 			SubPath:   FIPSProxyCustomConfigFileName,
 			ReadOnly:  true,
 		}
-
 		// Add md5 hash annotation to component for custom config
 		hash, err := comparison.GenerateMD5ForSpec(fipsConfig.CustomFIPSConfig)
 		if err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -28,7 +29,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 	namespace := dda.Namespace
 
 	for component, override := range overrides {
-		err := overrideRBAC(logger, manager, override, component, namespace)
+		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponent(dda, component), namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -71,11 +72,18 @@ func overridePodDisruptionBudget(logger logr.Logger, manager feature.ResourceMan
 	return errs
 }
 
-func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, namespace string) error {
+func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, saName string, namespace string) error {
 	var errs []error
 
+	// Service account annotations
+	if len(override.ServiceAccountAnnotations) > 0 {
+		if err := manager.RBACManager().AddServiceAccountAnnotations(namespace, saName, override.ServiceAccountAnnotations); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	// Delete created RBACs if CreateRbac is set to false
-	if override.CreateRbac != nil && !*override.CreateRbac {
+	if !createRBAC(override) {
 		rbacManager := manager.RBACManager()
 		logger.Info("Deleting RBACs for %s", component, nil)
 		errs = append(errs, rbacManager.DeleteServiceAccountByComponent(string(component), namespace))
@@ -83,7 +91,7 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 		errs = append(errs, rbacManager.DeleteClusterRoleByComponent(string(component)))
 	}
 
-	// Note: ServiceAccountName overrides are taken into account in the features code (out of pattern)
+	// Note: ServiceAccountName overrides are taken into account in the global dependencies code (out of pattern)
 
 	return errors.NewAggregate(errs)
 }
@@ -142,4 +150,12 @@ func overrideExtraConfigs(logger logr.Logger, manager feature.ResourceManagers, 
 		}
 	}
 	return errs
+}
+
+// createRBAC returns whether the RBAC should be created
+func createRBAC(override *v2alpha1.DatadogAgentComponentOverride) bool {
+	if override == nil || override.CreateRbac == nil {
+		return true
+	}
+	return *override.CreateRbac
 }

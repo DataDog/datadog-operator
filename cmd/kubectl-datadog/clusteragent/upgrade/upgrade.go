@@ -17,14 +17,14 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
 var (
 	image          string
 	latest         bool
-	latestImage    = defaulting.GetLatestClusterAgentImage()
+	latestImage    = images.GetLatestClusterAgentImage()
 	upgradeExample = `
   # upgrade the version of the datadog cluster agent to latest known release %[2]s
   %[1]s upgrade --latest
@@ -60,7 +60,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "upgrade [flags]",
 		Short:        "Upgrade the Datadog Cluster Agent version",
-		Example:      fmt.Sprintf(upgradeExample, "kubectl datadog clusteragent", defaulting.ClusterAgentLatestVersion),
+		Example:      fmt.Sprintf(upgradeExample, "kubectl datadog clusteragent", images.ClusterAgentLatestVersion),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {
@@ -74,7 +74,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&image, "image", "i", "", "The image of the Datadog Cluster Agent")
-	cmd.Flags().BoolVarP(&latest, "latest", "l", false, fmt.Sprintf("Upgrade to %s", defaulting.GetLatestClusterAgentImage()))
+	cmd.Flags().BoolVarP(&latest, "latest", "l", false, fmt.Sprintf("Upgrade to %s", images.GetLatestClusterAgentImage()))
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 

@@ -59,7 +59,7 @@ func (p *processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.
 	return reqComp
 }
 
-func (p processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+func (p processDiscoveryFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 

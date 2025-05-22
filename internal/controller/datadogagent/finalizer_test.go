@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/clusteragent"
 	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
@@ -39,6 +40,14 @@ func Test_handleFinalizer(t *testing.T) {
 			Name:       "bar",
 			Finalizers: []string{"finalizer.agent.datadoghq.com"},
 		},
+		Spec: datadoghqv2alpha1.DatadogAgentSpec{
+			Global: &datadoghqv2alpha1.GlobalConfig{
+				Credentials: &datadoghqv2alpha1.DatadogCredentials{
+					APIKey: apiutils.NewStringPointer("apiKey"),
+					AppKey: apiutils.NewStringPointer("appKey"),
+				},
+			},
+		},
 	}
 	dda.DeletionTimestamp = &now // Mark for deletion
 
@@ -56,6 +65,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: agent.GetAgentRoleName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -65,9 +76,11 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusteragent.GetClusterAgentName(dda),
+				Name: component.GetClusterAgentName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -85,6 +98,8 @@ func Test_handleFinalizer(t *testing.T) {
 				Name: agent.GetAgentRoleName(dda), // Same name as the cluster role
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},
@@ -94,9 +109,11 @@ func Test_handleFinalizer(t *testing.T) {
 				APIVersion: rbacv1.SchemeGroupVersion.String(),
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusteragent.GetClusterAgentName(dda),
+				Name: component.GetClusterAgentName(dda),
 				Labels: map[string]string{
 					"operator.datadoghq.com/managed-by-store": "true",
+					"app.kubernetes.io/part-of":               "foo-bar",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
 				},
 			},
 		},

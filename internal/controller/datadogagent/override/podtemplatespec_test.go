@@ -20,6 +20,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func TestPodTemplateSpec(t *testing.T) {
@@ -142,7 +143,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assertImageConfigValues(
 					manager,
-					containerImageOptions{name: "agent:9.99.9"},
+					containerImageOptions{name: "someregistry.com/datadog/agent:9.99.9"},
 					t,
 				)
 			},
@@ -199,64 +200,6 @@ func TestPodTemplateSpec(t *testing.T) {
 				assertImageConfigValues(
 					manager,
 					containerImageOptions{name: "someregistry.com/datadog/agent:7.38.0"},
-					t,
-				)
-			},
-		},
-		{
-			name: "08: given name:tag, override image with full URI name, ignore tag and JMX, full name takes precedence",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "someregistry.com/datadog/agent:9.99.9",
-					Tag:        "latest",
-					JMXEnabled: true,
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				assertImageConfigValues(
-					manager,
-					containerImageOptions{name: "someregistry.com/datadog/agent:9.99.9"},
-					t,
-				)
-			},
-		},
-		{
-			name: "09: given name:tag, override image name, tag, JMX, sets default registry",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name:       "agent",
-					Tag:        "latest",
-					JMXEnabled: true,
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				assertImageConfigValues(
-					manager,
-					containerImageOptions{name: "gcr.io/datadoghq/agent:latest-jmx"},
-					t,
-				)
-			},
-		},
-		{
-			name: "10: given name:tag, override image with name:tag",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride(containerImageOptions{name: "agent:7.38.0"}, t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &v2alpha1.AgentImageConfig{
-					Name: "agent:latest",
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				assertImageConfigValues(
-					manager,
-					containerImageOptions{name: "agent:latest"},
 					t,
 				)
 			},
@@ -589,7 +532,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				manager.EnvVarMgr.AddEnvVarToContainer(
 					apicommon.ClusterAgentContainerName,
 					&v1.EnvVar{
-						Name:  DDLogLevel,
+						Name:  constants.DDLogLevel,
 						Value: "info",
 					},
 				)
@@ -607,7 +550,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				envSet := false
 
 				for _, env := range manager.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName] {
-					if env.Name == DDLogLevel && env.Value == "trace" {
+					if env.Name == constants.DDLogLevel && env.Value == "trace" {
 						envSet = true
 						break
 					}
