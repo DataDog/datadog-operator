@@ -785,6 +785,138 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// +optional
 	Conf *CustomConfig `json:"conf,omitempty"`
+
+	// `CollectCustomResources` defines custom resources for the kube-state-metrics core check to collect.
+	// +optional
+	// +listType=set
+	CollectCustomResources []Resource `json:"collectCustomResources,omitempty"`
+}
+
+// Resource configures a custom resource for metric generation.
+type Resource struct {
+	// MetricNamePrefix defines a prefix for all metrics of the resource.
+	// If set to "", no prefix will be added.
+	// Example: If set to "foo", MetricNamePrefix will be "foo_<metric>".
+	MetricNamePrefix *string `json:"metricNamePrefix" yaml:"metricNamePrefix"`
+
+	// GroupVersionKind of the custom resource to be monitored.
+	GroupVersionKind GroupVersionKind `json:"groupVersionKind" yaml:"groupVersionKind"`
+
+	// Labels are added to all metrics. If the same key is used in a metric, the value from the metric will overwrite the value here.
+	Labels `json:",inline" yaml:",inline"`
+
+	// Metrics are the custom resource fields to be collected.
+	Metrics []Generator `json:"metrics" yaml:"metrics"`
+
+	// ResourcePlural sets the plural name of the resource. Defaults to the plural version of the Kind according to flect.Pluralize.
+	ResourcePlural string `json:"resourcePlural" yaml:"resourcePlural"`
+}
+
+// GroupVersionKind is the Kubernetes group, version, and kind of a resource.
+type GroupVersionKind struct {
+	Group   string `json:"group"   yaml:"group"`
+	Version string `json:"version" yaml:"version"`
+	Kind    string `json:"kind"    yaml:"kind"`
+}
+
+// Labels is common configuration of labels to add to metrics.
+type Labels struct {
+	// CommonLabels are added to all metrics.
+	CommonLabels map[string]string `json:"commonLabels" yaml:"commonLabels"`
+	// LabelsFromPath adds additional labels where the value is taken from a field in the resource.
+	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
+}
+
+// Generator describes a unique metric name.
+type Generator struct {
+	// Name of the metric. Subject to prefixing based on the configuration of the Resource.
+	Name string `json:"name" yaml:"name"`
+	// Help text for the metric.
+	Help string `json:"help" yaml:"help"`
+	// Each targets a value or values from the resource.
+	Each Metric `json:"each" yaml:"each"`
+
+	// Labels are added to all metrics. Labels from Each will overwrite these if using the same key.
+	Labels `json:",inline" yaml:",inline"` // json will inline because it is already tagged
+}
+
+// Metric defines a metric to expose.
+// +union
+type Metric struct {
+	// Type defines the type of the metric.
+	// +unionDiscriminator
+	Type MetricType `json:"type" yaml:"type"`
+
+	// Gauge defines a gauge metric.
+	// +optional
+	Gauge *MetricGauge `json:"gauge" yaml:"gauge"`
+	// StateSet defines a state set metric.
+	// +optional
+	StateSet *MetricStateSet `json:"stateSet" yaml:"stateSet"`
+	// Info defines an info metric.
+	// +optional
+	Info *MetricInfo `json:"info" yaml:"info"`
+}
+
+// Type represents the type of the metric. See https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#metric-types.
+type MetricType string
+
+// Supported metric types.
+var (
+
+	// Gauge defines an OpenMetrics gauge.
+	Gauge MetricType = "gauge"
+
+	// Info defines an OpenMetrics info.
+	Info MetricType = "info"
+
+	// StateSet defines an OpenMetrics stateset.
+	StateSet MetricType = "stateset"
+
+	// Counter defines an OpenMetrics counter.
+	Counter MetricType = "counter"
+)
+
+// MetricMeta are variables which may used for any metric type.
+type MetricMeta struct {
+	// LabelsFromPath adds additional labels where the value of the label is taken from a field under Path.
+	LabelsFromPath map[string][]string `json:"labelsFromPath" yaml:"labelsFromPath"`
+	// Path is the path to to generate metric(s) for.
+	Path []string `json:"path" yaml:"path"`
+}
+
+// MetricGauge targets a Path that may be a single value, array, or object. Arrays and objects will generate a metric per element.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#gauge
+type MetricGauge struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+
+	// ValueFrom is the path to a numeric field under Path that will be the metric value.
+	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
+	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
+	// NilIsZero indicates that if a value is nil it will be treated as zero value.
+	NilIsZero bool `json:"nilIsZero" yaml:"nilIsZero"`
+}
+
+// MetricInfo is a metric which is used to expose textual information.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#info
+type MetricInfo struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+	// LabelFromKey adds a label with the given name if Path is an object. The label value will be the object key.
+	LabelFromKey string `json:"labelFromKey" yaml:"labelFromKey"`
+}
+
+// MetricStateSet is a metric which represent a series of related boolean values, also called a bitset.
+// Ref: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#stateset
+type MetricStateSet struct {
+	MetricMeta `json:",inline" yaml:",inline"`
+
+	// List is the list of values to expose a value for.
+	List []string `json:"list" yaml:"list"`
+	// LabelName is the key of the label which is used for each entry in List to expose the value.
+	LabelName string `json:"labelName" yaml:"labelName"`
+	// ValueFrom is the subpath to compare the list to.
+	ValueFrom []string `json:"valueFrom" yaml:"valueFrom"`
 }
 
 // OtelCollectorFeatureConfig contains the configuration for the otel-agent.
