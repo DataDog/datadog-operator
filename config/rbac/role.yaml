@@ -82,6 +82,7 @@ rules:
   - '*'
 - apiGroups:
   - apiextensions.k8s.io
+  - extensions
   resources:
   - customresourcedefinitions
   verbs:
@@ -119,6 +120,23 @@ rules:
   - list
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - replicationcontrollers
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - apps
+  - extensions
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - authentication.k8s.io
   resources:
   - tokenreviews
@@ -134,6 +152,22 @@ rules:
   verbs:
   - create
   - get
+- apiGroups:
+  - authorization.k8s.io
+  - roles.rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - autoscaling
   resources:

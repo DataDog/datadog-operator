@@ -1,0 +1,101 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-state-metrics
+    app.kubernetes.io/version: 1.2.3
+  name: orchestrator-explorer-
+rules:
+  # Note we use apigroups instead of apiGroups for yaml.Unmarshal to work correctly.
+  - apigroups:
+      - ""
+    resources:
+      - namespaces
+    resourcenames:
+      - kube-system
+    verbs:
+      - get
+  - apigroups:
+      - ""
+    resources:
+      - configmaps
+    resourcenames:
+      - datadog-cluster-id
+    verbs:
+      - get
+      - create
+      - update
+  - apigroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - nodes
+      - limitranges
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - apps
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - ""
+    resources:
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - ""
+    resources:
+        - serviceaccounts
+    verbs:
+        - list
+        - watch
+  - apigroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - roles
+      - rolebindings
+      - clusterroles
+      - clusterrolebindings
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - "networking.k8s.io"
+    resources:
+      - ingresses
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - "autoscaling.k8s.io"
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - "storage.k8s.io"
+    resources:
+      - storageclasses
+    verbs:
+      - list
+      - watch
