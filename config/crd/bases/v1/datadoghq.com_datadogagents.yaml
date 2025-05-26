@@ -1676,7 +1676,7 @@ spec:
                               - resourcePlural
                             type: object
                           type: array
-                          x-kubernetes-list-type: set
+                          x-kubernetes-list-type: atomic
                         conf:
                           description: |-
                             Conf overrides the configuration for the default Kubernetes State Metrics Core check.
@@ -9264,7 +9264,7 @@ spec:
                                   - resourcePlural
                                 type: object
                               type: array
-                              x-kubernetes-list-type: set
+                              x-kubernetes-list-type: atomic
                             conf:
                               description: |-
                                 Conf overrides the configuration for the default Kubernetes State Metrics Core check.

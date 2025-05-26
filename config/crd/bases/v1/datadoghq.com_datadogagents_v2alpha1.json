@@ -1774,7 +1774,7 @@
                     "type": "object"
                   },
                   "type": "array",
-                  "x-kubernetes-list-type": "set"
+                  "x-kubernetes-list-type": "atomic"
                 },
                 "conf": {
                   "additionalProperties": false,
@@ -9294,7 +9294,7 @@
                         "type": "object"
                       },
                       "type": "array",
-                      "x-kubernetes-list-type": "set"
+                      "x-kubernetes-list-type": "atomic"
                     },
                     "conf": {
                       "additionalProperties": false,

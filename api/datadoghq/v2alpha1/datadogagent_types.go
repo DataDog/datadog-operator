@@ -788,7 +788,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 
 	// `CollectCustomResources` defines custom resources for the kube-state-metrics core check to collect.
 	// +optional
-	// +listType=set
+	// +listType=atomic
 	CollectCustomResources []Resource `json:"collectCustomResources,omitempty"`
 }
 
