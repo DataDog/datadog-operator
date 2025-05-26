@@ -17,6 +17,7 @@ import (
 var apiDDAIVersion = fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version)
 
 // NewDatadogAgentInternal returns an initialized and defaulted DatadogAgentInternal for testing purpose
+// DDAI should always have credentials and cluster agent token secret when created by DDA controller
 func NewDatadogAgentInternal(ns, name string, globalOverride *v2alpha1.GlobalConfig) *v1alpha1.DatadogAgentInternal {
 	ddai := &v1alpha1.DatadogAgentInternal{
 		TypeMeta: metav1.TypeMeta{
@@ -24,14 +25,17 @@ func NewDatadogAgentInternal(ns, name string, globalOverride *v2alpha1.GlobalCon
 			APIVersion: apiDDAIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:  ns,
-			Name:       name,
-			Labels:     map[string]string{},
-			Finalizers: []string{"finalizer.agent.datadoghq.com"},
+			Namespace: ns,
+			Name:      name,
+			Labels:    map[string]string{},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{
 				Credentials: defaultCredentials(),
+				ClusterAgentTokenSecret: &v2alpha1.SecretConfig{
+					SecretName: "cluster-agent-token",
+					KeyName:    "token",
+				},
 			},
 		},
 	}

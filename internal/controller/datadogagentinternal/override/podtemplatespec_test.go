@@ -143,7 +143,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				assertImageConfigValues(
 					manager,
-					containerImageOptions{name: "agent:9.99.9"},
+					containerImageOptions{name: "someregistry.com/datadog/agent:9.99.9"},
 					t,
 				)
 			},

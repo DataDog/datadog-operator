@@ -1011,6 +1011,15 @@ func (builder *DatadogAgentInternalBuilder) WithComponentOverride(componentName 
 
 // FIPS
 
+func (builder *DatadogAgentInternalBuilder) WithUseFIPSAgent() *DatadogAgentInternalBuilder {
+	if builder.datadogAgentInternal.Spec.Global == nil {
+		builder.datadogAgentInternal.Spec.Global = &v2alpha1.GlobalConfig{}
+	}
+
+	builder.datadogAgentInternal.Spec.Global.UseFIPSAgent = apiutils.NewBoolPointer(true)
+	return builder
+}
+
 func (builder *DatadogAgentInternalBuilder) WithFIPS(fipsConfig v2alpha1.FIPSConfig) *DatadogAgentInternalBuilder {
 	if builder.datadogAgentInternal.Spec.Global == nil {
 		builder.datadogAgentInternal.Spec.Global = &v2alpha1.GlobalConfig{}

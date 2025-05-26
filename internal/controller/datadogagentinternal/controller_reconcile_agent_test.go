@@ -156,7 +156,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 		name           string
 		description    string
 		existingAgents []client.Object
-		tedsEnabled    bool
+		edsEnabled     bool
 		wantDS         *appsv1.DaemonSetList
 		wantEDS        *edsdatadoghqv1alpha1.ExtendedDaemonSetList
 	}{
@@ -175,7 +175,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			tedsEnabled: false,
+			edsEnabled: false,
 			wantDS: &appsv1.DaemonSetList{
 				Items: []appsv1.DaemonSet{
 					{
@@ -191,7 +191,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "no unused eds, introspection disabled, profiles disabled",
@@ -208,8 +210,10 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			tedsEnabled: true,
-			wantDS:      &appsv1.DaemonSetList{},
+			edsEnabled: true,
+			wantDS: &appsv1.DaemonSetList{
+				Items: []appsv1.DaemonSet{},
+			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
@@ -241,7 +245,7 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 				recorder: recorder,
 				options: ReconcilerOptions{
 					ExtendedDaemonsetOptions: agent.ExtendedDaemonsetOptions{
-						Enabled: tt.tedsEnabled,
+						Enabled: tt.edsEnabled,
 					},
 				},
 			}
