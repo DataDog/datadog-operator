@@ -72,7 +72,7 @@ done
 gitlab_file="$ROOT/.gitlab-ci.yml"
 if [[ -f $gitlab_file ]]; then
     echo "Processing $gitlab_file..."
-    sed -i -E "s|(image: registry\.ddbuild\.io/images/mirror/golang:)[^ ]+|\1$GOVERSION|" "$gitlab_file"
+    sed -i -E "s|(image: registry\.ddbuild\.io/images/mirror/library/golang:)[^ ]+|\1$GOVERSION|" "$gitlab_file"
 else
     echo "Warning: $gitlab_file not found, skipping."
 fi
