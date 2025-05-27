@@ -117,8 +117,9 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
 		return errors.NewAggregate(errs)
 	}
-	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
+	// TODO: modify cleanup to prevent DDA dependency deletion
+	// if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
+	// 	return errors.NewAggregate(errs)
+	// }
 	return nil
 }
