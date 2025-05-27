@@ -1,8 +1,8 @@
 module github.com/DataDog/datadog-operator/api
 
-go 1.23.0
+go 1.23
 
-toolchain go1.23.9
+toolchain go1.23.6
 
 require (
 	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
