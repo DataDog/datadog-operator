@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -20,7 +21,7 @@ import (
 func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*datadoghqv1alpha1.DatadogAgentInternal, error) {
 	ddai := &datadoghqv1alpha1.DatadogAgentInternal{}
 	// Object meta
-	if err := r.generateObjMetaFromDDA(dda, ddai); err != nil {
+	if err := generateObjMetaFromDDA(dda, ddai, r.scheme); err != nil {
 		return nil, err
 	}
 	// Spec
@@ -36,14 +37,14 @@ func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*
 	return ddai, nil
 }
 
-func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
+func generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,
 		Namespace:   dda.Namespace,
 		Labels:      dda.Labels,
 		Annotations: dda.Annotations,
 	}
-	if err := object.SetOwnerReference(dda, ddai, r.scheme); err != nil {
+	if err := object.SetOwnerReference(dda, ddai, scheme); err != nil {
 		return err
 	}
 	return nil
@@ -52,6 +53,6 @@ func (r *Reconciler) generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent,
 func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
 	ddai.Spec = dda.Spec
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
-	override.SetOverrideFromDDA(dda, ddai.Spec.Override)
+	override.SetOverrideFromDDA(dda, &ddai.Spec)
 	return nil
 }
