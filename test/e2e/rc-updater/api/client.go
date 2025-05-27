@@ -26,7 +26,6 @@ type Client struct {
 
 // NewClient initialise a client with the API and APP keys
 func NewClient() *Client {
-	fmt.Printf("CREATING NEW CLIENT")
 	apiKey, _ := runner.GetProfile().SecretStore().Get(parameters.APIKey)
 	appKey, _ := runner.GetProfile().SecretStore().Get(parameters.APPKey)
 	ctx := context.WithValue(
