@@ -9,11 +9,10 @@ package api
 import (
 	"context"
 	"fmt"
-	"net/http"
-
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner/parameters"
 	"github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"net/http"
 )
 
 // Client represents the datadog API context
@@ -27,6 +26,7 @@ type Client struct {
 
 // NewClient initialise a client with the API and APP keys
 func NewClient() *Client {
+	fmt.Printf("CREATING NEW CLIENT")
 	apiKey, _ := runner.GetProfile().SecretStore().Get(parameters.APIKey)
 	appKey, _ := runner.GetProfile().SecretStore().Get(parameters.APPKey)
 	ctx := context.WithValue(
