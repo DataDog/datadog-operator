@@ -119,6 +119,7 @@ spec:
 | features.helmCheck.collectEvents | CollectEvents set to `true` enables event collection in the Helm check (Requires Agent 7.36.0+ and Cluster Agent 1.20.0+) Default: false |
 | features.helmCheck.enabled | Enables the Helm check. Default: false |
 | features.helmCheck.valuesAsTags | ValuesAsTags collects Helm values from a release and uses them as tags (Requires Agent and Cluster Agent 7.40.0+). Default: {} |
+| features.kubeStateMetricsCore.collectCustomResources | `CollectCustomResources` defines custom resources for the kube-state-metrics core check to collect. |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Is the name of the ConfigMap. |
