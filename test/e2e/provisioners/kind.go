@@ -222,7 +222,6 @@ func WithWorkloadApp(appFunc func(e config.Env, kubeProvider *kubernetes.Provide
 func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 	// and it's easy to forget about it, leading to hard to debug issues.
-	var awsK8sOpts []awskubernetes.ProvisionerOption
 	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
 
 	params := newKubernetesProvisionerParams()
@@ -230,8 +229,15 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 	inCI := os.Getenv("GITLAB_CI")
 
 	if !params.local || strings.ToLower(inCI) == "true" {
-		awsK8sOpts = newAWSK8sProvisionerOpts(params)
-		provisioner = awskubernetes.KindProvisioner(awsK8sOpts...)
+		provisioner = provisioners.NewTypedPulumiProvisioner("gke", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+			// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
+			// and it's easy to forget about it, leading to hard to debug issues.
+			pprams := newKubernetesProvisionerParams()
+			_ = optional.ApplyOptions(pprams, opts)
+
+			return GkeRunFunc(ctx, env, pprams)
+
+		}, params.extraConfigParams)
 		return provisioner
 	}
 
