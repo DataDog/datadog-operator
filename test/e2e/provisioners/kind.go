@@ -7,6 +7,7 @@ package provisioners
 
 import (
 	"fmt"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -147,6 +148,9 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 			// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 			// and it's easy to forget about it, leading to hard to debug issues.
 			pprams := newKubernetesProvisionerParams()
+			pprams.extraConfigParams = runner.ConfigMap{
+				"ddinfra:kubernetesVersion": auto.ConfigValue{Value: "1.32"},
+			}
 			_ = optional.ApplyOptions(pprams, opts)
 
 			return GkeRunFunc(ctx, env, pprams)

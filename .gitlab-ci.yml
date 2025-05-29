@@ -202,6 +202,7 @@ build_bundle_image:
     # The service account is called `agent-e2e-tests`
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
     - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+    - echo $GOOGLE_APPLICATION_CREDENTIALS
 
     - mkdir -p ~/.aws
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
