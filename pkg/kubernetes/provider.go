@@ -31,11 +31,28 @@ const (
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
+
+	// OpenshiftRHCOSType is the Red Hat OpenShift node image offered by OpenShift
+	OpenshiftRHCOSType = "rhcos"
+
+	// OpenShiftProviderLabel is the OpenShift node label used to determine the node's provider
+	OpenShiftProviderLabel = "node.openshift.io/os_id"
+
+	// EKSCloudProvider is the Amazon EKS CloudProvider name
+	EKSCloudProvider = "eks"
+
+	// EKSProviderLabel is the EKS node label used to determine the node's provider
+	EKSProviderLabel = "eks.amazonaws.com/nodegroup-image"
+
+	// EKSAMIType is the base value for EKS nodes
+	EKSAMIType = "eks"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
-	GKECosType: {},
+	GKECosType:         {},
+	OpenshiftRHCOSType: {},
+	EKSAMIType:         {},
 }
 
 // determineProvider creates a Provider based on a map of labels
@@ -44,6 +61,20 @@ func determineProvider(labels map[string]string) string {
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
 			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
+				return provider
+			}
+		}
+		// Openshift
+		if val, ok := labels[OpenShiftProviderLabel]; ok {
+			if provider := generateValidProviderName(DefaultProvider, val); provider != "" {
+				return provider
+			}
+		}
+		// EKS
+		if _, ok := labels[EKSProviderLabel]; ok {
+			// For EKS, we just identify it as an EKS node without specifying the AMI type
+			// since the AMI type can vary (Amazon Linux 2, Bottlerocket, custom AMIs, etc.)
+			if provider := generateValidProviderName(EKSCloudProvider, EKSAMIType); provider != "" {
 				return provider
 			}
 		}
@@ -131,6 +162,8 @@ func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GKECloudProvider: GKEProviderLabel,
+		EKSCloudProvider: EKSProviderLabel,
+		DefaultProvider:  OpenShiftProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)
