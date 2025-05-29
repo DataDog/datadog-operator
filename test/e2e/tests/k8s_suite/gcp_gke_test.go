@@ -8,9 +8,11 @@ package k8ssuite
 import (
 	"fmt"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"strings"
 	"testing"
 )
@@ -30,6 +32,9 @@ func TestGKESuite(t *testing.T) {
 		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
+		provisioners.WithExtraConfigParams(runner.ConfigMap{
+			"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
+		}),
 	}
 
 	e2eOpts := []e2e.SuiteOption{
