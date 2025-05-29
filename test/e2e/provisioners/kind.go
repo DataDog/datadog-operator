@@ -29,7 +29,6 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
@@ -132,6 +131,14 @@ func WithYAMLWorkload(yamlWorkload YAMLWorkload) KubernetesProvisionerOption {
 	}
 }
 
+// WithExtraConfigParams adds extra config parameters to the environment
+func WithExtraConfigParams(configMap runner.ConfigMap) KubernetesProvisionerOption {
+	return func(params *KubernetesProvisionerParams) error {
+		params.extraConfigParams = configMap
+		return nil
+	}
+}
+
 // KubernetesProvisioner generic Kubernetes provisioner wrapper that creates a new provisioner
 // Inspired by https://github.com/DataDog/datadog-agent/blob/main/test/new-e2e/pkg/environments/local/kubernetes/kind.go
 func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
@@ -148,9 +155,6 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 			// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 			// and it's easy to forget about it, leading to hard to debug issues.
 			pprams := newKubernetesProvisionerParams()
-			pprams.extraConfigParams = runner.ConfigMap{
-				"ddinfra:kubernetesVersion": auto.ConfigValue{Value: "1.32"},
-			}
 			_ = optional.ApplyOptions(pprams, opts)
 
 			return GkeRunFunc(ctx, env, pprams)

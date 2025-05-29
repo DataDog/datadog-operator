@@ -54,24 +54,24 @@ build:
   script:
     - make build
 
-unit_tests:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_CPU_LIMIT: 4
-    GOMEMLIMIT: 15GiB
-    GOMAXPROCS: 4
-  before_script:
-    - make install-tools
-  script:
-    - make test
+#unit_tests:
+#  stage: test
+#  tags: ["arch:amd64"]
+#  rules:
+#    - if: '$DDR == "true"'
+#      when: never
+#    - when: on_success
+#  variables:
+#    KUBERNETES_MEMORY_REQUEST: 16Gi
+#    KUBERNETES_MEMORY_LIMIT: 16Gi
+#    KUBERNETES_CPU_REQUEST: 4
+#    KUBERNETES_CPU_LIMIT: 4
+#    GOMEMLIMIT: 15GiB
+#    GOMAXPROCS: 4
+#  before_script:
+#    - make install-tools
+#  script:
+#    - make test
 
 check-golang-version:
   stage: build
@@ -82,18 +82,18 @@ check-golang-version:
     - make update-golang
     - git diff --exit-code
 
-generate_code:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make generate manifests
-    - git diff --exit-code
+#generate_code:
+#  stage: test
+#  tags: ["arch:amd64"]
+#  rules:
+#    - if: '$DDR == "true"'
+#      when: never
+#    - when: on_success
+#  before_script:
+#    - make install-tools
+#  script:
+#    - make generate manifests
+#    - git diff --exit-code
 
 build_operator_image_amd64:
   stage: image

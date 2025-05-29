@@ -8,6 +8,8 @@ package k8ssuite
 import (
 	"context"
 	"fmt"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
@@ -81,6 +83,9 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithLocal(s.local),
+			provisioners.WithExtraConfigParams(runner.ConfigMap{
+				"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
+			}),
 		}
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
