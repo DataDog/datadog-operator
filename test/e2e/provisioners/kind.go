@@ -7,10 +7,11 @@ package provisioners
 
 import (
 	"fmt"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
@@ -30,6 +31,7 @@ import (
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/kustomize"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
 	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/yaml"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/datadog-operator/test/e2e/common"
