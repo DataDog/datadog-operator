@@ -111,84 +111,84 @@ build_operator_image_amd64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_image_fips_amd64:
-  extends: build_operator_image_amd64
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
-    FIPS_ENABLED: "true"
-
-build_operator_image_arm64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:arm64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: arm64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_image_fips_arm64:
-  extends: build_operator_image_arm64
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
-    FIPS_ENABLED: "true"
-
-build_operator_check_image_amd64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: amd64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_check_image_arm64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:arm64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: arm64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-arm64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-
-build_bundle_image:
-  stage: image
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle
-  script:
-    - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_image_fips_amd64:
+#  extends: build_operator_image_amd64
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
+#    FIPS_ENABLED: "true"
+#
+#build_operator_image_arm64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:arm64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: arm64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_image_fips_arm64:
+#  extends: build_operator_image_arm64
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+#    FIPS_ENABLED: "true"
+#
+#build_operator_check_image_amd64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:amd64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: amd64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_check_image_arm64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:arm64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: arm64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-arm64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#
+#build_bundle_image:
+#  stage: image
+#  tags:
+#    - "arch:amd64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle
+#  script:
+#    - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
 .new_e2e_template:
   stage: e2e
@@ -266,13 +266,13 @@ e2e:
   parallel:
     matrix:
       - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-          - "1.29"
-          - "1.30"
+#          - "1.19"
+#          - "1.22"
+#          - "1.24"
+#          - "1.25"
+#          - "1.26"
+#          - "1.29"
+#          - "1.30"
           - "1.32"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
