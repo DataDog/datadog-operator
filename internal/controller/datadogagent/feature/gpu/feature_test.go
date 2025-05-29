@@ -174,6 +174,10 @@ func Test_GPUMonitoringFeature_Configure(t *testing.T) {
 				Name:  DDEnableNVMLDetectionEnvVar,
 				Value: "true",
 			},
+			{
+				Name:  DDCollectGPUTagsEnvVar,
+				Value: "true",
+			},
 		}, wantSystemProbeEnvVars...)
 
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommon.CoreAgentContainerName]
