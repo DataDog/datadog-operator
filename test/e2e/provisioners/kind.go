@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
-
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/provisioners"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
@@ -315,23 +313,6 @@ func KustomizeWorkloadAppFunc(name string, extraKustomizeResources []string) fun
 			kustomize.DirectoryArgs{
 				Directory: pulumi.String(kustomizeDirPath),
 			}, kustomizeOpts...)
-		if err != nil {
-			return nil, err
-		}
-		return k8sComponent, nil
-	}
-}
-
-// YAMLWorkloadAppFunc Applies a Kubernetes resource yaml file
-func YAMLWorkloadAppFunc(yamlWorkload YAMLWorkload) func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
-	return func(e config.Env, kubeProvider *kubernetes.Provider) (*kubeComp.Workload, error) {
-		k8sComponent := &kubeComp.Workload{}
-		if err := e.Ctx().RegisterComponentResource("dd:apps", "k8s-apply", k8sComponent); err != nil {
-			return nil, err
-		}
-		_, err := yaml.NewConfigFile(e.Ctx(), yamlWorkload.Name, &yaml.ConfigFileArgs{
-			File: yamlWorkload.Path,
-		}, pulumi.Provider(kubeProvider))
 		if err != nil {
 			return nil, err
 		}
