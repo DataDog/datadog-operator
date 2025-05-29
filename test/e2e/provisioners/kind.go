@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
+	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	kubeComp "github.com/DataDog/test-infra-definitions/components/kubernetes"
@@ -43,6 +44,21 @@ func LocalKindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params 
 	})
 	if err != nil {
 		return err
+	}
+	if params.fakeintakeOptions != nil {
+		fakeIntake, intakeErr := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
+		if intakeErr != nil {
+			return err
+		}
+		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
+			return err
+		}
+
+		if params.ddaOptions != nil {
+			params.ddaOptions = append(params.ddaOptions, agentwithoperatorparams.WithFakeIntake(fakeIntake))
+		}
+	} else {
+		env.FakeIntake = nil
 	}
 
 	ns, err := corev1.NewNamespace(ctx, localEnv.CommonNamer().ResourceName("k8s-namespace"), &corev1.NamespaceArgs{Metadata: &metav1.ObjectMetaArgs{

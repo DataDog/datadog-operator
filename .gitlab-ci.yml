@@ -13,7 +13,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 2e9af8ebdfcb
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -200,7 +200,7 @@ build_operator_image_amd64:
 
     # Setup GCP credentials. https://www.pulumi.com/registry/packages/gcp/installation-configuration/
     # The service account is called `agent-e2e-tests`
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --debug --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
     - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
     - echo $GOOGLE_APPLICATION_CREDENTIALS
 
