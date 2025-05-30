@@ -69,7 +69,7 @@ Follow instructions from [here](https://github.com/kubernetes-sigs/application/b
 Clone this repository.
 
 ```shell
-git clone git@github.com:DataDog/datadog-agent.git
+git clone git@github.com:DataDog/datadog-operator.git
 ```
 
 Change into this directory.
