@@ -3,7 +3,7 @@
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
-	"runArgs": ["--name", "datadog-operator-devenv", "-w", "/workspaces/datadog-operator"],
+	"runArgs": ["--name", "datadog-operator-devenv", "-w", "/workspaces/datadog-operator", "--rm"],
 	"postStartCommand": "git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
 	"customizations": {
         "vscode": {
