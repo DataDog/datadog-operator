@@ -144,7 +144,14 @@ func (f *gpuFeature) ManageNodeAgent(managers feature.PodTemplateManagers, _ str
 		Name:  DDEnableNVMLDetectionEnvVar,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainers([]apicommon.AgentContainerName{apicommon.CoreAgentContainerName}, nvmlDetectionEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, nvmlDetectionEnvVar)
+
+	// env var to enable collecting gpu host tags ("gpu_host:true" tag)
+	collectGpuTagsEnvVar := &corev1.EnvVar{
+		Name:  DDCollectGPUTagsEnvVar,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, collectGpuTagsEnvVar)
 
 	// The agent check does not need to be manually enabled, the init config container will
 	// check if GPU monitoring is enabled and will enable the check automatically (see
