@@ -163,9 +163,17 @@ func IsEqualServices(objA, objB client.Object) bool {
 	a, okA := objA.(*corev1.Service)
 	b, okB := objB.(*corev1.Service)
 	if okA && okB && a != nil && b != nil {
-		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
+		return isEqualServiceSpec(&a.Spec, &b.Spec)
 	}
 	return false
+}
+
+// isEqualServiceSpec checks two ServiceSpecs for equality based on the
+// configurable fields in `internal/controller/datadogagent/merger/service.go`
+func isEqualServiceSpec(a, b *corev1.ServiceSpec) bool {
+	return apiequality.Semantic.DeepEqual(a.Selector, b.Selector) &&
+		apiequality.Semantic.DeepEqual(a.Ports, b.Ports) &&
+		apiequality.Semantic.DeepEqual(a.InternalTrafficPolicy, b.InternalTrafficPolicy)
 }
 
 // IsEqualServiceAccounts return true if the two ServiceAccounts are equal
