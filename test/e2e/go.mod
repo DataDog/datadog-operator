@@ -5,8 +5,8 @@ go 1.23
 toolchain go1.23.8
 
 require (
-	github.com/DataDog/datadog-agent/test/fakeintake v0.64.3
-	github.com/DataDog/datadog-agent/test/new-e2e v0.64.3
+	github.com/DataDog/datadog-agent/test/fakeintake v0.66.0
+	github.com/DataDog/datadog-agent/test/new-e2e v0.66.0
 	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
@@ -14,7 +14,7 @@ require (
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
 	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions v0.0.2-0.20250513083729-2e9af8ebdfcb
+	github.com/DataDog/test-infra-definitions v0.0.4-0.20250523144014-c9907d221ea5
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0
 	github.com/pulumi/pulumi/sdk/v3 v3.145.0
