@@ -227,6 +227,7 @@ build_operator_image_amd64:
     E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
     KUBERNETES_MEMORY_REQUEST: 12Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 6
 
 .on_run_e2e:
   # Skip if only .md files are changed
