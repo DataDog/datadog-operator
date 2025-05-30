@@ -12,6 +12,7 @@ resources:
 - bases/v1/datadoghq.com_datadogpodautoscalers.yaml
 - bases/v1/datadoghq.com_datadogdashboards.yaml
 - bases/v1/datadoghq.com_datadoggenericresources.yaml
+- bases/v1/datadoghq.com_datadogagentinternals.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 #patches:
@@ -23,6 +24,8 @@ resources:
 #- path: patches/webhook_in_datadoghq_datadogagentprofiles.yaml
 #- path: patches/webhook_in_datadoghq_datadogpodautoscalers.yaml
 #- path: patches/webhook_in_datadoghq_datadogdashboards.yaml
+#- path: patches/webhook_in_datadoghq_datadogagentinternals.yaml
+
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
@@ -32,6 +35,8 @@ resources:
 #- path: patches/cainjection_in_datadoghq_datadogagentprofiles.yaml
 #- path: patches/cainjection_in_datadoghq_datadogpodautoscalers.yaml
 #- path: patches/cainjection_in_datadoghq_datadogdashboards.yaml
+#- path: patches/cainjection_in_datadoghq_datadogagentinternals.yaml
+
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

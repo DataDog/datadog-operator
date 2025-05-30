@@ -28,9 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
@@ -197,9 +196,13 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
+	if r.Options.DatadogAgentInternalEnabled {
+		builder.Owns(&v1alpha1.DatadogAgentInternal{})
+	}
+
 	if r.Options.DatadogAgentProfileEnabled {
 		builder.Watches(
-			&datadoghqv1alpha1.DatadogAgentProfile{},
+			&v1alpha1.DatadogAgentProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.enqueueRequestsForAllDDAs()),
 			ctrlbuilder.WithPredicates(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.Funcs{
 				DeleteFunc: func(e event.DeleteEvent) bool {
@@ -252,7 +255,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwar
 	}
 
 	or := reconcile.AsReconciler[*v2alpha1.DatadogAgent](r.Client, r)
-	if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&v2alpha1.DatadogAgent{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
 		return err
 	}
 
@@ -296,7 +299,7 @@ func (r *DatadogAgentReconciler) enqueueRequestsForAllDDAs() handler.MapFunc {
 	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var requests []reconcile.Request
 
-		ddaList := datadoghqv2alpha1.DatadogAgentList{}
+		ddaList := v2alpha1.DatadogAgentList{}
 		// Should we rather use passed context here?
 		// if err := r.List(ctx, &ddaList); err != nil {
 		if err := r.List(context.Background(), &ddaList); err != nil {

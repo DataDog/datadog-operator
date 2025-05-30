@@ -117,10 +117,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						},
 					},
 				},
-				Config: &v1alpha1.Config{
-					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-						v1alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 								apicommon.CoreAgentContainerName: {
 									Resources: &v1.ResourceRequirements{
 										Limits: map[v1.ResourceName]resource.Quantity{
@@ -228,10 +228,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						},
 					},
 				},
-				Config: &v1alpha1.Config{
-					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-						v1alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 								apicommon.CoreAgentContainerName: {
 									Resources: &v1.ResourceRequirements{
 										Limits: map[v1.ResourceName]resource.Quantity{
@@ -372,10 +372,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						},
 					},
 				},
-				Config: &v1alpha1.Config{
-					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-						v1alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 								apicommon.CoreAgentContainerName: {
 									Resources: &v1.ResourceRequirements{
 										Limits: map[v1.ResourceName]resource.Quantity{
@@ -490,10 +490,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 									apicommon.CoreAgentContainerName: {
 										Resources: &v1.ResourceRequirements{
 											Limits: map[v1.ResourceName]resource.Quantity{
@@ -525,10 +525,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 									apicommon.CoreAgentContainerName: {
 										Resources: &v1.ResourceRequirements{
 											Limits: map[v1.ResourceName]resource.Quantity{
@@ -690,10 +690,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 									apicommon.CoreAgentContainerName: {
 										Resources: &v1.ResourceRequirements{
 											Limits: map[v1.ResourceName]resource.Quantity{
@@ -725,10 +725,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 							},
 						},
 					},
-					Config: &v1alpha1.Config{
-						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-							v1alpha1.NodeAgentComponentName: {
-								Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+					Config: &v2alpha1.DatadogAgentSpec{
+						Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+							v2alpha1.NodeAgentComponentName: {
+								Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 									apicommon.CoreAgentContainerName: {
 										Resources: &v1.ResourceRequirements{
 											Limits: map[v1.ResourceName]resource.Quantity{
@@ -843,10 +843,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						},
 					},
 				},
-				Config: &v1alpha1.Config{
-					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-						v1alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 								apicommon.CoreAgentContainerName: {
 									Resources: &v1.ResourceRequirements{
 										Limits: map[v1.ResourceName]resource.Quantity{
@@ -992,10 +992,10 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 						},
 					},
 				},
-				Config: &v1alpha1.Config{
-					Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
-						v1alpha1.NodeAgentComponentName: {
-							Containers: map[apicommon.AgentContainerName]*v1alpha1.Container{
+				Config: &v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							Containers: map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
 								apicommon.CoreAgentContainerName: {
 									Resources: &v1.ResourceRequirements{
 										Limits: map[v1.ResourceName]resource.Quantity{

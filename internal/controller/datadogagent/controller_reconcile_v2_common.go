@@ -545,3 +545,48 @@ func shouldProfileWaitForCanary(logger logr.Logger, annotations map[string]strin
 	}
 	return false
 }
+
+func (r *Reconciler) createOrUpdateDDAI(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal) error {
+	currentDDAI := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.Error(err, "unexpected error during DDAI get")
+			return err
+		}
+		// Create the DDAI object if it doesn't exist
+		logger.Info("creating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := r.client.Create(context.TODO(), ddai); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if currentDDAI.Annotations[constants.MD5DDAIDeploymentAnnotationKey] != ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey] {
+		logger.Info("updating DatadogAgentInternal", "ns", ddai.Namespace, "name", ddai.Name)
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, ddai, currentDDAI.ObjectMeta); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) addDDAIStatusToDDAStatus(logger logr.Logger, status *datadoghqv2alpha1.DatadogAgentStatus, ddai metav1.ObjectMeta) error {
+	currentDDAI := &v1alpha1.DatadogAgentInternal{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: ddai.Name, Namespace: ddai.Namespace}, currentDDAI); err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.Error(err, "unexpected error during DDAI get")
+			return err
+		}
+		// DDAI not yet created
+		return nil
+	}
+
+	status.Agent = condition.CombineDaemonSetStatus(status.Agent, currentDDAI.Status.Agent)
+	status.ClusterAgent = condition.CombineDeploymentStatus(status.ClusterAgent, currentDDAI.Status.ClusterAgent)
+	status.ClusterChecksRunner = condition.CombineDeploymentStatus(status.ClusterChecksRunner, currentDDAI.Status.ClusterChecksRunner)
+
+	// TODO: Add and/or merge conditions once DDAI reconcile PR is merged
+
+	return nil
+}
