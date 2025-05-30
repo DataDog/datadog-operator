@@ -46,11 +46,6 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues(`
-installCRDs: false
-imagePullSecrets: 
-  - name: registry-credentials
-`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{

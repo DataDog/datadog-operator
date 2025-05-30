@@ -25,7 +25,11 @@ func TestGKESuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`
+installCRDs: false
+imagePullSecrets: 
+  - name: registry-credentials
+`),
 	}
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
