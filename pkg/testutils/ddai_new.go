@@ -25,9 +25,10 @@ func NewDatadogAgentInternal(ns, name string, globalOverride *v2alpha1.GlobalCon
 			APIVersion: apiDDAIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      name,
-			Labels:    map[string]string{},
+			Namespace:  ns,
+			Name:       name,
+			Labels:     map[string]string{},
+			Finalizers: []string{"finalizer.datadoghq.com/datadogagentinternal"},
 		},
 		Spec: v2alpha1.DatadogAgentSpec{
 			Global: &v2alpha1.GlobalConfig{

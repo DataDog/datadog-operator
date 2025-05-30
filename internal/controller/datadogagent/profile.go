@@ -62,6 +62,7 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, logger logr.Lo
 	}
 
 	// For all profiles, create DDAI objects
+	// Note: profiles includes the default profile to allow the default affinity to be set
 	for _, profile := range profiles {
 		mergedDDAI, err := r.computeProfileMerge(ddai, &profile)
 		if err != nil {
@@ -76,10 +77,10 @@ func (r *Reconciler) applyProfilesToDDAISpec(ctx context.Context, logger logr.Lo
 func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) (*v1alpha1.DatadogAgentInternal, error) {
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
+	baseDDAI := ddai.DeepCopy()
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		// Clear owner reference for ddai since we want to tie GC to the profile
-		// We don't update the actual ddai object spec in k8s
-		ddai.OwnerReferences = []metav1.OwnerReference{}
+		// Clear owner reference to tie GC to the profile
+		baseDDAI.OwnerReferences = []metav1.OwnerReference{}
 	}
 	// Add profile settings to "fake" DDAI
 	setProfileSpec(profileDDAI, profile)
@@ -93,7 +94,7 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	}
 
 	// Server side apply to merge DDAIs
-	obj, err := ssaMergeCRD(ddai, profileDDAI, crd, r.scheme)
+	obj, err := ssaMergeCRD(baseDDAI, profileDDAI, crd, r.scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +118,7 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		// DCA and CCR are auto disabled for user created profiles
 		disableComponent(ddai, v2alpha1.ClusterAgentComponentName)
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
+		setProfileNodeAgentOverride(ddai, profile)
 	}
 	setProfileDDAIAffinity(ddai, profile)
 }
@@ -157,4 +159,21 @@ func getProfileDDAIName(ddaiName, profileName, profileNamespace string) string {
 		return ddaiName
 	}
 	return fmt.Sprintf(profileDDAINameTemplate, ddaiName, profileName)
+}
+
+// The node agent component override is non-nil from the default DDAI creation
+func setProfileNodeAgentOverride(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+	setProfileDSName(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
+	setProfileDDAILabels(ddai.Spec.Override[v2alpha1.NodeAgentComponentName], profile)
+}
+
+func setProfileDSName(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
+	override.Name = apiutils.NewStringPointer(agentprofile.DaemonSetName(types.NamespacedName{Namespace: profile.Namespace, Name: profile.Name}))
+}
+
+func setProfileDDAILabels(override *v2alpha1.DatadogAgentComponentOverride, profile *v1alpha1.DatadogAgentProfile) {
+	if override.Labels == nil {
+		override.Labels = make(map[string]string)
+	}
+	override.Labels[agentprofile.ProfileLabelKey] = profile.Name
 }

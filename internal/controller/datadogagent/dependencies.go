@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
@@ -38,10 +39,12 @@ func (r *Reconciler) manageDDADependenciesWithDDAI(ctx context.Context, logger l
 		return err
 	}
 
-	// Apply and cleanup dependencies
-	if err := r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-		return err
+	// Apply dependencies
+	if err := depsStore.Apply(ctx, r.client); err != nil {
+		return errors.NewAggregate(err)
 	}
+	// TODO: clean up dependencies
+
 	return nil
 }
 

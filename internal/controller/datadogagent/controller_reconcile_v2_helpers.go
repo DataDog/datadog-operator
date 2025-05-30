@@ -202,10 +202,11 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 	var errs []error
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
-		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		logger.Error(errors.NewAggregate(errs), "Dependencies apply error")
 		return errors.NewAggregate(errs)
 	}
 	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
+		logger.Error(errors.NewAggregate(errs), "Dependencies cleanup error")
 		return errors.NewAggregate(errs)
 	}
 	return nil
