@@ -46,7 +46,11 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`
+installCRDs: false
+imagePullSecrets: 
+  - name: registry-credentials
+`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
@@ -85,9 +89,9 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 			provisioners.WithExtraConfigParams(runner.ConfigMap{
 				"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
-				"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-				"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-				"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+				//"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+				//"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+				//"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
 			}),
 		}
 
