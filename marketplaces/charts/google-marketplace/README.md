@@ -75,7 +75,7 @@ git clone git@github.com:DataDog/datadog-operator.git
 Change into this directory.
 
 ```shell
-cd google-marketplace
+cd marketplaces/charts/google-marketplace
 ```
 
 ###### Deploy the application through mpdev
