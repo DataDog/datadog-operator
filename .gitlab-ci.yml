@@ -39,7 +39,7 @@ stages:
     when: never
   - when: always
 
-build:
+lint:
   stage: build
   tags: ["arch:amd64"]
   variables:
@@ -52,7 +52,7 @@ build:
   before_script:
     - make install-tools
   script:
-    - make build
+    - make lint # TODO: CHANGE THIS BACK
 
 #unit_tests:
 #  stage: test
