@@ -902,6 +902,11 @@ func (in *DatadogAgentGenericContainer) DeepCopyInto(out *DatadogAgentGenericCon
 		*out = new(string)
 		**out = **in
 	}
+	if in.Ports != nil {
+		in, out := &in.Ports, &out.Ports
+		*out = make([]corev1.ContainerPort, len(*in))
+		copy(*out, *in)
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]corev1.EnvVar, len(*in))
