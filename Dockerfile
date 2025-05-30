@@ -45,9 +45,9 @@ RUN if [ "$FIPS_ENABLED" = "true" ]; then \
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o helpers cmd/helpers/main.go
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS certs
+FROM registry.access.redhat.com/ubi10/ubi-minimal:latest AS certs
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest
 
 LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."
