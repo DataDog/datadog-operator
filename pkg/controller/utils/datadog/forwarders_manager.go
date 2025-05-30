@@ -15,8 +15,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-// MetricForwardersManager defines interface for metrics forwarding
-type MetricForwardersManager interface {
+// MetricsForwardersManager defines interface for metrics forwarding
+type MetricsForwardersManager interface {
 	Register(client.Object)
 	Unregister(client.Object)
 	ProcessError(client.Object, error)
@@ -28,9 +28,9 @@ type MetricForwardersManager interface {
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
-	k8sClient    client.Client
-	platformInfo *kubernetes.PlatformInfo
-	forwarders   map[string]*metricsForwarder
+	k8sClient         client.Client
+	platformInfo      *kubernetes.PlatformInfo
+	metricsForwarders map[string]*metricsForwarder
 	// TODO expand this to include a metadataForwarder
 	decryptor secrets.Decryptor
 	wg        sync.WaitGroup
@@ -41,11 +41,11 @@ type ForwardersManager struct {
 // ForwardersManager implements the controller-runtime Runnable interface
 func NewForwardersManager(k8sClient client.Client, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
 	return &ForwardersManager{
-		k8sClient:    k8sClient,
-		platformInfo: platformInfo,
-		forwarders:   make(map[string]*metricsForwarder),
-		decryptor:    secrets.NewSecretBackend(),
-		wg:           sync.WaitGroup{},
+		k8sClient:         k8sClient,
+		platformInfo:      platformInfo,
+		metricsForwarders: make(map[string]*metricsForwarder),
+		decryptor:         secrets.NewSecretBackend(),
+		wg:                sync.WaitGroup{},
 	}
 }
 
@@ -62,11 +62,11 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	f.Lock()
 	defer f.Unlock()
 	id := getObjID(obj) // nolint: ifshort
-	if _, found := f.forwarders[id]; !found {
+	if _, found := f.metricsForwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registered", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo)
+		f.metricsForwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.platformInfo)
 		f.wg.Add(1)
-		go f.forwarders[id].start(&f.wg)
+		go f.metricsForwarders[id].start(&f.wg)
 	}
 }
 
@@ -134,7 +134,7 @@ func (f *ForwardersManager) MetricsForwarderStatusForObj(obj client.Object) *Con
 func (f *ForwardersManager) stopAllForwarders() {
 	f.Lock()
 	defer f.Unlock()
-	for id, forwarder := range f.forwarders {
+	for id, forwarder := range f.metricsForwarders {
 		log.Info("Stopping metrics forwarder", "ID", id)
 		forwarder.stop()
 	}
@@ -145,11 +145,11 @@ func (f *ForwardersManager) stopAllForwarders() {
 func (f *ForwardersManager) unregisterForwarder(id string) error {
 	f.Lock()
 	defer f.Unlock()
-	if _, found := f.forwarders[id]; !found {
+	if _, found := f.metricsForwarders[id]; !found {
 		return fmt.Errorf("%s not found", id)
 	}
-	f.forwarders[id].stop()
-	delete(f.forwarders, id)
+	f.metricsForwarders[id].stop()
+	delete(f.metricsForwarders, id)
 
 	return nil
 }
@@ -158,7 +158,7 @@ func (f *ForwardersManager) unregisterForwarder(id string) error {
 func (f *ForwardersManager) getForwarder(id string) (*metricsForwarder, error) {
 	f.Lock()
 	defer f.Unlock()
-	forwarder, found := f.forwarders[id]
+	forwarder, found := f.metricsForwarders[id]
 	if !found {
 		return nil, fmt.Errorf("%s not found", id)
 	}

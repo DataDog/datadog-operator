@@ -184,7 +184,7 @@ func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, dda *v2alpha1.Da
 }
 
 // SetupWithManager creates a new DatadogAgent controller.
-func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricForwardersManager) error {
+func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
