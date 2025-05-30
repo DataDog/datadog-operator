@@ -4,16 +4,9 @@ go 1.23
 
 toolchain go1.23.8
 
-replace (
-	github.com/DataDog/datadog-agent/comp/core/tagger/types => github.com/DataDog/datadog-agent/comp/core/tagger/types v0.63.0-rc.1
-	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/def v0.63.0-rc.1
-	github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev => github.com/DataDog/datadog-agent/comp/otelcol/ddflareextension/dev v0.63.0-rc.1
-	github.com/DataDog/datadog-agent/pkg/util/option => github.com/DataDog/datadog-agent/pkg/util/option v0.0.0-20250109185436-13dd63f43dac // indirect
-)
-
 require (
-	github.com/DataDog/datadog-agent/test/fakeintake v0.63.0-rc.1
-	github.com/DataDog/datadog-agent/test/new-e2e v0.63.0-rc.1
+	github.com/DataDog/datadog-agent/test/fakeintake v0.66.0
+	github.com/DataDog/datadog-agent/test/new-e2e v0.66.0
 	github.com/DataDog/datadog-api-client-go/v2 v2.34.0
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
@@ -21,7 +14,7 @@ require (
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
 	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions v0.0.0-20250320141613-37219b27b29d
+	github.com/DataDog/test-infra-definitions v0.0.4-0.20250523144014-c9907d221ea5
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0
 	github.com/pulumi/pulumi/sdk/v3 v3.145.0

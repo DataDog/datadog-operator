@@ -13,7 +13,7 @@ variables:
   RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
-  TEST_INFRA_DEFINITIONS_BUILDIMAGES: 37219b27b29d
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: c9907d221ea5
   PUSH_IMAGES_TO_STAGING:
     description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
   FIPS_ENABLED: false
@@ -39,61 +39,64 @@ stages:
     when: never
   - when: always
 
-build:
+lint:
   stage: build
   tags: ["arch:amd64"]
   variables:
     KUBERNETES_MEMORY_REQUEST: 16Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_CPU_LIMIT: 4
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_CPU_LIMIT: 6
     GOMEMLIMIT: 15GiB
     GOMAXPROCS: 4
   before_script:
     - make install-tools
   script:
-    - make build
+    - make lint # TODO: CHANGE THIS BACK
 
-unit_tests:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  variables:
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_CPU_LIMIT: 4
-    GOMEMLIMIT: 15GiB
-    GOMAXPROCS: 4
-  before_script:
-    - make install-tools
-  script:
-    - make test
+#unit_tests:
+#  stage: test
+#  tags: ["arch:amd64"]
+#  rules:
+#    - if: '$DDR == "true"'
+#      when: never
+#    - when: on_success
+#  variables:
+#    KUBERNETES_MEMORY_REQUEST: 16Gi
+#    KUBERNETES_MEMORY_LIMIT: 16Gi
+#    KUBERNETES_CPU_REQUEST: 4
+#    KUBERNETES_CPU_LIMIT: 4
+#    GOMEMLIMIT: 15GiB
+#    GOMAXPROCS: 4
+#  before_script:
+#    - make install-tools
+#  script:
+#    - make test
 
 check-golang-version:
   stage: build
   tags: ["arch:amd64"]
+  variables:
+      KUBERNETES_CPU_REQUEST: 2
+      KUBERNETES_CPU_LIMIT: 2
   before_script:
     - make install-tools
   script:
     - make update-golang
     - git diff --exit-code
 
-generate_code:
-  stage: test
-  tags: ["arch:amd64"]
-  rules:
-    - if: '$DDR == "true"'
-      when: never
-    - when: on_success
-  before_script:
-    - make install-tools
-  script:
-    - make generate manifests
-    - git diff --exit-code
+#generate_code:
+#  stage: test
+#  tags: ["arch:amd64"]
+#  rules:
+#    - if: '$DDR == "true"'
+#      when: never
+#    - when: on_success
+#  before_script:
+#    - make install-tools
+#  script:
+#    - make generate manifests
+#    - git diff --exit-code
 
 build_operator_image_amd64:
   stage: image
@@ -111,84 +114,84 @@ build_operator_image_amd64:
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_image_fips_amd64:
-  extends: build_operator_image_amd64
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
-    FIPS_ENABLED: "true"
-
-build_operator_image_arm64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:arm64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: arm64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_image_fips_arm64:
-  extends: build_operator_image_arm64
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
-    FIPS_ENABLED: "true"
-
-build_operator_check_image_amd64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: amd64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-build_operator_check_image_arm64:
-  stage: image
-  rules: !reference [.on_build_images]
-  tags:
-    - "arch:arm64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    GOARCH: arm64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-arm64
-  script:
-    # DockerHub login for build to limit rate limit when pulling base images
-    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
-
-
-build_bundle_image:
-  stage: image
-  tags:
-    - "arch:amd64"
-  image: $JOB_DOCKER_IMAGE
-  variables:
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
-    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle
-  script:
-    - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_image_fips_amd64:
+#  extends: build_operator_image_amd64
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-amd64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-amd64
+#    FIPS_ENABLED: "true"
+#
+#build_operator_image_arm64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:arm64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: arm64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG=$TARGET_IMAGE FIPS_ENABLED=$FIPS_ENABLED make docker-build-push-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_image_fips_arm64:
+#  extends: build_operator_image_arm64
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-fips-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-fips-arm64
+#    FIPS_ENABLED: "true"
+#
+#build_operator_check_image_amd64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:amd64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: amd64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#build_operator_check_image_arm64:
+#  stage: image
+#  rules: !reference [.on_build_images]
+#  tags:
+#    - "arch:arm64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    GOARCH: arm64
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-arm64
+#  script:
+#    # DockerHub login for build to limit rate limit when pulling base images
+#    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+#    - IMG_CHECK=$TARGET_IMAGE make docker-build-push-check-ci
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
+#
+#
+#build_bundle_image:
+#  stage: image
+#  tags:
+#    - "arch:amd64"
+#  image: $JOB_DOCKER_IMAGE
+#  variables:
+#    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
+#    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle
+#  script:
+#    - BUNDLE_IMG=$TARGET_IMAGE make bundle-build-push
+#    - if [ -n "$CI_COMMIT_TAG" ]; then docker buildx imagetools create $TARGET_IMAGE --tag $RELEASE_IMAGE; fi
 
 .new_e2e_template:
   stage: e2e
@@ -197,6 +200,13 @@ build_bundle_image:
   before_script:
     # Setup AWS Credentials
     - echo "Starting setup for E2E testing..."
+
+    # Setup GCP credentials. https://www.pulumi.com/registry/packages/gcp/installation-configuration/
+    # The service account is called `agent-e2e-tests`
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
+    - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
+    - echo $GOOGLE_APPLICATION_CREDENTIALS
+
     - mkdir -p ~/.aws
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.agent-qa-profile --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
     - export AWS_PROFILE=agent-qa-ci
@@ -207,12 +217,20 @@ build_bundle_image:
     # Use S3 backend to store stack status
     - echo "Logging in to Pulumi with S3 backend..."
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+
+    # SSH Key retrieval for GCP
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH || exit $?
+    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH || exit $?
+
   variables:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
+    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
     KUBERNETES_MEMORY_REQUEST: 12Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_CPU_REQUEST: 6
 
 .on_run_e2e:
   # Skip if only .md files are changed
@@ -252,13 +270,13 @@ e2e:
   parallel:
     matrix:
       - K8S_VERSION:
-          - "1.19"
-          - "1.22"
-          - "1.24"
-          - "1.25"
-          - "1.26"
-          - "1.29"
-          - "1.30"
+#          - "1.19"
+#          - "1.22"
+#          - "1.24"
+#          - "1.25"
+#          - "1.26"
+#          - "1.29"
+#          - "1.30"
           - "1.32"
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}

@@ -65,7 +65,7 @@ alias kx="kubectl exec"
 
 var (
 	namespaceName   = "system"
-	k8sVersion      = getEnv("K8S_VERSION", "1.26")
+	k8sVersion      = getEnv("K8S_VERSION", "1.32")
 	imgPullPassword = getEnv("IMAGE_PULL_PASSWORD", "")
 
 	kubeConfigPath string

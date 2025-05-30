@@ -8,34 +8,47 @@ package k8ssuite
 import (
 	"fmt"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"strings"
 	"testing"
 )
 
-type awsKindSuite struct {
+type gkeSuite struct {
 	k8sSuite
 }
 
-func TestAWSKindSuite(t *testing.T) {
+func TestGKESuite(t *testing.T) {
 	operatorOptions := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`
+installCRDs: false
+imagePullSecrets: 
+  - name: registry-credentials
+`),
 	}
+	t.Logf("WHAT IS LENGTH OF PW: " + fmt.Sprint(len(common.ImgPullPassword)))
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithTestName("e2e-operator"),
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
+		provisioners.WithExtraConfigParams(runner.ConfigMap{
+			"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
+			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+		}),
 	}
 
 	e2eOpts := []e2e.SuiteOption{
-		e2e.WithStackName(fmt.Sprintf("operator-awskind-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
+		e2e.WithStackName(fmt.Sprintf("operator-gke-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
 	}
 
-	e2e.Run(t, &awsKindSuite{}, e2eOpts...)
+	e2e.Run(t, &gkeSuite{}, e2eOpts...)
 }

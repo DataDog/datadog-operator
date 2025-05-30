@@ -8,6 +8,8 @@ package k8ssuite
 import (
 	"context"
 	"fmt"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
@@ -44,7 +46,6 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
@@ -58,6 +59,11 @@ func (s *k8sSuite) TestGenericK8s() {
 	}
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
+		s.Assert().NotNil(s.Env().KubernetesCluster)
+		s.Assert().NotNil(s.Env().KubernetesCluster.Client())
+		secrets, err := s.Env().KubernetesCluster.Client().CoreV1().Secrets(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
+		s.Assert().NoError(err)
+		t.Logf("Secrets: %v", secrets.Items)
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			utils.VerifyOperator(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client())
 		}, 300*time.Second, 15*time.Second, "Could not validate operator pod in time")
@@ -81,6 +87,12 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithOperatorOptions(defaultOperatorOpts...),
 			provisioners.WithDDAOptions(ddaOpts...),
 			provisioners.WithLocal(s.local),
+			provisioners.WithExtraConfigParams(runner.ConfigMap{
+				"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
+				//"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+				//"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+				//"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+			}),
 		}
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
