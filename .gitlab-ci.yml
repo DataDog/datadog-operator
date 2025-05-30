@@ -76,6 +76,9 @@ lint:
 check-golang-version:
   stage: build
   tags: ["arch:amd64"]
+  variables:
+      KUBERNETES_CPU_REQUEST: 2
+      KUBERNETES_CPU_LIMIT: 2
   before_script:
     - make install-tools
   script:

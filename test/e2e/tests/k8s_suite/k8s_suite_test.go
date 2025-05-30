@@ -59,6 +59,11 @@ func (s *k8sSuite) TestGenericK8s() {
 	}
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
+		s.Assert().NotNil(s.Env().KubernetesCluster)
+		s.Assert().NotNil(s.Env().KubernetesCluster.Client())
+		secrets, err := s.Env().KubernetesCluster.Client().CoreV1().Secrets(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
+		s.Assert().NoError(err)
+		t.Logf("Secrets: %v", secrets.Items)
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			utils.VerifyOperator(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client())
 		}, 300*time.Second, 15*time.Second, "Could not validate operator pod in time")
