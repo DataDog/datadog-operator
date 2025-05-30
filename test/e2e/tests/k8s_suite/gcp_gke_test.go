@@ -40,6 +40,8 @@ func TestGKESuite(t *testing.T) {
 	e2eOpts := []e2e.SuiteOption{
 		e2e.WithStackName(fmt.Sprintf("operator-awskind-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
+		e2e.WithSkipDeleteOnFailure(),
+		e2e.WithDevMode(),
 	}
 
 	e2e.Run(t, &gkeSuite{}, e2eOpts...)
