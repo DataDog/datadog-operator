@@ -1792,6 +1792,13 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	LogLevel *string `json:"logLevel,omitempty"`
 
+	// Specify additional ports to be exposed by the container.
+	// +optional
+	// +listType=map
+	// +listMapKey=containerPort
+	// +listMapKey=protocol
+	Ports []corev1.ContainerPort `json:"ports,omitempty"`
+
 	// Specify additional environment variables in the container.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//

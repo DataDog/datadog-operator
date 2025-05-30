@@ -322,6 +322,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | [key].containers.[key].logLevel | LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
 | [key].containers.[key].name | Name of the container that is overridden |
+| [key].containers.[key].ports `[]object` | Specify additional ports to be exposed by the container. |
 | [key].containers.[key].readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | [key].containers.[key].readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
 | [key].containers.[key].readinessProbe.grpc.port | Port number of the gRPC service. Number must be in the range 1 to 65535. |

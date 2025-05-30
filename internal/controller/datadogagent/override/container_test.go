@@ -87,6 +87,55 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
+			name:          "add ports",
+			containerName: apicommon.CoreAgentContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
+				manager.Port().AddPortToContainer(
+					apicommon.CoreAgentContainerName,
+					&corev1.ContainerPort{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				)
+				return manager
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolUDP,
+					},
+					{
+						ContainerPort: 1235,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				ports := manager.PortMgr.PortsByC[apicommon.CoreAgentContainerName]
+				expectedPorts := []*corev1.ContainerPort{
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						ContainerPort: 1234,
+						Protocol:      corev1.ProtocolUDP,
+					},
+					{
+						ContainerPort: 1235,
+						Protocol:      corev1.ProtocolUDP,
+					},
+				}
+				assert.Equal(t, expectedPorts, ports)
+			},
+		},
+		{
 			name:          "add envs",
 			containerName: apicommon.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {

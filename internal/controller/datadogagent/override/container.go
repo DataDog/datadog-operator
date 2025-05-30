@@ -33,6 +33,7 @@ func Container(containerName apicommon.AgentContainerName, manager feature.PodTe
 		addHealthPort(containerName, manager, *override.HealthPort)
 	}
 
+	addPortsToContainer(containerName, manager, override.Ports)
 	addEnvsToContainer(containerName, manager, override.Env)
 	addVolMountsToContainer(containerName, manager, override.VolumeMounts)
 
@@ -63,6 +64,13 @@ func overrideLogLevel(containerName apicommon.AgentContainerName, manager featur
 			Value: logLevel,
 		},
 	)
+}
+
+func addPortsToContainer(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, ports []corev1.ContainerPort) {
+	for _, port := range ports {
+		p := port
+		manager.Port().AddPortToContainer(containerName, &p)
+	}
 }
 
 func addEnvsToContainer(containerName apicommon.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
