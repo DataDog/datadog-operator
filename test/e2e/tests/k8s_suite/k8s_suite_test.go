@@ -59,8 +59,8 @@ func (s *k8sSuite) TestGenericK8s() {
 	}
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
-		s.Assert().NotNil(s.Env().KubernetesCluster)
-		s.Assert().NotNil(s.Env().KubernetesCluster.Client())
+		s.Assert().NotNil(s.Env().KubernetesCluster, "Kubernetes cluster is not initialized")
+		s.Assert().NotNil(s.Env().KubernetesCluster.Client(), "Kubernetes client is not initialized")
 		secrets, err := s.Env().KubernetesCluster.Client().CoreV1().Secrets(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
 		s.Assert().NoError(err)
 		t.Logf("Secrets: %v", secrets.Items)

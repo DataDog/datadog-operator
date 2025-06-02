@@ -31,7 +31,6 @@ imagePullSecrets:
   - name: registry-credentials
 `),
 	}
-	t.Logf("WHAT IS LENGTH OF PW: " + fmt.Sprint(len(common.ImgPullPassword)))
 
 	provisionerOptions := []provisioners.KubernetesProvisionerOption{
 		provisioners.WithTestName("e2e-operator"),
@@ -42,7 +41,7 @@ imagePullSecrets:
 			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
 			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
 			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-sandbox"},
+			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-qa"},
 		}),
 	}
 
@@ -50,7 +49,7 @@ imagePullSecrets:
 		e2e.WithStackName(fmt.Sprintf("operator-gke-%s", strings.ReplaceAll(common.K8sVersion, ".", "-"))),
 		e2e.WithProvisioner(provisioners.KubernetesProvisioner(provisionerOptions...)),
 		e2e.WithDevMode(),
-		e2e.WithSkipDeleteOnFailure(),
+		//e2e.WithSkipDeleteOnFailure(),
 	}
 
 	e2e.Run(t, &gkeSuite{}, e2eOpts...)
