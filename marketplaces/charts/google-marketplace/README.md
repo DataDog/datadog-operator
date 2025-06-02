@@ -89,7 +89,7 @@ export APP_NAME=datadog
 export TAG=1.3.0 # Datadog Operator version that will be installed
 ```
 
-You may also need to customize some parameters (name, namespace, APIKey)
+You may also need to customize some parameters (name, namespace, APIKey):
 
 ```
 kubectl create ns datadog-agent
