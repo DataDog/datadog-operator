@@ -81,7 +81,7 @@ cd marketplaces/charts/google-marketplace
 ###### Deploy the application through mpdev
 
 It's recommended to install the application in a dedicated namespace.
-Before launching installation you need to setup some varaibles:
+Before launching installation, you need to set up some variables:
 
 ```
 export REGISTRY=gcr.io/$(gcloud config get-value project | tr ':' '/')
