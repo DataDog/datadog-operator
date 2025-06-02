@@ -499,31 +499,8 @@ func egressKubeAPIServer() cilium.NetworkPolicySpec {
 		Description: "Egress to Kube API Server",
 		Egress: []cilium.EgressRule{
 			{
-				// ToServices works only for endpoints
-				// outside of the cluster This section
-				// handles the case where the control
-				// plane is outside of the cluster.
-				ToServices: []cilium.Service{
-					{
-						K8sService: &cilium.K8sServiceNamespace{
-							Namespace:   "default",
-							ServiceName: "kubernetes",
-						},
-					},
-				},
 				ToEntities: []cilium.Entity{
-					cilium.EntityHost,
-					cilium.EntityRemoteNode,
-				},
-				ToPorts: []cilium.PortRule{
-					{
-						Ports: []cilium.PortProtocol{
-							{
-								Port:     "443",
-								Protocol: cilium.ProtocolTCP,
-							},
-						},
-					},
+					cilium.EntityKubeApiServer,
 				},
 			},
 		},

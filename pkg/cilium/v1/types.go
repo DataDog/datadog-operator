@@ -31,6 +31,8 @@ const (
 	EntityRemoteNode Entity = "remote-node"
 	// EntityWorld is a world entity
 	EntityWorld Entity = "world"
+	// EntityKubeApiServer is a Kube Api Server
+	EntityKubeApiServer Entity = "kube-apiserver"
 )
 
 // NetworkPolicy is a Cilium network policy
