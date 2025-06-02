@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
