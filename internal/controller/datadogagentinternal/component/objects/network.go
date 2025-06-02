@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
