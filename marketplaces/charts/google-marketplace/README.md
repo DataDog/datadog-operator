@@ -72,7 +72,7 @@ Clone this repository.
 git clone git@github.com:DataDog/datadog-operator.git
 ```
 
-Change into this directory.
+Change into this directory:
 
 ```shell
 cd marketplaces/charts/google-marketplace
