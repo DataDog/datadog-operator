@@ -203,7 +203,8 @@ build_operator_image_amd64:
 
     # Setup GCP credentials. https://www.pulumi.com/registry/packages/gcp/installation-configuration/
     # The service account is called `agent-e2e-tests`
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.e2e_tests_datadog_sandbox_gcp_credentials --with-decryption --query "Parameter.Value" --out text  > ~/gcp-credentials.json || exit $?
     - export GOOGLE_APPLICATION_CREDENTIALS=~/gcp-credentials.json
     - echo $GOOGLE_APPLICATION_CREDENTIALS
 
@@ -219,15 +220,15 @@ build_operator_image_amd64:
     - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
 
     # SSH Key retrieval for GCP
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH || exit $?
-    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH || exit $?
+#    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_public_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PUBLIC_KEY_PATH || exit $?
+#    - touch $E2E_GCP_PRIVATE_KEY_PATH && chmod 600 $E2E_GCP_PRIVATE_KEY_PATH && aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.ssh_private_key --with-decryption --query "Parameter.Value" --out text > $E2E_GCP_PRIVATE_KEY_PATH || exit $?
 
   variables:
     E2E_AWS_PUBLIC_KEY_PATH: /tmp/agent-qa-ssh-key.pub
     E2E_AWS_PRIVATE_KEY_PATH: /tmp/agent-qa-ssh-key
     E2E_KEY_PAIR_NAME: ci.datadog-operator
-    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
-    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
+#    E2E_GCP_PUBLIC_KEY_PATH: /tmp/agent-qa-gcp-ssh-key.pub
+#    E2E_GCP_PRIVATE_KEY_PATH: /tmp/agent-qa-gcp-ssh-key
     KUBERNETES_MEMORY_REQUEST: 12Gi
     KUBERNETES_MEMORY_LIMIT: 16Gi
     KUBERNETES_CPU_REQUEST: 6
