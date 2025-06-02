@@ -9,7 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 )
 
 type ComponentName string
@@ -26,64 +26,12 @@ const (
 
 // DatadogAgentProfileSpec defines the desired state of DatadogAgentProfile
 type DatadogAgentProfileSpec struct {
-	ProfileAffinity *ProfileAffinity `json:"profileAffinity,omitempty"`
-	Config          *Config          `json:"config,omitempty"`
+	ProfileAffinity *ProfileAffinity           `json:"profileAffinity,omitempty"`
+	Config          *v2alpha1.DatadogAgentSpec `json:"config,omitempty"`
 }
 
 type ProfileAffinity struct {
 	ProfileNodeAffinity []corev1.NodeSelectorRequirement `json:"profileNodeAffinity,omitempty"`
-}
-
-type Config struct {
-	// Override the default configurations of the node agent.
-	Override map[ComponentName]*Override `json:"override,omitempty"`
-}
-
-type Override struct {
-	// Configure the basic configurations for an Agent container
-	// Valid Agent container names are: `agent`
-	// +optional
-	Containers map[common.AgentContainerName]*Container `json:"containers,omitempty"`
-
-	// If specified, indicates the pod's priority. "system-node-critical" and
-	// "system-cluster-critical" are two special keywords which indicate the
-	// highest priorities with the former being the highest priority. Any other
-	// name must be defined by creating a PriorityClass object with that name.
-	// If not specified, the pod priority will be default or zero if there is no
-	// default.
-	// +optional
-	PriorityClassName *string `json:"priorityClassName,omitempty"`
-
-	// If specified, indicates the pod's RuntimeClass kubelet should use to run the pod.
-	// If the named RuntimeClass does not exist, or the CRI cannot run the corresponding handler, the pod enters the Failed terminal phase.
-	// If no runtimeClassName is specified, the default RuntimeHandler is used, which is equivalent to the behavior when the RuntimeClass feature is disabled.
-	// +optional
-	RuntimeClassName *string `json:"runtimeClassName,omitempty"`
-
-	// The deployment strategy to use to replace existing pods with new ones.
-	// Valid types are `RollingUpdate` or `OnDelete` for DaemonSets
-	// +optional
-	UpdateStrategy *common.UpdateStrategy `json:"updateStrategy,omitempty"`
-
-	// Labels provide labels that are added to the Datadog Agent pods.
-	// +optional
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
-type Container struct {
-	// Specify additional environment variables in the container.
-	// See also: https://docs.datadoghq.com/agent/guide/environment-variables/
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify the Request and Limits of the pods.
-	// To get guaranteed QoS class, specify requests and limits equal.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	// +optional
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // DatadogAgentProfileStatus defines the observed state of DatadogAgentProfile
