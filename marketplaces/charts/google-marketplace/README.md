@@ -4,7 +4,7 @@
 
 Datadog provides infrastructure monitoring, application performance monitoring, and log management in a single-pane-of-glass view so teams can scale rapidly and maintain operational excellence.
 
-Installing the Datadog package via Google Cloud Launcher deploys the Datadog Agent on every node in your Kubernetes cluster, and configures it with a secure, RBAC-based authentication and authorization model.
+Installing the Datadog package using Google Cloud Launcher deploys the Datadog Agent on every node in your Kubernetes cluster, and configures it with a secure, RBAC-based authentication and authorization model.
 
 ## Installation
 
