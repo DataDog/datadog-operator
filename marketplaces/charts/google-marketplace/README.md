@@ -24,7 +24,7 @@ Then follow the [on-screen instructions](https://console.cloud.google.com/market
 
 Follow these instructions to install the Datadog Agent from the command line.
 
-#### Prerequisites (one time setup)
+#### Prerequisites (one-time setup)
 
 ##### Command-line tools
 
