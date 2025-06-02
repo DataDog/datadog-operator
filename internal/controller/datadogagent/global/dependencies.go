@@ -37,7 +37,7 @@ func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fea
 	}
 
 	// Credentials
-	if err := addCredentialDependencies(logger, dda, manager); err != nil {
+	if err := AddCredentialDependencies(logger, dda, manager); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -48,7 +48,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	var errs []error
 
 	if componentName == v2alpha1.ClusterAgentComponentName {
-		if err := addDCATokenDependencies(logger, dda, manager); err != nil {
+		if err := AddDCATokenDependencies(logger, dda, manager); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -110,7 +110,7 @@ func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager f
 	return nil
 }
 
-func addCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	// Prioritize existing secrets
 	// Credentials should be non-nil from validation
 	global := dda.Spec.Global
@@ -147,7 +147,7 @@ func addCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 	return nil
 }
 
-func addDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func AddDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	global := dda.Spec.Global
 	var token string
 
