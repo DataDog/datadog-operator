@@ -8,15 +8,15 @@ Installing the Datadog package using Google Cloud Launcher deploys the Datadog A
 
 ## Installation
 
+Datadog Agent daemonset can be install a Google Kubernetes Engine cluster either using Google Cloud Marketplace or CLI. Create a Datadog Account and generate API key before proceeding:
+
+- Create a Datadog [account](https://www.datadoghq.com/)
+- [Get your Datadog API key](https://app.datadoghq.com/organization-settings/api-keys)
+
 ### Quick install with Google Cloud Marketplace
 
 Get up and running with a few clicks! Install the Datadog Agent daemonset to a
 Google Kubernetes Engine cluster using Google Cloud Marketplace.
-
-Prior to that:
-
-- Create a Datadog [account](https://www.datadoghq.com/)
-- [Get your Datadog API key](https://app.datadoghq.com/organization-settings/api-keys)
 
 Then follow the [on-screen instructions](https://console.cloud.google.com/marketplace/details/datadog-saas/datadog).
 
@@ -34,11 +34,6 @@ Your development environment should contain the following tools:
 - [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/)
 - [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 - [helm + mpdev](https://github.com/GoogleCloudPlatform/marketplace-k8s-app-tools/blob/master/docs/tool-prerequisites.md)
-
-##### Create a Datadog account
-
-- Create a Datadog [account](https://www.datadoghq.com/)
-- [Get your Datadog API key](https://app.datadoghq.com/organization-settings/api-keys)
 
 ##### Create a Google Kubernetes Engine cluster
 
