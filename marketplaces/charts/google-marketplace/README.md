@@ -66,7 +66,7 @@ Install the Application CRD by following the [quickstart guide](https://github.c
 
 ###### Clone this repository
 
-Clone this repository.
+Clone this repository:
 
 ```shell
 git clone git@github.com:DataDog/datadog-operator.git
