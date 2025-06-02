@@ -7,4 +7,5 @@ package gpu
 
 const DDEnableGPUMonitoringEnvVar = "DD_GPU_MONITORING_ENABLED"
 const DDEnableNVMLDetectionEnvVar = "DD_ENABLE_NVML_DETECTION"
+const DDCollectGPUTagsEnvVar = "DD_COLLECT_GPU_TAGS"
 const NVIDIAVisibleDevicesEnvVar = "NVIDIA_VISIBLE_DEVICES"
