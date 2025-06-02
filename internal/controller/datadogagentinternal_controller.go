@@ -28,8 +28,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
