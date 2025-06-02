@@ -61,7 +61,7 @@ gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE"
 ###### Install the (app.k8s.io/v1beta1) Application CRD
 
 
-Follow instructions from [here](https://github.com/kubernetes-sigs/application/blob/master/docs/quickstart.md).
+Install the Application CRD by following the [quickstart guide](https://github.com/kubernetes-sigs/application/blob/master/docs/quickstart.md) on the Kubernetes-sigs application repository
 
 
 ###### Clone this repository
