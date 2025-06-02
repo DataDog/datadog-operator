@@ -42,6 +42,7 @@ imagePullSecrets:
 			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
 			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
 			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+			"ddinfra:env":               auto.ConfigValue{Value: "agent-sandbox"},
 		}),
 	}
 
