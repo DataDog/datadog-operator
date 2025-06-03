@@ -9,10 +9,10 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
-	fakeintakeComp "github.com/DataDog/test-infra-definitions/components/datadog/fakeintake"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operator"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"github.com/DataDog/test-infra-definitions/resources/gcp"
+	"github.com/DataDog/test-infra-definitions/scenarios/gcp/fakeintake"
 	"github.com/DataDog/test-infra-definitions/scenarios/gcp/gke"
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
 	metav1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/meta/v1"
@@ -38,8 +38,8 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 	}
 
 	if params.fakeintakeOptions != nil {
-		fakeIntake, intakeErr := fakeintakeComp.NewLocalDockerFakeintake(&gcpEnv, "fakeintake")
-		if intakeErr != nil {
+		fakeIntake, err := fakeintake.NewVMInstance(gcpEnv, params.fakeintakeOptions...)
+		if err != nil {
 			return err
 		}
 		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
