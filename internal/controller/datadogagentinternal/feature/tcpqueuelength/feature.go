@@ -11,10 +11,10 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 )
 
 func init() {

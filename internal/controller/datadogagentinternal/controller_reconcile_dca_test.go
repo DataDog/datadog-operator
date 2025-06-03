@@ -6,9 +6,9 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/stretchr/testify/assert"

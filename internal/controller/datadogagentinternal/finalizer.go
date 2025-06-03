@@ -14,8 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"

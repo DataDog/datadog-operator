@@ -23,10 +23,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"

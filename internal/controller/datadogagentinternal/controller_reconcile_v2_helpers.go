@@ -8,10 +8,10 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
