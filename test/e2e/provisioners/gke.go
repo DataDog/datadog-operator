@@ -38,9 +38,9 @@ func GkeRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Kuber
 	}
 
 	if params.fakeintakeOptions != nil {
-		fakeIntake, err := fakeintake.NewVMInstance(gcpEnv, params.fakeintakeOptions...)
-		if err != nil {
-			return err
+		fakeIntake, fakeIntakeErr := fakeintake.NewVMInstance(gcpEnv, params.fakeintakeOptions...)
+		if fakeIntakeErr != nil {
+			return fakeIntakeErr
 		}
 		if err = fakeIntake.Export(ctx, &env.FakeIntake.FakeintakeOutput); err != nil {
 			return err
