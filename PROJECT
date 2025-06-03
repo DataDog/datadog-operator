@@ -89,4 +89,13 @@ resources:
   kind: DatadogPodAutoscaler
   path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha2
   version: v1alpha2
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: com
+  group: datadoghq
+  kind: DatadogAgentInternal
+  path: github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1
+  version: v1alpha1
 version: "3"
