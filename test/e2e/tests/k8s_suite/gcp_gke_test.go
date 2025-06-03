@@ -37,10 +37,11 @@ imagePullSecrets:
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
 		provisioners.WithExtraConfigParams(runner.ConfigMap{
-			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-qa"},
+			"ddagent:imagePullRegistry":       auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+			"ddagent:imagePullUsername":       auto.ConfigValue{Value: "AWS"},
+			"ddagent:imagePullPassword":       auto.ConfigValue{Value: common.ImgPullPassword},
+			"ddinfra:env":                     auto.ConfigValue{Value: "gcp/agent-qa"},
+			"ddinfra:gcp/defaultInstanceType": auto.ConfigValue{Value: "e2-standard-8"},
 		}),
 	}
 

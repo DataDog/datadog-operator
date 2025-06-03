@@ -170,7 +170,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyKSMCheck(c)
-		}, 15*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
+		}, 10*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
 	})
 
 	s.T().Run("Autodiscovery works", func(t *testing.T) {
@@ -214,7 +214,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyHTTPCheck(c)
-		}, 900*time.Second, 15*time.Second, "could not validate http_check in time")
+		}, 5*time.Minute, 15*time.Second, "could not validate http_check in time")
 	})
 
 	s.T().Run("Logs collection works", func(t *testing.T) {
@@ -253,7 +253,7 @@ func (s *k8sSuite) TestGenericK8s() {
 			}
 
 			s.verifyAPILogs()
-		}, 900*time.Second, 15*time.Second, "could not valid logs collection in time")
+		}, 5*time.Minute, 15*time.Second, "could not valid logs collection in time")
 	})
 
 	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
@@ -316,7 +316,7 @@ func (s *k8sSuite) TestGenericK8s() {
 
 			// Verify traces collection ingestion by fakeintake
 			s.verifyAPITraces(c)
-		}, 600*time.Second, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
+		}, 5*time.Minute, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
 	})
 }
 
