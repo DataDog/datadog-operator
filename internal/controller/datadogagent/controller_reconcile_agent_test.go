@@ -297,7 +297,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "no unused eds, introspection disabled, profiles disabled",
@@ -319,7 +321,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 			edsEnabled:           true,
 			providerList:         map[string]struct{}{},
 			profiles:             []v1alpha1.DatadogAgentProfile{},
-			wantDS:               &appsv1.DaemonSetList{},
+			wantDS: &appsv1.DaemonSetList{
+				Items: []appsv1.DaemonSet{},
+			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
@@ -384,7 +388,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "no unused eds, introspection enabled, profiles enabled",
@@ -417,7 +423,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS: &appsv1.DaemonSetList{},
+			wantDS: &appsv1.DaemonSetList{
+				Items: []appsv1.DaemonSet{},
+			},
 			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
 				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{
 					{
@@ -505,7 +513,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "multiple unused eds, introspection enabled, profiles enabled",
@@ -699,7 +709,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "multiple unused eds, introspection enabled, profiles disabled",
@@ -885,7 +897,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "multiple unused eds, introspection disabled, profiles enabled",
@@ -1096,7 +1110,9 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:        "EDSs are not created by the operator (do not have the expected labels) and should not be removed",
@@ -1264,8 +1280,12 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS:  &appsv1.DaemonSetList{},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantDS: &appsv1.DaemonSetList{
+				Items: []appsv1.DaemonSet{},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 		{
 			name:                 "no existing eds, introspection enabled, profiles enabled",
@@ -1285,8 +1305,12 @@ func Test_cleanupExtraneousDaemonSets(t *testing.T) {
 					},
 				},
 			},
-			wantDS:  &appsv1.DaemonSetList{},
-			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{},
+			wantDS: &appsv1.DaemonSetList{
+				Items: []appsv1.DaemonSet{},
+			},
+			wantEDS: &edsdatadoghqv1alpha1.ExtendedDaemonSetList{
+				Items: []edsdatadoghqv1alpha1.ExtendedDaemonSet{},
+			},
 		},
 	}
 

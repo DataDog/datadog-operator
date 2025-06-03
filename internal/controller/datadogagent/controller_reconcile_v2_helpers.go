@@ -108,7 +108,7 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 		if r.options.DatadogAgentProfileEnabled {
 			metrics.DAPEnabled.Set(metrics.TrueValue)
 			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, instance)
+			profiles, profilesByNode, err = r.profilesToApply(ctx, logger, nodeList, now, &instance.Spec)
 			// TODO: in main, we error on err instead of e here
 			// https://github.com/DataDog/datadog-operator/blob/8ba3647fbad340015d835b6fc1cb48639502c33d/internal/controller/datadogagent/controller_reconcile_v2.go#L179-L182
 			if err != nil {
@@ -164,7 +164,7 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 
 		if r.options.DatadogAgentProfileEnabled {
 			var profilesByNode map[string]types.NamespacedName
-			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, instance)
+			profiles, profilesByNode, e = r.profilesToApply(ctx, logger, nodeList, now, &instance.Spec)
 			if e != nil {
 				return e
 			}
@@ -209,4 +209,16 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 		return errors.NewAggregate(errs)
 	}
 	return nil
+}
+
+// generateNewStatusFromDDA generates a new status from a DDA status.
+// If an existing DCA token is present, it is copied to the new status.
+func generateNewStatusFromDDA(ddaStatus *datadoghqv2alpha1.DatadogAgentStatus) *datadoghqv2alpha1.DatadogAgentStatus {
+	status := &datadoghqv2alpha1.DatadogAgentStatus{}
+	if ddaStatus != nil && ddaStatus.ClusterAgent != nil && ddaStatus.ClusterAgent.GeneratedToken != "" {
+		status.ClusterAgent = &datadoghqv2alpha1.DeploymentStatus{
+			GeneratedToken: ddaStatus.ClusterAgent.GeneratedToken,
+		}
+	}
+	return status
 }
