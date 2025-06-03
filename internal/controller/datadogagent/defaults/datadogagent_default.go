@@ -135,11 +135,11 @@ const (
 	defaultFIPSUseHTTPS     bool   = false
 )
 
-// DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
-func DefaultDatadogAgent(dda *v2alpha1.DatadogAgent) {
-	defaultGlobalConfig(&dda.Spec)
+// DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
+func DefaultDatadogAgentSpec(ddaSpec *v2alpha1.DatadogAgentSpec) {
+	defaultGlobalConfig(ddaSpec)
 
-	defaultFeaturesConfig(&dda.Spec)
+	defaultFeaturesConfig(ddaSpec)
 }
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
