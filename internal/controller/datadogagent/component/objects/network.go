@@ -191,7 +191,7 @@ func BuildCiliumPolicy(dda metav1.Object, site string, ddURL string, hostNetwork
 			egressMetadataServerRule(podSelector),
 			egressDNS(podSelector, dnsSelectorEndpoints),
 			egressDCADatadogIntake(podSelector, site, ddURL),
-			egressKubeAPIServer(),
+			egressKubeAPIServer(podSelector),
 			ingressAgent(podSelector, dda, hostNetwork),
 			ingressDCA(podSelector, nodeAgentPodSelector),
 			egressDCA(podSelector, nodeAgentPodSelector),
@@ -494,36 +494,14 @@ func egressChecks(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 }
 
 // cilium egress to kube api server
-func egressKubeAPIServer() cilium.NetworkPolicySpec {
+func egressKubeAPIServer(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
-		Description: "Egress to Kube API Server",
+		Description:      "Egress to Kube API Server",
+		EndpointSelector: podSelector,
 		Egress: []cilium.EgressRule{
 			{
-				// ToServices works only for endpoints
-				// outside of the cluster This section
-				// handles the case where the control
-				// plane is outside of the cluster.
-				ToServices: []cilium.Service{
-					{
-						K8sService: &cilium.K8sServiceNamespace{
-							Namespace:   "default",
-							ServiceName: "kubernetes",
-						},
-					},
-				},
 				ToEntities: []cilium.Entity{
-					cilium.EntityHost,
-					cilium.EntityRemoteNode,
-				},
-				ToPorts: []cilium.PortRule{
-					{
-						Ports: []cilium.PortProtocol{
-							{
-								Port:     "443",
-								Protocol: cilium.ProtocolTCP,
-							},
-						},
-					},
+					cilium.EntityKubeApiServer,
 				},
 			},
 		},
