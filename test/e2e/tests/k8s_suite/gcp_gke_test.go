@@ -27,7 +27,7 @@ func TestGKESuite(t *testing.T) {
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
 		operatorparams.WithHelmValues(`
 installCRDs: false
-imagePullSecrets: 
+imagePullSecrets:
   - name: registry-credentials
 `),
 	}
@@ -37,7 +37,6 @@ imagePullSecrets:
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithoutDDA(),
 		provisioners.WithExtraConfigParams(runner.ConfigMap{
-			"ddinfra:kubernetesVersion": auto.ConfigValue{Value: common.K8sVersion},
 			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
 			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
 			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},

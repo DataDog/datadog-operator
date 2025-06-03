@@ -185,6 +185,12 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 	var provisioner provisioners.TypedProvisioner[environments.Kubernetes]
 
 	params := newKubernetesProvisionerParams()
+	k8sVersion := common.K8sVersion
+	if params.k8sVersion != "" {
+		k8sVersion = params.k8sVersion
+	}
+	params.extraConfigParams.Set("ddinfra:kubernetesVersion", k8sVersion, false)
+
 	_ = optional.ApplyOptions(params, opts)
 	inCI := os.Getenv("GITLAB_CI")
 
