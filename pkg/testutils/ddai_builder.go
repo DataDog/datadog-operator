@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/otelcollector/defaultconfig"
 	"github.com/DataDog/datadog-operator/pkg/images"
 )
@@ -41,7 +41,7 @@ func NewDatadogAgentInternalBuilder() *DatadogAgentInternalBuilder {
 // NewDefaultDatadogAgentInternalBuilder created DatadogAgent and applies defaults
 func NewDefaultDatadogAgentInternalBuilder() *DatadogAgentInternalBuilder {
 	ddai := &v1alpha1.DatadogAgentInternal{}
-	defaults.DefaultDatadogAgent(ddai)
+	defaults.DefaultDatadogAgentSpec(&ddai.Spec)
 
 	return &DatadogAgentInternalBuilder{
 		datadogAgentInternal: *ddai,
@@ -65,7 +65,7 @@ func (builder *DatadogAgentInternalBuilder) Build() *v1alpha1.DatadogAgentIntern
 
 // BuildWithDefaults applies defaults to current properties and returns resulting DatadogAgent
 func (builder *DatadogAgentInternalBuilder) BuildWithDefaults() *v1alpha1.DatadogAgentInternal {
-	defaults.DefaultDatadogAgent(&builder.datadogAgentInternal)
+	defaults.DefaultDatadogAgentSpec(&builder.datadogAgentInternal.Spec)
 	return &builder.datadogAgentInternal
 }
 
