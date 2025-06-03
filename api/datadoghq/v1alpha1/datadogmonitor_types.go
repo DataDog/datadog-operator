@@ -155,9 +155,30 @@ type DatadogMonitorOptions struct {
 // DatadogMonitorOptionsSchedulingOptions is a struct of the different scheduling options
 // +k8s:openapi-gen=true
 type DatadogMonitorOptionsSchedulingOptions struct {
+	// Configuration options for the custom schedule. If start is omitted, the monitor creation time will be used.
+	CustomeSchedule *DatadogMonitorOptionsSchedulingOptionsCustomeSchedule `json:"customeSchedule,omitempty"`
+
 	// Configuration options for the evaluation window. If hour_starts is set, no other fields may be set.
 	// Otherwise, day_starts and month_starts must be set together.
 	EvaluationWindow *DatadogMonitorOptionsSchedulingOptionsEvaluationWindow `json:"evaluationWindow,omitempty"`
+}
+
+// DatadogMonitorOptionsSchedulingOptionsCustomeSchedule is a struct of the custome schedule options
+// +k8s:openapi-gen=true
+type DatadogMonitorOptionsSchedulingOptionsCustomeSchedule struct {
+	Recurrence DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence `json:"recurrence,omitempty"`
+}
+
+// DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence is a struct of the recurrence definitions
+// +k8s:openapi-gen=true
+type DatadogMonitorOptionsSchedulingOptionsCustomeScheduleRecurrence struct {
+	// The recurrence rule in iCalendar format. For example, `FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1`.
+	Rrule *string `json:"rrule,omitempty"`
+	// The timezone in `tz database` format, in which the recurrence rule is defined. For example, `America/New_York` or `UTC`.
+	Timezone *string `json:"timezone,omitempty"`
+	// The start date of the recurrence rule defined in `YYYY-MM-DDThh:mm:ss` format`.
+	// If omitted, the monitor creation time will be used.
+	Start *string `json:"start,omitempty"`
 }
 
 // DatadogMonitorOptionsSchedulingOptionsEvaluationWindow is a struct of the evaluation window options

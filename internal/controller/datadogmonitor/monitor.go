@@ -159,6 +159,26 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 
 	if so := options.SchedulingOptions; so != nil {
 		sops := datadogV1.MonitorOptionsSchedulingOptions{}
+
+		if cs := options.SchedulingOptions.CustomeSchedule; cs != nil {
+			csrecurrence := datadogV1.MonitorOptionsCustomScheduleRecurrence{}
+			if cs.Recurrence.Rrule != nil {
+				csrecurrence.Rrule = cs.Recurrence.Rrule
+			}
+			if cs.Recurrence.Timezone != nil {
+				csrecurrence.Timezone = cs.Recurrence.Timezone
+			}
+			if cs.Recurrence.Start != nil {
+				csrecurrence.Start = cs.Recurrence.Start
+			}
+
+			csops := datadogV1.MonitorOptionsCustomSchedule{
+				Recurrences: []datadogV1.MonitorOptionsCustomScheduleRecurrence{csrecurrence},
+			}
+
+			sops.SetCustomSchedule(csops)
+		}
+
 		if ew := options.SchedulingOptions.EvaluationWindow; ew != nil {
 			ewops := datadogV1.MonitorOptionsSchedulingOptionsEvaluationWindow{}
 			if ew.DayStarts != nil {
