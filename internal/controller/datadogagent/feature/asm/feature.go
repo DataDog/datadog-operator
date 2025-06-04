@@ -81,7 +81,7 @@ func (f *asmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *asmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.threatsEnabled {
 		if err := managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  DDAdmissionControllerAppsecEnabled,

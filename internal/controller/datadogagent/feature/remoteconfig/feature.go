@@ -93,7 +93,7 @@ func (f *rcFeature) ManageDependencies(managers feature.ResourceManagers) error 
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),

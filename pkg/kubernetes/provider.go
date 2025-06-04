@@ -6,6 +6,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -67,16 +68,20 @@ func determineProvider(labels map[string]string) string {
 		// Openshift
 		if val, ok := labels[OpenShiftProviderLabel]; ok {
 			if provider := generateValidProviderName(DefaultProvider, val); provider != "" {
+				fmt.Println("openshift provider", val)
 				return provider
 			}
+			fmt.Println("openshift provider", val)
 		}
 		// EKS
-		if _, ok := labels[EKSProviderLabel]; ok {
+		if val, ok := labels[EKSProviderLabel]; ok {
 			// For EKS, we just identify it as an EKS node without specifying the AMI type
 			// since the AMI type can vary (Amazon Linux 2, Bottlerocket, custom AMIs, etc.)
 			if provider := generateValidProviderName(EKSCloudProvider, EKSAMIType); provider != "" {
+				fmt.Println("eks provider", val)
 				return provider
 			}
+			fmt.Println("eks provider", val)
 		}
 	}
 

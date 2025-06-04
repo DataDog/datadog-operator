@@ -147,7 +147,7 @@ func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(
 		apicommon.ClusterAgentContainerName,
 		&corev1.EnvVar{

@@ -40,7 +40,7 @@ func (df *dummyFeature) ManageDependencies(managers feature.ResourceManagers) er
 }
 
 // ManageClusterAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageClusterAgentError
 }
 

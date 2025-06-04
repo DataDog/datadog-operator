@@ -147,7 +147,7 @@ func TestClusterAgentChecksumsDifferentForDifferentConfig(t *testing.T) {
 
 	for _, datadogAgent := range datadogAgents {
 		feature.Configure(datadogAgent)
-		feature.ManageClusterAgent(podTemplateManager)
+		feature.ManageClusterAgent(podTemplateManager, "")
 		md5 := podTemplateManager.AnnotationMgr.Annotations[annotationKey]
 		md5Values[md5] = ""
 	}

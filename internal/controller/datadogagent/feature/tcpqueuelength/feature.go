@@ -61,7 +61,7 @@ func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceMana
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

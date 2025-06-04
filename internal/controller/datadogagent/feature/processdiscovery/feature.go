@@ -63,7 +63,7 @@ func (p processDiscoveryFeature) ManageDependencies(managers feature.ResourceMan
 	return nil
 }
 
-func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (p processDiscoveryFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

@@ -264,7 +264,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDExternalMetricsProviderEnabled,
 		Value: "true",

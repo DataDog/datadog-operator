@@ -34,9 +34,10 @@ func buildControlPlaneConfigurationFeature(options *feature.Options) feature.Fea
 }
 
 type controlPlaneConfigurationFeature struct {
-	enabled bool
-	owner   metav1.Object
-	logger  logr.Logger
+	enabled  bool
+	owner    metav1.Object
+	logger   logr.Logger
+	provider string
 }
 
 // ID returns the ID of the Feature
@@ -77,7 +78,7 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// print feature name
 	fmt.Println("controlplaneconfiguration feature")
 	return nil
@@ -93,7 +94,7 @@ func (f *controlPlaneConfigurationFeature) ManageSingleContainerNodeAgent(manage
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneConfigurationFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
-	// security context capabilities
+	f.provider = provider
 	return nil
 }
 

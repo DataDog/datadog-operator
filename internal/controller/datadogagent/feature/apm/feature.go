@@ -301,7 +301,7 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers) error
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported

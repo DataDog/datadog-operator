@@ -58,7 +58,7 @@ func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers) e
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

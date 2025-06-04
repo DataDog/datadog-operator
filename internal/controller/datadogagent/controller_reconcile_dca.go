@@ -53,6 +53,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 	// Reconcile cluster agent for each provider
 	var errs []error
 	for provider := range providerList {
+		logger.Info("DCA providerList", "provider", provider)
 		// Start by creating the Default Cluster-Agent deployment
 		deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
 		podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
@@ -63,15 +64,8 @@ func (r *Reconciler) reconcileV2ClusterAgent(ctx context.Context, logger logr.Lo
 		// Apply features changes on the Deployment.Spec.Template
 		var featErrors []error
 		for _, feat := range features {
-			var errFeat error
-			if providerAware, ok := feat.(feature.ProviderAwareFeature); ok {
-				// Feature needs provider information
-				errFeat = providerAware.ManageClusterAgentWithProvider(podManagers, provider)
-			} else {
-				// Feature doesn't need provider information
-				errFeat = feat.ManageClusterAgent(podManagers)
-			}
-			if errFeat != nil {
+			logger.Info("DCA feature", "feature", feat.ID())
+			if errFeat := feat.ManageClusterAgent(podManagers, provider); errFeat != nil {
 				featErrors = append(featErrors, errFeat)
 			}
 		}
