@@ -874,6 +874,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref c
 							Ref:         ref("github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1.CustomConfig"),
 						},
 					},
+					"nonLocalTraffic": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NonLocalTraffic enables non-local traffic for Dogstatsd. Default:",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

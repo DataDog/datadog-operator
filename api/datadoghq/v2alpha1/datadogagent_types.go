@@ -633,6 +633,11 @@ type DogstatsdFeatureConfig struct {
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/
 	// +optional
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
+
+	// NonLocalTraffic enables non-local traffic for Dogstatsd.
+	// Default: 
+	// +optional
+	NonLocalTraffic *bool `json:"nonLocalTraffic,omitempty"`
 }
 
 // OTLPFeatureConfig contains configuration for OTLP ingest.

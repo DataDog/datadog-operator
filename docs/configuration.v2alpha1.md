@@ -94,6 +94,7 @@ spec:
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
 | features.dogstatsd.mapperProfiles.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
 | features.dogstatsd.mapperProfiles.configMap.name | Is the name of the ConfigMap. |
+| features.dogstatsd.nonLocalTraffic | NonLocalTraffic enables non-local traffic for Dogstatsd. Default: |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.tagCardinality | TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enables Unix Domain Socket. Default: true |

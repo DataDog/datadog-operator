@@ -1314,6 +1314,10 @@
                   },
                   "type": "object"
                 },
+                "nonLocalTraffic": {
+                  "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault:",
+                  "type": "boolean"
+                },
                 "originDetectionEnabled": {
                   "description": "OriginDetectionEnabled enables origin detection for container tagging.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
                   "type": "boolean"
@@ -8582,6 +8586,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "nonLocalTraffic": {
+                      "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault:",
+                      "type": "boolean"
                     },
                     "originDetectionEnabled": {
                       "description": "OriginDetectionEnabled enables origin detection for container tagging.\nSee also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",

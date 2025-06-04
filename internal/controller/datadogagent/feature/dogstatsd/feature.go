@@ -54,6 +54,8 @@ type dogstatsdFeature struct {
 
 	adpEnabled bool
 
+	nonLocalTraffic bool
+
 	owner metav1.Object
 }
 
@@ -90,6 +92,8 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
 	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+
+	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
 	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 
@@ -205,11 +209,11 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(dsdPortEnvVarValue),
 		})
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  DDDogstatsdNonLocalTraffic,
-			Value: "true",
-		})
 	}
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		Name:  DDDogstatsdNonLocalTraffic,
+		Value: strconv.FormatBool(f.nonLocalTraffic),
+	})
 	managers.Port().AddPortToContainer(agentContainerName, dogstatsdPort)
 
 	// uds
