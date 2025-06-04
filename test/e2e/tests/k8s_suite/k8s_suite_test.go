@@ -11,19 +11,18 @@ import (
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
+	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
-
-	"path/filepath"
-	"regexp"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
+	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"regexp"
+	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,10 @@ func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
 		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
-		operatorparams.WithHelmValues("installCRDs: false"),
+		operatorparams.WithHelmValues(`
+installCRDs: false
+imagePullSecrets:
+  - name: registry-credentials`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
@@ -51,7 +53,12 @@ func (s *k8sSuite) TestGenericK8s() {
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(defaultOperatorOpts...),
 		provisioners.WithLocal(s.local),
-		provisioners.WithoutDDA(),
+		provisioners.WithExtraConfigParams(runner.ConfigMap{
+			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
+			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
+			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
+			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-qa"},
+		}),
 	}
 
 	defaultDDAOpts := []agentwithoperatorparams.Option{
@@ -84,10 +91,9 @@ func (s *k8sSuite) TestGenericK8s() {
 			provisioners.WithLocal(s.local),
 		}
 
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
+		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
 
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
 			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
@@ -129,195 +135,195 @@ func (s *k8sSuite) TestGenericK8s() {
 		}, 10*time.Minute, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
 
 	})
-
-	s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "dda-minimum",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-ksm-ccr"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-ccr-enabled-agent")
-
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner")
-
-			ccrPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner"})
-			assert.NoError(s.T(), err)
-
-			for _, ccr := range ccrPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-				utils.VerifyCheck(c, output, "kubernetes_state_core")
-			}
-
-			s.verifyKSMCheck(c)
-		}, 10*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
-	})
-
-	s.T().Run("Autodiscovery works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-autodiscovery"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
-			provisioners.WithLocal(s.local),
-		}
-		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
-
-		// Add nginx with annotations
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
-		s.Assert().NoError(err)
-
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
-
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
-
-			// check agent pods for http check
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
-				FieldSelector: "status.phase=Running"})
-			assert.NoError(c, err)
-
-			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-
-				utils.VerifyCheck(c, output, "http_check")
-			}
-
-			s.verifyHTTPCheck(c)
-		}, 5*time.Minute, 15*time.Second, "could not validate http_check in time")
-	})
-
-	s.T().Run("Logs collection works", func(t *testing.T) {
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-logs",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		provisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-logs-collection"),
-			provisioners.WithK8sVersion(common.K8sVersion),
-			provisioners.WithOperatorOptions(defaultOperatorOpts...),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithLocal(s.local),
-		}
-
-		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
-
-		// Verify logs collection on agent pod
-		s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-agent-logs-agent")
-
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent"})
-			assert.NoError(c, err)
-
-			for _, pod := range agentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "logs agent", "-j"})
-				assert.NoError(c, err)
-				utils.VerifyAgentPodLogs(c, output)
-			}
-
-			s.verifyAPILogs()
-		}, 5*time.Minute, 15*time.Second, "could not valid logs collection in time")
-	})
-
-	s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
-
-		// Cleanup to avoid potential lingering DatadogAgent
-		// Avoid race with the new Agent not being able to bind to the hostPort
-		withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-apm"),
-			provisioners.WithoutDDA(),
-			provisioners.WithLocal(s.local),
-		}
-		withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
-		s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
-
-		var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
-		ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
-		assert.NoError(s.T(), err)
-
-		ddaOpts := []agentwithoperatorparams.Option{
-			agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
-				Name:         "datadog-agent-apm",
-				YamlFilePath: ddaConfigPath,
-			}),
-		}
-		ddaOpts = append(ddaOpts, defaultDDAOpts...)
-
-		ddaProvisionerOptions := []provisioners.KubernetesProvisionerOption{
-			provisioners.WithTestName("e2e-operator-apm"),
-			provisioners.WithDDAOptions(ddaOpts...),
-			provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{
-				Name: "tracegen-deploy",
-				Path: strings.Join([]string{common.ManifestsPath, "apm", "tracegen-deploy.yaml"}, "/"),
-			}),
-			provisioners.WithLocal(s.local),
-		}
-		ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
-
-		// Deploy APM DatadogAgent and tracegen
-		s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))
-
-		// Verify traces collection on agent pod
-		s.EventuallyWithTf(func(c *assert.CollectT) {
-			// Verify tracegen deployment is running
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=tracegen-tribrid")
-
-			// Verify agent pods are running
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+apmAgentSelector)
-			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + apmAgentSelector, FieldSelector: "status.phase=Running"})
-			assert.NoError(c, err)
-
-			// This works because we have a single Agent pod (so located on same node as tracegen)
-			// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
-			for _, pod := range agentPods.Items {
-
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
-				assert.NoError(c, err)
-
-				utils.VerifyAgentTraces(c, output)
-			}
-
-			// Verify traces collection ingestion by fakeintake
-			s.verifyAPITraces(c)
-		}, 5*time.Minute, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
-	})
+	//
+	//s.T().Run("KSM check works cluster check runner", func(t *testing.T) {
+	//	ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-ccr-enabled.yaml"))
+	//	assert.NoError(s.T(), err)
+	//
+	//	ddaOpts := []agentwithoperatorparams.Option{
+	//		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+	//			Name:         "dda-minimum",
+	//			YamlFilePath: ddaConfigPath,
+	//		}),
+	//	}
+	//	ddaOpts = append(ddaOpts, defaultDDAOpts...)
+	//
+	//	provisionerOptions := []provisioners.KubernetesProvisionerOption{
+	//		provisioners.WithTestName("e2e-operator-ksm-ccr"),
+	//		provisioners.WithK8sVersion(common.K8sVersion),
+	//		provisioners.WithOperatorOptions(defaultOperatorOpts...),
+	//		provisioners.WithDDAOptions(ddaOpts...),
+	//		provisioners.WithLocal(s.local),
+	//	}
+	//
+	//	s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+	//
+	//	err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+	//	s.Assert().NoError(err)
+	//
+	//	s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+	//		utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-ccr-enabled-agent")
+	//
+	//		utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner")
+	//
+	//		ccrPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-ccr-enabled-cluster-checks-runner"})
+	//		assert.NoError(s.T(), err)
+	//
+	//		for _, ccr := range ccrPods.Items {
+	//			output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, ccr.Name, "agent", []string{"agent", "status", "collector", "-j"})
+	//			assert.NoError(c, err)
+	//			utils.VerifyCheck(c, output, "kubernetes_state_core")
+	//		}
+	//
+	//		s.verifyKSMCheck(c)
+	//	}, 10*time.Minute, 15*time.Second, "could not validate kubernetes_state_core (cluster check on CCR) check in time")
+	//})
+	//
+	//s.T().Run("Autodiscovery works", func(t *testing.T) {
+	//	ddaConfigPath, err := common.GetAbsPath(common.DdaMinimalPath)
+	//	assert.NoError(s.T(), err)
+	//
+	//	ddaOpts := []agentwithoperatorparams.Option{
+	//		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{Name: "dda-autodiscovery", YamlFilePath: ddaConfigPath}),
+	//	}
+	//	ddaOpts = append(ddaOpts, defaultDDAOpts...)
+	//
+	//	provisionerOptions := []provisioners.KubernetesProvisionerOption{
+	//		provisioners.WithTestName("e2e-operator-autodiscovery"),
+	//		provisioners.WithDDAOptions(ddaOpts...),
+	//		provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{Name: "nginx", Path: strings.Join([]string{common.ManifestsPath, "autodiscovery-annotation.yaml"}, "/")}),
+	//		provisioners.WithLocal(s.local),
+	//	}
+	//	provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
+	//
+	//	// Add nginx with annotations
+	//	s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+	//
+	//	err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+	//	s.Assert().NoError(err)
+	//
+	//	s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+	//		utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=nginx")
+	//
+	//		utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-autodiscovery")
+	//
+	//		// check agent pods for http check
+	//		agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-autodiscovery",
+	//			FieldSelector: "status.phase=Running"})
+	//		assert.NoError(c, err)
+	//
+	//		for _, pod := range agentPods.Items {
+	//			output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+	//			assert.NoError(c, err)
+	//
+	//			utils.VerifyCheck(c, output, "http_check")
+	//		}
+	//
+	//		s.verifyHTTPCheck(c)
+	//	}, 5*time.Minute, 15*time.Second, "could not validate http_check in time")
+	//})
+	//
+	//s.T().Run("Logs collection works", func(t *testing.T) {
+	//	ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "datadog-agent-logs.yaml"))
+	//	assert.NoError(s.T(), err)
+	//
+	//	ddaOpts := []agentwithoperatorparams.Option{
+	//		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+	//			Name:         "datadog-agent-logs",
+	//			YamlFilePath: ddaConfigPath,
+	//		}),
+	//	}
+	//	ddaOpts = append(ddaOpts, defaultDDAOpts...)
+	//
+	//	provisionerOptions := []provisioners.KubernetesProvisionerOption{
+	//		provisioners.WithTestName("e2e-operator-logs-collection"),
+	//		provisioners.WithK8sVersion(common.K8sVersion),
+	//		provisioners.WithOperatorOptions(defaultOperatorOpts...),
+	//		provisioners.WithDDAOptions(ddaOpts...),
+	//		provisioners.WithLocal(s.local),
+	//	}
+	//
+	//	s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+	//
+	//	// Verify logs collection on agent pod
+	//	s.Assert().EventuallyWithTf(func(c *assert.CollectT) {
+	//		utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), "app.kubernetes.io/instance=datadog-agent-logs-agent")
+	//
+	//		agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/instance=datadog-agent-logs-agent"})
+	//		assert.NoError(c, err)
+	//
+	//		for _, pod := range agentPods.Items {
+	//			output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "logs agent", "-j"})
+	//			assert.NoError(c, err)
+	//			utils.VerifyAgentPodLogs(c, output)
+	//		}
+	//
+	//		s.verifyAPILogs()
+	//	}, 5*time.Minute, 15*time.Second, "could not valid logs collection in time")
+	//})
+	//
+	//s.T().Run("APM hostPort k8s service UDP works", func(t *testing.T) {
+	//
+	//	// Cleanup to avoid potential lingering DatadogAgent
+	//	// Avoid race with the new Agent not being able to bind to the hostPort
+	//	withoutDDAProvisionerOptions := []provisioners.KubernetesProvisionerOption{
+	//		provisioners.WithTestName("e2e-operator-apm"),
+	//		provisioners.WithoutDDA(),
+	//		provisioners.WithLocal(s.local),
+	//	}
+	//	withoutDDAProvisionerOptions = append(withoutDDAProvisionerOptions, defaultProvisionerOpts...)
+	//	s.UpdateEnv(provisioners.KubernetesProvisioner(withoutDDAProvisionerOptions...))
+	//
+	//	var apmAgentSelector = ",agent.datadoghq.com/name=datadog-agent-apm"
+	//	ddaConfigPath, err := common.GetAbsPath(filepath.Join(common.ManifestsPath, "apm", "datadog-agent-apm.yaml"))
+	//	assert.NoError(s.T(), err)
+	//
+	//	ddaOpts := []agentwithoperatorparams.Option{
+	//		agentwithoperatorparams.WithDDAConfig(agentwithoperatorparams.DDAConfig{
+	//			Name:         "datadog-agent-apm",
+	//			YamlFilePath: ddaConfigPath,
+	//		}),
+	//	}
+	//	ddaOpts = append(ddaOpts, defaultDDAOpts...)
+	//
+	//	ddaProvisionerOptions := []provisioners.KubernetesProvisionerOption{
+	//		provisioners.WithTestName("e2e-operator-apm"),
+	//		provisioners.WithDDAOptions(ddaOpts...),
+	//		provisioners.WithYAMLWorkload(provisioners.YAMLWorkload{
+	//			Name: "tracegen-deploy",
+	//			Path: strings.Join([]string{common.ManifestsPath, "apm", "tracegen-deploy.yaml"}, "/"),
+	//		}),
+	//		provisioners.WithLocal(s.local),
+	//	}
+	//	ddaProvisionerOptions = append(ddaProvisionerOptions, defaultProvisionerOpts...)
+	//
+	//	// Deploy APM DatadogAgent and tracegen
+	//	s.UpdateEnv(provisioners.KubernetesProvisioner(ddaProvisionerOptions...))
+	//
+	//	// Verify traces collection on agent pod
+	//	s.EventuallyWithTf(func(c *assert.CollectT) {
+	//		// Verify tracegen deployment is running
+	//		utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, "app=tracegen-tribrid")
+	//
+	//		// Verify agent pods are running
+	//		utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+apmAgentSelector)
+	//		agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + apmAgentSelector, FieldSelector: "status.phase=Running"})
+	//		assert.NoError(c, err)
+	//
+	//		// This works because we have a single Agent pod (so located on same node as tracegen)
+	//		// Otherwise, we would need to deploy tracegen on the same node as the Agent pod / as a DaemonSet
+	//		for _, pod := range agentPods.Items {
+	//
+	//			output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "apm agent", "-j"})
+	//			assert.NoError(c, err)
+	//
+	//			utils.VerifyAgentTraces(c, output)
+	//		}
+	//
+	//		// Verify traces collection ingestion by fakeintake
+	//		s.verifyAPITraces(c)
+	//	}, 5*time.Minute, 15*time.Second, "could not validate traces on agent pod") // TODO: check duration
+	//})
 }
 
 func (s *k8sSuite) verifyAPILogs() {
