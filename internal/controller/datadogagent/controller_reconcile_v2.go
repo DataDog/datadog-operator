@@ -39,11 +39,6 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
-	if r.options.DatadogAgentInternalEnabled {
-		if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAWithDDAI); utils.ShouldReturn(result, err) {
-			return result, err
-		}
-	}
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
 	}
