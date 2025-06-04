@@ -27,7 +27,7 @@ github.com/DataDog/datadog-agent/pkg/util/scrubber v0.66.0 h1:m4SaoK/4J+rmTvzwTh
 github.com/DataDog/datadog-agent/pkg/util/uuid v0.59.0-rc.5 h1:+yfcFoge4aF4zU7BCb4xhl48M4liIIj/WfdJ34MTkhk=
 github.com/DataDog/datadog-agent/pkg/util/uuid v0.59.0-rc.5/go.mod h1:Gio08hX0QvNpdn+ds9+keVygyqS7XeDUBRWrzX6zTw0=
 github.com/DataDog/datadog-agent/pkg/version v0.66.0 h1://9qUXTbku7Pg51DASO7ojfypkW0tcQeO8tfbKe8/XM=
-github.com/DataDog/datadog-api-client-go/v2 v2.36.1 h1:dp62Xr5nqewIBBUHN7/FBlaUnPsdgmFLNqSzskhXbR8=
+github.com/DataDog/datadog-api-client-go/v2 v2.38.0 h1:0f2SuTVOFyDDtYvkOs+xawZLO08h10CBeiEfXsx5kVc=
 github.com/DataDog/datadog-go/v5 v5.6.0 h1:2oCLxjF/4htd55piM75baflj/KoE6VYS7alEUqFvRDw=
 github.com/DataDog/datadog-go/v5 v5.6.0/go.mod h1:K9kcYBlxkcPP8tvvjZZKs/m1edNAUFzBbdpTUKfCsuw=
 github.com/DataDog/datadog-operator/api v0.0.0-20250130131115-7f198adcc856 h1:zHq/clXi0DJQsZj2WD3WTqlg/WXGicNH3DjXa0ARpWk=

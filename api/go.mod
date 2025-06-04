@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.8
 
 require (
-	github.com/DataDog/datadog-api-client-go/v2 v2.36.1
+	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.32.2
