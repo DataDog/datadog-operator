@@ -311,6 +311,8 @@ func containersOverride(nodeAgentOverride *v1alpha1.Override) map[apicommon.Agen
 		apicommon.ProcessAgentContainerName,
 		apicommon.SecurityAgentContainerName,
 		apicommon.SystemProbeContainerName,
+		apicommon.OtelAgent,
+		apicommon.AgentDataPlaneContainerName,
 	}
 
 	res := map[apicommon.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
