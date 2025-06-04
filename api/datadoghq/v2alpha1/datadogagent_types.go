@@ -635,7 +635,7 @@ type DogstatsdFeatureConfig struct {
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
 
 	// NonLocalTraffic enables non-local traffic for Dogstatsd.
-	// Default: 
+	// Default: true
 	// +optional
 	NonLocalTraffic *bool `json:"nonLocalTraffic,omitempty"`
 }
