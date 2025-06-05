@@ -1296,7 +1296,7 @@ spec:
                         nonLocalTraffic:
                           description: |-
                             NonLocalTraffic enables non-local traffic for Dogstatsd.
-                            Default:
+                            Default: true
                           type: boolean
                         originDetectionEnabled:
                           description: |-
@@ -8708,7 +8708,7 @@ spec:
                             nonLocalTraffic:
                               description: |-
                                 NonLocalTraffic enables non-local traffic for Dogstatsd.
-                                Default:
+                                Default: true
                               type: boolean
                             originDetectionEnabled:
                               description: |-

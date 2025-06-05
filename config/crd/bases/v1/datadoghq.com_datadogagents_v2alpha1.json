@@ -1315,7 +1315,7 @@
                   "type": "object"
                 },
                 "nonLocalTraffic": {
-                  "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault:",
+                  "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault: true",
                   "type": "boolean"
                 },
                 "originDetectionEnabled": {
@@ -8588,7 +8588,7 @@
                       "type": "object"
                     },
                     "nonLocalTraffic": {
-                      "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault:",
+                      "description": "NonLocalTraffic enables non-local traffic for Dogstatsd.\nDefault: true",
                       "type": "boolean"
                     },
                     "originDetectionEnabled": {

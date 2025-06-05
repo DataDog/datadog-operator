@@ -876,7 +876,7 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref c
 					},
 					"nonLocalTraffic": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NonLocalTraffic enables non-local traffic for Dogstatsd. Default:",
+							Description: "NonLocalTraffic enables non-local traffic for Dogstatsd. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
