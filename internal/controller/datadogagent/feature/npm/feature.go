@@ -7,6 +7,7 @@ package npm
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -41,12 +42,12 @@ func (f *npmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features == nil {
+func (f *npmFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if ddaSpec.Features == nil {
 		return
 	}
 
-	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
+	if ddaSpec.Features.NPM != nil && apiutils.BoolValue(ddaSpec.Features.NPM.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -57,7 +58,7 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 				},
 			},
 		}
-		npm := dda.Spec.Features.NPM
+		npm := ddaSpec.Features.NPM
 		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
 		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
 	}

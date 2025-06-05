@@ -50,20 +50,20 @@ func (f *autoscalingFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *autoscalingFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	if dda.Spec.Features == nil {
+	if ddaSpec.Features == nil {
 		return feature.RequiredComponents{}
 	}
 
-	autoscaling := dda.Spec.Features.Autoscaling
+	autoscaling := ddaSpec.Features.Autoscaling
 	if autoscaling == nil || autoscaling.Workload == nil || !apiutils.BoolValue(autoscaling.Workload.Enabled) {
 		return feature.RequiredComponents{}
 	}
 
-	admission := dda.Spec.Features.AdmissionController
+	admission := ddaSpec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{

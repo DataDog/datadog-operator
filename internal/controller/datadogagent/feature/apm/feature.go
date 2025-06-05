@@ -121,17 +121,17 @@ func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *apmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	apm := dda.Spec.Features.APM
+	apm := ddaSpec.Features.APM
 	if shouldEnableAPM(apm) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
-		f.useHostNetwork = constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.NodeAgentComponentName)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
+		f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
-			if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
+			if enabled, flavor := constants.IsNetworkPolicyEnabled(ddaSpec); enabled {
 				if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 					f.createCiliumNetworkPolicy = true
 				} else {
@@ -143,10 +143,10 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
-		if dda.Spec.Global.LocalService != nil {
-			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+		if ddaSpec.Global.LocalService != nil {
+			f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
 		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda.Name, &dda.Spec)
+		f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -159,17 +159,17 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 
 		if apm.SingleStepInstrumentation != nil &&
-			(dda.Spec.Features.AdmissionController != nil && apiutils.BoolValue(dda.Spec.Features.AdmissionController.Enabled)) {
+			(ddaSpec.Features.AdmissionController != nil && apiutils.BoolValue(ddaSpec.Features.AdmissionController.Enabled)) {
 			// TODO: add debug log in case Admission controller is disabled (it's a required feature).
 			f.singleStepInstrumentation = &instrumentationConfig{}
 			f.singleStepInstrumentation.enabled = apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled)
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
-			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(dda.Spec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
+			f.singleStepInstrumentation.languageDetection = &languageDetection{enabled: apiutils.BoolValue(ddaSpec.Features.APM.SingleStepInstrumentation.LanguageDetection.Enabled)}
 			f.singleStepInstrumentation.injector = &injector{imageTag: apm.SingleStepInstrumentation.Injector.ImageTag}
 			if len(apm.SingleStepInstrumentation.Targets) > 0 {
-				if supportsInstrumentationTargets(dda) {
+				if supportsInstrumentationTargets(ddaSpec) {
 					f.singleStepInstrumentation.targets = apm.SingleStepInstrumentation.Targets
 				} else {
 					f.logger.Info("Cannot enable instrumentation targets. features.apm.instrumentation.targets requires agent version >= 7.64.0")
@@ -183,7 +183,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			}
 		}
 
-		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.processCheckRunsInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
 		if f.shouldEnableLanguageDetection() && !f.processCheckRunsInCoreAgent {
 			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommon.ProcessAgentContainerName)
 		}
@@ -373,9 +373,9 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 const minInstrumentationTargetsVersion = "7.64.0-0"
 
-func supportsInstrumentationTargets(dda *v2alpha1.DatadogAgent) bool {
+func supportsInstrumentationTargets(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	// Agent version must >= 7.64.0 to run feature in core agent
-	if nodeAgent, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+	if nodeAgent, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if nodeAgent.Image != nil {
 			return utils.IsAboveMinVersion(common.GetAgentVersionFromImage(*nodeAgent.Image), minInstrumentationTargetsVersion)
 		}
