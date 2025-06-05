@@ -78,12 +78,12 @@ func (f *helmCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqCo
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
 		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
 		f.valuesAsTags = helmCheck.ValuesAsTags
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
 		if constants.IsClusterChecksEnabledDDAI(ddai) && constants.IsCCREnabledDDAI(ddai) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(ddai.Name, &ddai.Spec)
 			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		}

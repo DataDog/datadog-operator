@@ -41,34 +41,11 @@ func GetServiceAccountByComponent(objName string, ddaSpec *v2alpha1.DatadogAgent
 	}
 }
 
-// GetServiceAccountByComponentDDAI returns the service account name for a given component (DDAI)
-func GetServiceAccountByComponentDDAI(ddai *v1alpha1.DatadogAgentInternal, component v2alpha1.ComponentName) string {
-	switch component {
-	case v2alpha1.ClusterAgentComponentName:
-		return GetClusterAgentServiceAccountDDAI(ddai)
-	case v2alpha1.NodeAgentComponentName:
-		return GetAgentServiceAccountDDAI(ddai)
-	case v2alpha1.ClusterChecksRunnerComponentName:
-		return GetClusterChecksRunnerServiceAccountDDAI(ddai)
-	default:
-		return ""
-	}
-}
-
 // GetClusterAgentServiceAccount return the cluster-agent serviceAccountName
 func GetClusterAgentServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	saDefault := fmt.Sprintf("%s-%s", objName, DefaultClusterAgentResourceSuffix)
 	if ddaSpec.Override[v2alpha1.ClusterAgentComponentName] != nil && ddaSpec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName != nil {
 		return *ddaSpec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName
-	}
-	return saDefault
-}
-
-// GetClusterAgentServiceAccountDDAI returns the cluster-agent service account name
-func GetClusterAgentServiceAccountDDAI(ddai *v1alpha1.DatadogAgentInternal) string {
-	saDefault := fmt.Sprintf("%s-%s", ddai.Name, DefaultClusterAgentResourceSuffix)
-	if ddai.Spec.Override[v2alpha1.ClusterAgentComponentName] != nil && ddai.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName != nil {
-		return *ddai.Spec.Override[v2alpha1.ClusterAgentComponentName].ServiceAccountName
 	}
 	return saDefault
 }
@@ -82,29 +59,11 @@ func GetAgentServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) 
 	return saDefault
 }
 
-// GetAgentServiceAccountDDAI returns the agent service account name (DDAI)
-func GetAgentServiceAccountDDAI(ddai *v1alpha1.DatadogAgentInternal) string {
-	saDefault := fmt.Sprintf("%s-%s", ddai.Name, DefaultAgentResourceSuffix)
-	if ddai.Spec.Override[v2alpha1.NodeAgentComponentName] != nil && ddai.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountName != nil {
-		return *ddai.Spec.Override[v2alpha1.NodeAgentComponentName].ServiceAccountName
-	}
-	return saDefault
-}
-
 // GetClusterChecksRunnerServiceAccount return the cluster-checks-runner service account name
 func GetClusterChecksRunnerServiceAccount(objName string, ddaSpec *v2alpha1.DatadogAgentSpec) string {
 	saDefault := fmt.Sprintf("%s-%s", objName, DefaultClusterChecksRunnerResourceSuffix)
 	if ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName] != nil && ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName != nil {
 		return *ddaSpec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName
-	}
-	return saDefault
-}
-
-// GetClusterChecksRunnerServiceAccountDDAI returns the cluster-checks-runner service account name (DDAI)
-func GetClusterChecksRunnerServiceAccountDDAI(ddai *v1alpha1.DatadogAgentInternal) string {
-	saDefault := fmt.Sprintf("%s-%s", ddai.Name, DefaultClusterChecksRunnerResourceSuffix)
-	if ddai.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName] != nil && ddai.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName != nil {
-		return *ddai.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName].ServiceAccountName
 	}
 	return saDefault
 }

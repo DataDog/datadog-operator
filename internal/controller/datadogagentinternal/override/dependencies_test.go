@@ -258,15 +258,15 @@ func TestServiceAccountAnnotationOverride(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := map[v2alpha1.ComponentName]map[string]interface{}{
 				v2alpha1.NodeAgentComponentName: {
-					"name":        constants.GetAgentServiceAccountDDAI(tt.ddai),
+					"name":        constants.GetAgentServiceAccount(tt.ddai.Name, &tt.ddai.Spec),
 					"annotations": getSaAnnotations(tt.ddai, v2alpha1.NodeAgentComponentName),
 				},
 				v2alpha1.ClusterChecksRunnerComponentName: {
-					"name":        constants.GetClusterChecksRunnerServiceAccountDDAI(tt.ddai),
+					"name":        constants.GetClusterChecksRunnerServiceAccount(tt.ddai.Name, &tt.ddai.Spec),
 					"annotations": getSaAnnotations(tt.ddai, v2alpha1.ClusterChecksRunnerComponentName),
 				},
 				v2alpha1.ClusterAgentComponentName: {
-					"name":        constants.GetClusterAgentServiceAccountDDAI(tt.ddai),
+					"name":        constants.GetClusterAgentServiceAccount(tt.ddai.Name, &tt.ddai.Spec),
 					"annotations": getSaAnnotations(tt.ddai, v2alpha1.ClusterAgentComponentName),
 				},
 			}
