@@ -24,9 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
