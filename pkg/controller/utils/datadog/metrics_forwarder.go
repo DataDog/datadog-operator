@@ -44,8 +44,6 @@ const (
 	stateTagFormat              = "state:%s"
 	crAgentNameTagFormat        = "cr_agent_name:%s"
 	clusterNameTagFormat        = "cluster_name:%s"
-	crNsTagFormat               = "cr_namespace:%s"
-	crNameTagFormat             = "cr_name:%s"
 	nsTagFormat                 = "kube_namespace:%s"
 	resourceNameTagFormat       = "resource_name:%s"
 	crPreferredVersionTagFormat = "cr_preferred_version:%s"
@@ -173,9 +171,6 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 
 	mf.logger.Info("Starting Datadog metrics forwarder")
 
-	// Global tags need to be set only once
-	mf.initGlobalTags()
-
 	// wait.PollImmediateUntil is blocking until mf.connectToDatadogAPI returns true or stopChan is closed
 	// wait.PollImmediateUntil keeps retrying to connect to the Datadog API without returning an error
 	// wait.PollImmediateUntil returns an error only when stopChan is closed
@@ -185,6 +180,9 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		mf.logger.Info("Shutting down Datadog metrics forwarder")
 		return
 	}
+
+	// Global tags need to be set only once
+	mf.initGlobalTags()
 
 	mf.logger.Info("Datadog metrics forwarder initialized successfully")
 
@@ -255,7 +253,10 @@ func (mf *metricsForwarder) setStatus(newStatus *ConditionCommon) {
 
 func (mf *metricsForwarder) setup() error {
 	// Attempt to set up metrics forwarder with Operator credentials manager
-	if err := mf.setupFromOperator(); err == nil {
+	credsSet, err := mf.setupFromOperator()
+
+	// If clusterName was not set from the Operator, then try to get it from the DDA
+	if err == nil && mf.clusterName != "" {
 		return nil
 	}
 
@@ -265,56 +266,61 @@ func (mf *metricsForwarder) setup() error {
 		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
 		return err
 	}
-	return mf.setupFromDDA(dda)
+	return mf.setupFromDDA(dda, credsSet)
 }
 
-func (mf *metricsForwarder) setupFromOperator() error {
-	if mf.credsManager != nil {
-		if creds, err := mf.credsManager.GetCredentials(); err == nil {
-			// API key
-			mf.apiKey = creds.APIKey
+func (mf *metricsForwarder) setupFromOperator() (bool, error) {
+	if mf.credsManager == nil {
+		return false, fmt.Errorf("Credentials Manager is undefined")
+	}
 
-			// base URL
-			mf.baseURL = defaultbaseURL
-			mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
-			if os.Getenv(constants.DDddURL) != "" {
-				mf.baseURL = os.Getenv(constants.DDddURL)
-			} else if os.Getenv(constants.DDURL) != "" {
-				mf.baseURL = os.Getenv(constants.DDURL)
-			} else if site := os.Getenv(constants.DDSite); site != "" {
-				mf.baseURL = urlPrefix + strings.TrimSpace(site)
-			}
+	creds, err := mf.credsManager.GetCredentials()
+	if err != nil {
+		return false, err
+	}
 
-			// cluster name
-			mf.clusterName = os.Getenv(constants.DDClusterName)
-		} else {
+	// API key
+	mf.apiKey = creds.APIKey
+
+	// base URL
+	mf.baseURL = defaultbaseURL
+	mf.logger.V(1).Info("Got API URL for the Datadog Operator", "site", mf.baseURL)
+	if os.Getenv(constants.DDddURL) != "" {
+		mf.baseURL = os.Getenv(constants.DDddURL)
+	} else if os.Getenv(constants.DDURL) != "" {
+		mf.baseURL = os.Getenv(constants.DDURL)
+	} else if site := os.Getenv(constants.DDSite); site != "" {
+		mf.baseURL = urlPrefix + strings.TrimSpace(site)
+	}
+
+	// cluster name
+	mf.clusterName = os.Getenv(constants.DDClusterName)
+	return true, nil
+}
+
+func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent, credsSetFromOperator bool) error {
+	if !credsSetFromOperator {
+		mf.baseURL = getbaseURL(dda)
+		mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
+		mf.labels = dda.GetLabels()
+
+		status := dda.Status.DeepCopy()
+		mf.dsStatus = status.AgentList
+		mf.dcaStatus = status.ClusterAgent
+		mf.ccrStatus = status.ClusterChecksRunner
+
+		// set apiKey
+		apiKey, err := mf.getCredentialsFromDDA(dda)
+		if err != nil {
 			return err
 		}
+		mf.apiKey = apiKey
 	}
-	return nil
-}
-
-func (mf *metricsForwarder) setupFromDDA(dda *v2alpha1.DatadogAgent) error {
-	mf.baseURL = getbaseURL(dda)
-	mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
 
 	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
 	}
 
-	mf.labels = dda.GetLabels()
-
-	status := dda.Status.DeepCopy()
-	mf.dsStatus = status.AgentList
-	mf.dcaStatus = status.ClusterAgent
-	mf.ccrStatus = status.ClusterChecksRunner
-
-	// set apiKey
-	apiKey, err := mf.getCredentialsFromDDA(dda)
-	if err != nil {
-		return err
-	}
-	mf.apiKey = apiKey
 	return nil
 }
 
@@ -356,7 +362,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	}
 
 	mf.logger.V(1).Info("Collecting metrics")
-	mf.updateTags(mf.clusterName, mf.labels)
+	// mf.updateTags()
 
 	// Send status-based metrics
 	if err = mf.sendStatusMetrics(mf.dsStatus, mf.dcaStatus, mf.ccrStatus); err != nil {
@@ -590,27 +596,26 @@ func (mf *metricsForwarder) delegatedSendDeploymentMetric(metricValue float64, c
 	return mf.datadogClient.PostMetrics(serie)
 }
 
-// updateTags updates tags of the DatadogAgent
-func (mf *metricsForwarder) updateTags(clusterName string, labels map[string]string) {
-	tags := []string{}
-	if clusterName != "" {
-		tags = append(tags, fmt.Sprintf(clusterNameTagFormat, clusterName))
+// updateTags updates tags of the metrics forwarder
+func (mf *metricsForwarder) updateTags() {
+	if mf.clusterName != "" {
+		mf.tags = append(mf.tags, fmt.Sprintf(clusterNameTagFormat, mf.clusterName))
 	}
-	for labelKey, labelValue := range labels {
-		tags = append(tags, fmt.Sprintf("%s:%s", labelKey, labelValue))
+	for labelKey, labelValue := range mf.labels {
+		mf.tags = append(mf.tags, fmt.Sprintf("%s:%s", labelKey, labelValue))
 	}
-	mf.tags = tags
 }
 
 // initGlobalTags defines the Custom Resource namespace and name tags
 func (mf *metricsForwarder) initGlobalTags() {
 	mf.globalTags = append(mf.globalTags, []string{
-		fmt.Sprintf(crNsTagFormat, mf.namespacedName.Namespace),
-		fmt.Sprintf(crNameTagFormat, mf.namespacedName.Name),
-		// New tags
 		fmt.Sprintf(nsTagFormat, mf.namespacedName.Namespace),
 		fmt.Sprintf(resourceNameTagFormat, mf.namespacedName.Name),
 	}...)
+
+	if mf.clusterName != "" {
+		mf.globalTags = append(mf.globalTags, fmt.Sprintf(clusterNameTagFormat, mf.clusterName))
+	}
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
@@ -815,6 +820,7 @@ var objectKindToSnake = map[string]string{
 func (mf *metricsForwarder) sendResourceCountMetric() error {
 	ts := float64(time.Now().Unix())
 	metricName := fmt.Sprintf(customResourceFormat, mf.metricsPrefix, objectKindToSnake[mf.monitoredObjectKind])
+	tags := append(mf.tags, mf.globalTags...)
 	series := []api.Metric{
 		{
 			Metric: api.String(metricName),
@@ -826,9 +832,10 @@ func (mf *metricsForwarder) sendResourceCountMetric() error {
 				},
 			},
 			Type: api.String(countType),
-			Tags: append(mf.tags, mf.globalTags...),
+			Tags: tags,
 		},
 	}
+
 	return mf.datadogClient.PostMetrics(series)
 }
 
