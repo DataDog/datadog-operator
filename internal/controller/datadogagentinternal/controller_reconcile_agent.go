@@ -22,11 +22,11 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/experimental"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
 	"github.com/DataDog/datadog-operator/pkg/condition"
@@ -66,7 +66,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
 				return result, errFeat
 			}
 		}
@@ -118,11 +118,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
 		if singleContainerStrategyEnabled {
-			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers); errFeat != nil {
+			if errFeat := feat.ManageSingleContainerNodeAgent(podManagers, ""); errFeat != nil {
 				return result, errFeat
 			}
 		} else {
-			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers, ""); errFeat != nil {
 				return result, errFeat
 			}
 		}
