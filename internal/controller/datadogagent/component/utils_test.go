@@ -42,7 +42,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 					Name: &tt.overrideAgentName,
 				}).
 				Build()
-			dsName := GetDaemonSetNameFromDatadogAgent(dda)
+			dsName := GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
 			assert.Equal(t, tt.expectedName, dsName)
 		})
 	}
@@ -77,7 +77,7 @@ func Test_getDeploymentNameFromDatadogAgent(t *testing.T) {
 					Name: &tt.overrideClusterAgentName,
 				}).
 				Build()
-			deployName := GetDeploymentNameFromDatadogAgent(dda)
+			deployName := GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)
 			assert.Equal(t, tt.expectedName, deployName)
 		})
 	}
