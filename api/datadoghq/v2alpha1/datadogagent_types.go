@@ -640,6 +640,8 @@ type DogstatsdFeatureConfig struct {
 type OTLPFeatureConfig struct {
 	// Receiver contains configuration for the OTLP ingest receiver.
 	Receiver OTLPReceiverConfig `json:"receiver,omitempty"`
+	// Logs contains configuration for the OTLP ingest logs.
+	Logs OTLPLogsConfig `json:"logs,omitempty"`
 }
 
 // OTLPReceiverConfig contains configuration for the OTLP ingest receiver.
@@ -697,6 +699,15 @@ type OTLPHTTPConfig struct {
 	// Default: '0.0.0.0:4318'.
 	// +optional
 	Endpoint *string `json:"endpoint,omitempty"`
+}
+
+// OTLPLogsConfig contains configuration for the OTLP ingest logs.
+// +k8s:openapi-gen=true
+type OTLPLogsConfig struct {
+	// Enable logs support in the OTLP ingest endpoint.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // EventCollectionFeatureConfig contains the Event Collection configuration.
@@ -1784,7 +1795,7 @@ type DatadogAgentComponentOverride struct {
 // +k8s:openapi-gen=true
 type DatadogAgentGenericContainer struct {
 	// Name of the container that is overridden
-	//+optional
+	// +optional
 	Name *string `json:"name,omitempty"`
 
 	// LogLevel sets logging verbosity (overrides global setting).
@@ -1951,7 +1962,7 @@ type DatadogAgent struct {
 	Status DatadogAgentStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // DatadogAgentList contains a list of DatadogAgent.
 type DatadogAgentList struct {

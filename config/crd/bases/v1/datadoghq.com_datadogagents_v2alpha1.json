@@ -1901,6 +1901,17 @@
               "additionalProperties": false,
               "description": "OTLP ingest configuration",
               "properties": {
+                "logs": {
+                  "additionalProperties": false,
+                  "description": "Logs contains configuration for the OTLP ingest logs.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enable logs support in the OTLP ingest endpoint.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "receiver": {
                   "additionalProperties": false,
                   "description": "Receiver contains configuration for the OTLP ingest receiver.",
@@ -9171,6 +9182,17 @@
                   "additionalProperties": false,
                   "description": "OTLP ingest configuration",
                   "properties": {
+                    "logs": {
+                      "additionalProperties": false,
+                      "description": "Logs contains configuration for the OTLP ingest logs.",
+                      "properties": {
+                        "enabled": {
+                          "description": "Enable logs support in the OTLP ingest endpoint.\nDefault: false",
+                          "type": "boolean"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "receiver": {
                       "additionalProperties": false,
                       "description": "Receiver contains configuration for the OTLP ingest receiver.",

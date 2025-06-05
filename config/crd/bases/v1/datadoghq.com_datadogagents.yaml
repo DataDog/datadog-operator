@@ -1867,6 +1867,15 @@ spec:
                     otlp:
                       description: OTLP ingest configuration
                       properties:
+                        logs:
+                          description: Logs contains configuration for the OTLP ingest logs.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enable logs support in the OTLP ingest endpoint.
+                                Default: false
+                              type: boolean
+                          type: object
                         receiver:
                           description: Receiver contains configuration for the OTLP ingest receiver.
                           properties:
@@ -9275,6 +9284,15 @@ spec:
                         otlp:
                           description: OTLP ingest configuration
                           properties:
+                            logs:
+                              description: Logs contains configuration for the OTLP ingest logs.
+                              properties:
+                                enabled:
+                                  description: |-
+                                    Enable logs support in the OTLP ingest endpoint.
+                                    Default: false
+                                  type: boolean
+                              type: object
                             receiver:
                               description: Receiver contains configuration for the OTLP ingest receiver.
                               properties:

@@ -766,6 +766,14 @@ func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, hostPortE
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTLPLogsSettings(enabled bool) *DatadogAgentBuilder {
+	builder.initOTLP()
+	builder.datadogAgent.Spec.Features.OTLP.Logs = v2alpha1.OTLPLogsConfig{
+		Enabled: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
 // NPM
 
 func (builder *DatadogAgentBuilder) initNPM() {
