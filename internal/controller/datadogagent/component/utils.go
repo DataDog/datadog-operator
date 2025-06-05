@@ -23,9 +23,9 @@ func GetAgentName(dda metav1.Object) string {
 
 // GetDaemonSetNameFromDatadogAgent returns the expected node Agent DS/EDS name based on
 // the DDA name and nodeAgent name override
-func GetDaemonSetNameFromDatadogAgent(dda *v2alpha1.DatadogAgent) string {
-	dsName := GetAgentName(dda)
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+func GetDaemonSetNameFromDatadogAgent(ddaObject metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	dsName := GetAgentName(ddaObject)
+	if componentOverride, ok := ddaSpec.Override[v2alpha1.NodeAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			dsName = *componentOverride.Name
 		}
@@ -40,9 +40,9 @@ func GetClusterAgentName(dda metav1.Object) string {
 
 // GetDeploymentNameFromDatadogAgent returns the expected Cluster Agent Deployment name based on
 // the DDA name and clusterAgent name override
-func GetDeploymentNameFromDatadogAgent(dda *v2alpha1.DatadogAgent) string {
-	deployName := GetClusterAgentName(dda)
-	if componentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+func GetDeploymentNameFromDatadogAgent(ddaObject metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec) string {
+	deployName := GetClusterAgentName(ddaObject)
+	if componentOverride, ok := ddaSpec.Override[v2alpha1.ClusterAgentComponentName]; ok {
 		if componentOverride.Name != nil && *componentOverride.Name != "" {
 			deployName = *componentOverride.Name
 		}

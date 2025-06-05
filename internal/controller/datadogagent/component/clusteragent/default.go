@@ -192,11 +192,11 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 		},
 		{
 			Name:  DDAgentDaemonSet,
-			Value: component.GetDaemonSetNameFromDatadogAgent(dda),
+			Value: component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec),
 		},
 		{
 			Name:  DDClusterAgentDeployment,
-			Value: component.GetDeploymentNameFromDatadogAgent(dda),
+			Value: component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec),
 		},
 		{
 			Name:  DDDatadogAgentCustomResource,
