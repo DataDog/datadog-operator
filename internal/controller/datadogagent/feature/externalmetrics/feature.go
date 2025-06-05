@@ -124,7 +124,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 			}
 		}
 
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 		if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {

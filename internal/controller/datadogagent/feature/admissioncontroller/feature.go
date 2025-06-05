@@ -93,7 +93,7 @@ func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 	ac := dda.Spec.Features.AdmissionController
 

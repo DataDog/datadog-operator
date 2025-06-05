@@ -48,9 +48,9 @@ func TestServiceAccountNameOverride(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := map[v2alpha1.ComponentName]string{}
-			res[v2alpha1.NodeAgentComponentName] = GetAgentServiceAccount(tt.dda)
-			res[v2alpha1.ClusterChecksRunnerComponentName] = GetClusterChecksRunnerServiceAccount(tt.dda)
-			res[v2alpha1.ClusterAgentComponentName] = GetClusterAgentServiceAccount(tt.dda)
+			res[v2alpha1.NodeAgentComponentName] = GetAgentServiceAccount(tt.dda.Name, &tt.dda.Spec)
+			res[v2alpha1.ClusterChecksRunnerComponentName] = GetClusterChecksRunnerServiceAccount(tt.dda.Name, &tt.dda.Spec)
+			res[v2alpha1.ClusterAgentComponentName] = GetClusterAgentServiceAccount(tt.dda.Name, &tt.dda.Spec)
 			for name, sa := range tt.want {
 				if res[name] != sa {
 					t.Errorf("Service Account Override error = %v, want %v", res[name], tt.want[name])

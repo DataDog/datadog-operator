@@ -125,7 +125,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	f.owner = dda
 	apm := dda.Spec.Features.APM
 	if shouldEnableAPM(apm) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 		f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)

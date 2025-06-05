@@ -113,7 +113,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 		// Handle automatic addition of OOTB resources
 		// Autoscaling: Add DPA resource if enabled and replace older versions if present
@@ -139,7 +139,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			if constants.IsCCREnabled(dda) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
