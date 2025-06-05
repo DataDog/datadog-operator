@@ -40,7 +40,7 @@ func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 // NewDefaultDatadogAgentBuilder created DatadogAgent and applies defaults
 func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{}
-	defaults.DefaultDatadogAgent(dda)
+	defaults.DefaultDatadogAgentSpec(&dda.Spec)
 
 	return &DatadogAgentBuilder{
 		datadogAgent: *dda,
@@ -64,7 +64,7 @@ func (builder *DatadogAgentBuilder) Build() *v2alpha1.DatadogAgent {
 
 // BuildWithDefaults applies defaults to current properties and returns resulting DatadogAgent
 func (builder *DatadogAgentBuilder) BuildWithDefaults() *v2alpha1.DatadogAgent {
-	defaults.DefaultDatadogAgent(&builder.datadogAgent)
+	defaults.DefaultDatadogAgentSpec(&builder.datadogAgent.Spec)
 	return &builder.datadogAgent
 }
 

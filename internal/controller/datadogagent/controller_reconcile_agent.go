@@ -394,6 +394,7 @@ func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context
 					Name:      agentPod.Name,
 				},
 			}
+			r.log.Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
 			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
 				return err
 			}

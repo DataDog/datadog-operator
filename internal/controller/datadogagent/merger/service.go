@@ -33,6 +33,7 @@ type serviceManagerImpl struct {
 }
 
 // AddService creates or updates service
+// If configurable fields are added or deleted, update `isEqualServiceSpec` in `pkg/equality/equality.go`
 func (m *serviceManagerImpl) AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.ServicesKind, namespace, name)
 	service, ok := obj.(*corev1.Service)
@@ -47,6 +48,9 @@ func (m *serviceManagerImpl) AddService(name, namespace string, selector map[str
 		service.Spec.Selector = selector
 	}
 	service.Spec.Type = corev1.ServiceTypeClusterIP
+	// k8s default InternalTrafficPolicy is Cluster
+	clusterPolicy := corev1.ServiceInternalTrafficPolicyCluster
+	service.Spec.InternalTrafficPolicy = &clusterPolicy
 	if internalTrafficPolicy != nil {
 		service.Spec.InternalTrafficPolicy = internalTrafficPolicy
 	}
