@@ -295,15 +295,11 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_DatadogAgentGenericContainer
 					"ports": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"containerPort",
-									"protocol",
-								},
-								"x-kubernetes-list-type": "map",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional ports to be exposed by the container.",
+							Description: "Specify additional ports to be exposed by the container. Not specifying a port here DOES NOT prevent that port from being exposed. See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

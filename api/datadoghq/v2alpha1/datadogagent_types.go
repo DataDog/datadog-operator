@@ -1793,11 +1793,11 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	LogLevel *string `json:"logLevel,omitempty"`
 
-	// Specify additional ports to be exposed by the container.
+	// Specify additional ports to be exposed by the container. Not specifying a port here
+	// DOES NOT prevent that port from being exposed.
+	// See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
 	// +optional
-	// +listType=map
-	// +listMapKey=containerPort
-	// +listMapKey=protocol
+	// +listType=atomic
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
 
 	// Specify additional environment variables in the container.

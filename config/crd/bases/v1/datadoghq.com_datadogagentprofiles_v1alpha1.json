@@ -4109,7 +4109,7 @@
                           "type": "string"
                         },
                         "ports": {
-                          "description": "Specify additional ports to be exposed by the container.",
+                          "description": "Specify additional ports to be exposed by the container. Not specifying a port here\nDOES NOT prevent that port from being exposed.\nSee https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.",
                           "items": {
                             "additionalProperties": false,
                             "description": "ContainerPort represents a network port in a single container.",
@@ -4144,11 +4144,7 @@
                             "type": "object"
                           },
                           "type": "array",
-                          "x-kubernetes-list-map-keys": [
-                            "containerPort",
-                            "protocol"
-                          ],
-                          "x-kubernetes-list-type": "map"
+                          "x-kubernetes-list-type": "atomic"
                         },
                         "readinessProbe": {
                           "additionalProperties": false,
