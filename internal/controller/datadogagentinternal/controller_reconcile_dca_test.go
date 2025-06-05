@@ -6,8 +6,8 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -197,7 +197,8 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 				Scheme:        r.scheme,
 			}
 			instance := &datadoghqv1alpha1.DatadogAgentInternal{}
-			defaults.DefaultDatadogAgent(instance.DeepCopy())
+			instanceCopy := instance.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 			depsStore := store.NewStore(instance, storeOptions)
 			resourcesManager := feature.NewResourceManagers(depsStore)
 

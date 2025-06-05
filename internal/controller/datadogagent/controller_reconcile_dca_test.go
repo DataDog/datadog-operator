@@ -197,7 +197,8 @@ func Test_cleanupOldDCADeployments(t *testing.T) {
 				Scheme:        r.scheme,
 			}
 			instance := &datadoghqv2alpha1.DatadogAgent{}
-			defaults.DefaultDatadogAgent(instance.DeepCopy())
+			instanceCopy := instance.DeepCopy()
+			defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 			depsStore := store.NewStore(instance, storeOptions)
 			resourcesManager := feature.NewResourceManagers(depsStore)
 

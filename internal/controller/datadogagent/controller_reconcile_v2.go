@@ -45,7 +45,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 
 	// 3. Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
-	defaults.DefaultDatadogAgent(instanceCopy)
+	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
 	if r.options.DatadogAgentInternalEnabled {
