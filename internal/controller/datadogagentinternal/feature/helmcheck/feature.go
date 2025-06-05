@@ -80,7 +80,7 @@ func (f *helmCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqCo
 		f.valuesAsTags = helmCheck.ValuesAsTags
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
-		if constants.IsClusterChecksEnabledDDAI(ddai) && constants.IsCCREnabledDDAI(ddai) {
+		if constants.IsClusterChecksEnabled(&ddai.Spec) && constants.IsCCREnabled(&ddai.Spec) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
 			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(ddai.Name, &ddai.Spec)

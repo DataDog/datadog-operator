@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 )
@@ -78,34 +77,14 @@ func IsHostNetworkEnabled(ddaSpec *v2alpha1.DatadogAgentSpec, component v2alpha1
 	return false
 }
 
-// IsHostNetworkEnabledDDAI returns whether the pod should use the host's network namespace (DDAI)
-func IsHostNetworkEnabledDDAI(ddai *v1alpha1.DatadogAgentInternal, component v2alpha1.ComponentName) bool {
-	if ddai.Spec.Override != nil {
-		if c, ok := ddai.Spec.Override[component]; ok {
-			return apiutils.BoolValue(c.HostNetwork)
-		}
-	}
-	return false
-}
-
 // IsClusterChecksEnabled returns whether the DDA should use cluster checks
 func IsClusterChecksEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.Enabled)
 }
 
-// IsClusterChecksEnabledDDAI returns whether the DDAI should use cluster checks (DDAI)
-func IsClusterChecksEnabledDDAI(ddai *v1alpha1.DatadogAgentInternal) bool {
-	return ddai.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.Enabled)
-}
-
 // IsCCREnabled returns whether the DDA should use Cluster Checks Runners
 func IsCCREnabled(ddaSpec *v2alpha1.DatadogAgentSpec) bool {
 	return ddaSpec.Features.ClusterChecks != nil && apiutils.BoolValue(ddaSpec.Features.ClusterChecks.UseClusterChecksRunners)
-}
-
-// IsCCREnabledDDAI returns whether the DDAI should use Cluster Checks Runners (DDAI)
-func IsCCREnabledDDAI(ddai *v1alpha1.DatadogAgentInternal) bool {
-	return ddai.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 }
 
 // GetLocalAgentServiceName returns the name used for the local agent service
@@ -116,30 +95,11 @@ func GetLocalAgentServiceName(objName string, ddaSpec *v2alpha1.DatadogAgentSpec
 	return fmt.Sprintf("%s-%s", objName, DefaultAgentResourceSuffix)
 }
 
-// GetLocalAgentServiceNameDDAI returns the name used for the local agent service (DDAI)
-func GetLocalAgentServiceNameDDAI(ddai *v1alpha1.DatadogAgentInternal) string {
-	if ddai.Spec.Global.LocalService != nil && ddai.Spec.Global.LocalService.NameOverride != nil {
-		return *ddai.Spec.Global.LocalService.NameOverride
-	}
-	return fmt.Sprintf("%s-%s", ddai.Name, DefaultAgentResourceSuffix)
-}
-
 // IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
 func IsNetworkPolicyEnabled(ddaSpec *v2alpha1.DatadogAgentSpec) (bool, v2alpha1.NetworkPolicyFlavor) {
 	if ddaSpec.Global != nil && ddaSpec.Global.NetworkPolicy != nil && apiutils.BoolValue(ddaSpec.Global.NetworkPolicy.Create) {
 		if ddaSpec.Global.NetworkPolicy.Flavor != "" {
 			return true, ddaSpec.Global.NetworkPolicy.Flavor
-		}
-		return true, v2alpha1.NetworkPolicyFlavorKubernetes
-	}
-	return false, ""
-}
-
-// IsNetworkPolicyEnabledDDAI returns whether a network policy should be created and which flavor to use (DDAI)
-func IsNetworkPolicyEnabledDDAI(ddai *v1alpha1.DatadogAgentInternal) (bool, v2alpha1.NetworkPolicyFlavor) {
-	if ddai.Spec.Global != nil && ddai.Spec.Global.NetworkPolicy != nil && apiutils.BoolValue(ddai.Spec.Global.NetworkPolicy.Create) {
-		if ddai.Spec.Global.NetworkPolicy.Flavor != "" {
-			return true, ddai.Spec.Global.NetworkPolicy.Flavor
 		}
 		return true, v2alpha1.NetworkPolicyFlavorKubernetes
 	}
