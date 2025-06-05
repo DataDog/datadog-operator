@@ -7,7 +7,7 @@ package feature
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
@@ -44,14 +44,12 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, []F
 	for key := range featureBuilders {
 		sortedkeys = append(sortedkeys, key)
 	}
-	sort.Slice(sortedkeys, func(i, j int) bool {
-		return sortedkeys[i] < sortedkeys[j]
-	})
+	slices.Sort(sortedkeys)
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
 		featureID := feat.ID()
-		reqComponents := feat.Configure(dda)
+		reqComponents := feat.Configure(dda, &dda.Spec, dda.Status.RemoteConfigConfiguration)
 		if reqComponents.IsEnabled() {
 			// enabled features
 			enabledFeatures = append(enabledFeatures, feat)
