@@ -155,6 +155,14 @@ func testDCAResources(enabled bool) *test.ComponentTest {
 						Name:  DDAutoscalingWorkloadEnabled,
 						Value: "true",
 					},
+					&corev1.EnvVar{
+						Name:  DDAutoscalingFailoverEnabled,
+						Value: "true",
+					},
+					&corev1.EnvVar{
+						Name:  DDAutoscalingFailoverMetrics,
+						Value: defaultFailoverMetrics,
+					},
 				)
 			}
 			assert.True(

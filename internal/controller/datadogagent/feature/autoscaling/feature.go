@@ -92,6 +92,16 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 		Value: "true",
 	})
 
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  DDAutoscalingFailoverEnabled,
+		Value: "true",
+	})
+
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  DDAutoscalingFailoverMetrics,
+		Value: defaultFailoverMetrics,
+	})
+
 	return nil
 }
 
