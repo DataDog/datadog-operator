@@ -135,8 +135,8 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabled(dda) {
-			if constants.IsCCREnabled(dda) {
+		if constants.IsClusterChecksEnabled(&dda.Spec) {
+			if constants.IsCCREnabled(&dda.Spec) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)

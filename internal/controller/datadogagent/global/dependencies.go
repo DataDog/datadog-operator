@@ -272,7 +272,7 @@ func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAg
 
 func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
-	if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+	if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
 		switch flavor {
 		case v2alpha1.NetworkPolicyFlavorKubernetes:
 			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
@@ -286,7 +286,7 @@ func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Re
 					dda,
 					*config.Site,
 					getURLEndpoint(dda),
-					constants.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+					constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.ClusterAgentComponentName),
 					dnsSelectorEndpoints,
 					componentName,
 				),

@@ -126,12 +126,12 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	apm := dda.Spec.Features.APM
 	if shouldEnableAPM(apm) {
 		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
-		f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
+		f.useHostNetwork = constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
-			if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+			if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
 				if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 					f.createCiliumNetworkPolicy = true
 				} else {
@@ -146,7 +146,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		if dda.Spec.Global.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda)
+		f.localServiceName = constants.GetLocalAgentServiceName(dda.Name, &dda.Spec)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
