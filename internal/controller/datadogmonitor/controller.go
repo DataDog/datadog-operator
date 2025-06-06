@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -62,34 +63,43 @@ const requiredTag = "generated:kubernetes"
 
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
-	client        client.Client
-	datadogClient *datadogV1.MonitorsApi
-	datadogAuth   context.Context
-	log           logr.Logger
-	scheme        *runtime.Scheme
-	recorder      record.EventRecorder
+	client                 client.Client
+	datadogClient          *datadogV1.MonitorsApi
+	datadogAuth            context.Context
+	log                    logr.Logger
+	scheme                 *runtime.Scheme
+	recorder               record.EventRecorder
+	operatorMetricsEnabled bool
+	forwarders             datadog.MetricsForwardersManager
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, operatorMetricsEnabled bool, metricForwardersMgr datadog.MetricsForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
-		client:        client,
-		datadogClient: ddClient.Client,
-		datadogAuth:   ddClient.Auth,
-		scheme:        scheme,
-		log:           log,
-		recorder:      recorder,
+		client:                 client,
+		datadogClient:          ddClient.Client,
+		datadogAuth:            ddClient.Auth,
+		scheme:                 scheme,
+		log:                    log,
+		recorder:               recorder,
+		operatorMetricsEnabled: operatorMetricsEnabled,
+		forwarders:             metricForwardersMgr,
 	}, nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	return r.internalReconcile(ctx, request)
+func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	res, err := r.internalReconcile(ctx, instance)
+
+	if r.operatorMetricsEnabled {
+		r.forwarders.ProcessError(instance, err)
+	}
+	return res, err
 }
 
 // Reconcile loop for DatadogMonitor
-func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogmonitor", req.NamespacedName)
+func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod
@@ -104,21 +114,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 	}
 
-	// Get instance
-	instance := &datadoghqv1alpha1.DatadogMonitor{}
 	var result ctrl.Result
-	err := r.client.Get(ctx, req.NamespacedName, instance)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			return ctrl.Result{}, nil
-
-		}
-		// Error reading the object - return error so it gets requeued
-		return ctrl.Result{}, err
-	}
+	var err error
 
 	newStatus := instance.Status.DeepCopy()
 
