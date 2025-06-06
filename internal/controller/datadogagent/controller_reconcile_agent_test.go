@@ -238,7 +238,7 @@ func Test_getDaemonSetNameFromDatadogAgent(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.dda)
+			dsName := component.GetDaemonSetNameFromDatadogAgent(tt.dda, &tt.dda.Spec)
 			assert.Equal(t, tt.wantDSName, dsName)
 		})
 	}

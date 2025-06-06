@@ -14,8 +14,8 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 )
 
 func applyNodeAgentResources(manager feature.PodTemplateManagers, ddai *v1alpha1.DatadogAgentInternal, singleContainerStrategyEnabled bool) {

@@ -63,20 +63,20 @@ func (o *otelCollectorFeature) ID() feature.IDType {
 	return feature.OtelAgentIDType
 }
 
-func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	o.owner = dda
-	if dda.Spec.Features.OtelCollector.Conf != nil {
-		o.customConfig = dda.Spec.Features.OtelCollector.Conf
+	if ddaSpec.Features.OtelCollector.Conf != nil {
+		o.customConfig = ddaSpec.Features.OtelCollector.Conf
 	}
 	o.configMapName = constants.GetConfName(dda, o.customConfig, defaultOTelAgentConf)
 
-	if dda.Spec.Features.OtelCollector.CoreConfig != nil {
-		o.coreAgentConfig.enabled = dda.Spec.Features.OtelCollector.CoreConfig.Enabled
-		o.coreAgentConfig.extension_timeout = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionTimeout
-		o.coreAgentConfig.extension_url = dda.Spec.Features.OtelCollector.CoreConfig.ExtensionURL
+	if ddaSpec.Features.OtelCollector.CoreConfig != nil {
+		o.coreAgentConfig.enabled = ddaSpec.Features.OtelCollector.CoreConfig.Enabled
+		o.coreAgentConfig.extension_timeout = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionTimeout
+		o.coreAgentConfig.extension_url = ddaSpec.Features.OtelCollector.CoreConfig.ExtensionURL
 	}
 
-	if len(dda.Spec.Features.OtelCollector.Ports) == 0 {
+	if len(ddaSpec.Features.OtelCollector.Ports) == 0 {
 		o.ports = []*corev1.ContainerPort{
 			{
 				Name:          "otel-http",
@@ -92,11 +92,11 @@ func (o *otelCollectorFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 			},
 		}
 	} else {
-		o.ports = dda.Spec.Features.OtelCollector.Ports
+		o.ports = ddaSpec.Features.OtelCollector.Ports
 	}
 
 	var reqComp feature.RequiredComponents
-	if apiutils.BoolValue(dda.Spec.Features.OtelCollector.Enabled) {
+	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

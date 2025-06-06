@@ -64,13 +64,13 @@ func (f *cwsFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *cwsFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(ddaSpec, ddaRCStatus)
 
-	cwsConfig := dda.Spec.Features.CWS
+	cwsConfig := ddaSpec.Features.CWS
 
 	if cwsConfig != nil && apiutils.BoolValue(cwsConfig.Enabled) {
 		f.syscallMonitorEnabled = apiutils.BoolValue(cwsConfig.SyscallMonitorEnabled)
@@ -95,8 +95,8 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.activityDumpEnabled = apiutils.BoolValue(cwsConfig.SecurityProfiles.Enabled)
 		}
 
-		if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil {
-			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
+		if ddaSpec.Features != nil && ddaSpec.Features.RemoteConfiguration != nil {
+			f.remoteConfigurationEnabled = apiutils.BoolValue(ddaSpec.Features.RemoteConfiguration.Enabled)
 			if cwsConfig.RemoteConfiguration != nil {
 				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cwsConfig.RemoteConfiguration.Enabled)
 			}
@@ -116,8 +116,8 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS == nil || ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.CWS == nil || ddaRCStatus.Features.CWS.Enabled == nil {
 		return
 	}
 
@@ -129,8 +129,8 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled != nil {
-		ddaSpec.Features.CWS.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CWS.Enabled
+	if ddaRCStatus.Features.CWS.Enabled != nil {
+		ddaSpec.Features.CWS.Enabled = ddaRCStatus.Features.CWS.Enabled
 	}
 }
 

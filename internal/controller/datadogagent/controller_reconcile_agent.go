@@ -417,7 +417,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 
-	dsName := component.GetDaemonSetNameFromDatadogAgent(dda)
+	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
 
 	// Only the default profile uses an EDS when profiles are enabled
