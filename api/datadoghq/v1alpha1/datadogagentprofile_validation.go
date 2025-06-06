@@ -147,11 +147,13 @@ func validateOverride(component v2alpha1.ComponentName, override *v2alpha1.Datad
 
 func validateContainerOverride(name common.AgentContainerName, override *v2alpha1.DatadogAgentGenericContainer) error {
 	supportedContainers := map[common.AgentContainerName]struct{}{
-		common.CoreAgentContainerName:     {},
-		common.TraceAgentContainerName:    {},
-		common.ProcessAgentContainerName:  {},
-		common.SecurityAgentContainerName: {},
-		common.SystemProbeContainerName:   {},
+		common.CoreAgentContainerName:      {},
+		common.TraceAgentContainerName:     {},
+		common.ProcessAgentContainerName:   {},
+		common.SecurityAgentContainerName:  {},
+		common.SystemProbeContainerName:    {},
+		common.OtelAgent:                   {},
+		common.AgentDataPlaneContainerName: {},
 	}
 	if _, ok := supportedContainers[name]; !ok {
 		return fmt.Errorf("container %s override is not supported", name)

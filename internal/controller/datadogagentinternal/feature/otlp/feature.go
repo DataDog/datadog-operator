@@ -21,7 +21,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -112,7 +112,7 @@ func (f *otlpFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp fe
 	if ddai.Spec.Global.LocalService != nil {
 		f.forceEnableLocalService = apiutils.BoolValue(ddai.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
+	f.localServiceName = constants.GetLocalAgentServiceName(ddai.Name, &ddai.Spec)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -129,7 +129,7 @@ func (f *otlpFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp fe
 		}
 	}
 	if f.grpcEnabled || f.httpEnabled {
-		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(&ddai.Spec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {

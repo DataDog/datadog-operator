@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
@@ -125,9 +125,9 @@ func (f *externalMetricsFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) 
 			}
 		}
 
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(&ddai.Spec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {

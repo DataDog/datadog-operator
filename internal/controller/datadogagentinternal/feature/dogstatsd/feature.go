@@ -17,11 +17,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	featureutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
@@ -82,7 +82,7 @@ func (f *dogstatsdFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqCo
 	if dogstatsd.TagCardinality != nil {
 		f.tagCardinality = *dogstatsd.TagCardinality
 	}
-	f.useHostNetwork = constants.IsHostNetworkEnabledDDAI(ddai, v2alpha1.NodeAgentComponentName)
+	f.useHostNetwork = constants.IsHostNetworkEnabled(&ddai.Spec, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
@@ -90,7 +90,7 @@ func (f *dogstatsdFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqCo
 	if ddai.Spec.Global.LocalService != nil {
 		f.forceEnableLocalService = apiutils.BoolValue(ddai.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
+	f.localServiceName = constants.GetLocalAgentServiceName(ddai.Name, &ddai.Spec)
 
 	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(ddai)
 

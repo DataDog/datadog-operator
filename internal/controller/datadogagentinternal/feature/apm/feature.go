@@ -21,12 +21,12 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	featutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -126,13 +126,13 @@ func (f *apmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp fea
 	f.owner = ddai
 	apm := ddai.Spec.Features.APM
 	if shouldEnableAPM(apm) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
-		f.useHostNetwork = constants.IsHostNetworkEnabledDDAI(ddai, v2alpha1.NodeAgentComponentName)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
+		f.useHostNetwork = constants.IsHostNetworkEnabled(&ddai.Spec, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
 		if f.hostPortEnabled {
-			if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
+			if enabled, flavor := constants.IsNetworkPolicyEnabled(&ddai.Spec); enabled {
 				if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 					f.createCiliumNetworkPolicy = true
 				} else {
@@ -147,7 +147,7 @@ func (f *apmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp fea
 		if ddai.Spec.Global.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(ddai.Spec.Global.LocalService.ForceEnableLocalService)
 		}
-		f.localServiceName = constants.GetLocalAgentServiceNameDDAI(ddai)
+		f.localServiceName = constants.GetLocalAgentServiceName(ddai.Name, &ddai.Spec)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{

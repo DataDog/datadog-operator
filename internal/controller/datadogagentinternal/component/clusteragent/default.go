@@ -17,7 +17,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -188,7 +188,7 @@ func defaultEnvVars(dda *v1alpha1.DatadogAgentInternal) []corev1.EnvVar {
 		},
 		{
 			Name:  DDClusterAgentServiceAccountName,
-			Value: constants.GetClusterAgentServiceAccountDDAI(dda),
+			Value: constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 		},
 		{
 			Name:  DDAgentDaemonSet,

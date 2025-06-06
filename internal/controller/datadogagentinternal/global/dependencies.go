@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
@@ -160,7 +160,7 @@ func rbacDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, ma
 
 func clusterAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterAgentServiceAccountDDAI(dda)
+	serviceAccountName := constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(dda)
 
 	// Service account
@@ -188,7 +188,7 @@ func clusterAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInte
 
 func nodeAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetAgentServiceAccountDDAI(dda)
+	serviceAccountName := constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := agent.GetAgentRoleName(dda)
 
 	// Service account
@@ -206,7 +206,7 @@ func nodeAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInterna
 
 func clusterChecksRunnerDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInternal, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterChecksRunnerServiceAccountDDAI(dda)
+	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(dda)
 
 	// Service account
@@ -224,7 +224,7 @@ func clusterChecksRunnerDependencies(logger logr.Logger, dda *v1alpha1.DatadogAg
 
 func addNetworkPolicyDependencies(dda *v1alpha1.DatadogAgentInternal, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
-	if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(dda); enabled {
+	if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
 		switch flavor {
 		case v2alpha1.NetworkPolicyFlavorKubernetes:
 			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
@@ -238,7 +238,7 @@ func addNetworkPolicyDependencies(dda *v1alpha1.DatadogAgentInternal, manager fe
 					dda,
 					*config.Site,
 					getURLEndpoint(dda),
-					constants.IsHostNetworkEnabledDDAI(dda, v2alpha1.ClusterAgentComponentName),
+					constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.ClusterAgentComponentName),
 					dnsSelectorEndpoints,
 					componentName,
 				),
@@ -255,11 +255,11 @@ func addSecretBackendDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgent
 		var componentSaName string
 		switch component {
 		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = constants.GetClusterAgentServiceAccountDDAI(dda)
+			componentSaName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.NodeAgentComponentName:
-			componentSaName = constants.GetAgentServiceAccountDDAI(dda)
+			componentSaName = constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = constants.GetClusterChecksRunnerServiceAccountDDAI(dda)
+			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 		}
 
 		agentName := dda.GetName()
@@ -317,7 +317,7 @@ func resourcesAsTagsDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentI
 		if err := manager.RBACManager().AddClusterPolicyRules(
 			dda.Namespace,
 			clusteragent.GetResourceMetadataAsTagsClusterRoleName(dda),
-			constants.GetClusterAgentServiceAccountDDAI(dda),
+			constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 			clusteragent.GetKubernetesResourceMetadataAsTagsPolicyRules(global.KubernetesResourcesLabelsAsTags, global.KubernetesResourcesAnnotationsAsTags),
 		); err != nil {
 			return err

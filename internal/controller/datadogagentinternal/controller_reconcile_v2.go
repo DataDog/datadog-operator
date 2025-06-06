@@ -16,8 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/defaults"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -42,7 +42,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *v1alpha1
 
 	// 3. Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
-	defaults.DefaultDatadogAgent(instanceCopy)
+	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)

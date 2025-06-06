@@ -16,11 +16,11 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/merger"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -85,13 +85,13 @@ func (f *ksmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) feature.Requ
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if ddai.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(ddai.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(ddai.Name, &ddai.Spec)
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 

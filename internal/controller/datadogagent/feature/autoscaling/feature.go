@@ -63,7 +63,7 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 	admission := dda.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{

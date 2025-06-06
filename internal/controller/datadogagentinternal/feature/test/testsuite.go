@@ -11,10 +11,10 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
+	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature/fake"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
-	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/testutils"
 )
 
 // FeatureTestSuite use define several tests on a Feature

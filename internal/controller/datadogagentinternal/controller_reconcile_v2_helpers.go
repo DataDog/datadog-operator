@@ -8,10 +8,10 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/override"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/store"
 )
 
 // STEP 2 of the reconcile loop: reconcile 3 components
@@ -117,8 +117,9 @@ func (r *Reconciler) applyAndCleanupDependencies(ctx context.Context, logger log
 		logger.V(2).Info("Dependencies apply error", "errs", errs)
 		return errors.NewAggregate(errs)
 	}
-	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
-		return errors.NewAggregate(errs)
-	}
+	// TODO: modify cleanup to prevent DDA dependency deletion
+	// if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
+	// 	return errors.NewAggregate(errs)
+	// }
 	return nil
 }

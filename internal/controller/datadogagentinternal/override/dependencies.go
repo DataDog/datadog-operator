@@ -14,11 +14,11 @@ import (
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	componentdca "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusteragent"
 	componentccr "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/configmap"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -30,7 +30,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, ddai *v1
 	namespace := ddai.Namespace
 
 	for component, override := range overrides {
-		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponentDDAI(ddai, component), namespace)
+		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponent(ddai.Name, &ddai.Spec, component), namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}

@@ -16,10 +16,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	common "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	common "github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -71,7 +71,7 @@ func (f *eventCollectionFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if ddai.Spec.Features != nil && ddai.Spec.Features.EventCollection != nil && apiutils.BoolValue(ddai.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
 		if apiutils.BoolValue(ddai.Spec.Features.EventCollection.UnbundleEvents) {

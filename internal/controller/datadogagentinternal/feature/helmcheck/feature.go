@@ -15,10 +15,10 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -78,12 +78,12 @@ func (f *helmCheckFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqCo
 		f.configMapName = fmt.Sprintf("%s-%s", f.owner.GetName(), defaultHelmCheckConf)
 		f.collectEvents = apiutils.BoolValue(helmCheck.CollectEvents)
 		f.valuesAsTags = helmCheck.ValuesAsTags
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
-		if constants.IsClusterChecksEnabledDDAI(ddai) && constants.IsCCREnabledDDAI(ddai) {
+		if constants.IsClusterChecksEnabled(&ddai.Spec) && constants.IsCCREnabled(&ddai.Spec) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(ddai.Name, &ddai.Spec)
 			reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			reqComp.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 		}

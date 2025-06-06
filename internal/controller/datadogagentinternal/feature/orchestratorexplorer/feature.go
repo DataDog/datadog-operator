@@ -17,10 +17,10 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -114,7 +114,7 @@ func (f *orchestratorExplorerFeature) Configure(ddai *v1alpha1.DatadogAgentInter
 		if orchestratorExplorer.DDUrl != nil {
 			f.ddURL = *orchestratorExplorer.DDUrl
 		}
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
 		// Handle automatic addition of OOTB resources
 		// Autoscaling: Add DPA resource if enabled and replace older versions if present
@@ -136,11 +136,11 @@ func (f *orchestratorExplorerFeature) Configure(ddai *v1alpha1.DatadogAgentInter
 		slices.Sort(f.customResources)
 		f.customResources = slices.Compact(f.customResources)
 
-		if constants.IsClusterChecksEnabledDDAI(ddai) {
-			if constants.IsCCREnabledDDAI(ddai) {
+		if constants.IsClusterChecksEnabled(&ddai.Spec) {
+			if constants.IsCCREnabled(&ddai.Spec) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccountDDAI(ddai)
+				f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(ddai.Name, &ddai.Spec)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			}
 		}
