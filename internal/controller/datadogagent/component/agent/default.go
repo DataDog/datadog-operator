@@ -609,9 +609,9 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_id",
+					Key: common.APMTelemetryInstallIdKey,
 				},
 			},
 		},
@@ -620,9 +620,9 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_time",
+					Key: common.APMTelemetryInstallTimeKey,
 				},
 			},
 		},
@@ -631,9 +631,9 @@ func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_type",
+					Key: common.APMTelemetryInstallTypeKey,
 				},
 			},
 		},

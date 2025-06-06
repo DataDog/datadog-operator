@@ -119,13 +119,13 @@ func addInstallInfoDependencies(_ logr.Logger, dda metav1.Object, manager featur
 func AddAPMTelemetryDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "datadog-apm-telemetry-kpi",
+			Name:      common.APMTelemetryConfigMapName,
 			Namespace: dda.GetNamespace(),
 		},
 		Data: map[string]string{
-			"install_type": common.DefaultAgentInstallType,
-			"install_id":   utils.GetDatadogAgentResourceUID(dda),
-			"install_time": utils.GetDatadogAgentResourceCreationTime(dda),
+			common.APMTelemetryInstallTypeKey: common.DefaultAgentInstallType,
+			common.APMTelemetryInstallIdKey:   utils.GetDatadogAgentResourceUID(dda),
+			common.APMTelemetryInstallTimeKey: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 	}
 

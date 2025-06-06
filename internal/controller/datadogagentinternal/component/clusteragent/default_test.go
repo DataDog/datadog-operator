@@ -6,6 +6,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -239,9 +240,9 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv1alpha1.DatadogAgentInternal) []c
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_id",
+					Key: common.APMTelemetryInstallIdKey,
 				},
 			},
 		},
@@ -250,9 +251,9 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv1alpha1.DatadogAgentInternal) []c
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_time",
+					Key: common.APMTelemetryInstallTimeKey,
 				},
 			},
 		},
@@ -261,9 +262,9 @@ func clusterAgentDefaultEnvVars(dda *datadoghqv1alpha1.DatadogAgentInternal) []c
 			ValueFrom: &corev1.EnvVarSource{
 				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "datadog-apm-telemetry-kpi",
+						Name: common.APMTelemetryConfigMapName,
 					},
-					Key: "install_type",
+					Key: common.APMTelemetryInstallTypeKey,
 				},
 			},
 		},
