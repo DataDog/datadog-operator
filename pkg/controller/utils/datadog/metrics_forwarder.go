@@ -33,6 +33,8 @@ import (
 )
 
 const (
+	datadogAgentKind            = "DatadogAgent"
+	datadogMonitorKind          = "DatadogMonitor"
 	defaultMetricsRetryInterval = 15 * time.Second
 	defaultSendMetricsInterval  = 15 * time.Second
 	defaultMetricsNamespace     = "datadog.operator"
@@ -43,7 +45,7 @@ const (
 	deploymentMetricFormat      = "%s.%s.deployment.success"
 	stateTagFormat              = "state:%s"
 	crAgentNameTagFormat        = "cr_agent_name:%s"
-	clusterNameTagFormat        = "cluster_name:%s"
+	clusterNameTagFormat        = "kube_cluster_name:%s"
 	nsTagFormat                 = "kube_namespace:%s"
 	resourceNameTagFormat       = "resource_name:%s"
 	crPreferredVersionTagFormat = "cr_preferred_version:%s"
@@ -255,18 +257,18 @@ func (mf *metricsForwarder) setup() error {
 	// Attempt to set up metrics forwarder with Operator credentials manager
 	credsSet, err := mf.setupFromOperator()
 
-	// If clusterName was not set from the Operator, then try to get it from the DDA
-	if err == nil && mf.clusterName != "" {
+	// If there was an error or if the clusterName was not set from the Operator,
+	// and this is a DDA forwarder, then try to get clusterName from the DDA
+	if (err != nil || mf.clusterName == "") && mf.monitoredObjectKind == datadogAgentKind {
+		dda, err := mf.getDatadogAgent()
+		if err != nil {
+			mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
+			return err
+		}
+		return mf.setupFromDDA(dda, credsSet)
+	} else {
 		return nil
 	}
-
-	// Otherwise, set up with DDA
-	dda, err := mf.getDatadogAgent()
-	if err != nil {
-		mf.logger.Error(err, "cannot retrieve DatadogAgent to get Datadog credentials, will retry later...")
-		return err
-	}
-	return mf.setupFromDDA(dda, credsSet)
 }
 
 func (mf *metricsForwarder) setupFromOperator() (bool, error) {
@@ -813,8 +815,8 @@ func (mf *metricsForwarder) delegatedSendFeatureMetric(feature string) error {
 }
 
 var objectKindToSnake = map[string]string{
-	"DatadogAgent":   "datadog_agent",
-	"DatadogMonitor": "datadog_monitor",
+	datadogAgentKind:   "datadog_agent",
+	datadogMonitorKind: "datadog_monitor",
 }
 
 func (mf *metricsForwarder) sendResourceCountMetric() error {
