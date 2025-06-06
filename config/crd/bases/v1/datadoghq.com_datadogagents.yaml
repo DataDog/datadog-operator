@@ -1293,6 +1293,11 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        nonLocalTraffic:
+                          description: |-
+                            NonLocalTraffic enables non-local traffic for Dogstatsd.
+                            Default: true
+                          type: boolean
                         originDetectionEnabled:
                           description: |-
                             OriginDetectionEnabled enables origin detection for container tagging.
@@ -8743,6 +8748,11 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            nonLocalTraffic:
+                              description: |-
+                                NonLocalTraffic enables non-local traffic for Dogstatsd.
+                                Default: true
+                              type: boolean
                             originDetectionEnabled:
                               description: |-
                                 OriginDetectionEnabled enables origin detection for container tagging.
