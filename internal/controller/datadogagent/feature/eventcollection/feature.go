@@ -70,7 +70,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
 		if apiutils.BoolValue(dda.Spec.Features.EventCollection.UnbundleEvents) {

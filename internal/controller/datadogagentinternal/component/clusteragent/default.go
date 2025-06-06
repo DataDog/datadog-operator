@@ -188,7 +188,7 @@ func defaultEnvVars(dda *v1alpha1.DatadogAgentInternal) []corev1.EnvVar {
 		},
 		{
 			Name:  DDClusterAgentServiceAccountName,
-			Value: constants.GetClusterAgentServiceAccountDDAI(dda),
+			Value: constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 		},
 		{
 			Name:  DDAgentDaemonSet,
