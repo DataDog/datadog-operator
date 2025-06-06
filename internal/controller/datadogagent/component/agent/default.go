@@ -22,7 +22,6 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/constants"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -606,16 +605,37 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 func envVarsForTraceAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  common.DDAPMInstrumentationInstallId,
-			Value: utils.GetDatadogAgentResourceUID(dda),
+			Name: common.DDAPMInstrumentationInstallId,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "datadog-apm-telemetry-kpi",
+					},
+					Key: "install_id",
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallTime,
-			Value: utils.GetDatadogAgentResourceCreationTime(dda),
+			Name: common.DDAPMInstrumentationInstallTime,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "datadog-apm-telemetry-kpi",
+					},
+					Key: "install_time",
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallType,
-			Value: common.DefaultAgentInstallType,
+			Name: common.DDAPMInstrumentationInstallType,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "datadog-apm-telemetry-kpi",
+					},
+					Key: "install_type",
+				},
+			},
 		},
 	}
 
