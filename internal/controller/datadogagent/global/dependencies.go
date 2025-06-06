@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -33,6 +34,11 @@ func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fea
 	var errs []error
 	// Install info
 	if err := addInstallInfoDependencies(logger, dda, manager); err != nil {
+		errs = append(errs, err)
+	}
+
+	// APM Telemetry
+	if err := AddAPMTelemetryDependencies(logger, dda, manager); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -92,7 +98,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	return errs
 }
 
-func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+func addInstallInfoDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.GetInstallInfoConfigMapName(dda),
@@ -100,6 +106,26 @@ func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager f
 		},
 		Data: map[string]string{
 			"install_info": getInstallInfoValue(),
+		},
+	}
+
+	if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddAPMTelemetryDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.APMTelemetryConfigMapName,
+			Namespace: dda.GetNamespace(),
+		},
+		Data: map[string]string{
+			common.APMTelemetryInstallTypeKey: common.DefaultAgentInstallType,
+			common.APMTelemetryInstallIdKey:   utils.GetDatadogAgentResourceUID(dda),
+			common.APMTelemetryInstallTimeKey: utils.GetDatadogAgentResourceCreationTime(dda),
 		},
 	}
 
@@ -207,7 +233,7 @@ func rbacDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fe
 
 func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterAgentServiceAccount(dda)
+	serviceAccountName := constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(dda)
 
 	// Service account
@@ -236,7 +262,7 @@ func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 
 func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetAgentServiceAccount(dda)
+	serviceAccountName := constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := agent.GetAgentRoleName(dda)
 
 	// Service account
@@ -254,7 +280,7 @@ func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manag
 
 func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda)
+	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(dda)
 
 	// Service account
@@ -272,7 +298,7 @@ func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAg
 
 func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
-	if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+	if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
 		switch flavor {
 		case v2alpha1.NetworkPolicyFlavorKubernetes:
 			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
@@ -286,7 +312,7 @@ func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Re
 					dda,
 					*config.Site,
 					getURLEndpoint(dda),
-					constants.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+					constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.ClusterAgentComponentName),
 					dnsSelectorEndpoints,
 					componentName,
 				),
@@ -303,11 +329,11 @@ func addSecretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent
 		var componentSaName string
 		switch component {
 		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = constants.GetClusterAgentServiceAccount(dda)
+			componentSaName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.NodeAgentComponentName:
-			componentSaName = constants.GetAgentServiceAccount(dda)
+			componentSaName = constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda)
+			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 		}
 
 		agentName := dda.GetName()
@@ -365,7 +391,7 @@ func resourcesAsTagsDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent,
 		if err := manager.RBACManager().AddClusterPolicyRules(
 			dda.Namespace,
 			clusteragent.GetResourceMetadataAsTagsClusterRoleName(dda),
-			constants.GetClusterAgentServiceAccount(dda),
+			constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 			clusteragent.GetKubernetesResourceMetadataAsTagsPolicyRules(global.KubernetesResourcesLabelsAsTags, global.KubernetesResourcesAnnotationsAsTags),
 		); err != nil {
 			return err

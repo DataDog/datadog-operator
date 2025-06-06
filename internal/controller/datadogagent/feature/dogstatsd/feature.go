@@ -83,7 +83,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.TagCardinality != nil {
 		f.tagCardinality = *dogstatsd.TagCardinality
 	}
-	f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
+	f.useHostNetwork = constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
@@ -91,7 +91,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dda.Spec.Global.LocalService != nil {
 		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceName(dda.Name, &dda.Spec)
 
 	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 

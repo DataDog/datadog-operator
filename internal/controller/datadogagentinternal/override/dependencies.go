@@ -30,7 +30,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, ddai *v1
 	namespace := ddai.Namespace
 
 	for component, override := range overrides {
-		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponentDDAI(ddai, component), namespace)
+		err := overrideRBAC(logger, manager, override, component, constants.GetServiceAccountByComponent(ddai.Name, &ddai.Spec, component), namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}

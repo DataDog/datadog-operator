@@ -84,13 +84,13 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
 		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 			f.runInClusterChecksRunner = true
 			f.rbacSuffix = common.ChecksRunnerSuffix
-			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda)
+			f.serviceAccountName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			output.ClusterChecksRunner.Containers = []apicommon.AgentContainerName{apicommon.CoreAgentContainerName}
 

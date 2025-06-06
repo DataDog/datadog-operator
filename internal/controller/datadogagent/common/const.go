@@ -25,6 +25,14 @@ const (
 	DefaultAgentInstallType = "k8s_manual"
 )
 
+// APM Telemetry
+const (
+	APMTelemetryConfigMapName  = "datadog-apm-telemetry-kpi"
+	APMTelemetryInstallIdKey   = "install_id"
+	APMTelemetryInstallTimeKey = "install_time"
+	APMTelemetryInstallTypeKey = "install_type"
+)
+
 // Annotations
 const (
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"

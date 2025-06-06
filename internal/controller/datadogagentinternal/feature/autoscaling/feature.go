@@ -64,7 +64,7 @@ func (f *autoscalingFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (req
 
 	admission := ddai.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
