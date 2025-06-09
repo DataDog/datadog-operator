@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,10 +35,11 @@ func buildControlPlaneConfigurationFeature(options *feature.Options) feature.Fea
 }
 
 type controlPlaneConfigurationFeature struct {
-	enabled  bool
-	owner    metav1.Object
-	logger   logr.Logger
-	provider string
+	enabled       bool
+	owner         metav1.Object
+	logger        logr.Logger
+	provider      string
+	configMapName string
 }
 
 // ID returns the ID of the Feature
@@ -48,10 +50,9 @@ func (f *controlPlaneConfigurationFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.logger.V(1).Info("Configuring control plane configuration feature", "dda", dda.Name, "namespace", dda.Namespace)
-
+	f.configMapName = "datadog-controlplane-configuration"
 	controlPlaneConfiguration := dda.Spec.Features.ControlPlaneConfiguration
-	f.logger.V(1).Info("Control plane configuration feature state",
+	f.logger.Info("Control plane configuration feature state",
 		"feature", feature.ControlPlaneConfigurationIDType,
 		"enabled", controlPlaneConfiguration != nil && apiutils.BoolValue(controlPlaneConfiguration.Enabled),
 		"config", controlPlaneConfiguration)
@@ -81,6 +82,12 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// print feature name
 	fmt.Println("controlplaneconfiguration feature")
+	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
+	if providerValue == kubernetes.OpenShiftProviderLabel {
+		// managers.ConfigMap().AddConfigMapToContainer(apicommon.ClusterAgentContainerName, "controlplaneconfiguration", "controlplaneconfiguration")
+	} else if providerValue == kubernetes.EKSProviderLabel {
+		f.logger.Info("EKS provider detected")
+	}
 	return nil
 }
 
