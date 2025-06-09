@@ -63,7 +63,7 @@ func (f *clusterChecksFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (r
 		f.updateConfigHash(ddai)
 		f.owner = ddai
 
-		if enabled, flavor := constants.IsNetworkPolicyEnabledDDAI(ddai); enabled {
+		if enabled, flavor := constants.IsNetworkPolicyEnabled(&ddai.Spec); enabled {
 			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
 				f.createCiliumNetworkPolicy = true
 			} else {

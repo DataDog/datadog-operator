@@ -5,4 +5,8 @@
 
 package autoscaling
 
-const DDAutoscalingWorkloadEnabled = "DD_AUTOSCALING_WORKLOAD_ENABLED"
+const (
+	DDAutoscalingWorkloadEnabled = "DD_AUTOSCALING_WORKLOAD_ENABLED"
+	DDAutoscalingFailoverEnabled = "DD_AUTOSCALING_FAILOVER_ENABLED"
+	DDAutoscalingFailoverMetrics = "DD_AUTOSCALING_FAILOVER_METRICS"
+)

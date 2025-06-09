@@ -136,8 +136,13 @@ func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProf
 	return builder
 }
 
-// Live ContainerCollection
+func (builder *DatadogAgentBuilder) WithDogstatsdNonLocalTraffic(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
+	builder.datadogAgent.Spec.Features.Dogstatsd.NonLocalTraffic = apiutils.NewBoolPointer(enabled)
+	return builder
+}
 
+// Live ContainerCollection
 func (builder *DatadogAgentBuilder) initLiveContainer() {
 	if builder.datadogAgent.Spec.Features.LiveContainerCollection == nil {
 		builder.datadogAgent.Spec.Features.LiveContainerCollection = &v2alpha1.LiveContainerCollectionFeatureConfig{}

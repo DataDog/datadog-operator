@@ -93,7 +93,7 @@ func shouldEnablesidecarInjection(sidecarInjectionConf *v2alpha1.AgentSidecarInj
 
 func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 	ac := dda.Spec.Features.AdmissionController
 
@@ -129,7 +129,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			}
 			// otherwise don't set to fall back to default agent setting `hostip`
 		}
-		f.localServiceName = constants.GetLocalAgentServiceName(dda)
+		f.localServiceName = constants.GetLocalAgentServiceName(dda.Name, &dda.Spec)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -154,7 +154,7 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			f.kubernetesAdmissionEvents = &KubernetesAdmissionEventConfig{enabled: true}
 		}
 
-		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(dda)
+		_, f.networkPolicy = constants.IsNetworkPolicyEnabled(&dda.Spec)
 
 		sidecarConfig := dda.Spec.Features.AdmissionController.AgentSidecarInjection
 		if shouldEnablesidecarInjection(sidecarConfig) {

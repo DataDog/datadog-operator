@@ -74,7 +74,7 @@ func (f *cspmFeature) Configure(ddai *v1alpha1.DatadogAgentInternal) (reqComp fe
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccountDDAI(ddai)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(ddai.Name, &ddai.Spec)
 
 		if cspmConfig.CheckInterval != nil {
 			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)

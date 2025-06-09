@@ -63,7 +63,7 @@ func (f *autoscalingFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 
 	admission := dda.Spec.Features.AdmissionController
 	f.admissionControllerActivated = apiutils.BoolValue(admission.Enabled)
-	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+	f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 
 	return feature.RequiredComponents{
 		ClusterAgent: feature.RequiredComponent{
@@ -92,6 +92,11 @@ func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateMana
 		Value: "true",
 	})
 
+	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  DDAutoscalingFailoverEnabled,
+		Value: "true",
+	})
+
 	return nil
 }
 
@@ -105,6 +110,16 @@ func (f *autoscalingFeature) ManageSingleContainerNodeAgent(managers feature.Pod
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *autoscalingFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  DDAutoscalingFailoverEnabled,
+		Value: "true",
+	})
+
+	managers.EnvVar().AddEnvVarToContainer(apicommon.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  DDAutoscalingFailoverMetrics,
+		Value: defaultFailoverMetrics,
+	})
+
 	return nil
 }
 

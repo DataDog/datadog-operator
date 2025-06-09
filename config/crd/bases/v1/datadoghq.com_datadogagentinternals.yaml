@@ -1293,6 +1293,11 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        nonLocalTraffic:
+                          description: |-
+                            NonLocalTraffic enables non-local traffic for Dogstatsd.
+                            Default: true
+                          type: boolean
                         originDetectionEnabled:
                           description: |-
                             OriginDetectionEnabled enables origin detection for container tagging.
@@ -4038,6 +4043,48 @@ spec:
                             name:
                               description: Name of the container that is overridden
                               type: string
+                            ports:
+                              description: |-
+                                Specify additional ports to be exposed by the container. Not specifying a port here
+                                DOES NOT prevent that port from being exposed.
+                                See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+                              items:
+                                description: ContainerPort represents a network port in a single container.
+                                properties:
+                                  containerPort:
+                                    description: |-
+                                      Number of port to expose on the pod's IP address.
+                                      This must be a valid port number, 0 < x < 65536.
+                                    format: int32
+                                    type: integer
+                                  hostIP:
+                                    description: What host IP to bind the external port to.
+                                    type: string
+                                  hostPort:
+                                    description: |-
+                                      Number of port to expose on the host.
+                                      If specified, this must be a valid port number, 0 < x < 65536.
+                                      If HostNetwork is specified, this must match ContainerPort.
+                                      Most containers do not need this.
+                                    format: int32
+                                    type: integer
+                                  name:
+                                    description: |-
+                                      If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
+                                      named port in a pod must have a unique name. Name for the port that can be
+                                      referred to by services.
+                                    type: string
+                                  protocol:
+                                    default: TCP
+                                    description: |-
+                                      Protocol for port. Must be UDP, TCP, or SCTP.
+                                      Defaults to "TCP".
+                                    type: string
+                                required:
+                                  - containerPort
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
                             readinessProbe:
                               description: Configure the Readiness Probe of the container
                               properties:
@@ -8825,6 +8872,11 @@ spec:
                                       type: string
                                   type: object
                               type: object
+                            nonLocalTraffic:
+                              description: |-
+                                NonLocalTraffic enables non-local traffic for Dogstatsd.
+                                Default: true
+                              type: boolean
                             originDetectionEnabled:
                               description: |-
                                 OriginDetectionEnabled enables origin detection for container tagging.

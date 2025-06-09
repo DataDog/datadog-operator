@@ -909,6 +909,11 @@ func (in *DatadogAgentGenericContainer) DeepCopyInto(out *DatadogAgentGenericCon
 		*out = new(string)
 		**out = **in
 	}
+	if in.Ports != nil {
+		in, out := &in.Ports, &out.Ports
+		*out = make([]corev1.ContainerPort, len(*in))
+		copy(*out, *in)
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]corev1.EnvVar, len(*in))
@@ -1352,6 +1357,11 @@ func (in *DogstatsdFeatureConfig) DeepCopyInto(out *DogstatsdFeatureConfig) {
 		in, out := &in.MapperProfiles, &out.MapperProfiles
 		*out = new(CustomConfig)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.NonLocalTraffic != nil {
+		in, out := &in.NonLocalTraffic, &out.NonLocalTraffic
+		*out = new(bool)
+		**out = **in
 	}
 }
 
