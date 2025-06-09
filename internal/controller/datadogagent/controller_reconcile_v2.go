@@ -39,18 +39,13 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 	}
 
 	// 2. Handle finalizer logic.
-	if r.options.DatadogAgentInternalEnabled {
-		if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDDAWithDDAI); utils.ShouldReturn(result, err) {
-			return result, err
-		}
-	}
 	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	// 3. Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
-	defaults.DefaultDatadogAgent(instanceCopy)
+	defaults.DefaultDatadogAgentSpec(&instanceCopy.Spec)
 
 	// 4. Delegate to the main reconcile function.
 	if r.options.DatadogAgentInternalEnabled {

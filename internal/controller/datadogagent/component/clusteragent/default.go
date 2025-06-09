@@ -171,16 +171,37 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 			Value: strconv.Itoa(int(constants.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallId,
-			Value: utils.GetDatadogAgentResourceUID(dda),
+			Name: common.DDAPMInstrumentationInstallId,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallIdKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallTime,
-			Value: utils.GetDatadogAgentResourceCreationTime(dda),
+			Name: common.DDAPMInstrumentationInstallTime,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTimeKey,
+				},
+			},
 		},
 		{
-			Name:  common.DDAPMInstrumentationInstallType,
-			Value: common.DefaultAgentInstallType,
+			Name: common.DDAPMInstrumentationInstallType,
+			ValueFrom: &corev1.EnvVarSource{
+				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: common.APMTelemetryConfigMapName,
+					},
+					Key: common.APMTelemetryInstallTypeKey,
+				},
+			},
 		},
 		{
 			Name:  DDAuthTokenFilePath,
@@ -188,7 +209,7 @@ func defaultEnvVars(dda *v2alpha1.DatadogAgent) []corev1.EnvVar {
 		},
 		{
 			Name:  DDClusterAgentServiceAccountName,
-			Value: constants.GetClusterAgentServiceAccount(dda),
+			Value: constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 		},
 		{
 			Name:  DDAgentDaemonSet,
