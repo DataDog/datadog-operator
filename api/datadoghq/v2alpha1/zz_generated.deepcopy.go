@@ -2444,6 +2444,11 @@ func (in *OtelCollectorFeatureConfig) DeepCopyInto(out *OtelCollectorFeatureConf
 			}
 		}
 	}
+	if in.CreateRbac != nil {
+		in, out := &in.CreateRbac, &out.CreateRbac
+		*out = new(bool)
+		**out = **in
+	}
 	if in.CoreConfig != nil {
 		in, out := &in.CoreConfig, &out.CoreConfig
 		*out = new(CoreConfig)

@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/images"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -72,9 +73,52 @@ var (
 			value:   "60",
 		},
 	}
+
+	otelCollectorWithK8sattr = `
+receivers:
+  otlp:
+exporters:
+  datadog:
+    api:
+      key: ""
+processors:
+  k8sattributes:
+  k8sattributes/2:
+    passthrough: false
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [k8sattributes]
+      exporters: [datadog]
+    logs:
+      receivers: [otlp]
+      processors: [k8sattributes/2]
+      exporters: [datadog]`
+
+	otelCollectorWithK8sPassthrough = `
+receivers:
+  otlp:
+exporters:
+  datadog:
+    api:
+      key: ""
+processors:
+  k8sattributes:
+    passthrough: true
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [k8sattributes]
+      exporters: [datadog]`
 )
 
-var defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "c609e2fb7352676a67f0423b58970d43"}
+var (
+	defaultAnnotations = map[string]string{"checksum/otel_agent-custom-config": "c609e2fb7352676a67f0423b58970d43"}
+	k8sattrAnnotations = map[string]string{"checksum/otel_agent-custom-config": "63221702e9c19d4ab236b9ac9707b60e"}
+	k8sPassAnnotations = map[string]string{"checksum/otel_agent-custom-config": "509ba152a3e96df2ffd1b750b0610145"}
+)
 
 func Test_otelCollectorFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
@@ -111,9 +155,16 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				WithOTelCollectorEnabled(true).
 				WithOTelCollectorConfigMap().
 				Build(),
-			WantConfigure:        true,
-			WantDependenciesFunc: testExpectedDepsCreatedCM,
-			Agent:                testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars, map[string]string{}),
+			StoreInitFunc: initExternalCM(
+				"otel-config.yaml",
+				defaultconfig.DefaultOtelCollectorConfig,
+			),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
+				testConfigMapIsNotCreated(t, store)
+				testRBACIsNotCreated(t, store)
+			},
+			Agent: testExpectedAgent(apicommon.OtelAgent, defaultExpectedPorts, "user-provided-config-map", defaultExpectedEnvVars, map[string]string{}),
 		},
 		{
 			Name: "otel agent enabled without config",
@@ -140,6 +191,129 @@ func Test_otelCollectorFeature_Configure(t *testing.T) {
 				defaultExpectedEnvVars,
 				map[string]string{"checksum/otel_agent-custom-config": "8fd9e6854714be53bd838063a4111c96"},
 			),
+		},
+		{
+			Name: "otel agent enabled with k8sattribute config without RBAC",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigData(otelCollectorWithK8sattr).
+				WithOTelCollectorCreateRBAC(false).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
+				testConfigMapIsCreated(t, store, otelCollectorWithK8sattr)
+				testRBACIsNotCreated(t, store)
+			},
+			Agent: testExpectedAgent(
+				apicommon.OtelAgent,
+				defaultExpectedPorts,
+				defaultLocalObjectReferenceName,
+				defaultExpectedEnvVars,
+				k8sattrAnnotations,
+			),
+		},
+		{
+			Name: "otel agent enabled without k8sattribute config with RBAC",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfig().
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
+				testConfigMapIsCreated(t, store, defaultconfig.DefaultOtelCollectorConfig)
+				testRBACIsNotCreated(t, store)
+			},
+			Agent: testExpectedAgent(
+				apicommon.OtelAgent,
+				defaultExpectedPorts,
+				defaultLocalObjectReferenceName,
+				defaultExpectedEnvVars,
+				defaultAnnotations,
+			),
+		},
+		{
+			Name: "otel agent enabled with k8sattribute passthrough config with RBAC",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigData(otelCollectorWithK8sPassthrough).
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
+				testConfigMapIsCreated(t, store, otelCollectorWithK8sPassthrough)
+				testRBACIsNotCreated(t, store)
+			},
+			Agent: testExpectedAgent(
+				apicommon.OtelAgent,
+				defaultExpectedPorts,
+				defaultLocalObjectReferenceName,
+				defaultExpectedEnvVars,
+				k8sPassAnnotations,
+			),
+		},
+		{
+			Name: "otel agent enabled with external configMap with RBAC",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigMap().
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			StoreInitFunc: initExternalCM("otel-config.yaml", otelCollectorWithK8sattr),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store store.StoreClient) {
+				testConfigMapIsNotCreated(t, store)
+				testRBACIsCreated(t, store)
+			},
+			Agent: testExpectedAgent(
+				apicommon.OtelAgent,
+				defaultExpectedPorts,
+				"user-provided-config-map",
+				defaultExpectedEnvVars,
+				map[string]string{},
+			),
+		},
+		{
+			Name: "otel agent enabled with RBAC and invalid config",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigData("invalid yaml as otel config").
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
+			Name: "otel agent enabled with RBAC and invalid external CM",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigMap().
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			StoreInitFunc:             initExternalCM("otel-config.yaml", "invalid yaml as otel config"),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
+			Name: "otel agent enabled with RBAC and external CM with wrong key",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigMap().
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			StoreInitFunc:             initExternalCM("wrong-path.yaml", otelCollectorWithK8sattr),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
+		},
+		{
+			Name: "otel agent enabled with empty config",
+			DDA: testutils.NewDatadogAgentBuilder().
+				WithOTelCollectorEnabled(true).
+				WithOTelCollectorConfigData("").
+				WithOTelCollectorCreateRBAC(true).
+				Build(),
+			WantConfigure:             true,
+			WantManageDependenciesErr: true,
 		},
 		// coreconfig
 		{
@@ -405,4 +579,69 @@ func testExpectedDepsCreatedCM(t testing.TB, store store.StoreClient) {
 		apiutils.IsEqualStruct(configMap.Data, expectedCM),
 		"ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM),
 	)
+
+	// check RBAC
+	_, found = store.Get(kubernetes.ClusterRoleBindingKind, "", "-otel-agent")
+	assert.False(t, found)
+}
+
+// func initExternalCM(store store.StoreClient) {
+// 	obj, _ := store.GetOrCreate(kubernetes.ConfigMapKind, "", "user-provided-config-map")
+// 	cm := obj.(*corev1.ConfigMap)
+// 	cm.Data = map[string]string{"otel-config.yaml": otelCollectorWithK8sattr}
+// 	store.AddOrUpdate(kubernetes.ConfigMapKind, cm)
+// }
+
+func initExternalCM(k, v string) func(store store.StoreClient) {
+	return func(store store.StoreClient) {
+		obj, _ := store.GetOrCreate(kubernetes.ConfigMapKind, "", "user-provided-config-map")
+		cm := obj.(*corev1.ConfigMap)
+		cm.Data = map[string]string{k: v}
+		store.AddOrUpdate(kubernetes.ConfigMapKind, cm)
+	}
+}
+
+func testConfigMapIsCreated(t testing.TB, store store.StoreClient, configData string) {
+	configMapObject, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+	assert.True(t, found)
+
+	configMap := configMapObject.(*corev1.ConfigMap)
+	expectedCM := map[string]string{"otel-config.yaml": configData}
+	assert.True(t, apiutils.IsEqualStruct(configMap.Data, expectedCM), "ConfigMap \ndiff = %s", cmp.Diff(configMap.Data, expectedCM))
+}
+
+func testConfigMapIsNotCreated(t testing.TB, store store.StoreClient) {
+	_, found := store.Get(kubernetes.ConfigMapKind, "", "-otel-agent-config")
+	assert.False(t, found)
+}
+
+func testRBACIsCreated(t testing.TB, store store.StoreClient) {
+	_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-otel-agent")
+	assert.True(t, found)
+
+	obj, found := store.Get(kubernetes.ClusterRolesKind, "", "-otel-agent")
+	assert.True(t, found)
+	role := obj.(*rbacv1.ClusterRole)
+	assert.Equal(t, role.Rules, []rbacv1.PolicyRule{
+		rbacv1.PolicyRule{
+			APIGroups: []string{""},
+			Resources: []string{"pods", "namespaces"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		rbacv1.PolicyRule{
+			APIGroups: []string{"apps"},
+			Resources: []string{"replicasets"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		rbacv1.PolicyRule{
+			APIGroups: []string{"extensions"},
+			Resources: []string{"replicasets"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+	})
+}
+
+func testRBACIsNotCreated(t testing.TB, store store.StoreClient) {
+	_, found := store.Get(kubernetes.ClusterRoleBindingKind, "", "-otel-agent")
+	assert.False(t, found)
 }

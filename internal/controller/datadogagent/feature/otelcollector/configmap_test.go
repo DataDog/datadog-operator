@@ -8,7 +8,6 @@ package otelcollector
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/otelcollector/defaultconfig"
 	"github.com/stretchr/testify/assert"
@@ -37,10 +36,8 @@ func Test_buildOtelCollectorConfigMap(t *testing.T) {
 		Name: "-otel-agent-config",
 	}
 	otelCollectorFeature.configMapName = "-otel-agent-config"
-	otelCollectorFeature.customConfig = &v2alpha1.CustomConfig{}
-	otelCollectorFeature.customConfig.ConfigData = &defaultconfig.DefaultOtelCollectorConfig
 
-	configMap, err := otelCollectorFeature.buildOTelAgentCoreConfigMap()
+	configMap, err := otelCollectorFeature.buildOTelAgentCoreConfigMap(&defaultconfig.DefaultOtelCollectorConfig)
 	assert.NoError(t, err)
 	assert.Equal(t, configMapWant, configMap)
 }
