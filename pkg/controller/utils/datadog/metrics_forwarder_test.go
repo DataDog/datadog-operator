@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -222,7 +221,7 @@ func Test_setupFromOperator(t *testing.T) {
 			if tt.loadFunc != nil {
 				tt.loadFunc(mf, d)
 			}
-			err := mf.setupFromOperator()
+			_, err := mf.setupFromOperator()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.setupFromOperator() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -292,7 +291,7 @@ func Test_setupFromDDA(t *testing.T) {
 				credsManager: config.NewCredentialManager(),
 			}
 
-			err := mf.setupFromDDA(tt.dda)
+			err := mf.setupFromDDA(tt.dda, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.setupFromDDA() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -476,64 +475,6 @@ func Test_getCredentialsFromDDA(t *testing.T) {
 	}
 }
 
-func TestMetricsForwarder_setTags(t *testing.T) {
-	tests := []struct {
-		name        string
-		clusterName string
-		labels      map[string]string
-		want        []string
-	}{
-		{
-			name:   "empty labels",
-			labels: map[string]string{},
-			want:   []string{},
-		},
-		{
-			name: "with labels",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-		{
-			name:        "with clustername",
-			clusterName: "testcluster",
-			want: []string{
-				"cluster_name:testcluster",
-			},
-		},
-		{
-			name:        "with clustername and labels",
-			clusterName: "testcluster",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"cluster_name:testcluster",
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dd := &metricsForwarder{}
-			dd.updateTags(tt.clusterName, tt.labels)
-
-			sort.Strings(dd.tags)
-			sort.Strings(tt.want)
-			if !reflect.DeepEqual(dd.tags, tt.want) {
-				t.Errorf("metricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
-			}
-		})
-	}
-}
-
 func Test_metricsForwarder_processReconcileError(t *testing.T) {
 	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(
 		nil,
@@ -563,7 +504,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new unknown error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -579,7 +520,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new auth error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -595,7 +536,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f

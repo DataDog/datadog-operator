@@ -32,7 +32,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
@@ -88,18 +87,34 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorCl
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
-func (r *Reconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
-	res, err := r.internalReconcile(ctx, instance)
+func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	// Get instance
+	instance := &datadoghqv1alpha1.DatadogMonitor{}
+	err := r.client.Get(ctx, request.NamespacedName, instance)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return ctrl.Result{}, nil
+
+		}
+		// Error reading the object - return error so it gets requeued
+		return ctrl.Result{}, err
+	}
+
+	res, err := r.internalReconcile(ctx, request, instance)
 
 	if r.operatorMetricsEnabled {
 		r.forwarders.ProcessError(instance, err)
 	}
+
 	return res, err
 }
 
 // Reconcile loop for DatadogMonitor
-func (r *Reconciler) internalReconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
-	logger := r.log.WithValues("datadogmonitor", pkgutils.GetNamespacedName(instance))
+func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request, instance *datadoghqv1alpha1.DatadogMonitor) (reconcile.Result, error) {
+	logger := r.log.WithValues("datadogmonitor", req.NamespacedName)
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
 	forceSyncPeriod := defaultForceSyncPeriod

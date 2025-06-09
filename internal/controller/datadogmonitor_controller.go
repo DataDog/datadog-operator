@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogmonitor"
@@ -40,8 +39,8 @@ type DatadogMonitorReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile loop for DatadogMonitor.
-func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, instance *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
-	return r.internal.Reconcile(ctx, instance)
+func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return r.internal.Reconcile(ctx, req)
 }
 
 // SetupWithManager creates a new DatadogMonitor controller.
@@ -65,8 +64,7 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager, metricForw
 		}))
 	}
 
-	or := reconcile.AsReconciler[*datadoghqv1alpha1.DatadogMonitor](r.Client, r)
-	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(or); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogMonitor{}, builderOptions...).WithEventFilter(predicate.GenerationChangedPredicate{}).Complete(r); err != nil {
 		return err
 	}
 

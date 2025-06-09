@@ -364,7 +364,6 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	}
 
 	mf.logger.V(1).Info("Collecting metrics")
-	// mf.updateTags()
 
 	// Send status-based metrics
 	if err = mf.sendStatusMetrics(mf.dsStatus, mf.dcaStatus, mf.ccrStatus); err != nil {
@@ -596,16 +595,6 @@ func (mf *metricsForwarder) delegatedSendDeploymentMetric(metricValue float64, c
 		},
 	}
 	return mf.datadogClient.PostMetrics(serie)
-}
-
-// updateTags updates tags of the metrics forwarder
-func (mf *metricsForwarder) updateTags() {
-	if mf.clusterName != "" {
-		mf.tags = append(mf.tags, fmt.Sprintf(clusterNameTagFormat, mf.clusterName))
-	}
-	for labelKey, labelValue := range mf.labels {
-		mf.tags = append(mf.tags, fmt.Sprintf("%s:%s", labelKey, labelValue))
-	}
 }
 
 // initGlobalTags defines the Custom Resource namespace and name tags
