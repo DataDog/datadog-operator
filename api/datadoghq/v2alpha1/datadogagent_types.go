@@ -965,7 +965,7 @@ type Profile struct {
 
 	// SecurityContext specifies the security context for the profile.
 	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"` // example of how adding k8s api type
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KubernetesAdmissionEventsConfig struct {
