@@ -965,7 +965,7 @@ type Profile struct {
 
 	// SecurityContext specifies the security context for the profile.
 	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"` // example of how adding k8s api type
 }
 
 type KubernetesAdmissionEventsConfig struct {
@@ -1778,6 +1778,11 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
+
+	// How to spread matching pods among the given topology
+	// +optional
+	// +listType=atomic
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
