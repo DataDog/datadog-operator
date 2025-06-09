@@ -36,6 +36,12 @@ func addDependencies(logger logr.Logger, ddai *v1alpha1.DatadogAgentInternal, ma
 		errs = append(errs, err)
 	}
 
+	// APM Telemetry
+	// This is managed by the DDA controller.
+	// if err := AddAPMTelemetryDependencies(logger, dda, manager); err != nil {
+	// 	errs = append(errs, err)
+	// }
+
 	// Credentials
 	if err := addCredentialDependencies(logger, ddai, manager); err != nil {
 		errs = append(errs, err)
