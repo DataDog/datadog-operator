@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/stretchr/testify/require"
@@ -30,7 +32,7 @@ func (df *dummyFeature) ID() feature.IDType {
 }
 
 // Configure returns a predefined RequiredComponents value.
-func (df *dummyFeature) Configure(ddai *datadoghqv1alpha1.DatadogAgentInternal) feature.RequiredComponents {
+func (df *dummyFeature) Configure(ddai metav1.Object, ddaiSpec *v2alpha1.DatadogAgentSpec, ddaiRCStatus *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	return df.ConfigureReturn
 }
 
@@ -45,12 +47,12 @@ func (df *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers)
 }
 
 // ManageNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (df *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageNodeAgentError
 }
 
 // ManageSingleContainerNodeAgent returns a predefined error (or nil for success).
-func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers) error {
+func (df *dummyFeature) ManageSingleContainerNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	return df.ManageSingleContainerAgentError
 }
 
