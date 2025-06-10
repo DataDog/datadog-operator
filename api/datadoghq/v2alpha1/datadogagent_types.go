@@ -1784,9 +1784,13 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
 
-	// How to spread matching pods among the given topology
+	// TopologySpreadConstraints describes how a group of pods ought to spread across topology
+	// domains. Scheduler will schedule pods in a way which abides by the constraints.
+	// All topologySpreadConstraints are ANDed.
 	// +optional
-	// +listType=atomic
+	// +listType=map
+	// +listMapKey=topologyKey
+	// +listMapKey=whenUnsatisfiable
 	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
