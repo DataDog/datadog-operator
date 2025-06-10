@@ -267,15 +267,23 @@ e2e:
       set +e
       echo "Running e2e test with target image $TARGET_IMAGE"
       IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests 
-      echo $? > exit_code.txt
+      echo "$CI_JOB_ID,$VARIANT,$EXIT_CODE" > result_${CI_JOB_ID}.csv
       set -e
     - echo "test finished with exit code:"
-    - cat exit_code.txt
-    - echo "exiting"
+    - cat result_${CI_JOB_ID}.csv
     - exit 0
   artifacts:
     reports:
-      junit: e2e-test-results.xml
+      junit: result_${CI_JOB_ID}.csv
+
+aggregate_e2e_results:
+  stage: evaluate
+  needs: ["e2e"]
+  rules:
+    - when: always
+  script:
+    - cat result_*.csv > result.csv
+    - cat result.csv
 
 publish_public_main:
   stage: release
