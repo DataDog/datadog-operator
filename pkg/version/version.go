@@ -81,8 +81,3 @@ func printVersionSlice() []string {
 		fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH),
 	}
 }
-
-// GetVersion returns the operator version
-func GetVersion() string {
-	return Version
-}
