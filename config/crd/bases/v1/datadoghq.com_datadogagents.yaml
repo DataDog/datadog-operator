@@ -5516,7 +5516,10 @@ spec:
                         type: array
                         x-kubernetes-list-type: atomic
                       topologySpreadConstraints:
-                        description: How to spread matching pods among the given topology
+                        description: |-
+                          TopologySpreadConstraints describes how a group of pods ought to spread across topology
+                          domains. Scheduler will schedule pods in a way which abides by the constraints.
+                          All topologySpreadConstraints are ANDed.
                         items:
                           description: TopologySpreadConstraint specifies how to spread matching pods among the given topology.
                           properties:
@@ -5688,7 +5691,10 @@ spec:
                             - whenUnsatisfiable
                           type: object
                         type: array
-                        x-kubernetes-list-type: atomic
+                        x-kubernetes-list-map-keys:
+                          - topologyKey
+                          - whenUnsatisfiable
+                        x-kubernetes-list-type: map
                       updateStrategy:
                         description: The deployment strategy to use to replace existing pods with new ones.
                         properties:

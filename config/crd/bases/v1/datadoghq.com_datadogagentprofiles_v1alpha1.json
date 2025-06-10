@@ -5480,7 +5480,7 @@
                     "x-kubernetes-list-type": "atomic"
                   },
                   "topologySpreadConstraints": {
-                    "description": "How to spread matching pods among the given topology",
+                    "description": "TopologySpreadConstraints describes how a group of pods ought to spread across topology\ndomains. Scheduler will schedule pods in a way which abides by the constraints.\nAll topologySpreadConstraints are ANDed.",
                     "items": {
                       "additionalProperties": false,
                       "description": "TopologySpreadConstraint specifies how to spread matching pods among the given topology.",
@@ -5575,7 +5575,11 @@
                       "type": "object"
                     },
                     "type": "array",
-                    "x-kubernetes-list-type": "atomic"
+                    "x-kubernetes-list-map-keys": [
+                      "topologyKey",
+                      "whenUnsatisfiable"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   },
                   "updateStrategy": {
                     "additionalProperties": false,

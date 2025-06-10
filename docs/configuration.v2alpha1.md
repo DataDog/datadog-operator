@@ -441,7 +441,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].serviceAccountAnnotations `map[string]string` | Sets the ServiceAccountAnnotations used by this component. |
 | [key].serviceAccountName | Sets the ServiceAccount used by this component. Ignored if the field CreateRbac is true. |
 | [key].tolerations `[]object` | Configure the component tolerations. |
-| [key].topologySpreadConstraints `[]object` | How to spread matching pods among the given topology |
+| [key].topologySpreadConstraints `[]object` | TopologySpreadConstraints describes how a group of pods ought to spread across topology domains. Scheduler will schedule pods in a way which abides by the constraints. All topologySpreadConstraints are ANDed. |
 | [key].updateStrategy.rollingUpdate.maxSurge | MaxSurge behaves differently based on the Kubernetes resource. Refer to the Kubernetes API documentation for additional details. |
 | [key].updateStrategy.rollingUpdate.maxUnavailable | The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Refer to the Kubernetes API documentation for additional details.. |
 | [key].updateStrategy.type | Type can be "RollingUpdate" or "OnDelete" for DaemonSets and "RollingUpdate" or "Recreate" for Deployments |
