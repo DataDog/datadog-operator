@@ -86,22 +86,21 @@ spec:
                               jmxEnabled:
                                 description: |-
                                   Define whether the Agent image should support JMX.
-                                  To be used if the `Name` field does not correspond to a full image string.
+                                  To be used if the Name field does not correspond to a full image string.
                                 type: boolean
                               name:
                                 description: |-
                                   Defines the Agent image name for the pod. You can provide this as:
-                                  * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
-                                  for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
-                                  * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
-                                  and `[key].image.jmxEnabled` are ignored.
-                                  * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
-                                    like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+                                  * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                    The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                                  * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                                  * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                    like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                                 type: string
                               pullPolicy:
                                 description: |-
                                   The Kubernetes pull policy:
-                                  Use `Always`, `Never`, or `IfNotPresent`.
+                                  Use Always, Never, or IfNotPresent.
                                 type: string
                               pullSecrets:
                                 description: |-
@@ -127,7 +126,7 @@ spec:
                               tag:
                                 description: |-
                                   Define the image tag to use.
-                                  To be used if the `Name` field does not correspond to a full image string.
+                                  To be used if the Name field does not correspond to a full image string.
                                 type: string
                             type: object
                           profiles:
@@ -324,199 +323,6 @@ spec:
                                         If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
                                         otherwise to an implementation-defined value. Requests cannot exceed Limits.
                                         More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                                      type: object
-                                  type: object
-                                securityContext:
-                                  description: SecurityContext specifies the security
-                                    context for the profile.
-                                  properties:
-                                    allowPrivilegeEscalation:
-                                      description: |-
-                                        AllowPrivilegeEscalation controls whether a process can gain more
-                                        privileges than its parent process. This bool directly controls if
-                                        the no_new_privs flag will be set on the container process.
-                                        AllowPrivilegeEscalation is true always when the container is:
-                                        1) run as Privileged
-                                        2) has CAP_SYS_ADMIN
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      type: boolean
-                                    appArmorProfile:
-                                      description: |-
-                                        appArmorProfile is the AppArmor options to use by this container. If set, this profile
-                                        overrides the pod's appArmorProfile.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      properties:
-                                        localhostProfile:
-                                          description: |-
-                                            localhostProfile indicates a profile loaded on the node that should be used.
-                                            The profile must be preconfigured on the node to work.
-                                            Must match the loaded name of the profile.
-                                            Must be set if and only if type is "Localhost".
-                                          type: string
-                                        type:
-                                          description: |-
-                                            type indicates which kind of AppArmor profile will be applied.
-                                            Valid options are:
-                                              Localhost - a profile pre-loaded on the node.
-                                              RuntimeDefault - the container runtime's default profile.
-                                              Unconfined - no AppArmor enforcement.
-                                          type: string
-                                      required:
-                                      - type
-                                      type: object
-                                    capabilities:
-                                      description: |-
-                                        The capabilities to add/drop when running containers.
-                                        Defaults to the default set of capabilities granted by the container runtime.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      properties:
-                                        add:
-                                          description: Added capabilities
-                                          items:
-                                            description: Capability represent POSIX
-                                              capabilities type
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                        drop:
-                                          description: Removed capabilities
-                                          items:
-                                            description: Capability represent POSIX
-                                              capabilities type
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                      type: object
-                                    privileged:
-                                      description: |-
-                                        Run container in privileged mode.
-                                        Processes in privileged containers are essentially equivalent to root on the host.
-                                        Defaults to false.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      type: boolean
-                                    procMount:
-                                      description: |-
-                                        procMount denotes the type of proc mount to use for the containers.
-                                        The default value is Default which uses the container runtime defaults for
-                                        readonly paths and masked paths.
-                                        This requires the ProcMountType feature flag to be enabled.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      type: string
-                                    readOnlyRootFilesystem:
-                                      description: |-
-                                        Whether this container has a read-only root filesystem.
-                                        Default is false.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      type: boolean
-                                    runAsGroup:
-                                      description: |-
-                                        The GID to run the entrypoint of the container process.
-                                        Uses runtime default if unset.
-                                        May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                        PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      format: int64
-                                      type: integer
-                                    runAsNonRoot:
-                                      description: |-
-                                        Indicates that the container must run as a non-root user.
-                                        If true, the Kubelet will validate the image at runtime to ensure that it
-                                        does not run as UID 0 (root) and fail to start the container if it does.
-                                        If unset or false, no such validation will be performed.
-                                        May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                        PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                      type: boolean
-                                    runAsUser:
-                                      description: |-
-                                        The UID to run the entrypoint of the container process.
-                                        Defaults to user specified in image metadata if unspecified.
-                                        May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                        PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      format: int64
-                                      type: integer
-                                    seLinuxOptions:
-                                      description: |-
-                                        The SELinux context to be applied to the container.
-                                        If unspecified, the container runtime will allocate a random SELinux context for each
-                                        container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                        PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      properties:
-                                        level:
-                                          description: Level is SELinux level label
-                                            that applies to the container.
-                                          type: string
-                                        role:
-                                          description: Role is a SELinux role label
-                                            that applies to the container.
-                                          type: string
-                                        type:
-                                          description: Type is a SELinux type label
-                                            that applies to the container.
-                                          type: string
-                                        user:
-                                          description: User is a SELinux user label
-                                            that applies to the container.
-                                          type: string
-                                      type: object
-                                    seccompProfile:
-                                      description: |-
-                                        The seccomp options to use by this container. If seccomp options are
-                                        provided at both the pod & container level, the container options
-                                        override the pod options.
-                                        Note that this field cannot be set when spec.os.name is windows.
-                                      properties:
-                                        localhostProfile:
-                                          description: |-
-                                            localhostProfile indicates a profile defined in a file on the node should be used.
-                                            The profile must be preconfigured on the node to work.
-                                            Must be a descending path, relative to the kubelet's configured seccomp profile location.
-                                            Must be set if type is "Localhost". Must NOT be set for any other type.
-                                          type: string
-                                        type:
-                                          description: |-
-                                            type indicates which kind of seccomp profile will be applied.
-                                            Valid options are:
-
-                                            Localhost - a profile defined in a file on the node should be used.
-                                            RuntimeDefault - the container runtime default profile should be used.
-                                            Unconfined - no profile should be applied.
-                                          type: string
-                                      required:
-                                      - type
-                                      type: object
-                                    windowsOptions:
-                                      description: |-
-                                        The Windows specific settings applied to all containers.
-                                        If unspecified, the options from the PodSecurityContext will be used.
-                                        If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                        Note that this field cannot be set when spec.os.name is linux.
-                                      properties:
-                                        gmsaCredentialSpec:
-                                          description: |-
-                                            GMSACredentialSpec is where the GMSA admission webhook
-                                            (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
-                                            GMSA credential spec named by the GMSACredentialSpecName field.
-                                          type: string
-                                        gmsaCredentialSpecName:
-                                          description: GMSACredentialSpecName is the
-                                            name of the GMSA credential spec to use.
-                                          type: string
-                                        hostProcess:
-                                          description: |-
-                                            HostProcess determines if a container should be run as a 'Host Process' container.
-                                            All of a Pod's containers must have the same effective HostProcess value
-                                            (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
-                                            In addition, if HostProcess is true then HostNetwork must also be set to true.
-                                          type: boolean
-                                        runAsUserName:
-                                          description: |-
-                                            The UserName in Windows to run the entrypoint of the container process.
-                                            Defaults to the user specified in image metadata if unspecified.
-                                            May also be set in PodSecurityContext. If set in both SecurityContext and
-                                            PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                          type: string
                                       type: object
                                   type: object
                               type: object
@@ -1382,11 +1188,6 @@ spec:
                                 type: string
                             type: object
                         type: object
-                      nonLocalTraffic:
-                        description: |-
-                          NonLocalTraffic enables non-local traffic for Dogstatsd.
-                          Default: true
-                        type: boolean
                       originDetectionEnabled:
                         description: |-
                           OriginDetectionEnabled enables origin detection for container tagging.
@@ -1930,7 +1731,7 @@ spec:
                       enabled:
                         description: |-
                           Enabled enables the OTel Agent.
-                          Default: false
+                          Default: true
                         type: boolean
                       ports:
                         description: |-
@@ -2153,17 +1954,6 @@ spec:
                           Enables the service discovery check.
                           Default: false
                         type: boolean
-                      networkStats:
-                        description: |-
-                          Enables the service discovery network stats collection.
-                          Default: true
-                        properties:
-                          enabled:
-                            description: |-
-                              Enables the Service Discovery Network Stats feature.
-                              Default: true
-                            type: boolean
-                        type: object
                     type: object
                   tcpQueueLength:
                     description: TCPQueueLength configuration.
@@ -2522,22 +2312,21 @@ spec:
                           jmxEnabled:
                             description: |-
                               Define whether the Agent image should support JMX.
-                              To be used if the `Name` field does not correspond to a full image string.
+                              To be used if the Name field does not correspond to a full image string.
                             type: boolean
                           name:
                             description: |-
                               Defines the Agent image name for the pod. You can provide this as:
-                              * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
-                              for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
-                              * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
-                              and `[key].image.jmxEnabled` are ignored.
-                              * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
-                                like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+                              * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                              * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                              * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                             type: string
                           pullPolicy:
                             description: |-
                               The Kubernetes pull policy:
-                              Use `Always`, `Never`, or `IfNotPresent`.
+                              Use Always, Never, or IfNotPresent.
                             type: string
                           pullSecrets:
                             description: |-
@@ -2563,7 +2352,7 @@ spec:
                           tag:
                             description: |-
                               Define the image tag to use.
-                              To be used if the `Name` field does not correspond to a full image string.
+                              To be used if the Name field does not correspond to a full image string.
                             type: string
                         type: object
                       localAddress:
@@ -2957,12 +2746,6 @@ spec:
                           Whether to create a global permission allowing Datadog agents to read all Kubernetes secrets.
                           Default: `false`.
                         type: boolean
-                      refreshInterval:
-                        description: |-
-                          The refresh interval for secrets (0 disables refreshing).
-                          Default: `0`.
-                        format: int32
-                        type: integer
                       roles:
                         description: |-
                           Roles for Datadog to read the specified secrets, replacing `enableGlobalPermissions`.
@@ -3017,11 +2800,6 @@ spec:
                       type: string
                     type: array
                     x-kubernetes-list-type: set
-                  useFIPSAgent:
-                    description: |-
-                      UseFIPSAgent enables the FIPS flavor of the Agent. If 'true', the FIPS proxy will always be disabled.
-                      Default: 'false'
-                    type: boolean
                 type: object
               override:
                 additionalProperties:
@@ -4122,8 +3900,7 @@ spec:
                             description: Configure the Liveness Probe of the container
                             properties:
                               exec:
-                                description: Exec specifies a command to execute in
-                                  the container.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: |-
@@ -4144,7 +3921,8 @@ spec:
                                 format: int32
                                 type: integer
                               grpc:
-                                description: GRPC specifies a GRPC HealthCheckRequest.
+                                description: GRPC specifies an action involving a
+                                  GRPC port.
                                 properties:
                                   port:
                                     description: Port number of the gRPC service.
@@ -4163,8 +3941,8 @@ spec:
                                 - port
                                 type: object
                               httpGet:
-                                description: HTTPGet specifies an HTTP GET request
-                                  to perform.
+                                description: HTTPGet specifies the http request to
+                                  perform.
                                 properties:
                                   host:
                                     description: |-
@@ -4231,8 +4009,8 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: TCPSocket specifies a connection to a
-                                  TCP port.
+                                description: TCPSocket specifies an action involving
+                                  a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to,
@@ -4281,56 +4059,11 @@ spec:
                           name:
                             description: Name of the container that is overridden
                             type: string
-                          ports:
-                            description: |-
-                              Specify additional ports to be exposed by the container. Not specifying a port here
-                              DOES NOT prevent that port from being exposed.
-                              See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
-                            items:
-                              description: ContainerPort represents a network port
-                                in a single container.
-                              properties:
-                                containerPort:
-                                  description: |-
-                                    Number of port to expose on the pod's IP address.
-                                    This must be a valid port number, 0 < x < 65536.
-                                  format: int32
-                                  type: integer
-                                hostIP:
-                                  description: What host IP to bind the external port
-                                    to.
-                                  type: string
-                                hostPort:
-                                  description: |-
-                                    Number of port to expose on the host.
-                                    If specified, this must be a valid port number, 0 < x < 65536.
-                                    If HostNetwork is specified, this must match ContainerPort.
-                                    Most containers do not need this.
-                                  format: int32
-                                  type: integer
-                                name:
-                                  description: |-
-                                    If specified, this must be an IANA_SVC_NAME and unique within the pod. Each
-                                    named port in a pod must have a unique name. Name for the port that can be
-                                    referred to by services.
-                                  type: string
-                                protocol:
-                                  default: TCP
-                                  description: |-
-                                    Protocol for port. Must be UDP, TCP, or SCTP.
-                                    Defaults to "TCP".
-                                  type: string
-                              required:
-                              - containerPort
-                              type: object
-                            type: array
-                            x-kubernetes-list-type: atomic
                           readinessProbe:
                             description: Configure the Readiness Probe of the container
                             properties:
                               exec:
-                                description: Exec specifies a command to execute in
-                                  the container.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: |-
@@ -4351,7 +4084,8 @@ spec:
                                 format: int32
                                 type: integer
                               grpc:
-                                description: GRPC specifies a GRPC HealthCheckRequest.
+                                description: GRPC specifies an action involving a
+                                  GRPC port.
                                 properties:
                                   port:
                                     description: Port number of the gRPC service.
@@ -4370,8 +4104,8 @@ spec:
                                 - port
                                 type: object
                               httpGet:
-                                description: HTTPGet specifies an HTTP GET request
-                                  to perform.
+                                description: HTTPGet specifies the http request to
+                                  perform.
                                 properties:
                                   host:
                                     description: |-
@@ -4438,8 +4172,8 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: TCPSocket specifies a connection to a
-                                  TCP port.
+                                description: TCPSocket specifies an action involving
+                                  a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to,
@@ -4802,8 +4536,7 @@ spec:
                             description: Configure the Startup Probe of the container
                             properties:
                               exec:
-                                description: Exec specifies a command to execute in
-                                  the container.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: |-
@@ -4824,7 +4557,8 @@ spec:
                                 format: int32
                                 type: integer
                               grpc:
-                                description: GRPC specifies a GRPC HealthCheckRequest.
+                                description: GRPC specifies an action involving a
+                                  GRPC port.
                                 properties:
                                   port:
                                     description: Port number of the gRPC service.
@@ -4843,8 +4577,8 @@ spec:
                                 - port
                                 type: object
                               httpGet:
-                                description: HTTPGet specifies an HTTP GET request
-                                  to perform.
+                                description: HTTPGet specifies the http request to
+                                  perform.
                                 properties:
                                   host:
                                     description: |-
@@ -4911,8 +4645,8 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: TCPSocket specifies a connection to a
-                                  TCP port.
+                                description: TCPSocket specifies an action involving
+                                  a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to,
@@ -5125,12 +4859,9 @@ spec:
                               of a pod.
                             properties:
                               name:
-                                description: |-
-                                  Name is this DNS resolver option's name.
-                                  Required.
+                                description: Required.
                                 type: string
                               value:
-                                description: Value is this DNS resolver option's value.
                                 type: string
                             type: object
                           type: array
@@ -5455,22 +5186,21 @@ spec:
                         jmxEnabled:
                           description: |-
                             Define whether the Agent image should support JMX.
-                            To be used if the `Name` field does not correspond to a full image string.
+                            To be used if the Name field does not correspond to a full image string.
                           type: boolean
                         name:
                           description: |-
                             Defines the Agent image name for the pod. You can provide this as:
-                            * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
-                            for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
-                            * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
-                            and `[key].image.jmxEnabled` are ignored.
-                            * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
-                              like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+                            * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                              The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                            * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                            * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                              like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                           type: string
                         pullPolicy:
                           description: |-
                             The Kubernetes pull policy:
-                            Use `Always`, `Never`, or `IfNotPresent`.
+                            Use Always, Never, or IfNotPresent.
                           type: string
                         pullSecrets:
                           description: |-
@@ -5496,7 +5226,7 @@ spec:
                         tag:
                           description: |-
                             Define the image tag to use.
-                            To be used if the `Name` field does not correspond to a full image string.
+                            To be used if the Name field does not correspond to a full image string.
                           type: string
                       type: object
                     labels:
@@ -5506,7 +5236,6 @@ spec:
                         to the different component (Datadog Agent, Cluster Agent,
                         Cluster Check Runner) pods.
                       type: object
-                      x-kubernetes-map-type: granular
                     name:
                       description: Name overrides the default name for the resource
                       type: string
@@ -5615,32 +5344,6 @@ spec:
                             Note that this field cannot be set when spec.os.name is windows.
                           format: int64
                           type: integer
-                        seLinuxChangePolicy:
-                          description: |-
-                            seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.
-                            It has no effect on nodes that do not support SELinux or to volumes does not support SELinux.
-                            Valid values are "MountOption" and "Recursive".
-
-                            "Recursive" means relabeling of all files on all Pod volumes by the container runtime.
-                            This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.
-
-                            "MountOption" mounts all eligible Pod volumes with `-o context` mount option.
-                            This requires all Pods that share the same volume to use the same SELinux label.
-                            It is not possible to share the same volume among privileged and unprivileged Pods.
-                            Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes
-                            whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their
-                            CSIDriver instance. Other volumes are always re-labelled recursively.
-                            "MountOption" value is allowed only when SELinuxMount feature gate is enabled.
-
-                            If not specified and SELinuxMount feature gate is enabled, "MountOption" is used.
-                            If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes
-                            and "Recursive" for all other volumes.
-
-                            This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.
-
-                            All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.
-                            Note that this field cannot be set when spec.os.name is windows.
-                          type: string
                         seLinuxOptions:
                           description: |-
                             The SELinux context to be applied to all containers.
@@ -5862,8 +5565,6 @@ spec:
                             description: |-
                               awsElasticBlockStore represents an AWS Disk resource that is attached to a
                               kubelet's host machine and then exposed to the pod.
-                              Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree
-                              awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver.
                               More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore
                             properties:
                               fsType:
@@ -5895,10 +5596,8 @@ spec:
                             - volumeID
                             type: object
                           azureDisk:
-                            description: |-
-                              azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod.
-                              Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type
-                              are redirected to the disk.csi.azure.com CSI driver.
+                            description: azureDisk represents an Azure Data Disk mount
+                              on the host and bind mount to the pod.
                             properties:
                               cachingMode:
                                 description: 'cachingMode is the Host Caching mode:
@@ -5937,10 +5636,8 @@ spec:
                             - diskURI
                             type: object
                           azureFile:
-                            description: |-
-                              azureFile represents an Azure File Service mount on the host and bind mount to the pod.
-                              Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type
-                              are redirected to the file.csi.azure.com CSI driver.
+                            description: azureFile represents an Azure File Service
+                              mount on the host and bind mount to the pod.
                             properties:
                               readOnly:
                                 description: |-
@@ -5959,9 +5656,8 @@ spec:
                             - shareName
                             type: object
                           cephfs:
-                            description: |-
-                              cephFS represents a Ceph FS mount on the host that shares a pod's lifetime.
-                              Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.
+                            description: cephFS represents a Ceph FS mount on the
+                              host that shares a pod's lifetime
                             properties:
                               monitors:
                                 description: |-
@@ -6014,8 +5710,6 @@ spec:
                           cinder:
                             description: |-
                               cinder represents a cinder volume attached and mounted on kubelets host machine.
-                              Deprecated: Cinder is deprecated. All operations for the in-tree cinder type
-                              are redirected to the cinder.csi.openstack.org CSI driver.
                               More info: https://examples.k8s.io/mysql-cinder-pd/README.md
                             properties:
                               fsType:
@@ -6127,7 +5821,7 @@ spec:
                           csi:
                             description: csi (Container Storage Interface) represents
                               ephemeral storage that is handled by certain external
-                              CSI drivers.
+                              CSI drivers (Beta feature).
                             properties:
                               driver:
                                 description: |-
@@ -6595,7 +6289,6 @@ spec:
                             description: |-
                               flexVolume represents a generic volume resource that is
                               provisioned/attached using an exec based plugin.
-                              Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.
                             properties:
                               driver:
                                 description: driver is the name of the driver to use
@@ -6641,9 +6334,9 @@ spec:
                             - driver
                             type: object
                           flocker:
-                            description: |-
-                              flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running.
-                              Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.
+                            description: flocker represents a Flocker volume attached
+                              to a kubelet's host machine. This depends on the Flocker
+                              control service being running
                             properties:
                               datasetName:
                                 description: |-
@@ -6659,8 +6352,6 @@ spec:
                             description: |-
                               gcePersistentDisk represents a GCE Disk resource that is attached to a
                               kubelet's host machine and then exposed to the pod.
-                              Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree
-                              gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver.
                               More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
                             properties:
                               fsType:
@@ -6696,7 +6387,7 @@ spec:
                           gitRepo:
                             description: |-
                               gitRepo represents a git repository at a particular revision.
-                              Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an
+                              DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an
                               EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir
                               into the Pod's container.
                             properties:
@@ -6720,7 +6411,6 @@ spec:
                           glusterfs:
                             description: |-
                               glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime.
-                              Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.
                               More info: https://examples.k8s.io/volumes/glusterfs/README.md
                             properties:
                               endpoints:
@@ -6930,9 +6620,9 @@ spec:
                             - claimName
                             type: object
                           photonPersistentDisk:
-                            description: |-
-                              photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine.
-                              Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.
+                            description: photonPersistentDisk represents a PhotonController
+                              persistent disk attached and mounted on kubelets host
+                              machine
                             properties:
                               fsType:
                                 description: |-
@@ -6948,11 +6638,8 @@ spec:
                             - pdID
                             type: object
                           portworxVolume:
-                            description: |-
-                              portworxVolume represents a portworx volume attached and mounted on kubelets host machine.
-                              Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type
-                              are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate
-                              is on.
+                            description: portworxVolume represents a portworx volume
+                              attached and mounted on kubelets host machine
                             properties:
                               fsType:
                                 description: |-
@@ -7323,9 +7010,8 @@ spec:
                                 x-kubernetes-list-type: atomic
                             type: object
                           quobyte:
-                            description: |-
-                              quobyte represents a Quobyte mount on the host that shares a pod's lifetime.
-                              Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.
+                            description: quobyte represents a Quobyte mount on the
+                              host that shares a pod's lifetime
                             properties:
                               group:
                                 description: |-
@@ -7364,7 +7050,6 @@ spec:
                           rbd:
                             description: |-
                               rbd represents a Rados Block Device mount on the host that shares a pod's lifetime.
-                              Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported.
                               More info: https://examples.k8s.io/volumes/rbd/README.md
                             properties:
                               fsType:
@@ -7437,9 +7122,8 @@ spec:
                             - monitors
                             type: object
                           scaleIO:
-                            description: |-
-                              scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes.
-                              Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.
+                            description: scaleIO represents a ScaleIO persistent volume
+                              attached and mounted on Kubernetes nodes.
                             properties:
                               fsType:
                                 default: xfs
@@ -7572,9 +7256,8 @@ spec:
                                 type: string
                             type: object
                           storageos:
-                            description: |-
-                              storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes.
-                              Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.
+                            description: storageOS represents a StorageOS volume attached
+                              and mounted on Kubernetes nodes.
                             properties:
                               fsType:
                                 description: |-
@@ -7619,10 +7302,8 @@ spec:
                                 type: string
                             type: object
                           vsphereVolume:
-                            description: |-
-                              vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine.
-                              Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type
-                              are redirected to the csi.vsphere.vmware.com CSI driver.
+                            description: vsphereVolume represents a vSphere volume
+                              attached and mounted on kubelets host machine
                             properties:
                               fsType:
                                 description: |-
@@ -7961,22 +7642,21 @@ spec:
                                   jmxEnabled:
                                     description: |-
                                       Define whether the Agent image should support JMX.
-                                      To be used if the `Name` field does not correspond to a full image string.
+                                      To be used if the Name field does not correspond to a full image string.
                                     type: boolean
                                   name:
                                     description: |-
                                       Defines the Agent image name for the pod. You can provide this as:
-                                      * `<NAME>` - Use `agent` for the Datadog Agent, `cluster-agent` for the Datadog Cluster Agent, or `dogstatsd`
-                                      for DogStatsD. The full image string is derived from `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled`.
-                                      * `<NAME>:<TAG>` - For example, `agent:latest`. The registry is derived from `global.registry`. `[key].image.tag`
-                                      and `[key].image.jmxEnabled` are ignored.
-                                      * `<REGISTRY>/<NAME>:<TAG>` - For example, `gcr.io/datadoghq/agent:latest`. If the full image string is specified
-                                        like this, then `global.registry`, `[key].image.tag`, and `[key].image.jmxEnabled` are ignored.
+                                      * <NAME> - use agent for the Datadog Agent, cluster-agent for the Datadog Cluster Agent, or dogstatsd for DogStatsD.
+                                        The full image string is derived from global.registry, [key].image.tag, and [key].image.jmxEnabled.
+                                      * <NAME>:<TAG> - For example, agent:latest. The registry is derived from global.registry. [key].image.tag and [key].image.jmxEnabled are ignored.
+                                      * <REGISTRY>/<NAME>:<TAG> - For example, gcr.io/datadoghq/agent:latest. If the full image string is specified
+                                        like this, then global.registry, [key].image.tag, and [key].image.jmxEnabled are ignored.
                                     type: string
                                   pullPolicy:
                                     description: |-
                                       The Kubernetes pull policy:
-                                      Use `Always`, `Never`, or `IfNotPresent`.
+                                      Use Always, Never, or IfNotPresent.
                                     type: string
                                   pullSecrets:
                                     description: |-
@@ -8002,7 +7682,7 @@ spec:
                                   tag:
                                     description: |-
                                       Define the image tag to use.
-                                      To be used if the `Name` field does not correspond to a full image string.
+                                      To be used if the Name field does not correspond to a full image string.
                                     type: string
                                 type: object
                               profiles:
@@ -8203,200 +7883,6 @@ spec:
                                             If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
                                             otherwise to an implementation-defined value. Requests cannot exceed Limits.
                                             More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                                          type: object
-                                      type: object
-                                    securityContext:
-                                      description: SecurityContext specifies the security
-                                        context for the profile.
-                                      properties:
-                                        allowPrivilegeEscalation:
-                                          description: |-
-                                            AllowPrivilegeEscalation controls whether a process can gain more
-                                            privileges than its parent process. This bool directly controls if
-                                            the no_new_privs flag will be set on the container process.
-                                            AllowPrivilegeEscalation is true always when the container is:
-                                            1) run as Privileged
-                                            2) has CAP_SYS_ADMIN
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          type: boolean
-                                        appArmorProfile:
-                                          description: |-
-                                            appArmorProfile is the AppArmor options to use by this container. If set, this profile
-                                            overrides the pod's appArmorProfile.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          properties:
-                                            localhostProfile:
-                                              description: |-
-                                                localhostProfile indicates a profile loaded on the node that should be used.
-                                                The profile must be preconfigured on the node to work.
-                                                Must match the loaded name of the profile.
-                                                Must be set if and only if type is "Localhost".
-                                              type: string
-                                            type:
-                                              description: |-
-                                                type indicates which kind of AppArmor profile will be applied.
-                                                Valid options are:
-                                                  Localhost - a profile pre-loaded on the node.
-                                                  RuntimeDefault - the container runtime's default profile.
-                                                  Unconfined - no AppArmor enforcement.
-                                              type: string
-                                          required:
-                                          - type
-                                          type: object
-                                        capabilities:
-                                          description: |-
-                                            The capabilities to add/drop when running containers.
-                                            Defaults to the default set of capabilities granted by the container runtime.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          properties:
-                                            add:
-                                              description: Added capabilities
-                                              items:
-                                                description: Capability represent
-                                                  POSIX capabilities type
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                            drop:
-                                              description: Removed capabilities
-                                              items:
-                                                description: Capability represent
-                                                  POSIX capabilities type
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                          type: object
-                                        privileged:
-                                          description: |-
-                                            Run container in privileged mode.
-                                            Processes in privileged containers are essentially equivalent to root on the host.
-                                            Defaults to false.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          type: boolean
-                                        procMount:
-                                          description: |-
-                                            procMount denotes the type of proc mount to use for the containers.
-                                            The default value is Default which uses the container runtime defaults for
-                                            readonly paths and masked paths.
-                                            This requires the ProcMountType feature flag to be enabled.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          type: string
-                                        readOnlyRootFilesystem:
-                                          description: |-
-                                            Whether this container has a read-only root filesystem.
-                                            Default is false.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          type: boolean
-                                        runAsGroup:
-                                          description: |-
-                                            The GID to run the entrypoint of the container process.
-                                            Uses runtime default if unset.
-                                            May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                            PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          format: int64
-                                          type: integer
-                                        runAsNonRoot:
-                                          description: |-
-                                            Indicates that the container must run as a non-root user.
-                                            If true, the Kubelet will validate the image at runtime to ensure that it
-                                            does not run as UID 0 (root) and fail to start the container if it does.
-                                            If unset or false, no such validation will be performed.
-                                            May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                            PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                          type: boolean
-                                        runAsUser:
-                                          description: |-
-                                            The UID to run the entrypoint of the container process.
-                                            Defaults to user specified in image metadata if unspecified.
-                                            May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                            PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          format: int64
-                                          type: integer
-                                        seLinuxOptions:
-                                          description: |-
-                                            The SELinux context to be applied to the container.
-                                            If unspecified, the container runtime will allocate a random SELinux context for each
-                                            container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
-                                            PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          properties:
-                                            level:
-                                              description: Level is SELinux level
-                                                label that applies to the container.
-                                              type: string
-                                            role:
-                                              description: Role is a SELinux role
-                                                label that applies to the container.
-                                              type: string
-                                            type:
-                                              description: Type is a SELinux type
-                                                label that applies to the container.
-                                              type: string
-                                            user:
-                                              description: User is a SELinux user
-                                                label that applies to the container.
-                                              type: string
-                                          type: object
-                                        seccompProfile:
-                                          description: |-
-                                            The seccomp options to use by this container. If seccomp options are
-                                            provided at both the pod & container level, the container options
-                                            override the pod options.
-                                            Note that this field cannot be set when spec.os.name is windows.
-                                          properties:
-                                            localhostProfile:
-                                              description: |-
-                                                localhostProfile indicates a profile defined in a file on the node should be used.
-                                                The profile must be preconfigured on the node to work.
-                                                Must be a descending path, relative to the kubelet's configured seccomp profile location.
-                                                Must be set if type is "Localhost". Must NOT be set for any other type.
-                                              type: string
-                                            type:
-                                              description: |-
-                                                type indicates which kind of seccomp profile will be applied.
-                                                Valid options are:
-
-                                                Localhost - a profile defined in a file on the node should be used.
-                                                RuntimeDefault - the container runtime default profile should be used.
-                                                Unconfined - no profile should be applied.
-                                              type: string
-                                          required:
-                                          - type
-                                          type: object
-                                        windowsOptions:
-                                          description: |-
-                                            The Windows specific settings applied to all containers.
-                                            If unspecified, the options from the PodSecurityContext will be used.
-                                            If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                            Note that this field cannot be set when spec.os.name is linux.
-                                          properties:
-                                            gmsaCredentialSpec:
-                                              description: |-
-                                                GMSACredentialSpec is where the GMSA admission webhook
-                                                (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
-                                                GMSA credential spec named by the GMSACredentialSpecName field.
-                                              type: string
-                                            gmsaCredentialSpecName:
-                                              description: GMSACredentialSpecName
-                                                is the name of the GMSA credential
-                                                spec to use.
-                                              type: string
-                                            hostProcess:
-                                              description: |-
-                                                HostProcess determines if a container should be run as a 'Host Process' container.
-                                                All of a Pod's containers must have the same effective HostProcess value
-                                                (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
-                                                In addition, if HostProcess is true then HostNetwork must also be set to true.
-                                              type: boolean
-                                            runAsUserName:
-                                              description: |-
-                                                The UserName in Windows to run the entrypoint of the container process.
-                                                Defaults to the user specified in image metadata if unspecified.
-                                                May also be set in PodSecurityContext. If set in both SecurityContext and
-                                                PodSecurityContext, the value specified in SecurityContext takes precedence.
-                                              type: string
                                           type: object
                                       type: object
                                   type: object
@@ -9268,11 +8754,6 @@ spec:
                                     type: string
                                 type: object
                             type: object
-                          nonLocalTraffic:
-                            description: |-
-                              NonLocalTraffic enables non-local traffic for Dogstatsd.
-                              Default: true
-                            type: boolean
                           originDetectionEnabled:
                             description: |-
                               OriginDetectionEnabled enables origin detection for container tagging.
@@ -9820,7 +9301,7 @@ spec:
                           enabled:
                             description: |-
                               Enabled enables the OTel Agent.
-                              Default: false
+                              Default: true
                             type: boolean
                           ports:
                             description: |-
@@ -10048,17 +9529,6 @@ spec:
                               Enables the service discovery check.
                               Default: false
                             type: boolean
-                          networkStats:
-                            description: |-
-                              Enables the service discovery network stats collection.
-                              Default: true
-                            properties:
-                              enabled:
-                                description: |-
-                                  Enables the Service Discovery Network Stats feature.
-                                  Default: true
-                                type: boolean
-                            type: object
                         type: object
                       tcpQueueLength:
                         description: TCPQueueLength configuration.
