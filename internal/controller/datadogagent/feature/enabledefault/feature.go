@@ -46,11 +46,11 @@ func (f *defaultFeature) ID() feature.IDType {
 	return feature.DefaultIDType
 }
 
-func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *defaultFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	trueValue := true
 	f.owner = dda
 
-	if dda.ObjectMeta.Annotations != nil {
+	if dda.GetAnnotations() != nil {
 		f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 	}
 
