@@ -263,8 +263,27 @@ e2e:
   variables:
     TARGET_IMAGE: $E2E_DOCKER_REGISTRY:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   script:
-    - echo "Running e2e test with target image $TARGET_IMAGE"
-    - IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests
+    - |
+      set +e
+      echo "Running e2e test with target image $TARGET_IMAGE"
+      IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests 
+      echo "$CI_JOB_ID,$VARIANT,$EXIT_CODE" > result_${CI_JOB_ID}.csv
+      set -e
+    - echo "test finished with exit code:"
+    - cat result_${CI_JOB_ID}.csv
+    - exit 0
+  artifacts:
+    reports:
+      junit: result_${CI_JOB_ID}.csv
+
+aggregate_e2e_results:
+  stage: e2e
+  needs: ["e2e"]
+  rules:
+    - when: always
+  script:
+    - cat result_*.csv > result.csv
+    - cat result.csv
 
 publish_public_main:
   stage: release
