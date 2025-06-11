@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
@@ -41,7 +42,7 @@ func generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghq
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,
 		Namespace:   dda.Namespace,
-		Labels:      dda.Labels,
+		Labels:      getDDAILabels(dda),
 		Annotations: dda.Annotations,
 	}
 	if err := object.SetOwnerReference(dda, ddai, scheme); err != nil {
@@ -55,4 +56,16 @@ func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1a
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
 	return nil
+}
+
+// getDDAILabels adds the following labels to the DDAI:
+// - all DDA labels
+// - agent.datadoghq.com/datadogagent: <dda-name>
+func getDDAILabels(dda metav1.Object) map[string]string {
+	labels := make(map[string]string)
+	for k, v := range dda.GetLabels() {
+		labels[k] = v
+	}
+	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
+	return labels
 }
