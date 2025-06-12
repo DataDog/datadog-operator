@@ -51,7 +51,7 @@ func generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghq
 }
 
 func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
-	ddai.Spec = dda.Spec
+	ddai.Spec = *dda.Spec.DeepCopy()
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
 	return nil
