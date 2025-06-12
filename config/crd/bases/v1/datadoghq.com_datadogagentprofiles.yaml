@@ -1819,6 +1819,12 @@ spec:
                                     the core agent.
                                   type: string
                               type: object
+                            createRbac:
+                              description: |-
+                                Set CreateRbac to false to prevent automatic creation of ClusterRole for the otelCollector.
+                                If true, check OTel Collector config for k8sattributes processor and create required ClusterRole to access Kubernetes API
+                                Default: true
+                              type: boolean
                             enabled:
                               description: |-
                                 Enabled enables the OTel Agent.

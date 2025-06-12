@@ -1488,6 +1488,13 @@ func schema_datadog_operator_api_datadoghq_v2alpha1_OtelCollectorFeatureConfig(r
 							},
 						},
 					},
+					"createRbac": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set CreateRbac to false to prevent automatic creation of ClusterRole for the otelCollector. If true, check OTel Collector config for k8sattributes processor and create required ClusterRole to access Kubernetes API Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"coreConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "OTelCollector Config Relevant to the Core agent",

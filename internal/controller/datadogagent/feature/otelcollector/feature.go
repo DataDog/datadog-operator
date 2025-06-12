@@ -1,10 +1,12 @@
 package otelcollector
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/store"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/images"
@@ -41,11 +44,13 @@ func buildOtelCollectorFeature(options *feature.Options) feature.Feature {
 }
 
 type otelCollectorFeature struct {
-	customConfig    *v2alpha1.CustomConfig
-	owner           metav1.Object
-	configMapName   string
-	ports           []*corev1.ContainerPort
-	coreAgentConfig coreAgentConfig
+	customConfig       *v2alpha1.CustomConfig
+	owner              metav1.Object
+	configMapName      string
+	ports              []*corev1.ContainerPort
+	coreAgentConfig    coreAgentConfig
+	createRBAC         bool
+	serviceAccountName string
 
 	customConfigAnnotationKey   string
 	customConfigAnnotationValue string
@@ -95,6 +100,9 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 		o.ports = ddaSpec.Features.OtelCollector.Ports
 	}
 
+	o.createRBAC = apiutils.BoolValue(dda.Spec.Features.OtelCollector.CreateRbac)
+	o.serviceAccountName = constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
+
 	var reqComp feature.RequiredComponents
 	if apiutils.BoolValue(ddaSpec.Features.OtelCollector.Enabled) {
 		reqComp = feature.RequiredComponents{
@@ -106,64 +114,147 @@ func (o *otelCollectorFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.Da
 				},
 			},
 		}
-
 	}
 	return reqComp
 }
 
-func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap() (*corev1.ConfigMap, error) {
+// getEffectiveConfig returns the effective OpenTelemetry configuration
+// It handles both custom config and default config cases
+func (o *otelCollectorFeature) getEffectiveConfig(store store.StoreClient) (string, error) {
+	// if custom config is provided via ConfigData
 	if o.customConfig != nil && o.customConfig.ConfigData != nil {
-		cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add md5 hash annotation for configMap
-		o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
-		o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
-		if err != nil {
-			return cm, err
-		}
-
-		if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
-			annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
-			cm.SetAnnotations(annotations)
-		}
-
-		return cm, nil
+		return *o.customConfig.ConfigData, nil
 	}
-	return nil, nil
+
+	// if custom config is provided via ConfigMap
+	if o.customConfig != nil && o.customConfig.ConfigMap != nil {
+		ns := o.owner.GetNamespace()
+		name := o.customConfig.ConfigMap.Name
+
+		obj, ok := store.Get(kubernetes.ConfigMapKind, ns, name)
+		if !ok {
+			return "", fmt.Errorf("unable to get ConfigMap %s/%s from the store", ns, name)
+		}
+
+		cm, ok := obj.(*corev1.ConfigMap)
+		if !ok {
+			return "", fmt.Errorf("configMap %s/%s is not a corev1.ConfigMap", ns, name)
+		}
+
+		configData, ok := cm.Data[otelConfigFileName]
+		if !ok {
+			return "", fmt.Errorf("configMap %s/%s does not contain otel-config.yaml", ns, name)
+		}
+
+		return configData, nil
+	}
+
+	// use default config and override ports if needed
+	configData := defaultconfig.DefaultOtelCollectorConfig
+	for _, port := range o.ports {
+		if port.Name == "otel-grpc" {
+			configData = strings.Replace(configData, "4317", strconv.Itoa(int(port.ContainerPort)), 1)
+		}
+		if port.Name == "otel-http" {
+			configData = strings.Replace(configData, "4318", strconv.Itoa(int(port.ContainerPort)), 1)
+		}
+	}
+
+	return configData, nil
+}
+
+func (o *otelCollectorFeature) buildOTelAgentCoreConfigMap(configData *string) (*corev1.ConfigMap, error) {
+	if configData == nil {
+		return nil, fmt.Errorf("otelCollector configData is nil")
+	}
+	if *configData == "" {
+		return nil, fmt.Errorf("otelCollector configData is empty")
+	}
+
+	// if custom config is not provided, build one with the configData
+	if o.customConfig == nil {
+		o.customConfig = &v2alpha1.CustomConfig{ConfigData: configData}
+	}
+
+	cm, err := configmap.BuildConfigMapConfigData(o.owner.GetNamespace(), o.customConfig.ConfigData, o.configMapName, otelConfigFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add md5 hash annotation for configMap
+	o.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OtelAgentIDType)
+	o.customConfigAnnotationValue, err = comparison.GenerateMD5ForSpec(o.customConfig.ConfigData)
+	if err != nil {
+		return cm, err
+	}
+
+	if o.customConfigAnnotationKey != "" && o.customConfigAnnotationValue != "" {
+		annotations := object.MergeAnnotationsLabels(o.logger, cm.Annotations, map[string]string{o.customConfigAnnotationKey: o.customConfigAnnotationValue}, "*")
+		cm.SetAnnotations(annotations)
+	}
+
+	return cm, nil
+}
+
+// isK8sattributesRBACRequired checks if the OTel configuration has k8sattributes processor(s) enabled
+// and whether any of them are configured with passthrough mode
+func (o *otelCollectorFeature) isK8sattributesRBACRequired(configData string) (bool, error) {
+	// otelConfig represents the OpenTelemetry Collector configuration structure
+	type otelConfig struct {
+		Processors map[string]struct {
+			Passthrough bool `yaml:"passthrough"`
+		} `yaml:"processors"`
+	}
+
+	var config otelConfig
+	if err := yaml.Unmarshal([]byte(configData), &config); err != nil {
+		o.logger.Error(err, "failed to parse OpenTelemetry configuration")
+		return false, err
+	}
+
+	required := false
+	for processorName, processorConfig := range config.Processors {
+		if strings.HasPrefix(processorName, "k8sattributes") {
+			// if any k8sattributes processor is not in passthrough mode, we need RBAC
+			if !processorConfig.Passthrough {
+				required = true
+				break
+			}
+		}
+	}
+
+	return required, nil
 }
 
 func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	// check if an otel collector config was provided. If not, use default.
-	if o.customConfig == nil {
-		o.customConfig = &v2alpha1.CustomConfig{}
-	}
-	if o.customConfig.ConfigData == nil && o.customConfig.ConfigMap == nil {
-		var defaultConfig = defaultconfig.DefaultOtelCollectorConfig
-		for _, port := range o.ports {
-			if port.Name == "otel-grpc" {
-				defaultConfig = strings.Replace(defaultConfig, "4317", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
-			if port.Name == "otel-http" {
-				defaultConfig = strings.Replace(defaultConfig, "4318", strconv.Itoa(int(port.ContainerPort)), 1)
-			}
-		}
-		o.customConfig.ConfigData = &defaultConfig
-	}
-
-	// create configMap if customConfig is provided
-	configMap, err := o.buildOTelAgentCoreConfigMap()
+	configData, err := o.getEffectiveConfig(managers.Store())
 	if err != nil {
 		return err
 	}
 
-	if configMap != nil {
+	// if custom config is not provided via external ConfigMap, we need to create a configMap
+	if !(o.customConfig != nil && o.customConfig.ConfigMap != nil) {
+		configMap, err := o.buildOTelAgentCoreConfigMap(&configData)
+		if err != nil {
+			return err
+		}
+
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
 			return err
 		}
 	}
+
+	// Manage RBAC permission
+	if o.createRBAC {
+		rbacRequired, err := o.isK8sattributesRBACRequired(configData)
+		if err != nil {
+			return err
+		}
+		if rbacRequired {
+			managers.RBACManager().AddClusterPolicyRules(o.owner.GetNamespace(), getRBACResourceName(o.owner), o.serviceAccountName, getK8sAttributesRBACPolicyRules())
+		}
+	}
+
 	return nil
 }
 
