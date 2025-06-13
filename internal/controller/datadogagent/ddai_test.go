@@ -31,6 +31,9 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "bar",
+					Labels: map[string]string{
+						"agent.datadoghq.com/datadogagent": "foo",
+					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							APIVersion:         "datadoghq.com/v2alpha1",
@@ -63,7 +66,8 @@ func Test_generateObjMetaFromDDA(t *testing.T) {
 					Name:      "foo",
 					Namespace: "bar",
 					Labels: map[string]string{
-						"foo": "bar",
+						"foo":                              "bar",
+						"agent.datadoghq.com/datadogagent": "foo",
 					},
 					Annotations: map[string]string{
 						"foo": "bar",

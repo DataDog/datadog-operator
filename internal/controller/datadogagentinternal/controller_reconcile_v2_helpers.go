@@ -87,10 +87,11 @@ func (r *Reconciler) cleanupExtraneousResources(ctx context.Context, logger logr
 	var errs []error
 	// Cleanup old DaemonSets, DCA and CCR deployments.
 
-	if err := r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus); err != nil {
-		errs = append(errs, err)
-		logger.Error(err, "Error cleaning up old DaemonSets")
-	}
+	// TODO: re-enable once labels are updated to use DDAI name
+	// if err := r.cleanupExtraneousDaemonSets(ctx, logger, instance, newStatus); err != nil {
+	// 	errs = append(errs, err)
+	// 	logger.Error(err, "Error cleaning up old DaemonSets")
+	// }
 	if err := r.cleanupOldDCADeployments(ctx, logger, instance, resourceManagers, newStatus); err != nil {
 		errs = append(errs, err)
 		logger.Error(err, "Error cleaning up old DCA Deployments")
