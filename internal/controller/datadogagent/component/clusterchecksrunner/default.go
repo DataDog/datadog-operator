@@ -243,6 +243,10 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  common.DDProcessConfigRunInCoreAgent,
+			Value: "false",
+		},
+		{
 			Name:  common.DDContainerCollectionEnabled,
 			Value: "true",
 		},
