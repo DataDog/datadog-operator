@@ -370,7 +370,7 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 
 	core := zapcore.NewTee(
 		zapcore.NewCore(encoder, stderrSyncer, otherLevel),
-		zapcore.NewCore(encoder, stdoutSyncer, infoLevel), 
+		zapcore.NewCore(encoder, stdoutSyncer, infoLevel),
 	)
 
 	logger := zap.New(core)
