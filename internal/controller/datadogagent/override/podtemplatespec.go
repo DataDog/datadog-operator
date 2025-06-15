@@ -181,6 +181,8 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	if override.DNSConfig != nil {
 		manager.PodTemplateSpec().Spec.DNSConfig = override.DNSConfig
 	}
+
+	manager.PodTemplateSpec().Spec.TopologySpreadConstraints = append(manager.PodTemplateSpec().Spec.TopologySpreadConstraints, override.TopologySpreadConstraints...)
 }
 
 func overrideCustomConfigVolumes(logger logr.Logger, manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
