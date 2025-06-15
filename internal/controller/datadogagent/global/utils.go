@@ -19,11 +19,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/version"
 )
 
-func isValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
+func IsValidSecretConfig(secretConfig *v2alpha1.SecretConfig) bool {
 	return secretConfig != nil && secretConfig.SecretName != "" && secretConfig.KeyName != ""
 }
 
-func getDCATokenChecksumAnnotationKey() string {
+func GetDCATokenChecksumAnnotationKey() string {
 	return object.GetChecksumAnnotationKey("dca-token")
 }
 
@@ -71,7 +71,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 		},
 	}
 	// Prioritize existing secret
-	if isValidSecretConfig(ddaiGlobal.Credentials.APISecret) {
+	if IsValidSecretConfig(ddaiGlobal.Credentials.APISecret) {
 		newCredentials.APISecret = ddaiGlobal.Credentials.APISecret
 	}
 
@@ -82,7 +82,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 			KeyName:    v2alpha1.DefaultAPPKeyKey,
 		}
 		// Prioritize existing secret
-		if isValidSecretConfig(ddaiGlobal.Credentials.AppSecret) {
+		if IsValidSecretConfig(ddaiGlobal.Credentials.AppSecret) {
 			newCredentials.AppSecret = ddaiGlobal.Credentials.AppSecret
 		}
 	}
@@ -91,7 +91,7 @@ func setCredentialsFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig)
 
 func setDCATokenFromDDA(dda metav1.Object, ddaiGlobal *v2alpha1.GlobalConfig) {
 	// Use existing ClusterAgentTokenSecret if already set
-	if isValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
+	if IsValidSecretConfig(ddaiGlobal.ClusterAgentTokenSecret) {
 		return
 	}
 

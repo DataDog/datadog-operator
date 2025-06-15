@@ -140,8 +140,8 @@ func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 	// Prioritize existing secrets
 	// Credentials should be non-nil from validation
 	global := dda.Spec.Global
-	apiKeySecretValid := isValidSecretConfig(global.Credentials.APISecret)
-	appKeySecretValid := isValidSecretConfig(global.Credentials.AppSecret)
+	apiKeySecretValid := IsValidSecretConfig(global.Credentials.APISecret)
+	appKeySecretValid := IsValidSecretConfig(global.Credentials.AppSecret)
 
 	// User defined secret(s) exist for both keys, nothing to do
 	if apiKeySecretValid && appKeySecretValid {
@@ -178,7 +178,7 @@ func AddDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, man
 	var token string
 
 	// Prioritize existing secret
-	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+	if IsValidSecretConfig(global.ClusterAgentTokenSecret) {
 		return nil
 	}
 
@@ -189,7 +189,7 @@ func AddDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, man
 	if global.ClusterAgentToken != nil && *global.ClusterAgentToken != "" {
 		token = *global.ClusterAgentToken
 		// Generate hash
-		key = getDCATokenChecksumAnnotationKey()
+		key = GetDCATokenChecksumAnnotationKey()
 		hash, err = comparison.GenerateMD5ForSpec(map[string]string{common.DefaultTokenKey: token})
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
