@@ -411,6 +411,17 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorConfig() *DatadogAgentBuild
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigData(configData string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigData = apiutils.NewStringPointer(configData)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTelCollectorCreateRBAC(createRBAC bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.CreateRbac = apiutils.NewBoolPointer(createRBAC)
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithOTelCollectorCoreConfigEnabled(enabled bool) *DatadogAgentBuilder {
 	if builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig == nil {
 		builder.datadogAgent.Spec.Features.OtelCollector.CoreConfig = &v2alpha1.CoreConfig{}

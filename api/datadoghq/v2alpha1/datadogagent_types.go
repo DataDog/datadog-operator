@@ -815,6 +815,12 @@ type OtelCollectorFeatureConfig struct {
 	// +listType=atomic
 	Ports []*corev1.ContainerPort `json:"ports,omitempty"`
 
+	// Set CreateRbac to false to prevent automatic creation of ClusterRole for the otelCollector.
+	// If true, check OTel Collector config for k8sattributes processor and create required ClusterRole to access Kubernetes API
+	// Default: true
+	// +optional
+	CreateRbac *bool `json:"createRbac,omitempty"`
+
 	// OTelCollector Config Relevant to the Core agent
 	// +optional
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
