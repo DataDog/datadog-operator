@@ -45,6 +45,8 @@ type DatadogMonitorSpec struct {
 
 	// ControllerOptions are the optional parameters in the DatadogMonitor controller
 	ControllerOptions DatadogMonitorControllerOptions `json:"controllerOptions,omitempty"`
+	//SLORef is SLO reference when specifying slo type alert.
+	SLORef *SLORef `json:"sloRef,omitempty"`
 }
 
 // DatadogMonitorType defines the type of monitor
@@ -368,6 +370,11 @@ type DatadogMonitorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DatadogMonitor `json:"items"`
+}
+
+type SLORef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 func init() {
