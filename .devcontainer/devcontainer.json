@@ -4,8 +4,9 @@
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
 	"runArgs": ["--name", "datadog-operator-devenv", "-w", "/workspaces/datadog-operator"],
-	"postStartCommand": "git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
-	"customizations": {
+	// "postStartCommand": "git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
+	"postStartCommand": "curl -sSL https://go.dev/dl/go1.23.10.linux-amd64.tar.gz | tar -C /usr/local -xz && export PATH=/usr/local/go/bin:$PATH && go version && git config --global --add safe.directory /workspaces/datadog-operator && make install-tools",
+    "customizations": {
         "vscode": {
             "settings": {
                 "go.lintTool": "golangci-lint",
