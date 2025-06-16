@@ -288,11 +288,11 @@ func credentialResource(dda *v2alpha1.DatadogAgent, podTemplateManager feature.P
 	}
 
 	// User specified names
-	if isValidSecretConfig(global.Credentials.APISecret) {
+	if IsValidSecretConfig(global.Credentials.APISecret) {
 		apiKeySecretName = global.Credentials.APISecret.SecretName
 		apiKeySecretKey = global.Credentials.APISecret.KeyName
 	}
-	if isValidSecretConfig(global.Credentials.AppSecret) {
+	if IsValidSecretConfig(global.Credentials.AppSecret) {
 		appKeySecretName = global.Credentials.AppSecret.SecretName
 		appKeySecretKey = global.Credentials.AppSecret.KeyName
 	}
@@ -312,7 +312,7 @@ func dcaTokenResource(dda *v2alpha1.DatadogAgent, resourcesManager feature.Resou
 	secretKey := common.DefaultTokenKey
 
 	global := dda.Spec.Global
-	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+	if IsValidSecretConfig(global.ClusterAgentTokenSecret) {
 		secretName = global.ClusterAgentTokenSecret.SecretName
 		secretKey = global.ClusterAgentTokenSecret.KeyName
 	}
@@ -322,7 +322,7 @@ func dcaTokenResource(dda *v2alpha1.DatadogAgent, resourcesManager feature.Resou
 
 	// Add annotation to pod template if secret has annotation
 	if obj, exists := resourcesManager.Store().Get(kubernetes.SecretsKind, dda.Namespace, secretName); exists {
-		key := getDCATokenChecksumAnnotationKey()
+		key := GetDCATokenChecksumAnnotationKey()
 		if val, ok := obj.GetAnnotations()[key]; ok {
 			podTemplateManager.Annotation().AddAnnotation(key, val)
 		}

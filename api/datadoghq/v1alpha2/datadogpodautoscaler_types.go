@@ -155,9 +155,9 @@ type DatadogPodAutoscalerHorizontalFallbackPolicy struct {
 type HorizontalFallbackTriggers struct {
 	// StaleRecommendationThresholdSeconds defines the time window the controller will wait after detecting an error before applying recommendations.
 	// +optional
-	// +kubebuilder:default=600
+	// +kubebuilder:default=1800
 	// +kubebuilder:validation:Minimum=100
-	// +kubebuilder:validation:Maximum=1200
+	// +kubebuilder:validation:Maximum=3600
 	StaleRecommendationThresholdSeconds int32 `json:"staleRecommendationThresholdSeconds,omitempty"`
 }
 
