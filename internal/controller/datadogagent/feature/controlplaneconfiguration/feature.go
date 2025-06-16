@@ -8,13 +8,22 @@ package controlplaneconfiguration
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/api/datadoghq/common"
+	"github.com/go-logr/logr"
+	securityv1 "github.com/openshift/api/security/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	SecurityContextConstraintsKind = "SecurityContextConstraints"
 )
 
 func init() {
@@ -35,11 +44,12 @@ func buildControlPlaneConfigurationFeature(options *feature.Options) feature.Fea
 }
 
 type controlPlaneConfigurationFeature struct {
-	enabled       bool
-	owner         metav1.Object
-	logger        logr.Logger
-	provider      string
-	configMapName string
+	enabled                bool
+	owner                  metav1.Object
+	logger                 logr.Logger
+	provider               string
+	defaultConfigMapName   string
+	openshiftConfigMapName string
 }
 
 // ID returns the ID of the Feature
@@ -50,7 +60,8 @@ func (f *controlPlaneConfigurationFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.configMapName = "datadog-controlplane-configuration"
+	f.defaultConfigMapName = "datadog-controlplane-configuration-default"
+	f.openshiftConfigMapName = "datadog-controlplane-configuration-openshift"
 	controlPlaneConfiguration := dda.Spec.Features.ControlPlaneConfiguration
 	f.logger.Info("Control plane configuration feature state",
 		"feature", feature.ControlPlaneConfigurationIDType,
@@ -63,7 +74,7 @@ func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent)
 			"feature", feature.ControlPlaneConfigurationIDType,
 			"requiredComponents", reqComp)
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
-		reqComp.ClusterAgent.Containers = []common.AgentContainerName{common.ClusterAgentContainerName}
+		reqComp.ClusterAgent.Containers = []apicommon.AgentContainerName{apicommon.ClusterAgentContainerName}
 		f.logger.V(1).Info("Control plane configuration feature requirements set",
 			"feature", feature.ControlPlaneConfigurationIDType,
 			"requiredComponents", reqComp)
@@ -74,6 +85,36 @@ func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent)
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.ResourceManagers) error {
+	if !f.enabled {
+		return nil
+	}
+
+	// creating configmaps
+
+	// default configmap
+	defaultConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.DefaultProvider, f.defaultConfigMapName)
+	if err != nil {
+		return fmt.Errorf("failed to build default controlplane configuration configmap: %w", err)
+	}
+	defaultConfigMap.Name = f.defaultConfigMapName
+
+	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, defaultConfigMap); err != nil {
+		return fmt.Errorf("failed to add default controlplane configuration configmap to store: %w", err)
+	}
+
+	// openshift configmap
+	openshiftConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
+	if err != nil {
+		return fmt.Errorf("failed to build openshift controlplane configuration configmap: %w", err)
+	}
+	openshiftConfigMap.Name = f.openshiftConfigMapName
+
+	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
+		return fmt.Errorf("failed to add openshift controlplane configuration configmap to store: %w", err)
+	}
+
+	}
+
 	return nil
 }
 
@@ -81,13 +122,61 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// print feature name
+	f.provider = provider
 	fmt.Println("controlplaneconfiguration feature")
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	if providerValue == kubernetes.OpenShiftProviderLabel {
-		// managers.ConfigMap().AddConfigMapToContainer(apicommon.ClusterAgentContainerName, "controlplaneconfiguration", "controlplaneconfiguration")
-	} else if providerValue == kubernetes.EKSProviderLabel {
-		f.logger.Info("EKS provider detected")
+	fmt.Println("manageclusteragent providerValue", providerValue)
+
+	// Add the writable emptyDir volume for all providers
+	agentConfDVolume := &corev1.Volume{
+		Name: "agent-conf-d-writable",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
 	}
+	managers.Volume().AddVolume(agentConfDVolume)
+
+	// Add volume mount to cluster-agent container
+	agentConfDVolumeMount := corev1.VolumeMount{
+		Name:      "agent-conf-d-writable",
+		MountPath: "/etc/datadog-agent/conf.d",
+		ReadOnly:  false,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&agentConfDVolumeMount, apicommon.ClusterAgentContainerName)
+
+	// Select the appropriate configmap based on provider
+	var configMapName string
+	if providerValue == kubernetes.OpenshiftRHCOSType {
+		fmt.Print("openshift, adding configmaps")
+		configMapName = f.openshiftConfigMapName
+	} else if providerValue == kubernetes.EKSAMIType {
+		fmt.Print("eks provider detected")
+		configMapName = f.defaultConfigMapName // TODO: add eks configmap and update here
+	} else {
+		configMapName = f.defaultConfigMapName
+	}
+
+	// Add the controlplane configuration configmap volume
+	configMapVolume := &corev1.Volume{
+		Name: "controlplane-config",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+			},
+		},
+	}
+	managers.Volume().AddVolume(configMapVolume)
+
+	// Add volume mount for the configmap
+	configMapVolumeMount := corev1.VolumeMount{
+		Name:      "controlplane-config",
+		MountPath: "/etc/datadog-agent/conf.d/controlplane.d",
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
+
 	return nil
 }
 
@@ -108,5 +197,25 @@ func (f *controlPlaneConfigurationFeature) ManageNodeAgent(managers feature.PodT
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+	// do providers need to be handled in this function?
+	// Create volume for etcd client certs
+	etcdCertsVolume := &corev1.Volume{
+		Name: "etcd-client-certs",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: "kube-etcd-client-certs",
+			},
+		},
+	}
+	managers.Volume().AddVolume(etcdCertsVolume)
+
+	// Add volume mount to cluster-checks-runner container
+	etcdCertsVolumeMount := corev1.VolumeMount{
+		Name:      "etcd-client-certs",
+		MountPath: "/etc/etcd/certs",
+		ReadOnly:  true,
+	}
+	managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
+
 	return nil
 }

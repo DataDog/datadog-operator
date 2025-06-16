@@ -13,10 +13,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (f *controlPlaneConfigurationFeature) buildControlPlaneConfigurationConfigMap() (*corev1.ConfigMap, error) {
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configMapName, controlPlaneConfigurationConfig(f.provider))
+func (f *controlPlaneConfigurationFeature) buildControlPlaneConfigurationConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), configMapName, controlPlaneConfigurationConfig(provider))
 	fmt.Printf("ConfigMap YAML for provider %s:\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: %s\n  namespace: %s\ndata:\n  %s: |\n    %s\n",
-		f.provider,
+		provider,
 		configMap.Name,
 		configMap.Namespace,
 		defaultControlPlaneConfigurationConfFileName,

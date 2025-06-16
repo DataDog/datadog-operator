@@ -21,47 +21,46 @@ func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigM
 	}
 
 	type fields struct {
-		enabled       bool
-		owner         metav1.Object
-		provider      string
-		configMapName string
+		enabled  bool
+		owner    metav1.Object
+		provider string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		want    *corev1.ConfigMap
-		wantErr bool
+		name          string
+		fields        fields
+		configMapName string
+		want          *corev1.ConfigMap
+		wantErr       bool
 	}{
 		{
 			name: "default",
 			fields: fields{
-				owner:         owner,
-				provider:      "default",
-				configMapName: defaultControlPlaneConfigurationConfFileName,
-				enabled:       true,
+				owner:    owner,
+				provider: "default",
+				enabled:  true,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultControlPlaneConfigurationConfFileName, controlPlaneConfigurationConfig("default")),
+			configMapName: "datadog-controlplane-configuration-default",
+			want:          buildDefaultConfigMap(owner.GetNamespace(), "datadog-controlplane-configuration-default", controlPlaneConfigurationConfig("default")),
 		},
 		{
 			name: "openshift",
 			fields: fields{
-				owner:         owner,
-				provider:      "rhcos",
-				configMapName: defaultControlPlaneConfigurationConfFileName,
-				enabled:       true,
+				owner:    owner,
+				provider: "rhcos",
+				enabled:  true,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), defaultControlPlaneConfigurationConfFileName, controlPlaneConfigurationConfig("rhcos")),
+			configMapName: "datadog-controlplane-configuration-openshift",
+			want:          buildDefaultConfigMap(owner.GetNamespace(), "datadog-controlplane-configuration-openshift", controlPlaneConfigurationConfig("rhcos")),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &controlPlaneConfigurationFeature{
-				owner:         tt.fields.owner,
-				enabled:       tt.fields.enabled,
-				configMapName: tt.fields.configMapName,
-				provider:      tt.fields.provider,
+				owner:    tt.fields.owner,
+				enabled:  tt.fields.enabled,
+				provider: tt.fields.provider,
 			}
-			got, err := f.buildControlPlaneConfigurationConfigMap()
+			got, err := f.buildControlPlaneConfigurationConfigMap(tt.fields.provider, tt.configMapName)
 			fmt.Println(got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("controlPlaneConfigurationFeature.buildControlPlaneConfigurationConfigMap() error = %v, wantErr %v", err, tt.wantErr)
