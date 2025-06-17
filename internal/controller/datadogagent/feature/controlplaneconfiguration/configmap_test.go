@@ -39,10 +39,10 @@ func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigM
 				provider: kubernetes.DefaultProvider,
 				enabled:  true,
 			},
-			configMapName: "datadog-controlplane-configuration-default",
+			configMapName: defaultConfigMapName,
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "datadog-controlplane-configuration-default",
+					Name:      defaultConfigMapName,
 					Namespace: "foo",
 				},
 				Data: map[string]string{
@@ -57,10 +57,10 @@ func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigM
 				provider: kubernetes.OpenshiftRHCOSType,
 				enabled:  true,
 			},
-			configMapName: "datadog-controlplane-configuration-openshift",
+			configMapName: openshiftConfigMapName,
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "datadog-controlplane-configuration-openshift",
+					Name:      openshiftConfigMapName,
 					Namespace: "foo",
 				},
 				Data: map[string]string{
@@ -117,10 +117,10 @@ instances:
 				provider: "unknown",
 				enabled:  true,
 			},
-			configMapName: "datadog-controlplane-configuration-unknown",
+			configMapName: otherConfigMapName,
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "datadog-controlplane-configuration-unknown",
+					Name:      otherConfigMapName,
 					Namespace: "foo",
 				},
 				Data: map[string]string{

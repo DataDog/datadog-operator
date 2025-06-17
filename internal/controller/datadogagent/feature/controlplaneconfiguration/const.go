@@ -4,3 +4,21 @@
 // Copyright 2025-present Datadog, Inc.
 
 package controlplaneconfiguration
+
+const (
+	openshiftConfigMapName = "datadog-controlplane-configuration-openshift"
+	defaultConfigMapName   = "datadog-controlplane-configuration-default"
+	otherConfigMapName     = "datadog-controlplane-configuration-unknown"
+
+	securityContextConstraintsKind = "SecurityContextConstraints"
+	securityContextConstraintsName = "datadog-controlplane-monitoring-scc"
+	roleBindingName                = "datadog-controlplane-monitoring-rolebinding"
+
+	controlPlaneConfigurationVolumeName      = "controlplane-config"
+	controlPlaneConfigurationVolumeMountPath = "/etc/datadog-agent/conf.d"
+	emptyDirVolumeName                       = "agent-conf-d-writable"
+
+	etcdCertsVolumeName      = "etcd-client-certs"
+	etcdCertsVolumeMountPath = "/etc/etcd-certs"
+	etcdCertsSecretName      = "etcd-metric-client"
+)

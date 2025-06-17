@@ -9,21 +9,14 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-)
-
-const (
-	SecurityContextConstraintsKind = "SecurityContextConstraints"
 )
 
 func init() {
@@ -40,7 +33,6 @@ func buildControlPlaneConfigurationFeature(options *feature.Options) feature.Fea
 		logger: options.Logger,
 	}
 	return controlplaneFeat
-	// add rbac suffix???
 }
 
 type controlPlaneConfigurationFeature struct {
@@ -60,8 +52,8 @@ func (f *controlPlaneConfigurationFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	f.defaultConfigMapName = "datadog-controlplane-configuration-default"
-	f.openshiftConfigMapName = "datadog-controlplane-configuration-openshift"
+	f.defaultConfigMapName = defaultConfigMapName
+	f.openshiftConfigMapName = openshiftConfigMapName
 	controlPlaneConfiguration := dda.Spec.Features.ControlPlaneConfiguration
 	f.logger.Info("Control plane configuration feature state",
 		"feature", feature.ControlPlaneConfigurationIDType,
@@ -93,102 +85,36 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 	// default configmap
 	defaultConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.DefaultProvider, f.defaultConfigMapName)
 	if err != nil {
-		return fmt.Errorf("failed to build default controlplane configuration configmap: %w", err)
+		return fmt.Errorf("failed to build default configmap: %w", err)
 	}
 	defaultConfigMap.Name = f.defaultConfigMapName
 
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, defaultConfigMap); err != nil {
-		return fmt.Errorf("failed to add default controlplane configuration configmap to store: %w", err)
+		return fmt.Errorf("failed to add default configmap to store: %w", err)
 	}
 
 	// openshift configmap
 	openshiftConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
 	if err != nil {
-		return fmt.Errorf("failed to build openshift controlplane configuration configmap: %w", err)
+		return fmt.Errorf("failed to build openshift configmap: %w", err)
 	}
 	openshiftConfigMap.Name = f.openshiftConfigMapName
 
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
-		return fmt.Errorf("failed to add openshift controlplane configuration configmap to store: %w", err)
+		return fmt.Errorf("failed to add openshift configmap to store: %w", err)
 	}
 
 	// Add OpenShift-specific RBAC if provider is OpenShift RHCOS
 	if f.provider == kubernetes.OpenshiftRHCOSType {
 		// Create SecurityContextConstraints
-		scc := &securityv1.SecurityContextConstraints{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "datadog-agent",
-				Labels: map[string]string{
-					"app.kubernetes.io/name":     "datadog-agent",
-					"app.kubernetes.io/instance": f.owner.GetName(),
-				},
-			},
-			AllowPrivilegedContainer: false,
-			AllowHostDirVolumePlugin: true,
-			AllowHostIPC:             false,
-			AllowHostNetwork:         false,
-			AllowHostPID:             false,
-			AllowHostPorts:           false,
-			AllowPrivilegeEscalation: apiutils.NewBoolPointer(true),
-			AllowedCapabilities: []corev1.Capability{
-				"SYS_ADMIN",
-				"SYS_RESOURCE",
-				"SYS_PTRACE",
-				"NET_ADMIN",
-				"NET_BROADCAST",
-				"NET_RAW",
-				"IPC_LOCK",
-				"CHOWN",
-				"DAC_READ_SEARCH",
-			},
-			RunAsUser: securityv1.RunAsUserStrategyOptions{
-				Type: securityv1.RunAsUserStrategyRunAsAny,
-			},
-			SELinuxContext: securityv1.SELinuxContextStrategyOptions{
-				Type: securityv1.SELinuxStrategyRunAsAny,
-			},
-			FSGroup: securityv1.FSGroupStrategyOptions{
-				Type: securityv1.FSGroupStrategyRunAsAny,
-			},
-			SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
-				Type: securityv1.SupplementalGroupsStrategyRunAsAny,
-			},
-			Volumes: []securityv1.FSType{
-				securityv1.FSTypeConfigMap,
-				securityv1.FSTypeEmptyDir,
-				securityv1.FSTypeDownwardAPI,
-				securityv1.FSTypeSecret,
-				securityv1.FSTypeHostPath,
-			},
-		}
+		scc := getSecurityContextConstraints(f.owner.GetName())
 
-		if err := managers.Store().AddOrUpdate(SecurityContextConstraintsKind, scc); err != nil {
+		if err := managers.Store().AddOrUpdate(securityContextConstraintsKind, scc); err != nil {
 			return fmt.Errorf("failed to add SecurityContextConstraints to store: %w", err)
 		}
 
 		// Create RoleBinding for the SCC
-		roleBinding := &rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "datadog-agent-scc",
-				Namespace: f.owner.GetNamespace(),
-				Labels: map[string]string{
-					"app.kubernetes.io/name":     "datadog-agent",
-					"app.kubernetes.io/instance": f.owner.GetName(),
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: "security.openshift.io",
-				Kind:     "SecurityContextConstraints",
-				Name:     "datadog-agent",
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      "ServiceAccount",
-					Name:      fmt.Sprintf("%s-%s", f.owner.GetName(), constants.DefaultAgentResourceSuffix),
-					Namespace: f.owner.GetNamespace(),
-				},
-			},
-		}
+		roleBinding := getRoleBinding(securityContextConstraintsName, f.owner.GetName(), f.owner.GetNamespace())
 
 		if err := managers.Store().AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
 			return fmt.Errorf("failed to add RoleBinding to store: %w", err)
@@ -207,7 +133,7 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 
 	// Add the writable emptyDir volume for all providers
 	agentConfDVolume := &corev1.Volume{
-		Name: "agent-conf-d-writable",
+		Name: emptyDirVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -216,8 +142,8 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 
 	// Add volume mount to cluster-agent container
 	agentConfDVolumeMount := corev1.VolumeMount{
-		Name:      "agent-conf-d-writable",
-		MountPath: "/etc/datadog-agent/conf.d",
+		Name:      emptyDirVolumeName,
+		MountPath: controlPlaneConfigurationVolumeMountPath,
 		ReadOnly:  false,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&agentConfDVolumeMount, apicommon.ClusterAgentContainerName)
@@ -236,7 +162,7 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 
 	// Add the controlplane configuration configmap volume
 	configMapVolume := &corev1.Volume{
-		Name: "controlplane-config",
+		Name: controlPlaneConfigurationVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
@@ -249,8 +175,8 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 
 	// Add volume mount for the configmap
 	configMapVolumeMount := corev1.VolumeMount{
-		Name:      "controlplane-config",
-		MountPath: "/etc/datadog-agent/conf.d",
+		Name:      controlPlaneConfigurationVolumeName,
+		MountPath: controlPlaneConfigurationVolumeMountPath,
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
@@ -276,10 +202,10 @@ func (f *controlPlaneConfigurationFeature) ManageNodeAgent(managers feature.PodT
 func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	// Create volume for etcd client certs
 	etcdCertsVolume := &corev1.Volume{
-		Name: "etcd-client-certs",
+		Name: etcdCertsVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: "etcd-metric-client",
+				SecretName: etcdCertsSecretName,
 			},
 		},
 	}
@@ -287,8 +213,8 @@ func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers fe
 
 	// Add volume mount to cluster-checks-runner container
 	etcdCertsVolumeMount := corev1.VolumeMount{
-		Name:      "etcd-client-certs",
-		MountPath: "/etc/etcd-certs",
+		Name:      etcdCertsVolumeName,
+		MountPath: etcdCertsVolumeMountPath,
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)

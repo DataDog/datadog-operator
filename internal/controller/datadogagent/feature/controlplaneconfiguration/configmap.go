@@ -6,9 +6,6 @@
 package controlplaneconfiguration
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,19 +86,5 @@ instances:
 			},
 		}
 	}
-
-	fmt.Printf("ConfigMap YAML for provider %s:\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: %s\n  namespace: %s\ndata:\n%s\n",
-		provider,
-		configMap.Name,
-		configMap.Namespace,
-		formatConfigMapData(configMap.Data))
 	return configMap, nil
-}
-
-func formatConfigMapData(data map[string]string) string {
-	var result string
-	for key, value := range data {
-		result += fmt.Sprintf("  %s: |-\n    %s\n", key, strings.ReplaceAll(value, "\n", "\n    "))
-	}
-	return result
 }
