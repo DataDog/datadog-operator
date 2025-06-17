@@ -281,9 +281,10 @@ func (r *Reconciler) handleProfiles(ctx context.Context, profilesByNode map[stri
 		return err
 	}
 
-	if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
-		return err
-	}
+	// TODO: re-evaluate if this is needed
+	// if err := r.cleanupPodsForProfilesThatNoLongerApply(ctx, profilesByNode, ddaNamespace); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
@@ -359,50 +360,51 @@ func (r *Reconciler) labelNodesWithProfiles(ctx context.Context, profilesByNode 
 // might not always be evicted when there's a change in the profiles to apply.
 // Notice that "RequiredDuringSchedulingRequiredDuringExecution" is not
 // available in Kubernetes yet.
-func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
-	agentPods := &corev1.PodList{}
-	err := r.client.List(
-		ctx,
-		agentPods,
-		client.MatchingLabels(map[string]string{
-			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
-		}),
-		client.InNamespace(ddaNamespace),
-	)
-	if err != nil {
-		return err
-	}
+// func (r *Reconciler) cleanupPodsForProfilesThatNoLongerApply(ctx context.Context, profilesByNode map[string]types.NamespacedName, ddaNamespace string) error {
+// 	agentPods := &corev1.PodList{}
+// 	err := r.client.List(
+// 		ctx,
+// 		agentPods,
+// 		client.MatchingLabels(map[string]string{
+// 			apicommon.AgentDeploymentComponentLabelKey: constants.DefaultAgentResourceSuffix,
+// 		}),
+// 		client.InNamespace(ddaNamespace),
+// 	)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for _, agentPod := range agentPods.Items {
-		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
-		if !found {
-			continue
-		}
+// 	for _, agentPod := range agentPods.Items {
+// 		profileNamespacedName, found := profilesByNode[agentPod.Spec.NodeName]
+// 		if !found {
+// 			continue
+// 		}
 
-		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
-		expectedProfileLabelValue := profileNamespacedName.Name
+// 		isDefaultProfile := agentprofile.IsDefaultProfile(profileNamespacedName.Namespace, profileNamespacedName.Name)
+// 		expectedProfileLabelValue := profileNamespacedName.Name
 
-		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
+// 		profileLabelValue, profileLabelExists := agentPod.Labels[agentprofile.ProfileLabelKey]
 
-		deletePod := (isDefaultProfile && profileLabelExists) ||
-			(!isDefaultProfile && !profileLabelExists) ||
-			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
+// 		deletePod := (isDefaultProfile && profileLabelExists) ||
+// 			(!isDefaultProfile && !profileLabelExists) ||
+// 			(!isDefaultProfile && profileLabelValue != expectedProfileLabelValue)
 
-		if deletePod {
-			toDelete := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: agentPod.Namespace,
-					Name:      agentPod.Name,
-				},
-			}
-			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
-				return err
-			}
-		}
-	}
+// 		if deletePod {
+// 			toDelete := corev1.Pod{
+// 				ObjectMeta: metav1.ObjectMeta{
+// 					Namespace: agentPod.Namespace,
+// 					Name:      agentPod.Name,
+// 				},
+// 			}
+// 			r.log.Info("Deleting pod for profile cleanup", "pod.Namespace", toDelete.Namespace, "pod.Name", toDelete.Name)
+// 			if err = r.client.Delete(ctx, &toDelete); err != nil && !errors.IsNotFound(err) {
+// 				return err
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // cleanupExtraneousDaemonSets deletes DSs/EDSs that no longer apply.
 // Use cases include deleting old DSs/EDSs when:
@@ -417,7 +419,7 @@ func (r *Reconciler) cleanupExtraneousDaemonSets(ctx context.Context, logger log
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
 
-	dsName := component.GetDaemonSetNameFromDatadogAgent(dda)
+	dsName := component.GetDaemonSetNameFromDatadogAgent(dda, &dda.Spec)
 	validDaemonSetNames, validExtendedDaemonSetNames := r.getValidDaemonSetNames(dsName, providerList, profiles)
 
 	// Only the default profile uses an EDS when profiles are enabled

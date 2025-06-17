@@ -63,17 +63,17 @@ func (f *cspmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *cspmFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	// Merge configuration from Status.RemoteConfigConfiguration into the Spec
-	mergeConfigs(&dda.Spec, &dda.Status)
+	mergeConfigs(ddaSpec, ddaRCStatus)
 
-	cspmConfig := dda.Spec.Features.CSPM
+	cspmConfig := ddaSpec.Features.CSPM
 
 	if cspmConfig != nil && apiutils.BoolValue(cspmConfig.Enabled) {
 		f.enable = true
-		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda)
+		f.serviceAccountName = constants.GetClusterAgentServiceAccount(dda.GetName(), ddaSpec)
 
 		if cspmConfig.CheckInterval != nil {
 			f.checkInterval = strconv.FormatInt(cspmConfig.CheckInterval.Nanoseconds(), 10)
@@ -113,8 +113,8 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	return reqComp
 }
 
-func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.DatadogAgentStatus) {
-	if ddaStatus.RemoteConfigConfiguration == nil || ddaStatus.RemoteConfigConfiguration.Features == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM == nil || ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled == nil {
+func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaRCStatus *v2alpha1.RemoteConfigConfiguration) {
+	if ddaRCStatus == nil || ddaRCStatus.Features == nil || ddaRCStatus.Features.CSPM == nil || ddaRCStatus.Features.CSPM.Enabled == nil {
 		return
 	}
 
@@ -126,8 +126,8 @@ func mergeConfigs(ddaSpec *v2alpha1.DatadogAgentSpec, ddaStatus *v2alpha1.Datado
 		ddaSpec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
 	}
 
-	if ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled != nil {
-		ddaSpec.Features.CSPM.Enabled = ddaStatus.RemoteConfigConfiguration.Features.CSPM.Enabled
+	if ddaRCStatus.Features.CSPM.Enabled != nil {
+		ddaSpec.Features.CSPM.Enabled = ddaRCStatus.Features.CSPM.Enabled
 	}
 }
 

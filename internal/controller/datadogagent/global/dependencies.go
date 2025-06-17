@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/objects"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/constants"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -36,8 +37,13 @@ func addDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fea
 		errs = append(errs, err)
 	}
 
+	// APM Telemetry
+	if err := AddAPMTelemetryDependencies(logger, dda, manager); err != nil {
+		errs = append(errs, err)
+	}
+
 	// Credentials
-	if err := addCredentialDependencies(logger, dda, manager); err != nil {
+	if err := AddCredentialDependencies(logger, dda, manager); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -48,7 +54,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	var errs []error
 
 	if componentName == v2alpha1.ClusterAgentComponentName {
-		if err := addDCATokenDependencies(logger, dda, manager); err != nil {
+		if err := AddDCATokenDependencies(logger, dda, manager); err != nil {
 			errs = append(errs, err)
 		}
 
@@ -92,7 +98,7 @@ func addComponentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	return errs
 }
 
-func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+func addInstallInfoDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.GetInstallInfoConfigMapName(dda),
@@ -110,12 +116,32 @@ func addInstallInfoDependencies(logger logr.Logger, dda metav1.Object, manager f
 	return nil
 }
 
-func addCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func AddAPMTelemetryDependencies(_ logr.Logger, dda metav1.Object, manager feature.ResourceManagers) error {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.APMTelemetryConfigMapName,
+			Namespace: dda.GetNamespace(),
+		},
+		Data: map[string]string{
+			common.APMTelemetryInstallTypeKey: common.DefaultAgentInstallType,
+			common.APMTelemetryInstallIdKey:   utils.GetDatadogAgentResourceUID(dda),
+			common.APMTelemetryInstallTimeKey: utils.GetDatadogAgentResourceCreationTime(dda),
+		},
+	}
+
+	if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, configMap); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func AddCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	// Prioritize existing secrets
 	// Credentials should be non-nil from validation
 	global := dda.Spec.Global
-	apiKeySecretValid := isValidSecretConfig(global.Credentials.APISecret)
-	appKeySecretValid := isValidSecretConfig(global.Credentials.AppSecret)
+	apiKeySecretValid := IsValidSecretConfig(global.Credentials.APISecret)
+	appKeySecretValid := IsValidSecretConfig(global.Credentials.AppSecret)
 
 	// User defined secret(s) exist for both keys, nothing to do
 	if apiKeySecretValid && appKeySecretValid {
@@ -147,12 +173,12 @@ func addCredentialDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, m
 	return nil
 }
 
-func addDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
+func AddDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	global := dda.Spec.Global
 	var token string
 
 	// Prioritize existing secret
-	if isValidSecretConfig(global.ClusterAgentTokenSecret) {
+	if IsValidSecretConfig(global.ClusterAgentTokenSecret) {
 		return nil
 	}
 
@@ -163,7 +189,7 @@ func addDCATokenDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, man
 	if global.ClusterAgentToken != nil && *global.ClusterAgentToken != "" {
 		token = *global.ClusterAgentToken
 		// Generate hash
-		key = getDCATokenChecksumAnnotationKey()
+		key = GetDCATokenChecksumAnnotationKey()
 		hash, err = comparison.GenerateMD5ForSpec(map[string]string{common.DefaultTokenKey: token})
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
@@ -207,7 +233,7 @@ func rbacDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager fe
 
 func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterAgentServiceAccount(dda)
+	serviceAccountName := constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusteragent.GetClusterAgentRbacResourcesName(dda)
 
 	// Service account
@@ -226,7 +252,8 @@ func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 	}
 
 	// Service
-	if err := manager.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(dda)); err != nil {
+	service := clusteragent.GetClusterAgentService(dda)
+	if err := manager.ServiceManager().AddService(service.Name, service.Namespace, service.Spec.Selector, service.Spec.Ports, service.Spec.InternalTrafficPolicy); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -235,7 +262,7 @@ func clusterAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, ma
 
 func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetAgentServiceAccount(dda)
+	serviceAccountName := constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := agent.GetAgentRoleName(dda)
 
 	// Service account
@@ -253,7 +280,7 @@ func nodeAgentDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manag
 
 func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers) error {
 	var errs []error
-	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda)
+	serviceAccountName := constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 	rbacResourcesName := clusterchecksrunner.GetCCRRbacResourcesName(dda)
 
 	// Service account
@@ -271,7 +298,7 @@ func clusterChecksRunnerDependencies(logger logr.Logger, dda *v2alpha1.DatadogAg
 
 func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.ResourceManagers, componentName v2alpha1.ComponentName) error {
 	config := dda.Spec.Global
-	if enabled, flavor := constants.IsNetworkPolicyEnabled(dda); enabled {
+	if enabled, flavor := constants.IsNetworkPolicyEnabled(&dda.Spec); enabled {
 		switch flavor {
 		case v2alpha1.NetworkPolicyFlavorKubernetes:
 			return manager.NetworkPolicyManager().AddKubernetesNetworkPolicy(objects.BuildKubernetesNetworkPolicy(dda, componentName))
@@ -285,7 +312,7 @@ func addNetworkPolicyDependencies(dda *v2alpha1.DatadogAgent, manager feature.Re
 					dda,
 					*config.Site,
 					getURLEndpoint(dda),
-					constants.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+					constants.IsHostNetworkEnabled(&dda.Spec, v2alpha1.ClusterAgentComponentName),
 					dnsSelectorEndpoints,
 					componentName,
 				),
@@ -302,11 +329,11 @@ func addSecretBackendDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent
 		var componentSaName string
 		switch component {
 		case v2alpha1.ClusterAgentComponentName:
-			componentSaName = constants.GetClusterAgentServiceAccount(dda)
+			componentSaName = constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.NodeAgentComponentName:
-			componentSaName = constants.GetAgentServiceAccount(dda)
+			componentSaName = constants.GetAgentServiceAccount(dda.Name, &dda.Spec)
 		case v2alpha1.ClusterChecksRunnerComponentName:
-			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda)
+			componentSaName = constants.GetClusterChecksRunnerServiceAccount(dda.Name, &dda.Spec)
 		}
 
 		agentName := dda.GetName()
@@ -364,7 +391,7 @@ func resourcesAsTagsDependencies(logger logr.Logger, dda *v2alpha1.DatadogAgent,
 		if err := manager.RBACManager().AddClusterPolicyRules(
 			dda.Namespace,
 			clusteragent.GetResourceMetadataAsTagsClusterRoleName(dda),
-			constants.GetClusterAgentServiceAccount(dda),
+			constants.GetClusterAgentServiceAccount(dda.Name, &dda.Spec),
 			clusteragent.GetKubernetesResourceMetadataAsTagsPolicyRules(global.KubernetesResourcesLabelsAsTags, global.KubernetesResourcesAnnotationsAsTags),
 		); err != nil {
 			return err

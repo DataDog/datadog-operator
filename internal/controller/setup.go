@@ -27,6 +27,7 @@ import (
 
 const (
 	agentControllerName           = "DatadogAgent"
+	agentInternalControllerName   = "DatadogAgentInternal"
 	monitorControllerName         = "DatadogMonitor"
 	sloControllerName             = "DatadogSLO"
 	profileControllerName         = "DatadogAgentProfile"
@@ -40,6 +41,7 @@ type SetupOptions struct {
 	SupportCilium                 bool
 	Creds                         config.Creds
 	DatadogAgentEnabled           bool
+	DatadogAgentInternalEnabled   bool
 	DatadogMonitorEnabled         bool
 	DatadogSLOEnabled             bool
 	OperatorMetricsEnabled        bool
@@ -67,10 +69,11 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
-type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricForwardersManager) error
+type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:           startDatadogAgent,
+	agentInternalControllerName:   startDatadogAgentInternal,
 	monitorControllerName:         startDatadogMonitor,
 	sloControllerName:             startDatadogSLO,
 	profileControllerName:         startDatadogAgentProfiles,
@@ -107,7 +110,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	var metricForwardersMgr datadog.MetricForwardersManager
+	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
 		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo)
 	}
@@ -132,7 +135,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -159,15 +162,30 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
 			},
-			SupportCilium:              options.SupportCilium,
-			OperatorMetricsEnabled:     options.OperatorMetricsEnabled,
-			IntrospectionEnabled:       options.IntrospectionEnabled,
-			DatadogAgentProfileEnabled: options.DatadogAgentProfileEnabled,
+			SupportCilium:               options.SupportCilium,
+			OperatorMetricsEnabled:      options.OperatorMetricsEnabled,
+			IntrospectionEnabled:        options.IntrospectionEnabled,
+			DatadogAgentProfileEnabled:  options.DatadogAgentProfileEnabled,
+			DatadogAgentInternalEnabled: options.DatadogAgentInternalEnabled,
 		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
+	if !options.DatadogAgentInternalEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", agentInternalControllerName)
+		return nil
+	}
+
+	return (&DatadogAgentInternalReconciler{
+		Client:   mgr.GetClient(),
+		Log:      ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(agentInternalControllerName),
+	}).SetupWithManager(mgr, metricForwardersMgr)
+}
+
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 
@@ -180,15 +198,16 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 	}
 
 	return (&DatadogMonitorReconciler{
-		Client:   mgr.GetClient(),
-		DDClient: ddClient,
-		Log:      ctrl.Log.WithName("controllers").WithName(monitorControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(monitorControllerName),
-	}).SetupWithManager(mgr)
+		Client:                 mgr.GetClient(),
+		DDClient:               ddClient,
+		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
+		Scheme:                 mgr.GetScheme(),
+		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
+		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
-func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogDashboardEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", dashboardControllerName)
 		return nil
@@ -208,7 +227,7 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogGenericResourceEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", genericResourceControllerName)
 		return nil
@@ -228,7 +247,7 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
 		return nil
@@ -250,7 +269,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	return controller.SetupWithManager(mgr)
 }
 
-func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogAgentProfileEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", profileControllerName)
 		return nil

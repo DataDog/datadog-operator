@@ -635,6 +635,11 @@ type DogstatsdFeatureConfig struct {
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/
 	// +optional
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
+
+	// NonLocalTraffic enables non-local traffic for Dogstatsd.
+	// Default: true
+	// +optional
+	NonLocalTraffic *bool `json:"nonLocalTraffic,omitempty"`
 }
 
 // OTLPFeatureConfig contains configuration for OTLP ingest.
@@ -1687,7 +1692,7 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
+	Env []corev1.EnvVar `json:"env,omitempty" patchMergeKey:"name" patchStrategy:"merge"`
 
 	// EnvFrom specifies the ConfigMaps and Secrets to expose as environment variables.
 	// Priority is env > envFrom.
@@ -1775,6 +1780,7 @@ type DatadogAgentComponentOverride struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+	//+mapType=granular
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// Host networking requested for this pod. Use the host's network namespace.
@@ -1788,6 +1794,15 @@ type DatadogAgentComponentOverride struct {
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
+
+	// TopologySpreadConstraints describes how a group of pods ought to spread across topology
+	// domains. Scheduler will schedule pods in a way which abides by the constraints.
+	// All topologySpreadConstraints are ANDed.
+	// +optional
+	// +listType=map
+	// +listMapKey=topologyKey
+	// +listMapKey=whenUnsatisfiable
+	TopologySpreadConstraints []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -1802,6 +1817,13 @@ type DatadogAgentGenericContainer struct {
 	// Default: 'info'
 	// +optional
 	LogLevel *string `json:"logLevel,omitempty"`
+
+	// Specify additional ports to be exposed by the container. Not specifying a port here
+	// DOES NOT prevent that port from being exposed.
+	// See https://pkg.go.dev/k8s.io/api/core/v1#Container documentation for more details.
+	// +optional
+	// +listType=atomic
+	Ports []corev1.ContainerPort `json:"ports,omitempty"`
 
 	// Specify additional environment variables in the container.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables

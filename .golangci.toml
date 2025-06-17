@@ -44,6 +44,7 @@
   enable-all = true
   disable = [
     "exhaustruct",
+    "exportloopref",
     "nonamedreturns",
     "revive",
     "lll",

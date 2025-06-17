@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
@@ -30,7 +32,7 @@ func (df *dummyFeature) ID() feature.IDType {
 }
 
 // Configure returns a predefined RequiredComponents value.
-func (df *dummyFeature) Configure(dda *datadoghqv2alpha1.DatadogAgent) feature.RequiredComponents {
+func (df *dummyFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) feature.RequiredComponents {
 	return df.ConfigureReturn
 }
 
@@ -62,7 +64,7 @@ func (df *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateMa
 // Test_setupDependencies verifies that store and resource managers are initialized.
 func Test_setupDependencies(t *testing.T) {
 	// Create a dummy DatadogAgent instance.
-	dummyAgent := &datadoghqv2alpha1.DatadogAgent{}
+	dummyAgent := &v2alpha1.DatadogAgent{}
 	dummyPlatformInfo := kubernetes.PlatformInfo{}
 	dummyLogger := logr.Discard()
 	dummyOpts := &ReconcilerOptions{

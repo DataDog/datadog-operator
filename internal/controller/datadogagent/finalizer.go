@@ -67,9 +67,11 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) err
 		r.forwarders.Unregister(obj)
 	}
 
-	// Namespaced resources from the store should be deleted automatically due to owner reference
-	// Delete cluster level resources
-	r.cleanUpClusterLevelResources(reqLogger, obj)
+	if !r.options.DatadogAgentInternalEnabled {
+		// Namespaced resources from the store should be deleted automatically due to owner reference
+		// Delete cluster level resources
+		r.cleanUpClusterLevelResources(reqLogger, obj)
+	}
 
 	if err := r.profilesCleanup(); err != nil {
 		return err
@@ -131,6 +133,7 @@ func (r *Reconciler) profilesCleanup() error {
 
 func (r *Reconciler) cleanUpClusterLevelResources(reqLogger logr.Logger, dda client.Object) error {
 	// Cluster level resources must be deleted manually since they cannot have an owner reference
+	r.log.Info("Cleaning up cluster level resources")
 	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRolesKind, r.platformInfo))
 	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.ClusterRoleBindingKind, r.platformInfo))
 	deleteObjectsForResource(r.client, dda, kubernetes.ObjectFromKind(kubernetes.APIServiceKind, r.platformInfo))

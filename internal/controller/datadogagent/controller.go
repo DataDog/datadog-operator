@@ -62,11 +62,12 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	ExtendedDaemonsetOptions   componentagent.ExtendedDaemonsetOptions
-	SupportCilium              bool
-	OperatorMetricsEnabled     bool
-	IntrospectionEnabled       bool
-	DatadogAgentProfileEnabled bool
+	ExtendedDaemonsetOptions    componentagent.ExtendedDaemonsetOptions
+	SupportCilium               bool
+	OperatorMetricsEnabled      bool
+	IntrospectionEnabled        bool
+	DatadogAgentProfileEnabled  bool
+	DatadogAgentInternalEnabled bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -77,12 +78,12 @@ type Reconciler struct {
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
-	forwarders   datadog.MetricForwardersManager
+	forwarders   datadog.MetricsForwardersManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricForwardersManager,
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwardersMgr datadog.MetricsForwardersManager,
 ) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,

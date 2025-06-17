@@ -41,6 +41,7 @@ func TestScheme() *runtime.Scheme {
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
 	s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgentInternal{})
 
 	return s
 }

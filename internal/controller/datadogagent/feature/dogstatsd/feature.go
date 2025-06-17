@@ -54,6 +54,8 @@ type dogstatsdFeature struct {
 
 	adpEnabled bool
 
+	nonLocalTraffic bool
+
 	owner metav1.Object
 }
 
@@ -63,8 +65,8 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	dogstatsd := dda.Spec.Features.Dogstatsd
+func (f *dogstatsdFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	dogstatsd := ddaSpec.Features.Dogstatsd
 	f.owner = dda
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
@@ -81,15 +83,17 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.TagCardinality != nil {
 		f.tagCardinality = *dogstatsd.TagCardinality
 	}
-	f.useHostNetwork = constants.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
+	f.useHostNetwork = constants.IsHostNetworkEnabled(ddaSpec, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = dogstatsd.MapperProfiles
 	}
 
-	if dda.Spec.Global.LocalService != nil {
-		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	if ddaSpec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(ddaSpec.Global.LocalService.ForceEnableLocalService)
 	}
-	f.localServiceName = constants.GetLocalAgentServiceName(dda)
+	f.localServiceName = constants.GetLocalAgentServiceName(dda.GetName(), ddaSpec)
+
+	f.nonLocalTraffic = apiutils.BoolValue(dogstatsd.NonLocalTraffic)
 
 	f.adpEnabled = featureutils.HasAgentDataPlaneAnnotation(dda)
 
@@ -205,11 +209,11 @@ func (f *dogstatsdFeature) manageNodeAgent(agentContainerName apicommon.AgentCon
 			Name:  DDDogstatsdPort,
 			Value: strconv.Itoa(dsdPortEnvVarValue),
 		})
-		managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
-			Name:  DDDogstatsdNonLocalTraffic,
-			Value: "true",
-		})
 	}
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, &corev1.EnvVar{
+		Name:  DDDogstatsdNonLocalTraffic,
+		Value: strconv.FormatBool(f.nonLocalTraffic),
+	})
 	managers.Port().AddPortToContainer(agentContainerName, dogstatsdPort)
 
 	// uds

@@ -185,7 +185,7 @@ func (r *Reconciler) cleanupOldDCADeployments(ctx context.Context, logger logr.L
 		kubernetes.AppKubernetesManageByLabelKey:   "datadog-operator",
 		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 	}
-	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda)
+	deploymentName := component.GetDeploymentNameFromDatadogAgent(dda, &dda.Spec)
 	deploymentList := appsv1.DeploymentList{}
 	if err := r.client.List(ctx, &deploymentList, matchLabels); err != nil {
 		return err

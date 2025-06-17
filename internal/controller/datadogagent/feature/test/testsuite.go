@@ -123,7 +123,7 @@ func runTest(t *testing.T, tt FeatureTest) {
 	if tt.DDA != nil {
 		var configuredFeatures []feature.Feature
 		var enabledFeatures []feature.Feature
-		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, featureOptions)
+		configuredFeatures, enabledFeatures, gotConfigure = feature.BuildFeatures(tt.DDA, &tt.DDA.Spec, tt.DDA.Status.RemoteConfigConfiguration, featureOptions)
 		features = append(configuredFeatures, enabledFeatures...)
 		dda = tt.DDA
 	} else {
