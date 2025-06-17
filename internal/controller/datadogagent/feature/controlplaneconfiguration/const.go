@@ -4,7 +4,3 @@
 // Copyright 2025-present Datadog, Inc.
 
 package controlplaneconfiguration
-
-const (
-	defaultControlPlaneConfigurationConfFileName = "controlplaneconfiguration.yaml"
-)

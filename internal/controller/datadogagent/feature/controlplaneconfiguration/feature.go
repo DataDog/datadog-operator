@@ -89,8 +89,7 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 		return nil
 	}
 
-	// creating configmaps
-
+	// Create configmaps for control plane configuration
 	// default configmap
 	defaultConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.DefaultProvider, f.defaultConfigMapName)
 	if err != nil {
@@ -113,15 +112,94 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 		return fmt.Errorf("failed to add openshift controlplane configuration configmap to store: %w", err)
 	}
 
+	// Add OpenShift-specific RBAC if provider is OpenShift RHCOS
+	if f.provider == kubernetes.OpenshiftRHCOSType {
+		// Create SecurityContextConstraints
+		scc := &securityv1.SecurityContextConstraints{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "datadog-agent",
+				Labels: map[string]string{
+					"app.kubernetes.io/name":     "datadog-agent",
+					"app.kubernetes.io/instance": f.owner.GetName(),
+				},
+			},
+			AllowPrivilegedContainer: false,
+			AllowHostDirVolumePlugin: true,
+			AllowHostIPC:             false,
+			AllowHostNetwork:         false,
+			AllowHostPID:             false,
+			AllowHostPorts:           false,
+			AllowPrivilegeEscalation: apiutils.NewBoolPointer(true),
+			AllowedCapabilities: []corev1.Capability{
+				"SYS_ADMIN",
+				"SYS_RESOURCE",
+				"SYS_PTRACE",
+				"NET_ADMIN",
+				"NET_BROADCAST",
+				"NET_RAW",
+				"IPC_LOCK",
+				"CHOWN",
+				"DAC_READ_SEARCH",
+			},
+			RunAsUser: securityv1.RunAsUserStrategyOptions{
+				Type: securityv1.RunAsUserStrategyRunAsAny,
+			},
+			SELinuxContext: securityv1.SELinuxContextStrategyOptions{
+				Type: securityv1.SELinuxStrategyRunAsAny,
+			},
+			FSGroup: securityv1.FSGroupStrategyOptions{
+				Type: securityv1.FSGroupStrategyRunAsAny,
+			},
+			SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
+				Type: securityv1.SupplementalGroupsStrategyRunAsAny,
+			},
+			Volumes: []securityv1.FSType{
+				securityv1.FSTypeConfigMap,
+				securityv1.FSTypeEmptyDir,
+				securityv1.FSTypeDownwardAPI,
+				securityv1.FSTypeSecret,
+				securityv1.FSTypeHostPath,
+			},
+		}
+
+		if err := managers.Store().AddOrUpdate(SecurityContextConstraintsKind, scc); err != nil {
+			return fmt.Errorf("failed to add SecurityContextConstraints to store: %w", err)
+		}
+
+		// Create RoleBinding for the SCC
+		roleBinding := &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "datadog-agent-scc",
+				Namespace: f.owner.GetNamespace(),
+				Labels: map[string]string{
+					"app.kubernetes.io/name":     "datadog-agent",
+					"app.kubernetes.io/instance": f.owner.GetName(),
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "security.openshift.io",
+				Kind:     "SecurityContextConstraints",
+				Name:     "datadog-agent",
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind:      "ServiceAccount",
+					Name:      fmt.Sprintf("%s-%s", f.owner.GetName(), constants.DefaultAgentResourceSuffix),
+					Namespace: f.owner.GetNamespace(),
+				},
+			},
+		}
+
+		if err := managers.Store().AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
+			return fmt.Errorf("failed to add RoleBinding to store: %w", err)
+		}
 	}
 
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
-	// print feature name
 	f.provider = provider
 	fmt.Println("controlplaneconfiguration feature")
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
@@ -172,7 +250,7 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 	// Add volume mount for the configmap
 	configMapVolumeMount := corev1.VolumeMount{
 		Name:      "controlplane-config",
-		MountPath: "/etc/datadog-agent/conf.d/controlplane.d",
+		MountPath: "/etc/datadog-agent/conf.d",
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&configMapVolumeMount, apicommon.ClusterAgentContainerName)
@@ -195,15 +273,13 @@ func (f *controlPlaneConfigurationFeature) ManageNodeAgent(managers feature.PodT
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
 func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	// do providers need to be handled in this function?
 	// Create volume for etcd client certs
 	etcdCertsVolume := &corev1.Volume{
 		Name: "etcd-client-certs",
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: "kube-etcd-client-certs",
+				SecretName: "etcd-metric-client",
 			},
 		},
 	}
@@ -212,7 +288,7 @@ func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers fe
 	// Add volume mount to cluster-checks-runner container
 	etcdCertsVolumeMount := corev1.VolumeMount{
 		Name:      "etcd-client-certs",
-		MountPath: "/etc/etcd/certs",
+		MountPath: "/etc/etcd-certs",
 		ReadOnly:  true,
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
