@@ -9,9 +9,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigMap(t *testing.T) {

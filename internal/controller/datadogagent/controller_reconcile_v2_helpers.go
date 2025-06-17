@@ -104,7 +104,7 @@ func (r *Reconciler) reconcileAgentProfiles(ctx context.Context, logger logr.Log
 		logger.Info("nodeList", "nodeList", nodeList)
 		if r.options.IntrospectionEnabled {
 			providerList = kubernetes.GetProviderListFromNodeList(nodeList, logger)
-			logger.Info("providerList", providerList)
+			logger.Info("providerList", "providerList", providerList)
 			metrics.IntrospectionEnabled.Set(metrics.TrueValue)
 		}
 		if r.options.DatadogAgentProfileEnabled {

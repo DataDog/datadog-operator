@@ -8,12 +8,13 @@ package controlplaneconfiguration
 import (
 	"fmt"
 
-	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	"github.com/DataDog/datadog-operator/pkg/constants"
 	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apiutils "github.com/DataDog/datadog-operator/api/utils"
+	"github.com/DataDog/datadog-operator/pkg/constants"
 )
 
 func getSecurityContextConstraints(ddaName string) *securityv1.SecurityContextConstraints {

@@ -6,9 +6,10 @@
 package controlplaneconfiguration
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (f *controlPlaneConfigurationFeature) buildControlPlaneConfigurationConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {

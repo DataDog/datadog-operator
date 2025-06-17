@@ -20,12 +20,9 @@ import (
 )
 
 func init() {
-	fmt.Println("Registering control plane configuration feature")
 	if err := feature.Register(feature.ControlPlaneConfigurationIDType, buildControlPlaneConfigurationFeature); err != nil {
-		fmt.Printf("Failed to register control plane configuration feature: %v\n", err)
 		panic(err)
 	}
-	fmt.Println("Successfully registered control plane configuration feature")
 }
 
 func buildControlPlaneConfigurationFeature(options *feature.Options) feature.Feature {
@@ -54,10 +51,12 @@ func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent)
 	f.owner = dda
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
+
 	controlPlaneConfiguration := dda.Spec.Features.ControlPlaneConfiguration
 	f.logger.Info("Control plane configuration feature state",
 		"feature", feature.ControlPlaneConfigurationIDType,
 		"enabled", controlPlaneConfiguration != nil && apiutils.BoolValue(controlPlaneConfiguration.Enabled),
+		"provider", f.provider,
 		"config", controlPlaneConfiguration)
 
 	if controlPlaneConfiguration != nil && apiutils.BoolValue(controlPlaneConfiguration.Enabled) {
@@ -94,9 +93,9 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 	}
 
 	// openshift configmap
-	openshiftConfigMap, err := f.buildControlPlaneConfigurationConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
-	if err != nil {
-		return fmt.Errorf("failed to build openshift configmap: %w", err)
+	openshiftConfigMap, err2 := f.buildControlPlaneConfigurationConfigMap(kubernetes.OpenshiftRHCOSType, f.openshiftConfigMapName)
+	if err2 != nil {
+		return fmt.Errorf("failed to build openshift configmap: %w", err2)
 	}
 	openshiftConfigMap.Name = f.openshiftConfigMapName
 
@@ -108,14 +107,12 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 	if f.provider == kubernetes.OpenshiftRHCOSType {
 		// Create SecurityContextConstraints
 		scc := getSecurityContextConstraints(f.owner.GetName())
-
 		if err := managers.Store().AddOrUpdate(securityContextConstraintsKind, scc); err != nil {
 			return fmt.Errorf("failed to add SecurityContextConstraints to store: %w", err)
 		}
 
 		// Create RoleBinding for the SCC
 		roleBinding := getRoleBinding(securityContextConstraintsName, f.owner.GetName(), f.owner.GetNamespace())
-
 		if err := managers.Store().AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
 			return fmt.Errorf("failed to add RoleBinding to store: %w", err)
 		}
@@ -127,9 +124,7 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	f.provider = provider
-	fmt.Println("controlplaneconfiguration feature")
 	_, providerValue := kubernetes.GetProviderLabelKeyValue(provider)
-	fmt.Println("manageclusteragent providerValue", providerValue)
 
 	// Add the writable emptyDir volume for all providers
 	agentConfDVolume := &corev1.Volume{
@@ -151,10 +146,8 @@ func (f *controlPlaneConfigurationFeature) ManageClusterAgent(managers feature.P
 	// Select the appropriate configmap based on provider
 	var configMapName string
 	if providerValue == kubernetes.OpenshiftRHCOSType {
-		fmt.Print("openshift, adding configmaps")
 		configMapName = f.openshiftConfigMapName
 	} else if providerValue == kubernetes.EKSAMIType {
-		fmt.Print("eks provider detected")
 		configMapName = f.defaultConfigMapName // TODO: add eks configmap and update here
 	} else {
 		configMapName = f.defaultConfigMapName
