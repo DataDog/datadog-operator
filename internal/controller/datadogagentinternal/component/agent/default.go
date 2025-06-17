@@ -334,9 +334,7 @@ func agentImage() string {
 }
 
 func otelAgentImage() string {
-	// todo(mackjmr): Update once OTel agent is GA (7.64.0), as the ot-beta tag will be discontinued.
-	return fmt.Sprintf("%s/%s:%s", images.DefaultImageRegistry, images.DefaultAgentImageName, images.OTelAgentBetaTag)
-
+	return fmt.Sprintf("%s/%s:%s%s", images.DefaultImageRegistry, images.DefaultAgentImageName, images.AgentLatestVersion, images.FullTagSuffix)
 }
 
 func initContainers(dda metav1.Object, requiredContainers []apicommon.AgentContainerName) []corev1.Container {
