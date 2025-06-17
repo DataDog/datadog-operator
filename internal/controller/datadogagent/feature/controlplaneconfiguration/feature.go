@@ -200,24 +200,25 @@ func (f *controlPlaneConfigurationFeature) ManageNodeAgent(managers feature.PodT
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 func (f *controlPlaneConfigurationFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	// Create volume for etcd client certs
-	etcdCertsVolume := &corev1.Volume{
-		Name: etcdCertsVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: etcdCertsSecretName,
+	if f.provider != kubernetes.OpenshiftRHCOSType {
+		// Create volume for etcd client certs
+		etcdCertsVolume := &corev1.Volume{
+			Name: etcdCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: etcdCertsSecretName,
+				},
 			},
-		},
-	}
-	managers.Volume().AddVolume(etcdCertsVolume)
+		}
+		managers.Volume().AddVolume(etcdCertsVolume)
 
-	// Add volume mount to cluster-checks-runner container
-	etcdCertsVolumeMount := corev1.VolumeMount{
-		Name:      etcdCertsVolumeName,
-		MountPath: etcdCertsVolumeMountPath,
-		ReadOnly:  true,
+		// Add volume mount to cluster-checks-runner container
+		etcdCertsVolumeMount := corev1.VolumeMount{
+			Name:      etcdCertsVolumeName,
+			MountPath: etcdCertsVolumeMountPath,
+			ReadOnly:  true,
+		}
+		managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
 	}
-	managers.VolumeMount().AddVolumeMountToContainer(&etcdCertsVolumeMount, apicommon.ClusterChecksRunnersContainerName)
-
 	return nil
 }
