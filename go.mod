@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.23.0
+go 1.23
 
 toolchain go1.23.10
 
