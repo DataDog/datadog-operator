@@ -1065,6 +1065,15 @@ spec:
                             Default: false
                           type: boolean
                       type: object
+                    controlPlaneConfiguration:
+                      description: ControlPlaneConfiguration configuration.
+                      properties:
+                        enabled:
+                          description: |-
+                            Enabled enables the control plane configuration.
+                            Default: false
+                          type: boolean
+                      type: object
                     cspm:
                       description: CSPM (Cloud Security Posture Management) configuration.
                       properties:
@@ -8647,6 +8656,15 @@ spec:
                             useClusterChecksRunners:
                               description: |-
                                 Enabled enables Cluster Checks Runners to run all Cluster Checks.
+                                Default: false
+                              type: boolean
+                          type: object
+                        controlPlaneConfiguration:
+                          description: ControlPlaneConfiguration configuration.
+                          properties:
+                            enabled:
+                              description: |-
+                                Enabled enables the control plane configuration.
                                 Default: false
                               type: boolean
                           type: object
