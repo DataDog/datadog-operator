@@ -267,11 +267,13 @@ e2e:
       set +e
       echo "Running e2e test with target image $TARGET_IMAGE"
       IMAGE_PULL_PASSWORD=$(aws ecr get-login-password) IMG=$TARGET_IMAGE make e2e-tests 
+      EXIT_CODE=$?
+      VARIANT="k8s-$K8S_VERSION"
       echo "$CI_JOB_ID,$VARIANT,$EXIT_CODE" > result_${CI_JOB_ID}.csv
+      echo "test finished with exit code: $EXIT_CODE"
+      cat result_${CI_JOB_ID}.csv
       set -e
-    - echo "test finished with exit code:"
-    - cat result_${CI_JOB_ID}.csv
-    - exit 0
+      exit 0
   artifacts:
     reports:
       junit: result_${CI_JOB_ID}.csv
@@ -282,8 +284,64 @@ aggregate_e2e_results:
   rules:
     - when: always
   script:
+    # Combine all CSV files
     - cat result_*.csv > result.csv
+    - echo "Combined results:"
     - cat result.csv
+    
+    # Parse CSV files and calculate success rate
+    - |
+      echo "Analyzing test results..."
+      
+      # Initialize counters
+      total_tests=0
+      successful_tests=0
+      
+      # Process each CSV file
+      for csv_file in result_*.csv; do
+        if [ -f "$csv_file" ]; then
+          echo "Processing $csv_file:"
+          cat "$csv_file"
+          
+          # Extract exit code from each line (assuming format: job_id,variant,exit_code)
+          while IFS=',' read -r job_id variant exit_code; do
+            if [[ "$exit_code" =~ ^[0-9]+$ ]]; then
+              ((total_tests++))
+              if [ "$exit_code" -eq 0 ]; then
+                ((successful_tests++))
+                echo "  ✓ Job $job_id (variant: $variant) - SUCCESS (exit code: $exit_code)"
+              else
+                echo "  ✗ Job $job_id (variant: $variant) - FAILED (exit code: $exit_code)"
+              fi
+            fi
+          done < "$csv_file"
+        fi
+      done
+      
+      echo ""
+      echo "=== Test Results Summary ==="
+      echo "Total tests: $total_tests"
+      echo "Successful tests: $successful_tests"
+      echo "Failed tests: $((total_tests - successful_tests))"
+      
+      if [ $total_tests -eq 0 ]; then
+        echo "ERROR: No test results found!"
+        exit 1
+      fi
+      
+      # Calculate success percentage
+      success_percentage=$(echo "scale=2; $successful_tests * 100 / $total_tests" | bc -l)
+      echo "Success rate: ${success_percentage}%"
+      
+      # Determine if we should succeed (75% threshold)
+      threshold=75
+      if (( $(echo "$success_percentage >= $threshold" | bc -l) )); then
+        echo "✓ SUCCESS: Success rate (${success_percentage}%) meets or exceeds threshold (${threshold}%)"
+        exit 0
+      else
+        echo "✗ FAILURE: Success rate (${success_percentage}%) is below threshold (${threshold}%)"
+        exit 1
+      fi
 
 publish_public_main:
   stage: release
