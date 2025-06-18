@@ -17,3 +17,10 @@ github_teams_restrictions:
 github_users_restrictions:
   - clamoriniere
   - hkaj
+---
+schema-version: v1
+kind: mergegate
+rules:
+  - require: commit-signatures
+    excluded_emails:
+      - '41898282+github-actions[bot]@users.noreply.github.com'
