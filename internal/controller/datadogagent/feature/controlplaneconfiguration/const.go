@@ -10,10 +10,6 @@ const (
 	defaultConfigMapName   = "datadog-controlplane-configuration-default"
 	otherConfigMapName     = "datadog-controlplane-configuration-unknown"
 
-	securityContextConstraintsKind = "SecurityContextConstraints"
-	securityContextConstraintsName = "datadog-controlplane-monitoring-scc"
-	roleBindingName                = "datadog-controlplane-monitoring-rolebinding"
-
 	controlPlaneConfigurationVolumeName      = "controlplane-config"
 	controlPlaneConfigurationVolumeMountPath = "/etc/datadog-agent/conf.d"
 	emptyDirVolumeName                       = "agent-conf-d-writable"

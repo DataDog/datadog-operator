@@ -102,22 +102,6 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
 		return fmt.Errorf("failed to add openshift configmap to store: %w", err)
 	}
-
-	// Add OpenShift-specific RBAC if provider is OpenShift RHCOS
-	if f.provider == kubernetes.OpenshiftRHCOSType {
-		// Create SecurityContextConstraints
-		scc := getSecurityContextConstraints(f.owner.GetName())
-		if err := managers.Store().AddOrUpdate(securityContextConstraintsKind, scc); err != nil {
-			return fmt.Errorf("failed to add SecurityContextConstraints to store: %w", err)
-		}
-
-		// Create RoleBinding for the SCC
-		roleBinding := getRoleBinding(securityContextConstraintsName, f.owner.GetName(), f.owner.GetNamespace())
-		if err := managers.Store().AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
-			return fmt.Errorf("failed to add RoleBinding to store: %w", err)
-		}
-	}
-
 	return nil
 }
 

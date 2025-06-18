@@ -103,8 +103,6 @@ func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
 				assert.Contains(t, etcdConfig, "/etc/etcd-certs/etcd-client.key")
 			}
 		}
-
-		// Note: SCC and RoleBinding are only created when the feature runs on OpenShift, and provider detection is done at runtime
 	}
 }
 

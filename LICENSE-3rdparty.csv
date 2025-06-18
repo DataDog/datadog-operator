@@ -80,6 +80,7 @@ core,github.com/modern-go/concurrent,Apache-2.0
 core,github.com/modern-go/reflect2,Apache-2.0
 core,github.com/mohae/deepcopy,MIT
 core,github.com/munnerz/goautoneg,BSD-3-Clause
+core,github.com/openshift/api/security/v1,Apache-2.0
 core,github.com/outcaste-io/ristretto,Apache-2.0
 core,github.com/outcaste-io/ristretto/z,MIT
 core,github.com/patrickmn/go-cache,MIT
