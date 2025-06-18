@@ -47,12 +47,12 @@ func (f *controlPlaneConfigurationFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *controlPlaneConfigurationFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *controlPlaneConfigurationFeature) Configure(dda metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.defaultConfigMapName = defaultConfigMapName
 	f.openshiftConfigMapName = openshiftConfigMapName
 
-	controlPlaneConfiguration := dda.Spec.Features.ControlPlaneConfiguration
+	controlPlaneConfiguration := ddaSpec.Features.ControlPlaneConfiguration
 	f.logger.Info("Control plane configuration feature state",
 		"feature", feature.ControlPlaneConfigurationIDType,
 		"enabled", controlPlaneConfiguration != nil && apiutils.BoolValue(controlPlaneConfiguration.Enabled),
