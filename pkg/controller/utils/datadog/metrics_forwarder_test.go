@@ -8,9 +8,9 @@ package datadog
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -153,7 +153,169 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
-func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
+func Test_setupFromOperator(t *testing.T) {
+	type fields struct {
+		client client.Client
+	}
+
+	tests := []struct {
+		name        string
+		loadFunc    func(*metricsForwarder, *secrets.DummyDecryptor)
+		wantAPIKey  string
+		wantBaseURL string
+		wantErr     bool
+	}{
+		{
+			name: "basic creds with default URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+			},
+			wantBaseURL: defaultbaseURL,
+			wantAPIKey:  "test123",
+			wantErr:     false,
+		},
+		{
+			name: "basic creds with default DD_URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDddURL, "https://api.dd_url.com")
+			},
+			wantBaseURL: "https://api.dd_url.com",
+			wantAPIKey:  "test123",
+			wantErr:     false,
+		},
+		{
+			name: "basic creds with default DD_DD_URL",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDddURL, "https://api.dd_dd_url.com")
+			},
+			wantBaseURL: "https://api.dd_dd_url.com",
+			wantAPIKey:  "test123",
+			wantErr:     false,
+		},
+		{
+			name: "basic creds with default DD_SITE",
+			loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
+				os.Setenv(constants.DDAPIKey, "test123")
+				os.Setenv(constants.DDAppKey, "testabc")
+				os.Setenv(constants.DDSite, "dd_site.com")
+			},
+			wantBaseURL: "https://api.dd_site.com",
+			wantAPIKey:  "test123",
+			wantErr:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &secrets.DummyDecryptor{}
+			mf := &metricsForwarder{
+				k8sClient:    fake.NewFakeClient(),
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
+			}
+			if tt.loadFunc != nil {
+				tt.loadFunc(mf, d)
+			}
+			_, err := mf.setupFromOperator()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.setupFromOperator() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if mf.apiKey != tt.wantAPIKey {
+				t.Errorf("metricsForwarder.setupFromOperator() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
+			}
+		})
+	}
+}
+
+func Test_setupFromDDA(t *testing.T) {
+	apiVersion := fmt.Sprintf("%s/%s", v2alpha1.GroupVersion.Group, v2alpha1.GroupVersion.Version)
+	apiKey := "foundAPIKey"
+	labels := map[string]string{
+		"labelKey1": "labelValue1",
+	}
+
+	type args struct {
+		dda *v2alpha1.DatadogAgent
+	}
+	tests := []struct {
+		name            string
+		dda             *v2alpha1.DatadogAgent
+		wantLabels      map[string]string
+		wantClusterName string
+		wantBaseURL     string
+		wantAPIKey      string
+		wantErr         bool
+	}{
+		{
+			name: "base URL, cluster name and API key",
+			dda: &v2alpha1.DatadogAgent{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "DatadogAgent",
+					APIVersion: apiVersion,
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:  "foo",
+					Name:       "bar",
+					Labels:     labels,
+					Finalizers: []string{"finalizer.agent.datadoghq.com"},
+				},
+				Spec: v2alpha1.DatadogAgentSpec{
+					Global: &v2alpha1.GlobalConfig{
+						ClusterName: apiutils.NewStringPointer("test-cluster"),
+						Credentials: &v2alpha1.DatadogCredentials{
+							APIKey: apiutils.NewStringPointer(apiKey),
+						},
+					},
+				},
+			},
+			wantLabels:      labels,
+			wantClusterName: "test-cluster",
+			wantBaseURL:     defaultbaseURL,
+			wantAPIKey:      "foundAPIKey",
+			wantErr:         false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := &secrets.DummyDecryptor{}
+			mf := &metricsForwarder{
+				k8sClient:    fake.NewFakeClient(),
+				decryptor:    d,
+				creds:        sync.Map{},
+				credsManager: config.NewCredentialManager(),
+			}
+
+			err := mf.setupFromDDA(tt.dda, false)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.setupFromDDA() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if mf.apiKey != tt.wantAPIKey {
+				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.apiKey, tt.wantAPIKey)
+			}
+			if mf.baseURL != tt.wantBaseURL {
+				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.baseURL, tt.wantBaseURL)
+			}
+			if mf.clusterName != tt.wantClusterName {
+				t.Errorf("metricsForwarder.setupFromDDA() apiKey = %v, want %v", mf.clusterName, tt.wantClusterName)
+			}
+			for k, v := range mf.labels {
+				if tt.wantLabels[k] != v {
+					t.Errorf("metricsForwarder.setupFromDDA() label value = %v, want %v", v, tt.wantLabels[k])
+
+				}
+			}
+		})
+	}
+}
+
+func Test_getCredentialsFromDDA(t *testing.T) {
 	apiKey := "foundAPIKey"
 
 	encAPIKey := "ENC[APIKey]"
@@ -174,25 +336,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		wantFunc   func(*metricsForwarder, *secrets.DummyDecryptor) error
 	}{
 		{
-			name: "creds found in credential manager",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{
-					Credentials: &v2alpha1.DatadogCredentials{
-						APIKey: apiutils.NewStringPointer(apiKey),
-					},
-				}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Setenv(constants.DDAPIKey, "test123")
-					os.Setenv(constants.DDAppKey, "testabc")
-				},
-			},
-			wantAPIKey: "test123",
-			wantErr:    false,
-		},
-		{
 			name: "creds found in CR",
 			fields: fields{
 				client: fake.NewFakeClient(),
@@ -203,10 +346,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 						APIKey: apiutils.NewStringPointer(apiKey),
 					},
 				}),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(constants.DDAPIKey)
-					os.Unsetenv(constants.DDAppKey)
-				},
 			},
 			wantAPIKey: "foundAPIKey",
 			wantErr:    false,
@@ -226,8 +365,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(constants.DDAPIKey)
-					os.Unsetenv(constants.DDAppKey)
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds-api",
@@ -255,8 +392,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(constants.DDAPIKey)
-					os.Unsetenv(constants.DDAppKey)
 					m.cleanSecretsCache()
 					m.creds.Store(encAPIKey, "cachedAPIKey")
 				},
@@ -283,8 +418,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 					},
 				}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(constants.DDAPIKey)
-					os.Unsetenv(constants.DDAppKey)
 					m.cleanSecretsCache()
 					d.On("Decrypt", []string{encAPIKey}).Once()
 				},
@@ -308,8 +441,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			args: args{
 				dda: testutils.NewDatadogAgent("foo", "bar", &v2alpha1.GlobalConfig{}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Unsetenv(constants.DDAPIKey)
-					os.Unsetenv(constants.DDAppKey)
 				},
 			},
 			wantErr: true,
@@ -327,76 +458,18 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
 			}
-			apiKey, err := mf.getCredentials(tt.args.dda)
+			apiKey, err := mf.getCredentialsFromDDA(tt.args.dda)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.getCredentialsFromDDA() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if apiKey != tt.wantAPIKey {
-				t.Errorf("metricsForwarder.getCredentials() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
+				t.Errorf("metricsForwarder.getCredentialsFromDDA() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
 			}
 			if tt.wantFunc != nil {
 				if err := tt.wantFunc(mf, d); err != nil {
-					t.Errorf("metricsForwarder.getCredentials() wantFunc validation error: %v", err)
+					t.Errorf("metricsForwarder.getCredentialsFromDDA() wantFunc validation error: %v", err)
 				}
-			}
-		})
-	}
-}
-
-func TestMetricsForwarder_setTags(t *testing.T) {
-	tests := []struct {
-		name        string
-		clusterName string
-		labels      map[string]string
-		want        []string
-	}{
-		{
-			name:   "empty labels",
-			labels: map[string]string{},
-			want:   []string{},
-		},
-		{
-			name: "with labels",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-		{
-			name:        "with clustername",
-			clusterName: "testcluster",
-			want: []string{
-				"cluster_name:testcluster",
-			},
-		},
-		{
-			name:        "with clustername and labels",
-			clusterName: "testcluster",
-			labels: map[string]string{
-				"firstKey":  "firstValue",
-				"secondKey": "secondValue",
-			},
-			want: []string{
-				"cluster_name:testcluster",
-				"firstKey:firstValue",
-				"secondKey:secondValue",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dd := &metricsForwarder{}
-			dd.updateTags(tt.clusterName, tt.labels)
-
-			sort.Strings(dd.tags)
-			sort.Strings(tt.want)
-			if !reflect.DeepEqual(dd.tags, tt.want) {
-				t.Errorf("metricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
 			}
 		})
 	}
@@ -428,10 +501,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 		wantFunc func(*fakeMetricsForwarder) error
 	}{
 		{
-			name: "last error init value, new unknown error => send unsucess metric",
+			name: "last error init value, new unknown error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -444,10 +517,10 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			},
 		},
 		{
-			name: "last error init value, new auth error => send unsucess metric",
+			name: "last error init value, new auth error => send unsuccess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -463,7 +536,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, []string{"kube_namespace:foo", "resource_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f

@@ -15,10 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/feature"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -53,21 +54,26 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	newStatus := instance.Status.DeepCopy()
 	now := metav1.NewTime(time.Now())
 
-	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, r.log))
+	// TODO: temporary fix for DDAI object name
+	// Use DDA name instead of DDAI name
+	instanceCopy := instance.DeepCopy()
+	instanceCopy.Name = instanceCopy.Labels[apicommon.DatadogAgentNameLabelKey]
+
+	configuredFeatures, enabledFeatures, requiredComponents := feature.BuildFeatures(instanceCopy, &instanceCopy.Spec, instanceCopy.Status.RemoteConfigConfiguration, reconcilerOptionsToFeatureOptions(&r.options, r.log))
 	// update list of enabled features for metrics forwarder
-	r.updateMetricsForwardersFeatures(instance, enabledFeatures)
+	r.updateMetricsForwardersFeatures(instanceCopy, enabledFeatures)
 
 	// 1. Manage dependencies.
 	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	var err error
-	if err = r.manageGlobalDependencies(logger, instance, resourceManagers, requiredComponents); err != nil {
+	if err = r.manageGlobalDependencies(logger, instanceCopy, resourceManagers, requiredComponents); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
-	if err = r.overrideDependencies(logger, resourceManagers, instance); err != nil {
+	if err = r.overrideDependencies(logger, resourceManagers, instanceCopy); err != nil {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
 	}
 

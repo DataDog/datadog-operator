@@ -170,7 +170,7 @@ docker-build-check-ci:
 # For Gitlab use
 .PHONY: docker-build-push-ci
 docker-build-push-ci:
-	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --push
+	docker buildx build . -t ${IMG} --build-arg FIPS_ENABLED="${FIPS_ENABLED}" --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}" --platform=linux/${GOARCH} --output=type=image,oci-mediatypes=true --push
 
 # For Gitlab use
 .PHONY: docker-build-push-check-ci

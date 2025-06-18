@@ -941,6 +941,65 @@ func TestPodTemplateSpec(t *testing.T) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostPID)
 			},
 		},
+		{
+			name: "add topology spread constraints",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager.PodTemplateSpec().Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       "zone",
+						WhenUnsatisfiable: v1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "datadog",
+							},
+						},
+					},
+				}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+					{
+						MaxSkew:           2,
+						TopologyKey:       "node",
+						WhenUnsatisfiable: v1.ScheduleAnyway,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "datadog-agent",
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedConstraints := []v1.TopologySpreadConstraint{
+					{
+						MaxSkew:           1,
+						TopologyKey:       "zone",
+						WhenUnsatisfiable: v1.DoNotSchedule,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "datadog",
+							},
+						},
+					},
+					{
+						MaxSkew:           2,
+						TopologyKey:       "node",
+						WhenUnsatisfiable: v1.ScheduleAnyway,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "datadog-agent",
+							},
+						},
+					},
+				}
+
+				assert.Equal(t, expectedConstraints, manager.PodTemplateSpec().Spec.TopologySpreadConstraints)
+			},
+		},
 	}
 
 	for _, test := range tests {

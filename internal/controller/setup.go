@@ -69,7 +69,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
-type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricForwardersManager) error
+type starterFunc func(logr.Logger, manager.Manager, kubernetes.PlatformInfo, SetupOptions, datadog.MetricsForwardersManager) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:           startDatadogAgent,
@@ -110,7 +110,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	var metricForwardersMgr datadog.MetricForwardersManager
+	var metricForwardersMgr datadog.MetricsForwardersManager
 	if options.OperatorMetricsEnabled {
 		metricForwardersMgr = datadog.NewForwardersManager(mgr.GetClient(), &platformInfo)
 	}
@@ -135,7 +135,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -171,7 +171,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, pInfo kubernetes
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
-func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogAgentInternalEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentInternalControllerName)
 		return nil
@@ -185,7 +185,7 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 
@@ -198,15 +198,16 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, pInfo kubernet
 	}
 
 	return (&DatadogMonitorReconciler{
-		Client:   mgr.GetClient(),
-		DDClient: ddClient,
-		Log:      ctrl.Log.WithName("controllers").WithName(monitorControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(monitorControllerName),
-	}).SetupWithManager(mgr)
+		Client:                 mgr.GetClient(),
+		DDClient:               ddClient,
+		Log:                    ctrl.Log.WithName("controllers").WithName(monitorControllerName),
+		Scheme:                 mgr.GetScheme(),
+		Recorder:               mgr.GetEventRecorderFor(monitorControllerName),
+		operatorMetricsEnabled: options.OperatorMetricsEnabled,
+	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
-func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogDashboardEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", dashboardControllerName)
 		return nil
@@ -226,7 +227,7 @@ func startDatadogDashboard(logger logr.Logger, mgr manager.Manager, pInfo kubern
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogGenericResourceEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", genericResourceControllerName)
 		return nil
@@ -246,7 +247,7 @@ func startDatadogGenericResource(logger logr.Logger, mgr manager.Manager, pInfo 
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogSLOEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
 		return nil
@@ -268,7 +269,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.P
 	return controller.SetupWithManager(mgr)
 }
 
-func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricForwardersManager) error {
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, pInfo kubernetes.PlatformInfo, options SetupOptions, metricForwardersMgr datadog.MetricsForwardersManager) error {
 	if !options.DatadogAgentProfileEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", profileControllerName)
 		return nil

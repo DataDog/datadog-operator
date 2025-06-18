@@ -7,6 +7,7 @@ package liveprocess
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
@@ -41,20 +42,20 @@ func (f *liveProcessFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
-		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
-			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
+func (f *liveProcessFeature) Configure(_ metav1.Object, ddaSpec *v2alpha1.DatadogAgentSpec, _ *v2alpha1.RemoteConfigConfiguration) (reqComp feature.RequiredComponents) {
+	if ddaSpec.Features.LiveProcessCollection != nil && apiutils.BoolValue(ddaSpec.Features.LiveProcessCollection.Enabled) {
+		if ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
+			f.scrubArgs = apiutils.NewBoolPointer(*ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments)
 		}
-		if dda.Spec.Features.LiveProcessCollection.StripProcessArguments != nil {
-			f.stripArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.StripProcessArguments)
+		if ddaSpec.Features.LiveProcessCollection.StripProcessArguments != nil {
+			f.stripArgs = apiutils.NewBoolPointer(*ddaSpec.Features.LiveProcessCollection.StripProcessArguments)
 		}
 
 		reqContainers := []apicommon.AgentContainerName{
 			apicommon.CoreAgentContainerName,
 		}
 
-		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(dda, apiutils.BoolValue(dda.Spec.Global.RunProcessChecksInCoreAgent))
+		f.runInCoreAgent = featutils.OverrideProcessConfigRunInCoreAgent(ddaSpec, apiutils.BoolValue(ddaSpec.Global.RunProcessChecksInCoreAgent))
 
 		if !f.runInCoreAgent {
 			reqContainers = append(reqContainers, apicommon.ProcessAgentContainerName)
