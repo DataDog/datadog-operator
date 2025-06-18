@@ -205,10 +205,10 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 .PHONY: e2e-tests
 e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -v -count=1 --tags=e2e -vet=off -run TestGKESuite -timeout 0s; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --jsonfile ./e2e_test_output.json --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run TestGKESuite; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e/ ./... -v -count=1 --tags=e2e -vet=off -run $(E2E_RUN_REGEX) -timeout 0s; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --jsonfile ./e2e_test_output.json --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run $(E2E_RUN_REGEX); \
 	fi
 
 .PHONY: e2e-tests-keep-stacks

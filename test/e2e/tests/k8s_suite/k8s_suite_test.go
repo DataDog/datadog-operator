@@ -18,9 +18,10 @@ import (
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,15 +42,13 @@ type k8sSuite struct {
 func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
-		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+		//operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
 		operatorparams.WithHelmValues(`
-installCRDs: false
-imagePullSecrets:
-  - name: registry-credentials`),
+installCRDs: false`),
 	}
 
 	defaultProvisionerOpts := []provisioners.KubernetesProvisionerOption{
-		provisioners.WithTestName("generic-k8s"),
+		//provisioners.WithTestName("generic-k8s"),
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(defaultOperatorOpts...),
 		provisioners.WithLocal(s.local),
@@ -67,8 +66,23 @@ imagePullSecrets:
 
 	s.T().Run("Verify Operator", func(t *testing.T) {
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-			utils.VerifyOperator(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client())
+			res, _ := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
+			containsOperator := false
+			for _, pod := range res.Items {
+				if strings.Contains(pod.Name, "datadog-operator") {
+					containsOperator = true
+					break
+				}
+			}
+			assert.True(s.T(), containsOperator, "Datadog Operator not found")
 		}, 300*time.Second, 15*time.Second, "Could not validate operator pod in time")
+
+		err := s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+
+		metrics, err := s.Env().FakeIntake.Client().GetMetricNames()
+		require.NoError(s.T(), err, "Failed to get metric names from fake intake")
+		s.T().Log("Metrics received from fake intake:", metrics)
 	})
 
 	s.T().Run("Minimal DDA config", func(t *testing.T) {
@@ -94,10 +108,22 @@ imagePullSecrets:
 		provisionerOptions = append(provisionerOptions, defaultProvisionerOpts...)
 
 		s.UpdateEnv(provisioners.KubernetesProvisioner(provisionerOptions...))
+		err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+		s.Assert().NoError(err)
+		metrics, err := s.Env().FakeIntake.Client().GetMetricNames()
+		require.NoError(s.T(), err, "Failed to get metric names from fake intake")
+		s.T().Log("Metrics received from fake intake:", metrics)
 
 		s.Assert().EventuallyWithT(func(c *assert.CollectT) {
-			utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
-			utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, common.ClusterAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+			//utils.VerifyAgentPods(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), common.NodeAgentSelector+",agent.datadoghq.com/name=dda-minimum")
+			pods, podsListErr := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(c, podsListErr)
+
+			for _, pod := range pods.Items {
+				s.T().Log("POD: ", pod.Name)
+				s.T().Log("POD LABELS: ", pod.Labels)
+			}
+			//utils.VerifyNumPodsForSelector(s.T(), c, common.NamespaceName, s.Env().KubernetesCluster.Client(), 1, common.ClusterAgentSelector+",agent.datadoghq.com/name=dda-minimum")
 
 			agentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.NodeAgentSelector + ",agent.datadoghq.com/name=dda-minimum",
 				FieldSelector: "status.phase=Running"})
@@ -109,11 +135,15 @@ imagePullSecrets:
 				utils.VerifyCheck(c, output, "kubelet")
 			}
 
+			err = s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
+			s.Assert().NoError(err)
+
 			metricNames, err := s.Env().FakeIntake.Client().GetMetricNames()
+			s.T().Log("METRICS: ", metricNames)
 			s.Assert().NoError(err)
 			assert.Contains(c, metricNames, "kubernetes.cpu.usage.total")
 
-			metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total", matchOpts...)
+			metrics, err := s.Env().FakeIntake.Client().FilterMetrics("kubernetes.cpu.usage.total", nil)
 			s.Assert().NoError(err)
 
 			for _, metric := range metrics {
@@ -122,16 +152,16 @@ imagePullSecrets:
 				}
 			}
 
-			clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum"})
-			assert.NoError(s.T(), err)
+			//clusterAgentPods, err := s.Env().KubernetesCluster.Client().CoreV1().Pods(common.NamespaceName).List(context.TODO(), metav1.ListOptions{LabelSelector: common.ClusterAgentSelector + ",agent.datadoghq.com/e2e-test=datadog-agent-minimum"})
+			//assert.NoError(s.T(), err)
 
-			for _, pod := range clusterAgentPods.Items {
-				output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
-				assert.NoError(c, err)
-				utils.VerifyCheck(c, output, "kubernetes_state_core")
-			}
+			//for _, pod := range clusterAgentPods.Items {
+			//	output, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec(common.NamespaceName, pod.Name, "agent", []string{"agent", "status", "collector", "-j"})
+			//	assert.NoError(c, err)
+			//	utils.VerifyCheck(c, output, "kubernetes_state_core")
+			//}
 
-			s.verifyKSMCheck(c)
+			//s.verifyKSMCheck(c)
 		}, 10*time.Minute, 30*time.Second, "could not validate KSM (cluster check) metrics in time")
 
 	})

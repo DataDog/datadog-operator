@@ -5,8 +5,8 @@ go 1.23
 toolchain go1.23.8
 
 require (
-	github.com/DataDog/datadog-agent/test/fakeintake v0.66.0
-	github.com/DataDog/datadog-agent/test/new-e2e v0.66.0
+	github.com/DataDog/datadog-agent/test/fakeintake v0.67.0
+	github.com/DataDog/datadog-agent/test/new-e2e v0.67.0
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
@@ -14,7 +14,7 @@ require (
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
 	// You might also want to bump github.com/DataDog/datadog-agent/test/new-e2e
-	github.com/DataDog/test-infra-definitions v0.0.4-0.20250523144014-c9907d221ea5
+	github.com/DataDog/test-infra-definitions v0.0.4-0.20250616152245-335145dbb4c7
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/pulumi/pulumi-kubernetes/sdk/v4 v4.19.0
 	github.com/pulumi/pulumi/sdk/v3 v3.145.0
@@ -34,12 +34,12 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/DataDog/agent-payload/v5 v5.0.141 // indirect
-	github.com/DataDog/datadog-agent/comp/netflow/payload v0.66.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/proto v0.66.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/option v0.66.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/pointer v0.66.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.66.0 // indirect
-	github.com/DataDog/datadog-agent/pkg/version v0.66.0 // indirect
+	github.com/DataDog/datadog-agent/comp/netflow/payload v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/proto v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/option v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/pointer v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.67.0 // indirect
+	github.com/DataDog/datadog-agent/pkg/version v0.67.0 // indirect
 	github.com/DataDog/extendeddaemonset/api v0.0.0-20250108205105-6c4d337b78a1 // indirect
 	github.com/DataDog/mmh3 v0.0.0-20210722141835-012dc69a9e49 // indirect
 	github.com/DataDog/zstd v1.5.6 // indirect
