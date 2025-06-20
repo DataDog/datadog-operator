@@ -443,6 +443,24 @@ func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMap() *DatadogAgentBu
 	return builder
 }
 
+func (builder *DatadogAgentBuilder) WithOTelCollectorConfigMapMultipleItems() *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf = &v2alpha1.CustomConfig{}
+	builder.datadogAgent.Spec.Features.OtelCollector.Conf.ConfigMap = &v2alpha1.ConfigMapConfig{
+		Name: "user-provided-config-map",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "otel-config.yaml",
+				Path: "otel-config.yaml",
+			},
+			{
+				Key:  "otel-config-two.yaml",
+				Path: "otel-config-two.yaml",
+			},
+		},
+	}
+	return builder
+}
+
 func (builder *DatadogAgentBuilder) WithOTelCollectorPorts(grpcPort int32, httpPort int32) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.OtelCollector.Ports = []*corev1.ContainerPort{
 		{
