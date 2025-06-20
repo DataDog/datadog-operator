@@ -1065,6 +1065,17 @@
                   },
                   "type": "object"
                 },
+                "controlPlaneConfiguration": {
+                  "additionalProperties": false,
+                  "description": "ControlPlaneConfiguration configuration.",
+                  "properties": {
+                    "enabled": {
+                      "description": "Enabled enables the control plane configuration.\nDefault: false",
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                },
                 "cspm": {
                   "additionalProperties": false,
                   "description": "CSPM (Cloud Security Posture Management) configuration.",

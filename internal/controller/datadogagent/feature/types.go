@@ -136,7 +136,7 @@ type Feature interface {
 	ManageDependencies(managers ResourceManagers) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterAgent(managers PodTemplateManagers) error
+	ManageClusterAgent(managers PodTemplateManagers, provider string) error
 	// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers, provider string) error

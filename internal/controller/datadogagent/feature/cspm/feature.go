@@ -162,7 +162,7 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) erro
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount

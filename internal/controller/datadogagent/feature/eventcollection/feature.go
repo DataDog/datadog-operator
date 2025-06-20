@@ -144,7 +144,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Env vars
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDCollectKubernetesEvents,

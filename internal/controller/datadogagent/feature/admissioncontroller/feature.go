@@ -323,7 +323,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
