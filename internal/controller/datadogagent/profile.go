@@ -20,7 +20,6 @@ import (
 	v2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
-	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/metrics"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
@@ -143,14 +142,6 @@ func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.D
 	ddai.Name = getProfileDDAIName(ddai.Name, profile.Name, profile.Namespace)
 	// Managed fields
 	ddai.ManagedFields = []metav1.ManagedFieldsEntry{}
-	// Owner reference
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		ownerRef, err := object.CreateOwnerRef(profile, scheme)
-		if err != nil {
-			return err
-		}
-		ddai.SetOwnerReferences([]metav1.OwnerReference{*ownerRef})
-	}
 	return nil
 }
 
