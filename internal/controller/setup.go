@@ -18,6 +18,8 @@ import (
 
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent"
 	componentagent "github.com/DataDog/datadog-operator/internal/controller/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal"
+	componentagentinternal "github.com/DataDog/datadog-operator/internal/controller/datadogagentinternal/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
@@ -178,10 +180,28 @@ func startDatadogAgentInternal(logger logr.Logger, mgr manager.Manager, pInfo ku
 	}
 
 	return (&DatadogAgentInternalReconciler{
-		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor(agentInternalControllerName),
+		Client:       mgr.GetClient(),
+		PlatformInfo: pInfo,
+		Log:          ctrl.Log.WithName("controllers").WithName(agentInternalControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(agentInternalControllerName),
+		Options: datadogagentinternal.ReconcilerOptions{
+			ExtendedDaemonsetOptions: componentagentinternal.ExtendedDaemonsetOptions{
+				Enabled:                             options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:                   options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:              options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				SlowStartAdditiveIncrease:           options.SupportExtendedDaemonset.SlowStartAdditiveIncrease,
+				CanaryDuration:                      options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryReplicas:                      options.SupportExtendedDaemonset.CanaryReplicas,
+				CanaryAutoPauseEnabled:              options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
+				CanaryAutoPauseMaxRestarts:          int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
+				CanaryAutoPauseMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
+				CanaryAutoFailEnabled:               options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
+				CanaryAutoFailMaxRestarts:           int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
+			},
+			SupportCilium:          options.SupportCilium,
+			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
+		},
 	}).SetupWithManager(mgr, metricForwardersMgr)
 }
 
