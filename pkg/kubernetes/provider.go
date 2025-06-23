@@ -31,11 +31,21 @@ const (
 
 	// GKEProviderLabel is the GKE node label used to determine the node's provider
 	GKEProviderLabel = "cloud.google.com/gke-os-distribution"
+
+	// AKSProviderLabel is the AKS node label used to determine the node's provider
+	AKSProviderLabel = "kubernetes.azure.com/managedby"
+
+	// AKSCloudProvider AKS CloudProvider name
+	AKSCloudProvider = "aks"
+
+	// AKSManagedType is the AKS provider type
+	AKSManagedType = "aks"
 )
 
 // ProviderValue allowlist
 var providerValueAllowlist = map[string]struct{}{
 	GKECosType: {},
+	AKSManagedType: {},
 }
 
 // determineProvider creates a Provider based on a map of labels
@@ -44,6 +54,12 @@ func determineProvider(labels map[string]string) string {
 		// GKE
 		if val, ok := labels[GKEProviderLabel]; ok {
 			if provider := generateValidProviderName(GKECloudProvider, val); provider != "" {
+				return provider
+			}
+		}
+		// AKS
+		if val, ok := labels[AKSProviderLabel]; ok {
+			if provider := generateValidProviderName(AKSCloudProvider, val); provider != "" {
 				return provider
 			}
 		}
@@ -131,6 +147,7 @@ func GetProviderLabelKeyValue(provider string) (string, string) {
 	// cloud provider to label mapping
 	providerMapping := map[string]string{
 		GKECloudProvider: GKEProviderLabel,
+		AKSCloudProvider: AKSProviderLabel,
 	}
 
 	cp, value := splitProviderSuffix(provider)
