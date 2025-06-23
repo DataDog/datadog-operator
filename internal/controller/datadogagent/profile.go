@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	v1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -77,13 +76,10 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 	// Copy the original DDAI and apply profile spec to create a fake "DDAI" to merge
 	profileDDAI := ddai.DeepCopy()
 	baseDDAI := ddai.DeepCopy()
-	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
-		// Clear owner reference to tie GC to the profile
-		baseDDAI.OwnerReferences = []metav1.OwnerReference{}
-	}
+
 	// Add profile settings to "fake" DDAI
 	setProfileSpec(profileDDAI, profile)
-	if err := setProfileDDAIMeta(profileDDAI, profile, r.scheme); err != nil {
+	if err := setProfileDDAIMeta(profileDDAI, profile); err != nil {
 		return nil, err
 	}
 
@@ -137,11 +133,21 @@ func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alph
 	override.Affinity = common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
 }
 
-func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile, scheme *runtime.Scheme) error {
+func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {
 	// Name
 	ddai.Name = getProfileDDAIName(ddai.Name, profile.Name, profile.Namespace)
 	// Managed fields
 	ddai.ManagedFields = []metav1.ManagedFieldsEntry{}
+	// Include the profile label in the DDAI metadata only for non-default profiles.
+	// This is used to determine whether or not the EDS should be created (only for default profile).
+	// This could possibly be used for GC of the profile DDAIs too.
+	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
+		// This should not happen, as we add the DDA label upon creation of the DDAI.
+		if ddai.Labels == nil {
+			ddai.Labels = make(map[string]string)
+		}
+		ddai.Labels[agentprofile.ProfileLabelKey] = profile.Name
+	}
 	return nil
 }
 

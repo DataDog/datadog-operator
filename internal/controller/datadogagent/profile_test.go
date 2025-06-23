@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/api/utils"
-	agenttestutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/stretchr/testify/assert"
@@ -563,6 +562,9 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 					Name:          "foo-profile-foo",
 					Namespace:     "bar",
 					ManagedFields: []metav1.ManagedFieldsEntry{},
+					Labels: map[string]string{
+						agentprofile.ProfileLabelKey: "foo",
+					},
 				},
 			},
 		},
@@ -570,7 +572,7 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			setProfileDDAIMeta(&tt.ddai, &tt.profile, agenttestutils.TestScheme())
+			setProfileDDAIMeta(&tt.ddai, &tt.profile)
 			assert.Equal(t, tt.want, tt.ddai)
 		})
 	}
