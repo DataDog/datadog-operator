@@ -197,15 +197,6 @@ func Test_computeProfileMerge(t *testing.T) {
 					Annotations: map[string]string{
 						constants.MD5DDAIDeploymentAnnotationKey: "d302e0505ae43dad0fe5d8556ef539e1",
 					},
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion:         "datadoghq.com/v1alpha1",
-							Kind:               "DatadogAgentProfile",
-							Name:               "foo-profile",
-							Controller:         apiutils.NewBoolPointer(true),
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-						},
-					},
 				},
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
@@ -306,7 +297,6 @@ func Test_computeProfileMerge(t *testing.T) {
 			ddai, err := r.computeProfileMerge(&tt.ddai, &tt.profile)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.Name, ddai.Name)
-			assert.Equal(t, tt.want.OwnerReferences, ddai.OwnerReferences)
 			assert.Equal(t, tt.want.Annotations[constants.MD5DDAIDeploymentAnnotationKey], ddai.Annotations[constants.MD5DDAIDeploymentAnnotationKey])
 			assert.Equal(t, tt.want.Spec, ddai.Spec)
 		})
@@ -560,13 +550,6 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 							Manager: "datadog-operator",
 						},
 					},
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion: "datadoghq.com/v2alpha1",
-							Kind:       "DatadogAgent",
-							Name:       "foo",
-						},
-					},
 				},
 			},
 			profile: v1alpha1.DatadogAgentProfile{
@@ -577,17 +560,8 @@ func Test_setProfileDDAIMeta(t *testing.T) {
 			},
 			want: v1alpha1.DatadogAgentInternal{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-profile-foo",
-					Namespace: "bar",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion:         "datadoghq.com/v1alpha1",
-							Kind:               "DatadogAgentProfile",
-							Name:               "foo",
-							Controller:         apiutils.NewBoolPointer(true),
-							BlockOwnerDeletion: apiutils.NewBoolPointer(true),
-						},
-					},
+					Name:          "foo-profile-foo",
+					Namespace:     "bar",
 					ManagedFields: []metav1.ManagedFieldsEntry{},
 				},
 			},
