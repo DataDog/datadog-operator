@@ -16,10 +16,69 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, singleContainerStrategyEnabled bool) {
+func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, singleContainerStrategyEnabled bool, provider string) {
 	config := dda.Spec.Global
+
+	// Kubelet injection for Instrospection for AKS
+	_, providerLabel := kubernetes.GetProviderLabelKeyValue(provider)
+
+	if providerLabel == kubernetes.AKSManagedType {
+
+		// Handle the special "tlsVerify: false" configuration
+		if config.Kubelet != nil && config.Kubelet.TLSVerify != nil && !*config.Kubelet.TLSVerify {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  DDKubeletTLSVerify,
+				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+			})
+		} else {
+			// Configure the kubelet host to use the Node name
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name: common.DDKubeletHost,
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			})
+
+			// Configure the kubelet CA path if the user did not already override it
+			if config.Kubelet == nil || config.Kubelet.HostCAPath == "" {
+				const aksKubeletCAPath = "/etc/kubernetes/certs/kubeletserver.crt"
+				agentCAPath := common.KubeletAgentCAPath
+
+				kubeletVol, kubeletVolMount := volume.GetVolumes(kubeletCAVolumeName, aksKubeletCAPath, agentCAPath, true)
+				if singleContainerStrategyEnabled {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&kubeletVolMount,
+						[]apicommon.AgentContainerName{
+							apicommon.UnprivilegedSingleAgentContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&kubeletVol)
+				} else {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&kubeletVolMount,
+						[]apicommon.AgentContainerName{
+							apicommon.CoreAgentContainerName,
+							apicommon.ProcessAgentContainerName,
+							apicommon.TraceAgentContainerName,
+							apicommon.SecurityAgentContainerName,
+							apicommon.AgentDataPlaneContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&kubeletVol)
+				}
+
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  DDKubeletCAPath,
+					Value: agentCAPath,
+				})
+			}
+		}
+	}
 
 	// Kubelet contains the kubelet configuration parameters.
 	// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
@@ -30,7 +89,8 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 				ValueFrom: config.Kubelet.Host,
 			})
 		}
-		if config.Kubelet.TLSVerify != nil {
+		// Skip adding DD_KUBELET_TLS_VERIFY a second time in the special AKS tlsVerify=false case
+		if config.Kubelet.TLSVerify != nil && !(providerLabel == kubernetes.AKSManagedType && !*config.Kubelet.TLSVerify) {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDKubeletTLSVerify,
 				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),

@@ -67,7 +67,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+		global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents, provider)
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -138,7 +138,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents)
+	global.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager, singleContainerStrategyEnabled, requiredComponents, provider)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {

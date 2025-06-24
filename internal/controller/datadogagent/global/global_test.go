@@ -665,7 +665,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				Agent:        reqComp,
 			}
 			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents, "")
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected

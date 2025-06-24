@@ -51,9 +51,9 @@ func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.
 
 // ApplyGlobalSettingsNodeAgent applies the global settings for the NodeAgent component.
 func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents) {
+	resourcesManager feature.ResourceManagers, singleContainerStrategyEnabled bool, requiredComponents feature.RequiredComponents, provider string) {
 	applyGlobalSettings(logger, manager, dda, resourcesManager, requiredComponents)
-	applyNodeAgentResources(manager, dda, singleContainerStrategyEnabled)
+	applyNodeAgentResources(manager, dda, singleContainerStrategyEnabled, provider)
 }
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
