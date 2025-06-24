@@ -23,6 +23,7 @@ import (
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/constants"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -323,7 +324,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 	return nil
 }
 
-func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAdmissionControllerEnabled,
 		Value: "true",
@@ -404,6 +405,14 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  DDAdmissionControllerWebhookName,
 		Value: f.webhookName,
 	})
+
+	_, providerLabel := kubernetes.GetProviderLabelKeyValue(provider)
+	if providerLabel == kubernetes.AKSManagedType {
+		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
+			Name: DDAdmissionControllerAddAKSSelectors,
+			Value: "true",
+		})
+	}
 
 	if f.agentSidecarConfig != nil {
 		managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{

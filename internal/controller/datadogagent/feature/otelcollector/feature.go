@@ -167,7 +167,7 @@ func (o *otelCollectorFeature) ManageDependencies(managers feature.ResourceManag
 	return nil
 }
 
-func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (o *otelCollectorFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	return nil
 }
 

@@ -29,4 +29,5 @@ const (
 	DDAdmissionControllerCWSInstrumentationEnabled        = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_ENABLED"
 	DDAdmissionControllerCWSInstrumentationMode           = "DD_ADMISSION_CONTROLLER_CWS_INSTRUMENTATION_MODE"
 	DDAdmissionControllerKubernetesAdmissionEventsEnabled = "DD_ADMISSION_CONTROLLER_KUBERNETES_ADMISSION_EVENTS_ENABLED"
+	DDAdmissionControllerAddAKSSelectors				  = "DD_ADMISSION_CONTROLLER_ADD_AKS_SELECTORS"
 )

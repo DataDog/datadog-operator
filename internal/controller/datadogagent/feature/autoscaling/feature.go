@@ -86,7 +86,7 @@ func (f *autoscalingFeature) ManageDependencies(managers feature.ResourceManager
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *autoscalingFeature) ManageClusterAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommon.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  DDAutoscalingWorkloadEnabled,
 		Value: "true",
