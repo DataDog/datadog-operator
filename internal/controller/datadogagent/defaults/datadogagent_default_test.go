@@ -1958,6 +1958,9 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
+					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					},
 				},
 			},
 		},

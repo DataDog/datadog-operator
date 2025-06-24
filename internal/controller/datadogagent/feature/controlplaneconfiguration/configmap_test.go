@@ -72,7 +72,7 @@ func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigM
 cluster_check: true
 init_config: {}
 instances:
-  - prometheus_url: "https://%host%:%port%/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
     bearer_token_auth: true`,
 
 					"kube_controller_manager.yaml": `advanced_ad_identifiers:
@@ -82,7 +82,7 @@ instances:
 cluster_check: true
 init_config: {}
 instances:
-  - prometheus_url: "https://%host%:%port%/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
     ssl_verify: false
     bearer_token_auth: true`,
 
@@ -93,7 +93,7 @@ instances:
 cluster_check: true
 init_config: {}
 instances:
-  - prometheus_url: "https://%host%:%port%/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
     ssl_verify: false
     bearer_token_auth: true`,
 
@@ -104,7 +104,7 @@ instances:
 cluster_check: true
 init_config: {}
 instances:
-  - prometheus_url: "https://%host%:%port%/metrics"
+  - prometheus_url: "https://%%host%%:%%port%%/metrics"
     tls_ca_cert: "/etc/etcd-certs/etcd-client-ca.crt"
     tls_cert: "/etc/etcd-certs/etcd-client.crt"
     tls_private_key: "/etc/etcd-certs/etcd-client.key"`,

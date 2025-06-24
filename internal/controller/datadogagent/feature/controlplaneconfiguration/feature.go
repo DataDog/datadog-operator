@@ -102,6 +102,17 @@ func (f *controlPlaneConfigurationFeature) ManageDependencies(managers feature.R
 	if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, openshiftConfigMap); err != nil {
 		return fmt.Errorf("failed to add openshift configmap to store: %w", err)
 	}
+
+	// For OpenShift, etcd monitoring requires manual secret copying
+	if f.provider == kubernetes.OpenshiftRHCOSType {
+		targetNamespace := f.owner.GetNamespace()
+		copyCommand := fmt.Sprintf("oc get secret etcd-client -n openshift-etcd-operator -o yaml | sed 's/name: etcd-client/name: etcd-client-cert/' | sed 's/namespace: openshift-etcd-operator/namespace: %s/' | oc apply -f -", targetNamespace)
+
+		f.logger.Info("OpenShift control plane configuration requires manual etcd secret copy",
+			"command", copyCommand,
+			"note", "Run this command if cluster-agent pods fail to start due to missing etcd-client-cert secret")
+	}
+
 	return nil
 }
 
