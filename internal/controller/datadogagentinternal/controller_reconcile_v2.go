@@ -64,7 +64,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	r.updateMetricsForwardersFeatures(instanceCopy, enabledFeatures)
 
 	// 1. Manage dependencies.
-	depsStore, resourceManagers := r.setupDependencies(instance, logger)
+	depsStore, resourceManagers := r.setupDependencies(instanceCopy, logger)
 
 	var err error
 	if err = r.manageGlobalDependencies(logger, instanceCopy, resourceManagers, requiredComponents); err != nil {
