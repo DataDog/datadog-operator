@@ -388,11 +388,17 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	// send feature metrics
 	for _, featuresList := range mf.EnabledFeatures {
 		for _, feature := range featuresList {
-			mf.sendFeatureMetric(feature)
+			err := mf.sendFeatureMetric(feature)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	mf.sendResourceCountMetric()
+	err = mf.sendResourceCountMetric()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -810,6 +816,10 @@ var objectKindToSnake = map[string]string{
 
 func (mf *metricsForwarder) sendResourceCountMetric() error {
 	ts := float64(time.Now().Unix())
+	objectKind := objectKindToSnake[mf.monitoredObjectKind]
+	if objectKind == "" {
+		return fmt.Errorf("invalid monitored object kind: %s", mf.monitoredObjectKind)
+	}
 	metricName := fmt.Sprintf(customResourceFormat, mf.metricsPrefix, objectKindToSnake[mf.monitoredObjectKind])
 	tags := append(mf.tags, mf.globalTags...)
 	series := []api.Metric{
