@@ -7,13 +7,13 @@ package utils
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeClient "k8s.io/client-go/kubernetes"
 
@@ -35,7 +35,7 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 	assert.NotEmpty(c, podsList.Items)
 	assert.Len(c, podsList.Items, numPods)
 	t.Log("PODSLIST COUNT: ", len(podsList.Items))
-	for pod, _ := range podsList.Items {
+	for pod := range podsList.Items {
 		t.Logf("Pod %d: %s/%s", pod, podsList.Items[pod].Namespace, podsList.Items[pod].Name)
 		assert.Equal(c, corev1.PodRunning, podsList.Items[pod].Status.Phase, "Pod is not running")
 	}
