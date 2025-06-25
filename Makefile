@@ -203,17 +203,13 @@ integration-tests: $(ENVTEST) ## Run integration tests with reconciler
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(ROOT)/bin/$(PLATFORM) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/internal/controller -coverprofile cover_integration.out
 
 .PHONY: e2e-tests
-e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests`.
+e2e-tests: ## Run E2E tests and destroy environment stacks after tests complete. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and configure your gcloud CLI to use the `datadog-agent-sandbox` GCP project.
 	@if [ -z "$(E2E_RUN_REGEX)" ]; then \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --jsonfile ./e2e_test_output.json --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run TestGKESuite; \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run TestGKESuite; \
 	else \
 	    echo "Running e2e test: $(E2E_RUN_REGEX)"; \
-		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --jsonfile ./e2e_test_output.json --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run $(E2E_RUN_REGEX); \
+		KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" gotestsum --format standard-verbose --packages=./test/e2e/... -- -v -mod=readonly -vet=off -timeout 4h --tags=e2e -count=1 -test.run $(E2E_RUN_REGEX); \
 	fi
-
-.PHONY: e2e-tests-keep-stacks
-e2e-tests-keep-stacks: manifests $(KUSTOMIZE) ## Run E2E tests and keep environment stacks running. To run locally, complete pre-reqs (see docs/how-to-contribute.md) and prepend command with `aws-vault exec sso-agent-sandbox-account-admin --`. E.g. `aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks`.
-	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test -C test/e2e --tags=e2e github.com/DataDog/datadog-operator/e2e -v -timeout 1h -coverprofile cover_e2e_keep_stacks.out -args -keep-stacks=true
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.

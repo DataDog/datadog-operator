@@ -102,3 +102,5 @@ tags
 errors
 ### Cursor ###
 .cursor/*
+# e2e
+e2e_test_output.json

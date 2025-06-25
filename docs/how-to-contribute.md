@@ -105,8 +105,6 @@ The Datadog Operator end-to-end (E2E) tests run on [Pulumi][pulumi]-deployed tes
 
 Internal Datadog users may run E2E locally after completing the following prerequisites:
 
-* Access to the AWS `agent-sandbox` account
-* AWS keypair with your public SSH key created in the `agent-sandbox` account
 * Set environment variable `PULUMI_CONFIG_PASSPHRASE`
 * Complete steps 1-4 of the `test-infra-definitions` [Quick start guide][test-infra-quickstart]
 * Add `go.work` file to root directory:
@@ -119,17 +117,26 @@ go work use . ./test/e2e
 #### Run E2E Tests
 
 ```shell
-# Run E2E tests and destroy environment stacks after tests complete.
-$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+# Configure gcloud to use the correct project and region.
+$ gcloud config set project datadog-agent-sandbox
+$ gcloud auth login
+```
 
-# Run E2E tests and keep environment stacks running.
-$ aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests-keep-stacks
+```shell
+# Run E2E tests
+$ make e2e-tests
 
+# To keep environment stacks running, add the `e2e.WithDevMode()` and `e2e.WithSkipDeleteOnFailure()` suite options to the E2E test's `e2e.Run()` function.
+``` 
+
+```shell
 # Run E2E tests with K8S_VERSION and IMG environment variables.
-$ K8S_VERSION=1.25 IMG=your-dockerhub/operator:tag aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+$ K8S_VERSION=1.25 IMG=your-dockerhub/operator:tag make e2e-tests
+```
 
+```shell
 # Run E2E tests with K8S_VERSION, IMG, and IMAGE_PULL_PASSWORD environment variables (for pulling operator image from a private registry).
-$ K8S_VERSION=1.25 IMG=your-private-registry/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) aws-vault exec sso-agent-sandbox-account-admin -- make e2e-tests
+$ K8S_VERSION=1.25 IMG=your-private-registry/operator:PIPELINE_ID-COMMIT_HASH IMAGE_PULL_PASSWORD=$(aws-vault exec sso-agent-qa-read-only -- aws ecr get-login-password) make e2e-tests
 ```
 > **NOTE:**  The remote configuration updater test requires the owner of the API Key to have the permission `Fleet Policies Write`. 
 > To get the permission:

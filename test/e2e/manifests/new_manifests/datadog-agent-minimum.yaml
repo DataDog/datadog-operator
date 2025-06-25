@@ -8,3 +8,6 @@ spec:
   global:
     kubelet:
       tlsVerify: false
+  override:
+    nodeAgent:
+      hostPID: true

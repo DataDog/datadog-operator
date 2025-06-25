@@ -25,7 +25,7 @@ type exampleGkeSuite struct {
 }
 
 func TestExampleGKESuite(t *testing.T) {
-	e2e.Run(t, &exampleGkeSuite{}, e2e.WithProvisioner(gcpkubernetes.GKEProvisioner()))
+	e2e.Run(t, &exampleGkeSuite{}, e2e.WithProvisioner(gcpkubernetes.GKEProvisioner()), e2e.WithDevMode(), e2e.WithSkipDeleteOnFailure())
 }
 
 func (v *exampleGkeSuite) TestExampleGKE() {
@@ -51,7 +51,8 @@ func (v *exampleGkeSuite) TestExampleGKE() {
 
 	stdout, stderr, err := v.Env().KubernetesCluster.KubernetesClient.
 		PodExec("datadog", clusterAgent.Name, "cluster-agent", []string{"ls"})
-	require.NoError(v.T(), err)
+	assert.NoError(v.T(), err)
 	assert.Empty(v.T(), stderr)
 	assert.NotEmpty(v.T(), stdout)
+	assert.False(v.T(), true)
 }

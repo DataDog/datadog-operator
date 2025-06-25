@@ -7,6 +7,7 @@ package utils
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,6 +34,11 @@ func VerifyNumPodsForSelector(t *testing.T, c *assert.CollectT, namespace string
 	assert.NotNil(c, podsList)
 	assert.NotEmpty(c, podsList.Items)
 	assert.Len(c, podsList.Items, numPods)
+	t.Log("PODSLIST COUNT: ", len(podsList.Items))
+	for pod, _ := range podsList.Items {
+		t.Logf("Pod %d: %s/%s", pod, podsList.Items[pod].Namespace, podsList.Items[pod].Name)
+		assert.Equal(c, corev1.PodRunning, podsList.Items[pod].Status.Phase, "Pod is not running")
+	}
 }
 
 func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClient kubeClient.Interface, selector string) {
@@ -41,41 +47,6 @@ func VerifyAgentPods(t *testing.T, c *assert.CollectT, namespace string, k8sClie
 	assert.NotNil(c, nodesList)
 	assert.NotEmpty(c, nodesList.Items)
 	VerifyNumPodsForSelector(t, c, namespace, k8sClient, len(nodesList.Items), selector)
-}
-
-func VerifyCheck(c *assert.CollectT, collectorOutput string, checkName string) {
-	var runningChecks map[string]interface{}
-
-	checksJson := common.ParseCollectorJson(collectorOutput)
-	if checksJson != nil {
-		runnerStats, ok := checksJson["runnerStats"].(map[string]interface{})
-		assert.True(c, ok)
-		assert.NotNil(c, runnerStats)
-
-		runningChecks, ok = runnerStats["Checks"].(map[string]interface{})
-		assert.True(c, ok)
-		assert.NotNil(c, runningChecks)
-
-		if check, found := runningChecks[checkName].(map[string]interface{}); found {
-			for _, instance := range check {
-				assert.EqualValues(c, checkName, instance.(map[string]interface{})["CheckName"].(string))
-
-				lastError, exists := instance.(map[string]interface{})["LastError"].(string)
-				assert.True(c, exists)
-				assert.Empty(c, lastError)
-
-				totalErrors, exists := instance.(map[string]interface{})["TotalErrors"].(float64)
-				assert.True(c, exists)
-				assert.Zero(c, totalErrors)
-
-				totalMetricSamples, exists := instance.(map[string]interface{})["TotalMetricSamples"].(float64)
-				assert.True(c, exists)
-				assert.Greater(c, totalMetricSamples, float64(0))
-			}
-		} else {
-			assert.True(c, found, "Check %s not found or not yet running.", checkName)
-		}
-	}
 }
 
 func VerifyAgentPodLogs(c *assert.CollectT, collectorOutput string) {
