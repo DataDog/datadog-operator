@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -78,6 +79,7 @@ type Reconciler struct {
 	log          logr.Logger
 	recorder     record.EventRecorder
 	forwarders   datadog.MetricsForwardersManager
+	fieldManager *managedfields.FieldManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent

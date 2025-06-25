@@ -14,6 +14,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -55,6 +56,20 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, instance *datadogh
 }
 
 func (r *Reconciler) reconcileInstanceV3(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+	// Set up field manager for crd apply
+	if r.fieldManager == nil {
+		objGVK := schema.GroupVersionKind{
+			Group:   "datadoghq.com",
+			Version: "v1alpha1",
+			Kind:    "DatadogAgentInternal",
+		}
+		f, err := newFieldManager(r.client, r.scheme, objGVK)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		r.fieldManager = f
+	}
+
 	var result reconcile.Result
 	now := metav1.NewTime(time.Now())
 	ddais := []*datadoghqv1alpha1.DatadogAgentInternal{}
