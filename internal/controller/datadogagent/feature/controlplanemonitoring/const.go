@@ -3,16 +3,16 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package controlplaneconfiguration
+package controlplanemonitoring
 
 const (
 	openshiftConfigMapName = "datadog-controlplane-configuration-openshift"
 	defaultConfigMapName   = "datadog-controlplane-configuration-default"
 	otherConfigMapName     = "datadog-controlplane-configuration-unknown"
 
-	controlPlaneConfigurationVolumeName      = "controlplane-config"
-	controlPlaneConfigurationVolumeMountPath = "/etc/datadog-agent/conf.d"
-	emptyDirVolumeName                       = "agent-conf-d-writable"
+	controlPlaneMonitoringVolumeName      = "controlplane-config"
+	controlPlaneMonitoringVolumeMountPath = "/etc/datadog-agent/conf.d"
+	emptyDirVolumeName                    = "agent-conf-d-writable"
 
 	etcdCertsVolumeName      = "etcd-client-certs"
 	etcdCertsVolumeMountPath = "/etc/etcd-certs"

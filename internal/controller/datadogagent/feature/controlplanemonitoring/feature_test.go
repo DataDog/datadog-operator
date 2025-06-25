@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package controlplaneconfiguration
+package controlplanemonitoring
 
 import (
 	"testing"
@@ -25,19 +25,19 @@ import (
 const resourcesName = "foo"
 const resourcesNamespace = "bar"
 
-func Test_controlPlaneConfigurationFeature_Configure(t *testing.T) {
+func Test_controlPlaneMonitoringFeature_Configure(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
-			Name: "Control Plane Configuration disabled",
+			Name: "Control Plane Monitoring disabled",
 			DDA: testutils.NewDatadogAgentBuilder().
-				WithControlPlaneConfiguration(false).
+				WithControlPlaneMonitoring(false).
 				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name: "Control Plane Configuration enabled",
+			Name: "Control Plane Monitoring enabled",
 			DDA: testutils.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
-				WithControlPlaneConfiguration(true).
+				WithControlPlaneMonitoring(true).
 				Build(),
 			WantConfigure:        true,
 			WantDependenciesFunc: controlPlaneWantDepsFunc(),
@@ -45,7 +45,7 @@ func Test_controlPlaneConfigurationFeature_Configure(t *testing.T) {
 		},
 	}
 
-	tests.Run(t, buildControlPlaneConfigurationFeature)
+	tests.Run(t, buildControlPlaneMonitoringFeature)
 }
 
 func controlPlaneWantDepsFunc() func(t testing.TB, store store.StoreClient) {
@@ -120,7 +120,7 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 					},
 				},
 				{
-					Name: controlPlaneConfigurationVolumeName,
+					Name: controlPlaneMonitoringVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
 							LocalObjectReference: corev1.LocalObjectReference{
@@ -144,12 +144,12 @@ func controlPlaneWantResourcesFunc() *test.ComponentTest {
 			expectedVolMounts := []*corev1.VolumeMount{
 				{
 					Name:      emptyDirVolumeName,
-					MountPath: controlPlaneConfigurationVolumeMountPath,
+					MountPath: controlPlaneMonitoringVolumeMountPath,
 					ReadOnly:  false,
 				},
 				{
-					Name:      controlPlaneConfigurationVolumeName,
-					MountPath: controlPlaneConfigurationVolumeMountPath,
+					Name:      controlPlaneMonitoringVolumeName,
+					MountPath: controlPlaneMonitoringVolumeMountPath,
 					ReadOnly:  true,
 				},
 			}

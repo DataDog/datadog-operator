@@ -1048,14 +1048,14 @@ func (builder *DatadogAgentBuilder) WithGPUMonitoringEnabled(enabled bool) *Data
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) initControlPlaneConfiguration() {
-	if builder.datadogAgent.Spec.Features.ControlPlaneConfiguration == nil {
-		builder.datadogAgent.Spec.Features.ControlPlaneConfiguration = &v2alpha1.ControlPlaneConfigurationFeatureConfig{}
+func (builder *DatadogAgentBuilder) initControlPlaneMonitoring() {
+	if builder.datadogAgent.Spec.Features.ControlPlaneMonitoring == nil {
+		builder.datadogAgent.Spec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithControlPlaneConfiguration(enabled bool) *DatadogAgentBuilder {
-	builder.initControlPlaneConfiguration()
-	builder.datadogAgent.Spec.Features.ControlPlaneConfiguration.Enabled = apiutils.NewBoolPointer(enabled)
+func (builder *DatadogAgentBuilder) WithControlPlaneMonitoring(enabled bool) *DatadogAgentBuilder {
+	builder.initControlPlaneMonitoring()
+	builder.datadogAgent.Spec.Features.ControlPlaneMonitoring.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }

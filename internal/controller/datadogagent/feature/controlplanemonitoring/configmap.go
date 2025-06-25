@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package controlplaneconfiguration
+package controlplanemonitoring
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -12,7 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func (f *controlPlaneConfigurationFeature) buildControlPlaneConfigurationConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {
+func (f *controlPlaneMonitoringFeature) buildControlPlaneMonitoringConfigMap(provider string, configMapName string) (*corev1.ConfigMap, error) {
 	var configMap *corev1.ConfigMap
 	if provider == kubernetes.DefaultProvider {
 		configMap = &corev1.ConfigMap{

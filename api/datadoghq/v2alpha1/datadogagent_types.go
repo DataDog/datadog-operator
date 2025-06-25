@@ -105,8 +105,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
 	// HelmCheck configuration.
 	HelmCheck *HelmCheckFeatureConfig `json:"helmCheck,omitempty"`
-	// ControlPlaneConfiguration configuration.
-	ControlPlaneConfiguration *ControlPlaneConfigurationFeatureConfig `json:"controlPlaneConfiguration,omitempty"`
+	// ControlPlaneMonitoring configuration.
+	ControlPlaneMonitoring *ControlPlaneMonitoringFeatureConfig `json:"controlPlaneMonitoring,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -822,11 +822,11 @@ type OtelCollectorFeatureConfig struct {
 	CoreConfig *CoreConfig `json:"coreConfig,omitempty"`
 }
 
-// ControlPlaneConfigurationFeatureConfig contains the configuration for the control plane configuration.
+// ControlPlaneMonitoringFeatureConfig contains the configuration for the control plane monitoring.
 // +k8s:openapi-gen=true
-type ControlPlaneConfigurationFeatureConfig struct {
-	// Enabled enables the control plane configuration.
-	// Default: false
+type ControlPlaneMonitoringFeatureConfig struct {
+	// Enabled enabled control plane monitoring checks in the cluster agent.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }

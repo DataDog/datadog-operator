@@ -135,7 +135,7 @@ const (
 	defaultFIPSPortRange    int32  = 15
 	defaultFIPSUseHTTPS     bool   = false
 
-	defaultControlPlaneConfigurationEnabled bool = false
+	defaultControlPlaneMonitoringEnabled bool = true
 )
 
 // DefaultDatadogAgentSpec defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -612,9 +612,9 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.HelmCheck.CollectEvents, defaultHelmCheckCollectEvents)
 	}
 
-	// ControlPlaneConfiguration Feature
-	if ddaSpec.Features.ControlPlaneConfiguration == nil {
-		ddaSpec.Features.ControlPlaneConfiguration = &v2alpha1.ControlPlaneConfigurationFeatureConfig{}
+	// ControlPlaneMonitoring Feature
+	if ddaSpec.Features.ControlPlaneMonitoring == nil {
+		ddaSpec.Features.ControlPlaneMonitoring = &v2alpha1.ControlPlaneMonitoringFeatureConfig{}
 	}
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneConfiguration.Enabled, defaultControlPlaneConfigurationEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ControlPlaneMonitoring.Enabled, defaultControlPlaneMonitoringEnabled)
 }

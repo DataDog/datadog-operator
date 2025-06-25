@@ -1065,13 +1065,13 @@ spec:
                             Default: false
                           type: boolean
                       type: object
-                    controlPlaneConfiguration:
-                      description: ControlPlaneConfiguration configuration.
+                    controlPlaneMonitoring:
+                      description: ControlPlaneMonitoring configuration.
                       properties:
                         enabled:
                           description: |-
-                            Enabled enables the control plane configuration.
-                            Default: false
+                            Enabled enabled control plane monitoring checks in the cluster agent.
+                            Default: true
                           type: boolean
                       type: object
                     cspm:
@@ -8709,13 +8709,13 @@ spec:
                                 Default: false
                               type: boolean
                           type: object
-                        controlPlaneConfiguration:
-                          description: ControlPlaneConfiguration configuration.
+                        controlPlaneMonitoring:
+                          description: ControlPlaneMonitoring configuration.
                           properties:
                             enabled:
                               description: |-
-                                Enabled enables the control plane configuration.
-                                Default: false
+                                Enabled enabled control plane monitoring checks in the cluster agent.
+                                Default: true
                               type: boolean
                           type: object
                         cspm:

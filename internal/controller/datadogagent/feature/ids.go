@@ -73,6 +73,6 @@ const (
 	ServiceDiscoveryType = "service_discovery"
 	// GPUIDType GPU monitoring feature.
 	GPUIDType = "gpu"
-	// ControlPlaneConfigurationIDType Control Plane Configuration feature.
-	ControlPlaneConfigurationIDType = "control_plane_configuration"
+	// ControlPlaneMonitoringIDType Control Plane Monitoring feature.
+	ControlPlaneMonitoringIDType = "control_plane_monitoring"
 )

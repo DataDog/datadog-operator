@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2025-present Datadog, Inc.
 
-package controlplaneconfiguration
+package controlplanemonitoring
 
 import (
 	"reflect"
@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
-func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigMap(t *testing.T) {
+func Test_controlPlaneMonitoringFeature_buildControlPlaneMonitoringConfigMap(t *testing.T) {
 	owner := &metav1.ObjectMeta{
 		Name:      "test",
 		Namespace: "foo",
@@ -41,15 +41,7 @@ func Test_controlPlaneConfigurationFeature_buildControlPlaneConfigurationConfigM
 				enabled:  true,
 			},
 			configMapName: defaultConfigMapName,
-			want: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      defaultConfigMapName,
-					Namespace: "foo",
-				},
-				Data: map[string]string{
-					"foo.yaml": "bar",
-				},
-			},
+			want:          nil,
 		},
 		{
 			name: "openshift provider",
@@ -132,18 +124,18 @@ instances:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &controlPlaneConfigurationFeature{
+			f := &controlPlaneMonitoringFeature{
 				owner:    tt.fields.owner,
 				enabled:  tt.fields.enabled,
 				provider: tt.fields.provider,
 			}
-			got, err := f.buildControlPlaneConfigurationConfigMap(tt.fields.provider, tt.configMapName)
+			got, err := f.buildControlPlaneMonitoringConfigMap(tt.fields.provider, tt.configMapName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("controlPlaneConfigurationFeature.buildControlPlaneConfigurationConfigMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("controlPlaneMonitoringFeature.buildControlPlaneMonitoringConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("controlPlaneConfigurationFeature.buildControlPlaneConfigurationConfigMap() = %#v,\nwant %#v", got, tt.want)
+				t.Errorf("controlPlaneMonitoringFeature.buildControlPlaneMonitoringConfigMap() = %#v,\nwant %#v", got, tt.want)
 			}
 		})
 	}

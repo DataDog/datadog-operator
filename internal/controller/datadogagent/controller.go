@@ -27,7 +27,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/asm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/autoscaling"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/clusterchecks"
-	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/controlplaneconfiguration"
+	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/controlplanemonitoring"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/dogstatsd"

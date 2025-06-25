@@ -326,8 +326,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -425,7 +425,7 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},
@@ -548,7 +548,7 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},
@@ -701,8 +701,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -859,8 +859,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1012,8 +1012,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1167,8 +1167,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1327,8 +1327,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1483,8 +1483,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1636,8 +1636,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1804,8 +1804,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -1958,8 +1958,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2111,8 +2111,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2147,6 +2147,7 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks:           &v2alpha1.ClusterChecksFeatureConfig{},
 					PrometheusScrape:        &v2alpha1.PrometheusScrapeFeatureConfig{},
 					HelmCheck:               &v2alpha1.HelmCheckFeatureConfig{},
+					ControlPlaneMonitoring:  &v2alpha1.ControlPlaneMonitoringFeatureConfig{},
 				},
 			},
 			want: &v2alpha1.DatadogAgentSpec{
@@ -2287,8 +2288,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2455,8 +2456,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
@@ -2611,8 +2612,8 @@ func Test_defaultFeatures(t *testing.T) {
 					HelmCheck: &v2alpha1.HelmCheckFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultHelmCheckEnabled),
 					},
-					ControlPlaneConfiguration: &v2alpha1.ControlPlaneConfigurationFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultControlPlaneConfigurationEnabled),
+					ControlPlaneMonitoring: &v2alpha1.ControlPlaneMonitoringFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultControlPlaneMonitoringEnabled),
 					},
 				},
 			},
