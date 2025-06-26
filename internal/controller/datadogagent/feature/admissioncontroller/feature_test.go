@@ -14,11 +14,13 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature/test"
 	"github.com/DataDog/datadog-operator/pkg/images"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_admissionControllerFeature_Configure(t *testing.T) {
@@ -428,4 +430,32 @@ func sidecarInjectionWantFunc(acm, acRegistry, sidecarRegstry, imageName, imageT
 			"DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want),
 		)
 	}
+}
+
+func TestAdmissionController_AddAKSSelectorsEnvVar(t *testing.T) {
+	logger := logf.Log.WithName("TestAdmissionController_AddAKSSelectorsEnvVar")
+
+	dda := testutils.NewDatadogAgentBuilder().
+		WithAdmissionControllerEnabled(true).
+		Build()
+
+	feat := buildAdmissionControllerFeature(&feature.Options{Logger: logger})
+	feat.Configure(dda, &dda.Spec, nil)
+
+	ptm := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+
+	aksProvider := kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType
+
+	err := feat.ManageClusterAgent(ptm, aksProvider)
+	assert.NoError(t, err)
+
+	envs := ptm.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+	expected := &corev1.EnvVar{Name: DDAdmissionControllerAddAKSSelectors, Value: "true"}
+	assert.Contains(t, envs, expected, "expected env var %s not found when provider is %s", DDAdmissionControllerAddAKSSelectors, aksProvider)
+
+	ptmNoAks := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
+	err = feat.ManageClusterAgent(ptmNoAks, kubernetes.DefaultProvider)
+	assert.NoError(t, err)
+	envsNoAks := ptmNoAks.EnvVarMgr.EnvVarsByC[apicommon.ClusterAgentContainerName]
+	assert.NotContains(t, envsNoAks, expected, "env var %s should not be present when provider is not AKS", DDAdmissionControllerAddAKSSelectors)
 }
