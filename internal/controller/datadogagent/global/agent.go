@@ -27,14 +27,14 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 
 	if providerLabel == kubernetes.AKSManagedType {
 
-		// Handle the special "tlsVerify: false" configuration
+		// Handle "tlsVerify: false"
 		if config.Kubelet != nil && config.Kubelet.TLSVerify != nil && !*config.Kubelet.TLSVerify {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDKubeletTLSVerify,
 				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
 			})
 		} else {
-			// Configure the kubelet host to use the Node name
+			// Configure the kubelet host
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name: common.DDKubeletHost,
 				ValueFrom: &corev1.EnvVarSource{
@@ -44,7 +44,7 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 				},
 			})
 
-			// Configure the kubelet CA path if the user did not already override it
+			// Configure the kubelet CA path
 			if config.Kubelet == nil || config.Kubelet.HostCAPath == "" {
 				const aksKubeletCAPath = "/etc/kubernetes/certs/kubeletserver.crt"
 				agentCAPath := common.KubeletAgentCAPath
@@ -89,7 +89,6 @@ func applyNodeAgentResources(manager feature.PodTemplateManagers, dda *v2alpha1.
 				ValueFrom: config.Kubelet.Host,
 			})
 		}
-		// Skip adding DD_KUBELET_TLS_VERIFY a second time in the special AKS tlsVerify=false case
 		if config.Kubelet.TLSVerify != nil && !(providerLabel == kubernetes.AKSManagedType && !*config.Kubelet.TLSVerify) {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  DDKubeletTLSVerify,

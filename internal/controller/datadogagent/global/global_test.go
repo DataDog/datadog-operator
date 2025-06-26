@@ -58,6 +58,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	}
 
 	tests := []struct {
+		provider                       string
 		name                           string
 		dda                            *v2alpha1.DatadogAgent
 		singleContainerStrategyEnabled bool
@@ -652,6 +653,174 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantVolumes:               getExpectedVolumes(),
 			want:                      assertAll,
 		},
+		{
+			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
+			name:                           "AKS provider baseline",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithCredentials("apiKey", "appKey").
+				BuildWithDefaults(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: common.DDKubeletHost,
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"},
+					},
+				},
+				{
+					Name:  DDKubeletCAPath,
+					Value: common.KubeletAgentCAPath,
+				},
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "-token"}, Key: common.DefaultTokenKey},
+					},
+				},
+			}...),
+			wantCoreAgentVolumeMounts: []*corev1.VolumeMount{
+				{Name: kubeletCAVolumeName, MountPath: common.KubeletAgentCAPath, ReadOnly: true},
+			},
+			wantVolumeMounts: []*corev1.VolumeMount{
+				{Name: kubeletCAVolumeName, MountPath: common.KubeletAgentCAPath, ReadOnly: true},
+			},
+			wantVolumes: []*corev1.Volume{
+				{Name: kubeletCAVolumeName, VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/etc/kubernetes/certs/kubeletserver.crt"}}},
+			},
+			want: assertAll,
+		},
+		{
+			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
+			name:                           "AKS provider tlsVerify false",
+			dda: testutils.NewDatadogAgentBuilder().
+				WithGlobalKubeletConfig("", "", false, "").
+				WithCredentials("apiKey", "appKey").
+				BuildWithDefaults(),
+			wantCoreAgentEnvVars: nil,
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "-token"}, Key: common.DefaultTokenKey},
+					},
+				},
+				{
+					Name:  DDKubeletTLSVerify,
+					Value: "false",
+				},
+			}...),
+			wantCoreAgentVolumeMounts: getExpectedVolumeMounts(),
+			wantVolumeMounts:          getExpectedVolumeMounts(),
+			wantVolumes:               getExpectedVolumes(),
+			want:                      assertAll,
+		},
+		{
+			provider: kubernetes.AKSCloudProvider + "-" + kubernetes.AKSManagedType,
+			name:                           "AKS provider user overrides CA path",
+			singleContainerStrategyEnabled: false,
+			dda: testutils.NewDatadogAgentBuilder().
+				WithCredentials("apiKey", "appKey").
+				WithGlobalKubeletConfig("/my/custom/ca.crt", "/container/ca.crt", true, "").
+				BuildWithDefaults(),
+			wantEnvVars: getExpectedEnvVars([]*corev1.EnvVar{
+				{
+					Name: constants.DDAPIKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPIKeyKey,
+						},
+					},
+				},
+				{
+					Name: constants.DDAppKey,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "-secret",
+							},
+							Key: v2alpha1.DefaultAPPKeyKey,
+						},
+					},
+				},
+				{
+					Name: DDClusterAgentAuthToken,
+					ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "-token"}, Key: common.DefaultTokenKey},
+					},
+				},
+				{
+					Name: common.DDKubeletHost,
+					ValueFrom: &corev1.EnvVarSource{
+						FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"},
+					},
+				},
+				{
+					Name:  DDKubeletTLSVerify,
+					Value: "true",
+				},
+				{
+					Name:  DDKubeletCAPath,
+					Value: "/container/ca.crt",
+				},
+			}...),
+			wantCoreAgentVolumeMounts: []*corev1.VolumeMount{
+				{Name: kubeletCAVolumeName, MountPath: "/container/ca.crt", ReadOnly: true},
+			},
+			wantVolumeMounts: []*corev1.VolumeMount{
+				{Name: kubeletCAVolumeName, MountPath: "/container/ca.crt", ReadOnly: true},
+			},
+			wantVolumes: []*corev1.Volume{
+				{Name: kubeletCAVolumeName, VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/my/custom/ca.crt"}}},
+			},
+			want: assertAll,
+		},
 	}
 
 	for _, tt := range tests {
@@ -665,7 +834,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 				Agent:        reqComp,
 			}
 			ApplyGlobalComponentDependencies(logger, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, reqComp)
-			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents, "")
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.singleContainerStrategyEnabled, requiredComponents, tt.provider)
 
 			tt.want(t, podTemplateManager, tt.wantCoreAgentEnvVars, tt.wantEnvVars, tt.wantVolumes, tt.wantCoreAgentVolumeMounts, tt.wantVolumeMounts)
 			// Assert dependencies if and only if a dependency is expected
