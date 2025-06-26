@@ -101,6 +101,8 @@ func (r *Reconciler) computeProfileMerge(ddai *v1alpha1.DatadogAgentInternal, pr
 }
 
 func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+	// create affinity from ddai and profile prior to re-set after replacing the ddai spec
+	affinity := setProfileDDAIAffinity(ddai, profile)
 	if !agentprofile.IsDefaultProfile(profile.Namespace, profile.Name) {
 		ddai.Spec = *profile.Spec.Config
 		// DCA and CCR are auto disabled for user created profiles
@@ -108,7 +110,7 @@ func setProfileSpec(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.Datad
 		disableComponent(ddai, v2alpha1.ClusterChecksRunnerComponentName)
 		setProfileNodeAgentOverride(ddai, profile)
 	}
-	setProfileDDAIAffinity(ddai, profile)
+	ddai.Spec.Override[v2alpha1.NodeAgentComponentName].Affinity = affinity
 }
 
 func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha1.ComponentName) {
@@ -118,12 +120,12 @@ func disableComponent(ddai *v1alpha1.DatadogAgentInternal, componentName v2alpha
 	ddai.Spec.Override[componentName].Disabled = apiutils.NewBoolPointer(true)
 }
 
-func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) {
+func setProfileDDAIAffinity(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) *corev1.Affinity {
 	override, ok := ddai.Spec.Override[v2alpha1.NodeAgentComponentName]
 	if !ok {
 		override = &v2alpha1.DatadogAgentComponentOverride{}
 	}
-	override.Affinity = common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
+	return common.MergeAffinities(override.Affinity, agentprofile.AffinityOverride(profile))
 }
 
 func setProfileDDAIMeta(ddai *v1alpha1.DatadogAgentInternal, profile *v1alpha1.DatadogAgentProfile) error {

@@ -116,6 +116,11 @@ func TestSetOverrideFromDDA(t *testing.T) {
 							dcaTokenChecksumAnnotationKey: tokenHash,
 						},
 					},
+					v2alpha1.ClusterChecksRunnerComponentName: {
+						Annotations: map[string]string{
+							dcaTokenChecksumAnnotationKey: tokenHash,
+						},
+					},
 				},
 			},
 		},
@@ -181,6 +186,11 @@ func TestSetOverrideFromDDA(t *testing.T) {
 					v2alpha1.ClusterAgentComponentName: {
 						Annotations: map[string]string{
 							existingDCAAnnotation:         existingValue,
+							dcaTokenChecksumAnnotationKey: tokenHash,
+						},
+					},
+					v2alpha1.ClusterChecksRunnerComponentName: {
+						Annotations: map[string]string{
 							dcaTokenChecksumAnnotationKey: tokenHash,
 						},
 					},

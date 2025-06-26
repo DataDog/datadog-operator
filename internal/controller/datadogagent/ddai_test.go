@@ -3,6 +3,7 @@ package datadogagent
 import (
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
@@ -157,6 +158,22 @@ func Test_generateSpecFromDDA(t *testing.T) {
 								"foo": "bar",
 							},
 							PriorityClassName: apiutils.NewStringPointer("foo-priority-class"),
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
 							PriorityClassName: apiutils.NewStringPointer("bar-priority-class"),
@@ -185,6 +202,22 @@ func Test_generateSpecFromDDA(t *testing.T) {
 								"foo": "bar",
 							},
 							PriorityClassName: apiutils.NewStringPointer("foo-priority-class"),
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 						v2alpha1.ClusterAgentComponentName: {
 							PriorityClassName: apiutils.NewStringPointer("bar-priority-class"),

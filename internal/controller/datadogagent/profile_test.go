@@ -325,6 +325,23 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -348,6 +365,11 @@ func Test_setProfileSpec(t *testing.T) {
 										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
 													{
 														Key:      "agent.datadoghq.com/datadogagentprofile",
 														Operator: corev1.NodeSelectorOpDoesNotExist,
@@ -398,6 +420,23 @@ func Test_setProfileSpec(t *testing.T) {
 							Labels: map[string]string{
 								constants.MD5AgentDeploymentProviderLabelKey: "",
 							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -445,6 +484,11 @@ func Test_setProfileSpec(t *testing.T) {
 										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
 												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "key",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"value"},
+													},
 													{
 														Key:      "test",
 														Operator: corev1.NodeSelectorOpIn,
