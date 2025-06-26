@@ -1856,6 +1856,10 @@
                   },
                   "type": "object"
                 },
+                "createRbac": {
+                  "description": "Set CreateRbac to false to prevent automatic creation of ClusterRole for the otelCollector.\nIf true, check OTel Collector config for k8sattributes processor and create required ClusterRole to access Kubernetes API\nDefault: true",
+                  "type": "boolean"
+                },
                 "enabled": {
                   "description": "Enabled enables the OTel Agent.\nDefault: false",
                   "type": "boolean"
@@ -9269,6 +9273,10 @@
                         }
                       },
                       "type": "object"
+                    },
+                    "createRbac": {
+                      "description": "Set CreateRbac to false to prevent automatic creation of ClusterRole for the otelCollector.\nIf true, check OTel Collector config for k8sattributes processor and create required ClusterRole to access Kubernetes API\nDefault: true",
+                      "type": "boolean"
                     },
                     "enabled": {
                       "description": "Enabled enables the OTel Agent.\nDefault: false",

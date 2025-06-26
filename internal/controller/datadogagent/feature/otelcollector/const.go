@@ -5,9 +5,20 @@
 
 package otelcollector
 
+import (
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
 const (
 	otelAgentVolumeName = "otel-agent-config-volume"
 	otelConfigFileName  = "otel-config.yaml"
 	// DefaultOTelAgentConf default otel agent ConfigMap name
 	defaultOTelAgentConf string = "otel-agent-config"
 )
+
+// getRBACResourceName return the RBAC resources name
+func getRBACResourceName(owner metav1.Object) string {
+	return fmt.Sprintf("%s-%s", owner.GetName(), "otel-agent")
+}

@@ -28,6 +28,7 @@ const (
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
 
 	defaultOtelCollectorEnabled           bool = false
+	defaultOtelCollectorCreateRBAC        bool = true
 	defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 	defaultProcessDiscoveryEnabled        bool = true
@@ -247,6 +248,7 @@ func defaultFeaturesConfig(ddaSpec *v2alpha1.DatadogAgentSpec) {
 		ddaSpec.Features.OtelCollector = &v2alpha1.OtelCollectorFeatureConfig{}
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.Enabled, defaultOtelCollectorEnabled)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OtelCollector.CreateRbac, defaultOtelCollectorCreateRBAC)
 
 	// LiveProcessCollection Feature
 	if ddaSpec.Features.LiveProcessCollection == nil {
