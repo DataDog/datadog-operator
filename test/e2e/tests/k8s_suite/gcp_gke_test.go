@@ -7,27 +7,15 @@ package k8ssuite
 
 import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/e2e"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
-	"os"
 	"testing"
 )
 
 type gkeSuite struct {
 	k8sSuite
-}
-
-func (s *gkeSuite) SetupSuite() {
-	// use `s.local = true` to use to datadog-agent-sandbox GCP project
-	// TODO: fix this
-	if os.Getenv("GITLAB_CI") == "" {
-		s.local = true
-	}
-	s.BaseSuite.SetupSuite()
 }
 
 func TestGKESuite(t *testing.T) {
@@ -52,15 +40,6 @@ spec:
 		provisioners.WithOperatorOptions(operatorOptions...),
 		provisioners.WithDDAOptions(ddaOpts...),
 		provisioners.WithoutDDA(),
-	}
-
-	if os.Getenv("GITLAB_CI") != "" {
-		provisionerOptions = append(provisionerOptions, provisioners.WithExtraConfigParams(runner.ConfigMap{
-			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-qa"},
-		}))
 	}
 
 	e2eOpts := []e2e.SuiteOption{

@@ -190,30 +190,39 @@ func KubernetesProvisioner(opts ...KubernetesProvisionerOption) provisioners.Typ
 		k8sVersion = params.k8sVersion
 	}
 	params.extraConfigParams.Set("ddinfra:kubernetesVersion", k8sVersion, false)
-
 	_ = optional.ApplyOptions(params, opts)
-	inCI := os.Getenv("GITLAB_CI")
 
-	if !params.local || strings.ToLower(inCI) == "true" {
-		provisioner = provisioners.NewTypedPulumiProvisioner("gke", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+	if params.local {
+		provisioner = provisioners.NewTypedPulumiProvisioner("local-kind", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 			// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 			// and it's easy to forget about it, leading to hard to debug issues.
 			pprams := newKubernetesProvisionerParams()
 			_ = optional.ApplyOptions(pprams, opts)
 
-			return GkeRunFunc(ctx, env, pprams)
+			return LocalKindRunFunc(ctx, env, pprams)
 
 		}, params.extraConfigParams)
 		return provisioner
 	}
 
-	provisioner = provisioners.NewTypedPulumiProvisioner("local-kind", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
+	inCI := os.Getenv("GITLAB_CI")
+
+	if strings.ToLower(inCI) == "true" {
+		params.extraConfigParams.Set("ddagent:imagePullRegistry", "669783387624.dkr.ecr.us-east-1.amazonaws.com", false)
+		params.extraConfigParams.Set("ddagent:imagePullUsername", "AWS", false)
+		params.extraConfigParams.Set("ddagent:imagePullPassword", common.ImgPullPassword, true)
+		params.extraConfigParams.Set("ddinfra:env", "gcp/agent-qa", false)
+	} else {
+		params.extraConfigParams.Set("ddinfra:env", "gcp/agent-sandbox", false)
+	}
+
+	provisioner = provisioners.NewTypedPulumiProvisioner("gke", func(ctx *pulumi.Context, env *environments.Kubernetes) error {
 		// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
 		// and it's easy to forget about it, leading to hard to debug issues.
 		pprams := newKubernetesProvisionerParams()
 		_ = optional.ApplyOptions(pprams, opts)
 
-		return LocalKindRunFunc(ctx, env, pprams)
+		return GkeRunFunc(ctx, env, pprams)
 
 	}, params.extraConfigParams)
 

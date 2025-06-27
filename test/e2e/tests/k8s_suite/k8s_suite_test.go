@@ -11,13 +11,11 @@ import (
 	"github.com/DataDog/datadog-agent/test/fakeintake/aggregator"
 	"github.com/DataDog/datadog-agent/test/fakeintake/client"
 	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/environments"
-	"github.com/DataDog/datadog-agent/test/new-e2e/pkg/runner"
 	"github.com/DataDog/datadog-operator/test/e2e/common"
 	"github.com/DataDog/datadog-operator/test/e2e/provisioners"
 	"github.com/DataDog/datadog-operator/test/e2e/tests/utils"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agentwithoperatorparams"
 	"github.com/DataDog/test-infra-definitions/components/datadog/operatorparams"
-	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
@@ -43,7 +41,7 @@ type k8sSuite struct {
 func (s *k8sSuite) TestGenericK8s() {
 	defaultOperatorOpts := []operatorparams.Option{
 		operatorparams.WithNamespace(common.NamespaceName),
-		//operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
+		operatorparams.WithOperatorFullImagePath(common.OperatorImageName),
 		operatorparams.WithHelmValues(`
 installCRDs: false`),
 	}
@@ -52,16 +50,7 @@ installCRDs: false`),
 		//provisioners.WithTestName("generic-k8s"),
 		provisioners.WithK8sVersion(common.K8sVersion),
 		provisioners.WithOperatorOptions(defaultOperatorOpts...),
-		//provisioners.WithLocal(s.local),
-	}
-
-	if !s.local {
-		defaultProvisionerOpts = append(defaultProvisionerOpts, provisioners.WithExtraConfigParams(runner.ConfigMap{
-			"ddagent:imagePullRegistry": auto.ConfigValue{Value: "669783387624.dkr.ecr.us-east-1.amazonaws.com"},
-			"ddagent:imagePullUsername": auto.ConfigValue{Value: "AWS"},
-			"ddagent:imagePullPassword": auto.ConfigValue{Value: common.ImgPullPassword},
-			"ddinfra:env":               auto.ConfigValue{Value: "gcp/agent-qa"},
-		}))
+		provisioners.WithLocal(s.local),
 	}
 
 	defaultDDAOpts := []agentwithoperatorparams.Option{
