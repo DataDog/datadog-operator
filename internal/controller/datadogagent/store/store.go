@@ -225,7 +225,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
-				ds.logger.Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				ds.logger.V(2).Info("store.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
 				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}

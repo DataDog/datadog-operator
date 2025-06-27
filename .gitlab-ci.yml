@@ -229,7 +229,7 @@ build_bundle_image:
     allow_failure: true
   # Allow failure if we're explicitly pushing images to staging
   - if: $PUSH_IMAGES_TO_STAGING == 'true'
-    when: never
+    allow_failure: true
   # Disable on Conductor-triggered jobs (ex: nightly)
   - if: '$DDR == "true"'
     when: never
