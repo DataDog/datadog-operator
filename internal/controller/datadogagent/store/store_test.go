@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	testutils "github.com/DataDog/datadog-operator/internal/controller/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -742,4 +743,61 @@ func TestStore_DeleteAll(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStore_AddOrUpdate_WithNamingInstance(t *testing.T) {
+	logger := logf.Log.WithName(t.Name())
+
+	// 1. Create owner and namingInstance with different properties
+	owner := &v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ddai-owner",
+			Namespace: "foo",
+			UID:       types.UID("owner-uid"),
+		},
+	}
+
+	namingInstance := &v1alpha1.DatadogAgentInternal{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "ddai-naming",
+			Namespace: "foo",
+			UID:       types.UID("naming-uid"),
+		},
+	}
+
+	// 2. Initialize store with both
+	s := testutils.TestScheme()
+	storeOptions := &StoreOptions{
+		NamingInstance: namingInstance,
+		Logger:         logger,
+		Scheme:         s,
+	}
+	depsStore := NewStore(owner, storeOptions)
+
+	// 3. Add a resource
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cm",
+			Namespace: "foo",
+		},
+	}
+	err := depsStore.AddOrUpdate(kubernetes.ConfigMapKind, configMap)
+	assert.NoError(t, err)
+
+	// 4. Retrieve the resource and assert its properties
+	storedCM, found := depsStore.Get(kubernetes.ConfigMapKind, "foo", "test-cm")
+	assert.True(t, found)
+
+	// Assert OwnerReference is from the owner
+	assert.Len(t, storedCM.GetOwnerReferences(), 1)
+	ownerRef := storedCM.GetOwnerReferences()[0]
+	assert.Equal(t, owner.Name, ownerRef.Name)
+	assert.Equal(t, owner.UID, ownerRef.UID)
+
+	// Assert default labels are from the namingInstance
+	labels := storedCM.GetLabels()
+	assert.Equal(t, "datadog-agent-deployment", labels[kubernetes.AppKubernetesNameLabelKey])
+	assert.Equal(t, "ddai-naming", labels[kubernetes.AppKubernetesInstanceLabelKey])
+	assert.Equal(t, "foo-ddai--naming", labels[kubernetes.AppKubernetesPartOfLabelKey])
+	assert.Equal(t, "datadog-operator", labels[kubernetes.AppKubernetesManageByLabelKey])
 }
