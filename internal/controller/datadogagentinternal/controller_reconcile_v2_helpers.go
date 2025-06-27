@@ -17,14 +17,15 @@ import (
 // STEP 2 of the reconcile loop: reconcile 3 components
 
 // setupDependencies initializes the store and resource managers.
-func (r *Reconciler) setupDependencies(instance *datadoghqv1alpha1.DatadogAgentInternal, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
+func (r *Reconciler) setupDependencies(owner, namingInstance *datadoghqv1alpha1.DatadogAgentInternal, logger logr.Logger) (*store.Store, feature.ResourceManagers) {
 	storeOptions := &store.StoreOptions{
-		SupportCilium: r.options.SupportCilium,
-		PlatformInfo:  r.platformInfo,
-		Logger:        logger,
-		Scheme:        r.scheme,
+		SupportCilium:  r.options.SupportCilium,
+		PlatformInfo:   r.platformInfo,
+		Logger:         logger,
+		Scheme:         r.scheme,
+		NamingInstance: namingInstance,
 	}
-	depsStore := store.NewStore(instance, storeOptions)
+	depsStore := store.NewStore(owner, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 	return depsStore, resourceManagers
 }

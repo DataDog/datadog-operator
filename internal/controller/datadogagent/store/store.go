@@ -55,6 +55,7 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
+		store.namingInstance = options.NamingInstance
 	}
 
 	return store
@@ -66,8 +67,9 @@ type Store struct {
 	deps  map[kubernetes.ObjectKind]map[string]client.Object
 	mutex sync.RWMutex
 
-	supportCilium bool
-	platformInfo  kubernetes.PlatformInfo
+	supportCilium  bool
+	platformInfo   kubernetes.PlatformInfo
+	namingInstance metav1.Object
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -76,8 +78,9 @@ type Store struct {
 
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
-	SupportCilium bool
-	PlatformInfo  kubernetes.PlatformInfo
+	SupportCilium  bool
+	PlatformInfo   kubernetes.PlatformInfo
+	NamingInstance metav1.Object
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
@@ -101,14 +104,22 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 	obj.GetLabels()[OperatorStoreLabelKey] = "true"
 
 	if ds.owner != nil {
-		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), common.GetAgentVersion(ds.owner))
+		configSource := ds.owner
+		// If a naming instance is provided, use it to generate the default labels and annotations.
+		// This is necessary to properly generate DDAIs dependencies generated from profiles, as during their reconciliation,
+		// we use the DDA name instead of their name, while still using their UID. Such an owner reference would
+		// be invalid, causing the object to be deleted.
+		if ds.namingInstance != nil {
+			configSource = ds.namingInstance
+		}
+		defaultLabels := object.GetDefaultLabels(configSource, configSource.GetName(), common.GetAgentVersion(configSource))
 		if len(defaultLabels) > 0 {
 			for key, val := range defaultLabels {
 				obj.GetLabels()[key] = val
 			}
 		}
 
-		defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
+		defaultAnnotations := object.GetDefaultAnnotations(configSource)
 		if len(defaultAnnotations) > 0 {
 			if obj.GetAnnotations() == nil {
 				obj.SetAnnotations(map[string]string{})
@@ -157,13 +168,13 @@ func (ds *Store) Get(kind kubernetes.ObjectKind, namespace string, name string) 
 }
 
 // GetOrCreate returns the client.Object instance.
-//   - if it was previously added in the Store, it returns the corresponding object
+//   - if it was previously added in the Store, it returns the corresponding object.
 //   - if it wasn't previously added in the Store, it returns a new instance of the object Kind with
 //     the corresponding name and namespace.
 //
-// `kind“ correspond to the object kind, and id can be `namespace/name` identifier of just
+// `kind` corresponds to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
-// It also return a boolean to know if the Object was found in the Store.
+// It also returns a boolean to know if the Object was found in the Store.
 func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool) {
 	obj, found := ds.Get(kind, namespace, name)
 	if found {
