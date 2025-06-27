@@ -13,8 +13,10 @@ import (
 )
 
 var (
-	defaultProvider = DefaultProvider
-	gkeCosProvider  = generateValidProviderName(GKECloudProvider, GKECosType)
+	defaultProvider   = DefaultProvider
+	gkeCosProvider    = generateValidProviderName(GKECloudProvider, GKECosType)
+	openshiftProvider = generateValidProviderName(DefaultProvider, OpenshiftRHCOSType)
+	eksProvider       = generateValidProviderName(EKSCloudProvider, EKSAMIType)
 )
 
 func Test_determineProvider(t *testing.T) {
@@ -43,6 +45,30 @@ func Test_determineProvider(t *testing.T) {
 			},
 			provider: generateValidProviderName(GKECloudProvider, GKECosType),
 		},
+		{
+			name: "openshift provider",
+			labels: map[string]string{
+				"foo":                  "bar",
+				OpenShiftProviderLabel: OpenshiftRHCOSType,
+			},
+			provider: generateValidProviderName(DefaultProvider, OpenshiftRHCOSType),
+		},
+		{
+			name: "eks provider with amazon linux 2 ami",
+			labels: map[string]string{
+				"foo":            "bar",
+				EKSProviderLabel: "ami-0c7217cdde317cfec", // Example Amazon Linux 2 AMI
+			},
+			provider: generateValidProviderName(EKSCloudProvider, EKSAMIType),
+		},
+		{
+			name: "eks provider with bottlerocket ami",
+			labels: map[string]string{
+				"foo":            "bar",
+				EKSProviderLabel: "ami-0c2b8ca1dad447f8a", // Example Bottlerocket AMI
+			},
+			provider: generateValidProviderName(EKSCloudProvider, EKSAMIType),
+		},
 	}
 
 	for _, tt := range tests {
@@ -60,8 +86,18 @@ func Test_isProviderValueAllowed(t *testing.T) {
 		want  bool
 	}{
 		{
-			name:  "valid value",
+			name:  "valid GKE value",
 			value: GKECosType,
+			want:  true,
+		},
+		{
+			name:  "valid Openshift value",
+			value: OpenshiftRHCOSType,
+			want:  true,
+		},
+		{
+			name:  "valid EKS value",
+			value: EKSAMIType,
 			want:  true,
 		},
 		{
@@ -366,6 +402,18 @@ func Test_GetProviderLabelKeyValue(t *testing.T) {
 			provider:  gkeCosProvider,
 			wantLabel: GKEProviderLabel,
 			wantValue: GKECosType,
+		},
+		{
+			name:      "openshift provider",
+			provider:  openshiftProvider,
+			wantLabel: OpenShiftProviderLabel,
+			wantValue: OpenshiftRHCOSType,
+		},
+		{
+			name:      "eks provider",
+			provider:  eksProvider,
+			wantLabel: EKSProviderLabel,
+			wantValue: EKSAMIType,
 		},
 	}
 

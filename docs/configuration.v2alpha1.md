@@ -75,6 +75,7 @@ spec:
 | features.autoscaling.workload.enabled | Enables the workload autoscaling product. Default: false |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
+| features.controlPlaneMonitoring.enabled | Enabled control plane monitoring checks in the cluster agent. Default: true |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
 | features.cspm.customBenchmarks.configMap.items | Maps a ConfigMap data `key` to a file `path` mount. |
