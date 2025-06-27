@@ -1,0 +1,65 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+  features:
+    otelCollector:
+      enabled: true
+      ports:
+        - containerPort: 4317
+          name: otel-grpc
+        - containerPort: 4318
+          name: otel-http
+      conf: 
+        configMap: 
+          name: custom-config-map
+          items:
+            - key: otel-config.yaml
+              path: otel-config.yaml
+            - key: otel-config-two.yaml
+              path: otel-config-two.yaml
+            - key: otel-config-three.yaml
+              path: otel-config-three.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-config-map
+  namespace: system
+data:
+  otel-config.yaml: |-
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+  otel-config-two.yaml: |-
+    processors:
+      batch:
+  otel-config-three.yaml: |-
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog]
