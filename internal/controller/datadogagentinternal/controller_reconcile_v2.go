@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/common"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/defaults"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	pkgutils "github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -64,19 +65,22 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	r.updateMetricsForwardersFeatures(instanceCopy, enabledFeatures)
 
 	// 1. Manage dependencies.
-	depsStore, resourceManagers := r.setupDependencies(instanceCopy, logger)
+	// set the original DDAI as the owner of dependencies
+	depsStore, resourceManagers := r.setupDependencies(instance, logger)
 
 	var err error
-	if err = r.manageGlobalDependencies(logger, instanceCopy, resourceManagers, requiredComponents); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+	// only manage dependencies for default DDAIs
+	if instance.Labels[agentprofile.ProfileLabelKey] == "" {
+		if err = r.manageGlobalDependencies(logger, instanceCopy, resourceManagers, requiredComponents); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
+		if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
+		if err = r.overrideDependencies(logger, resourceManagers, instanceCopy); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
+		}
 	}
-	if err = r.manageFeatureDependencies(logger, enabledFeatures, resourceManagers); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-	if err = r.overrideDependencies(logger, resourceManagers, instanceCopy); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, reconcile.Result{}, err, now)
-	}
-
 	// 2. Reconcile each component.
 	// 2.a. Cluster Agent
 
@@ -109,8 +113,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// 4. Apply and cleanup dependencies.
-	if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+	// only manage dependencies for default DDAIs
+	if instance.Labels[agentprofile.ProfileLabelKey] == "" {
+		if err = r.applyAndCleanupDependencies(ctx, logger, depsStore); err != nil {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err, now)
+		}
 	}
 
 	// Always requeue
