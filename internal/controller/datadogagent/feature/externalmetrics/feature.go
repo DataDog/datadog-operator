@@ -152,9 +152,10 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	// service
 	emPorts := []corev1.ServicePort{
 		{
-			Protocol: corev1.ProtocolTCP,
-			Port:     f.port,
-			Name:     externalMetricsPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       f.port,
+			TargetPort: intstr.FromInt(int(f.port)),
+			Name:       externalMetricsPortName,
 		},
 	}
 	selector := map[string]string{

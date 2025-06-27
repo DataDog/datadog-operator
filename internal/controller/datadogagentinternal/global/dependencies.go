@@ -184,11 +184,6 @@ func clusterAgentDependencies(logger logr.Logger, dda *v1alpha1.DatadogAgentInte
 		errs = append(errs, err)
 	}
 
-	// Service
-	if err := manager.Store().AddOrUpdate(kubernetes.ServicesKind, clusteragent.GetClusterAgentService(dda)); err != nil {
-		errs = append(errs, err)
-	}
-
 	return nil
 }
 
