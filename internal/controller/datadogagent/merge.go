@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	"context"
 	"fmt"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -13,22 +14,24 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
 const (
 	defaultOperatorManager = "datadog-operator"
+	ddaiCRDName            = "datadogagentinternals.datadoghq.com"
 )
 
-// ssaMergeCRD merges two custom resource objects using server-side apply without applying the result in k8s
-func ssaMergeCRD(original, modified runtime.Object, crd *apiextensionsv1.CustomResourceDefinition, scheme *runtime.Scheme) (runtime.Object, error) {
-	gvk, err := apiutil.GVKForObject(original, scheme)
-	if err != nil {
-		return nil, err
+func newFieldManager(client client.Client, scheme *runtime.Scheme, objGVK schema.GroupVersionKind) (*managedfields.FieldManager, error) {
+	crd := &apiextensionsv1.CustomResourceDefinition{}
+	if err := client.Get(context.TODO(), types.NamespacedName{Name: ddaiCRDName}, crd); err != nil {
+		return nil, fmt.Errorf("failed to get CRD %s: %w", ddaiCRDName, err)
 	}
 
-	s, err := builder.BuildOpenAPIV3(crd, gvk.Version, builder.Options{})
+	s, err := builder.BuildOpenAPIV3(crd, objGVK.Version, builder.Options{})
 	if err != nil {
 		return nil, err
 	}
@@ -39,17 +42,27 @@ func ssaMergeCRD(original, modified runtime.Object, crd *apiextensionsv1.CustomR
 	}
 
 	fm, err := managedfields.NewDefaultCRDFieldManager(
-		typeConverter,      // typeConverter
-		scheme,             // objectConverter
-		scheme,             // objectDefaulter
-		scheme,             // objectCreater
-		gvk,                // kind
-		gvk.GroupVersion(), // hub
-		"",                 // subresource
-		nil,                // resetFields
+		typeConverter,         // typeConverter
+		scheme,                // objectConverter
+		scheme,                // objectDefaulter
+		scheme,                // objectCreater
+		objGVK,                // kind
+		objGVK.GroupVersion(), // hub
+		"",                    // subresource
+		nil,                   // resetFields
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create field manager: %w", err)
+	}
+
+	return fm, nil
+}
+
+// ssaMergeCRD merges two custom resource objects using server-side apply without applying the result in k8s
+func (r *Reconciler) ssaMergeCRD(original, modified runtime.Object) (runtime.Object, error) {
+	gvk, err := apiutil.GVKForObject(original, r.scheme)
+	if err != nil {
+		return nil, err
 	}
 
 	originalUnstructured, err := convertToUnstructured(original, gvk)
@@ -65,7 +78,7 @@ func ssaMergeCRD(original, modified runtime.Object, crd *apiextensionsv1.CustomR
 	// Server side apply
 	// `datadog-operator` is the manager for managed fields
 	// Set force=true to override conflicts
-	newObj, err := fm.Apply(originalUnstructured, modifiedUnstructured, defaultOperatorManager, true)
+	newObj, err := r.fieldManager.Apply(originalUnstructured, modifiedUnstructured, defaultOperatorManager, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply merge: %w", err)
 	}
