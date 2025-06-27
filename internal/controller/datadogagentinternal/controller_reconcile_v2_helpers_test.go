@@ -76,7 +76,7 @@ func Test_setupDependencies(t *testing.T) {
 		platformInfo: dummyPlatformInfo,
 		scheme:       scheme,
 	}
-	storeObj, resMgrs := r.setupDependencies(dummyAgent, dummyLogger)
+	storeObj, resMgrs := r.setupDependencies(dummyAgent, dummyAgent, dummyLogger)
 	require.NotNil(t, storeObj)
 	require.NotNil(t, resMgrs)
 }
