@@ -6,12 +6,15 @@
 package datadogagent
 
 import (
+	"context"
+
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	apicommon "github.com/DataDog/datadog-operator/api/datadoghq/common"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/global"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/object"
 	"github.com/DataDog/datadog-operator/internal/controller/datadogagent/override"
@@ -19,8 +22,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
-func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*datadoghqv1alpha1.DatadogAgentInternal, error) {
-	ddai := &datadoghqv1alpha1.DatadogAgentInternal{}
+func (r *Reconciler) generateDDAIFromDDA(dda *v2alpha1.DatadogAgent) (*v1alpha1.DatadogAgentInternal, error) {
+	ddai := &v1alpha1.DatadogAgentInternal{}
 	// Object meta
 	if err := generateObjMetaFromDDA(dda, ddai, r.scheme); err != nil {
 		return nil, err
@@ -38,7 +41,7 @@ func (r *Reconciler) generateDDAIFromDDA(dda *datadoghqv2alpha1.DatadogAgent) (*
 	return ddai, nil
 }
 
-func generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
+func generateObjMetaFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal, scheme *runtime.Scheme) error {
 	ddai.ObjectMeta = metav1.ObjectMeta{
 		Name:        dda.Name,
 		Namespace:   dda.Namespace,
@@ -51,7 +54,7 @@ func generateObjMetaFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghq
 	return nil
 }
 
-func generateSpecFromDDA(dda *datadoghqv2alpha1.DatadogAgent, ddai *datadoghqv1alpha1.DatadogAgentInternal) error {
+func generateSpecFromDDA(dda *v2alpha1.DatadogAgent, ddai *v1alpha1.DatadogAgentInternal) error {
 	ddai.Spec = *dda.Spec.DeepCopy()
 	global.SetGlobalFromDDA(dda, ddai.Spec.Global)
 	override.SetOverrideFromDDA(dda, &ddai.Spec)
@@ -68,4 +71,29 @@ func getDDAILabels(dda metav1.Object) map[string]string {
 	}
 	labels[apicommon.DatadogAgentNameLabelKey] = dda.GetName()
 	return labels
+}
+
+func (r *Reconciler) cleanUpUnusedDDAIs(ctx context.Context, logger logr.Logger, validDDAIs []*v1alpha1.DatadogAgentInternal) error {
+	ddaiList := &v1alpha1.DatadogAgentInternalList{}
+	if err := r.client.List(ctx, ddaiList); err != nil {
+		return err
+	}
+
+	for _, ddai := range ddaiList.Items {
+		valid := false
+		for _, validDDAI := range validDDAIs {
+			if ddai.Name == validDDAI.Name && ddai.Namespace == validDDAI.Namespace {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			logger.Info("Deleting unused DDAI", "namespace", ddai.Namespace, "name", ddai.Name)
+			if err := r.client.Delete(ctx, &ddai); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
